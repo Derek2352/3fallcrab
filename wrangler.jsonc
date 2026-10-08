@@ -20,5 +20,13 @@
     "TIMEZONE": "Asia/Hong_Kong",
     "LEADERBOARD_CLOSED": "0"
   },
+  // Your domain. 3fallcrab.com must be a zone in the same Cloudflare account.
+  // On a deploy from GitHub, Cloudflare points these two hostnames at this Worker (replacing their
+  // existing A/AAAA/CNAME records; other records such as email are untouched). The workers.dev
+  // address keeps working as a backup. Using a different domain? Change or remove these two lines.
+  "routes": [
+    { "pattern": "3fallcrab.com", "custom_domain": true },
+    { "pattern": "www.3fallcrab.com", "custom_domain": true }
+  ],
   "observability": { "enabled": true }
 }

@@ -5,7 +5,7 @@
   "description": "3 Fall Fun 人生跌塔 — a physics stacking money game with a live leaderboard, for Cloudflare Workers",
   "type": "module",
   "config": {
-    "site_url": ""
+    "site_url": "https://3fallcrab.com"
   },
   "scripts": {
     "build": "node tools/build.mjs",

@@ -1,6 +1,6 @@
 # 3 Fall Fun 人生跌塔 · Cloudflare edition
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Derek2352/3fallcrab)
+**Play at [3fallcrab.com](https://3fallcrab.com)**
 
 *Build your future, one block at a time.* A 3-minute physics stacking game about money choices, by **3 Fall Crab 整冧咗team** (HSUHK) for the Personal Finance Ambassador Programme 2026.
 
@@ -15,19 +15,21 @@ This repo is a ready-to-deploy website:
 
 ## Deploy from GitHub (easiest, no installs)
 
-You only need a free [Cloudflare account](https://dash.cloudflare.com/sign-up). Pick one of these two:
-
-**A. Connect this repo** (for the repo owner; every push to `main` redeploys automatically)
+Use the Cloudflare account that holds the **3fallcrab.com** domain. Every push to `main` redeploys automatically.
 
 1. In the Cloudflare dashboard, go to **Workers & Pages → Create → Import a repository**. Connect GitHub if asked, then pick **Derek2352/3fallcrab**.
 2. Keep the project name `three-fall-fun`. Set the build command to `npm run build` and the deploy command to `npx wrangler deploy`.
-3. Click **Deploy**. Cloudflare creates the leaderboard database on the first build, then keeps using the same one on every later build.
+3. Click **Deploy**. Cloudflare:
+   - creates the leaderboard database on the first build, then keeps using the same one on every later build;
+   - attaches **3fallcrab.com** and **www.3fallcrab.com** to the game, replacing whatever those two hostnames pointed at before (email and other DNS records are untouched);
+   - keeps `https://three-fall-fun.<your-subdomain>.workers.dev` working as a backup address.
+4. **Open the domain to the public.** 3fallcrab.com currently sits behind a Cloudflare Access login, so players would see a sign-in page. In **Zero Trust → Access → Applications**, find the app for `3fallcrab.com` and do one of these:
+   - **Recommended:** keep it, but change its path so it covers only `3fallcrab.com/admin` (add `3fallcrab.com/api/admin` too). The game is then public, and the admin page gets a second lock.
+   - Or delete the application.
+5. **Set the admin password.** Go to **Workers & Pages → three-fall-fun → Settings → Variables and Secrets → Add**. Choose type **Secret**, name it `ADMIN_TOKEN`, and set a long password (16+ characters). Then open [3fallcrab.com/admin](https://3fallcrab.com/admin).
+6. **Print the booth poster** from [3fallcrab.com/poster](https://3fallcrab.com/poster). Use A4 with "Background graphics" turned on.
 
-**B. Click the Deploy to Cloudflare button above** (for anyone else, e.g. another team)
-
-Cloudflare copies this repo into your own GitHub account, creates the database and deploys it. Later pushes to your copy redeploy automatically. The build and deploy commands are filled in from `package.json`, so just accept them.
-
-Either way, your game ends up at `https://three-fall-fun.<your-subdomain>.workers.dev`. To finish setting up, do the steps under [After the first deploy](#after-the-first-deploy). For a Git deploy, set the admin password in the dashboard: **Workers & Pages → three-fall-fun → Settings → Variables and Secrets → Add**, type **Secret**, name `ADMIN_TOKEN`. To set the link-preview address, edit `package.json` on GitHub; that push redeploys.
+Link previews (WhatsApp, Instagram, Facebook) already point at `https://3fallcrab.com`; this is set in `package.json` → `config.site_url`.
 
 ---
 
@@ -41,21 +43,17 @@ npx wrangler login      # opens the browser once to connect your Cloudflare acco
 npm run deploy
 ```
 
-When it finishes, Wrangler prints your address, for example `https://three-fall-fun.<your-subdomain>.workers.dev`. Open it on your phone and play.
+When it finishes, the game is live at https://3fallcrab.com, with `https://three-fall-fun.<your-subdomain>.workers.dev` as a backup. Open it on your phone and play. The first time, Wrangler may ask before it replaces the domain's existing DNS records; answer yes.
 
 - **The first deploy creates the database for you.** Wrangler creates a D1 database for the `DB` binding and writes its `database_id` into `wrangler.jsonc`. Keep that change (commit it if you use Git), so later deploys reuse the same database.
 - **New Cloudflare account?** You may be asked to pick a `workers.dev` subdomain first. Your team or school name works well.
-- **Want a different address?** Change `"name"` in `wrangler.jsonc` before the first deploy, or add a custom domain later in the dashboard: **Workers & Pages → three-fall-fun → Settings → Domains & Routes**.
+- **Using a different domain** (for example, another team's copy)? Edit the `routes` block in `wrangler.jsonc` and `config.site_url` in `package.json`, or delete both to use only the `workers.dev` address.
 
 ### After the first deploy
 
-1. **Turn on the admin page.** Run `npm run admin-token` and paste a long random password (16+ characters). Then open `https://<your-site>/admin` and enter it there.
-2. **Fix the link preview image.** WhatsApp, Instagram and Facebook need an absolute image URL. Put your address in `package.json` once, then deploy again:
-   ```json
-   "config": { "site_url": "https://three-fall-fun.<your-subdomain>.workers.dev" }
-   ```
-   Every later `npm run build` or `npm run deploy` uses it. A `SITE_URL` environment variable overrides it for a single build.
-3. **Print the booth poster.** Open `https://<your-site>/poster`, check the address under the QR code, then press **Print poster**. Use A4 and turn on "Background graphics".
+1. **Open the domain to the public** by changing its Cloudflare Access login; see step 4 of the GitHub steps above.
+2. **Turn on the admin page.** Run `npm run admin-token` and paste a long random password (16+ characters). Then open https://3fallcrab.com/admin and enter it there.
+3. **Print the booth poster.** Open https://3fallcrab.com/poster, check the address under the QR code, then press **Print poster**. Use A4 and turn on "Background graphics".
 
 ---
 
