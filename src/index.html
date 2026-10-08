@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>3 Fall Fun 人生跌塔 · Build your future, one block at a time</title>
+<meta name="description" content="A 3-minute physics stacking game about money choices. Stack wobbly everyday items, dodge the 3 Falls (overspending, scams, putting off saving) and climb the weekly leaderboard. 疊高你嘅人生塔，避開三大理財陷阱。">
+<meta name="theme-color" content="#FFD23F">
+<meta name="color-scheme" content="light">
+<meta name="format-detection" content="telephone=no">
+<link rel="icon" href="/icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="icon" href="/icons/icon-192.png" sizes="192x192" type="image/png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="3 Fall Fun">
+<meta property="og:title" content="3 Fall Fun 人生跌塔 · Build your future, one block at a time">
+<meta property="og:description" content="Stack wobbly everyday items, dodge the 3 Falls and climb the weekly leaderboard. A 3-minute money game by 3 Fall Crab 整冧咗team, HSUHK.">
+<meta property="og:url" content="%%SITE_URL%%/">
+<meta property="og:image" content="%%SITE_URL%%/icons/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="3 Fall Fun: a clay tower of everyday items on a Hong Kong harbour pier">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gluten:wght@400..900&family=LXGW+WenKai+TC:wght@400;700&family=DotGothic16&family=Noto+Sans+HK:wght@400;500;700;900&display=swap">
+<link rel="stylesheet" href="%%asset:style.css%%">
+</head>
+<body>
+<noscript><p style="margin:0;padding:16px;background:#2E2838;color:#fff;font:16px/1.5 system-ui,sans-serif;text-align:center">3 Fall Fun needs JavaScript to run. 請開啟 JavaScript 去玩。</p></noscript>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-spend" viewBox="0 0 32 32"><rect x="3" y="8" width="26" height="17" rx="4" fill="#fff"/><rect x="3" y="12" width="26" height="4" fill="#2E2838"/><rect x="7" y="19" width="8" height="3" rx="1.5" fill="#FF7B35"/><circle cx="24" cy="21" r="5.5" fill="#FFC83D" stroke="#2E2838" stroke-width="1.5"/><path d="M24 18v6M22.3 19.6h3" stroke="#2E2838" stroke-width="1.4" stroke-linecap="round"/></symbol>
+    <symbol id="i-scam" viewBox="0 0 32 32"><path d="M19 4v14a7 7 0 1 1-14 0v-3" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round"/><path d="M2.5 16.5l2.5-4 3 4" fill="#fff"/><circle cx="19" cy="5" r="3.5" fill="#FFC83D"/><circle cx="25" cy="22" r="5" fill="#FF5FA2" stroke="#fff" stroke-width="1.6"/><text x="25" y="25" font-size="7" font-weight="900" text-anchor="middle" fill="#fff" font-family="sans-serif">@</text></symbol>
+    <symbol id="i-delay" viewBox="0 0 32 32"><path d="M8 4h16M8 28h16" stroke="#fff" stroke-width="3" stroke-linecap="round"/><path d="M10 5c0 7 12 7 12 11S10 20 10 27h12c0-7-12-7-12-11s12-4 12-11z" fill="#fff"/><path d="M12.5 26c1-3 6-3 7 0z" fill="#FFC83D"/><path d="M13 9.5h6c-.8 2-5.2 2-6 0z" fill="#FFC83D"/></symbol>
+    <symbol id="i-good" viewBox="0 0 34 34"><circle cx="17" cy="17" r="15" fill="#4CC36A"/><path d="M10 17.5l5 5 9-11" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-drop" viewBox="0 0 32 32"><path d="M3 20c4-3 6 3 10 0s6 3 10 0 5 2 6 1" fill="none" stroke="#3A9BF0" stroke-width="3" stroke-linecap="round"/><path d="M3 26c4-3 6 3 10 0s6 3 10 0 5 2 6 1" fill="none" stroke="#3A9BF0" stroke-width="3" stroke-linecap="round" opacity=".6"/><circle cx="16" cy="9" r="5" fill="#FF7B35"/></symbol>
+  </defs>
+</svg>
+
+<div class="set">
+  <header class="mast">
+    <div class="logo">
+      <canvas id="crabLogo" width="140" height="112" aria-hidden="true"></canvas>
+      <div class="titles">
+        <h1 class="word" aria-label="3 Fall Fun"><span>3</span><span>F</span><span>a</span><span>l</span><span>l</span><span>F</span><span>u</span><span>n</span></h1>
+        <p class="zh-title">人生跌塔<span class="tagline">Build your future, one block at a time · 未來「理想」點</span></p>
+      </div>
+    </div>
+    <div class="mast-right">
+      <p class="credit"><b>3 Fall Crab 整冧咗team</b> · HSUHK<br>個人理財大使計劃 2026</p>
+      <button class="iconbtn" id="pauseBtn" aria-label="Pause game" aria-pressed="false" disabled>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><g class="pz"><rect x="6" y="5" width="4.2" height="14" rx="1.6" fill="#2E2838"/><rect x="13.8" y="5" width="4.2" height="14" rx="1.6" fill="#2E2838"/></g><path class="pl" d="M8 5.5v13l11-6.5z" fill="#20C1B3"/></svg>
+      </button>
+      <button class="iconbtn" id="muteBtn" aria-pressed="false" aria-label="Mute sound">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="#2E2838"/><path class="w" d="M16 8.5c1.6 1.8 1.6 5.2 0 7M18.6 6c3 3.2 3 8.8 0 12" fill="none" stroke="#FF5FA2" stroke-width="2.2" stroke-linecap="round"/><path class="x" d="M16.5 9.5l5 5M21.5 9.5l-5 5" stroke="#F2463E" stroke-width="2.4" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="game">
+    <aside class="col left" aria-label="Your money">
+      <section class="passbook clay" aria-label="Savings passbook">
+        <div class="pb-cover"><span class="zh">存摺</span><small>A/C 3FALL-CRAB-2026</small></div>
+        <div class="pb-page">
+          <div class="bal"><span class="k"><b>結餘</b>Net worth</span><span class="v" id="nwVal">HK$0</span></div>
+          <table class="ledger" aria-label="Passbook entries">
+            <colgroup><col style="width:17%"><col style="width:33%"><col style="width:17%"><col style="width:16%"><col style="width:17%"></colgroup>
+            <thead><tr><th>時間</th><th>摘要 Item</th><th>存入</th><th>支出</th><th>結餘</th></tr></thead>
+            <tbody id="ledgerBody"></tbody>
+          </table>
+        </div>
+        <div class="pb-stats">
+          <div class="pbs"><span class="k">Time left<i>剩餘時間</i></span><span class="v" id="timeVal">3:00</span></div>
+          <div class="pbs"><span class="k">Savings boost<i>儲蓄加成</i></span><span class="v" id="rateVal">×1.0</span></div>
+          <div class="pbs"><span class="k">Emergency fund<i>應急錢</i></span><div class="coins" id="fundCoins"><i class="coin"></i><i class="coin"></i><i class="coin"></i></div></div>
+          <div class="pbs"><span class="k">Dropped<i>跌落海 · 3 = out</i></span><div class="coins" id="dropCoins"><i class="coin"></i><i class="coin"></i><i class="coin"></i></div></div>
+        </div>
+      </section>
+
+      <section class="trapbar clay" aria-label="Money traps so far">
+        <h2 class="h">The 3 Falls <span class="zh">三大陷阱</span></h2>
+        <ul class="chips" id="fallsChips"></ul>
+      </section>
+
+      <section class="crabcard clay" aria-live="polite"><canvas id="crabSay" width="88" height="72" aria-hidden="true"></canvas><p id="crabMsg"></p></section>
+    </aside>
+
+    <div class="center">
+      <div class="hud" aria-label="Game status">
+        <div class="hs"><span class="k">Time</span><span class="v" id="hudTime">3:00</span></div>
+        <div class="hs nw"><span class="k">Net worth</span><span class="v" id="hudNw">HK$0</span></div>
+        <div class="hs"><span class="k">Height</span><span class="v" id="hudH">0.0F</span></div>
+        <div class="hs dr"><span class="k">Drop</span><span class="v" id="hudDrops">0/3</span></div>
+        <div class="mini">
+          <button class="hbtn" id="hudHoldBtn" aria-label="Hold item"><canvas id="hudHold" width="88" height="88" data-slot="+"></canvas><span>HOLD</span></button>
+          <div class="hbtn" aria-label="Next item"><canvas id="hudNext" width="88" height="88"></canvas><span>NEXT</span></div>
+        </div>
+      </div>
+      <div class="board-wrap" id="boardWrap">
+        <canvas id="board" aria-label="Game board: a clay tower of everyday items on a platform over Victoria Harbour" role="img"></canvas>
+        <div class="stamps" id="stamps" aria-live="polite"></div>
+        <div class="overlay" id="startOv">
+          <div class="ov-card">
+            <h2>Stack your life</h2>
+            <p class="zh">疊出你嘅人生</p>
+            <p class="desc">Steer everyday items onto your tower. Balls roll, bags hook, phones tip. Reach Retirement in 3 minutes. Three items in the harbour and it's over.</p>
+            <ul class="quick kb-only" aria-label="Keyboard controls">
+              <li><kbd>←</kbd><kbd>→</kbd> move <kbd>↑</kbd> rotate <kbd>Space</kbd> drop</li>
+              <li><kbd>C</kbd> hold <kbd>P</kbd> pause <kbd>M</kbd> mute</li>
+            </ul>
+            <p class="quick touch-only">Drag to move · tap to rotate · swipe down to drop<br>拖動移位 · 點一下轉向 · 向下掃即放</p>
+            <button class="btn" id="startBtn">Start<span class="zh">開始</span></button>
+          </div>
+        </div>
+        <div class="overlay seeov" id="seeOv" hidden><button class="btn" id="againBtn2">Play again<span class="zh">再玩</span></button></div>
+        <div class="overlay" id="pauseOv" hidden>
+          <div class="ov-card"><h2>Paused</h2><p class="zh">暫停</p><button class="btn" id="resumeBtn">Resume<span class="zh">繼續</span></button></div>
+        </div>
+      </div>
+      <div class="pad" id="pad" aria-label="Touch controls">
+        <button data-act="left" aria-label="Move left"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg><small>left</small></button>
+        <button data-act="right" aria-label="Move right"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg><small>right</small></button>
+        <button data-act="rotate" aria-label="Rotate"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12a7 7 0 1 1-2.1-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 3v4.5h-4.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg><small>turn</small></button>
+        <button data-act="down" aria-label="Fall faster"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9l5 5 5-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 4l5 5 5-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity=".45"/></svg><small>faster</small></button>
+        <button data-act="hold" aria-label="Hold"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9h13l-3.5-3.5M19 15H6l3.5 3.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg><small>hold</small></button>
+        <button data-act="drop" class="drop" aria-label="Drop now"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 11l5 5 5-5M6 20h12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg><small>drop</small></button>
+      </div>
+    </div>
+
+    <aside class="col right" aria-label="Next item and life stage">
+      <section class="tickets" aria-label="Next and held items">
+        <div class="ticket next"><div class="tt">Next <span class="zh">下一件</span></div><canvas id="nextCv" width="240" height="240"></canvas><div class="perf"></div><div class="nm" id="nextName"></div></div>
+        <div class="ticket hold"><div class="tt">Hold <span class="zh">暫存</span></div><canvas id="holdCv" width="200" height="200" data-slot="empty"></canvas><div class="perf"></div><div class="nm" id="holdName"></div></div>
+        <div class="then"><canvas id="next2Cv" width="76" height="76"></canvas><span id="next2Name"></span></div>
+      </section>
+
+      <section class="directory clay" aria-label="Life stage directory">
+        <h2 class="h">Directory <span class="zh">大廈指示牌</span></h2>
+        <ul class="dir" id="dir"></ul>
+        <p class="height"><span>Tower height 塔高</span><b id="heightVal">0.0F</b></p>
+      </section>
+    </aside>
+  </main>
+
+  <div class="info" id="info">
+    <section class="howto clay" aria-label="How to play">
+      <h2 class="h">How to play <span class="zh">玩法</span></h2>
+      <ol class="how">
+          <li>Steer each falling item and let go. It lands with real weight, friction and bounce.<small>控制跌落物件，按真實物理落地、滑動、反彈。</small></li>
+          <li>The taller your tower, the further through life you get.<small>座塔越高，人生階段越後。</small></li>
+          <li>Life Event cards: wise choices bring flat, stable items. Risky ones bring footballs, bubble tea and handbags, plus one of the 3 Falls.<small>明智＝平穩物件；高危＝怪形物件＋跌入陷阱。</small></li>
+          <li>Job losses and medical bills shake the tower unless you have an emergency fund.<small>冇應急錢，突發事件會令座塔震。</small></li>
+        </ol>
+      <ul class="keys" aria-label="Controls">
+        <li><kbd>←</kbd><kbd>→</kbd> Move 移動</li>
+        <li><kbd>↑</kbd> Rotate 90° 轉向</li>
+        <li><kbd>Z</kbd><kbd>X</kbd> Fine-rotate 微調</li>
+        <li><kbd>↓</kbd> Faster 加速</li>
+        <li><kbd>Space</kbd> Drop 即放</li>
+        <li><kbd>C</kbd> Hold 暫存</li>
+        <li><kbd>1</kbd><kbd>2</kbd> Card answer 揀答案</li>
+        <li><kbd>P</kbd> Pause 暫停</li>
+        <li><kbd>M</kbd> Mute 靜音</li>
+        <li class="touch">Phone: drag to move, tap to rotate, swipe down to drop 手機：拖動、點擊、向下掃</li>
+      </ul>
+    </section>
+
+    <section class="falls clay" aria-label="The 3 Falls explained">
+      <h2 class="h">The 3 Falls <span class="zh">三大陷阱</span></h2>
+      <ul class="tags" id="fallsList"></ul>
+    </section>
+
+    <section class="lbx clay" aria-label="Leaderboard">
+        <h2 class="h">Leaderboard <span class="zh">排行榜</span></h2>
+        <div class="tabs" role="group" aria-label="Leaderboard view">
+          <button class="tab" data-tab="week" aria-pressed="true">本週 Week</button>
+          <button class="tab" data-tab="all" aria-pressed="false">全部 All</button>
+          <button class="tab" data-tab="insights" aria-pressed="false">數據 Stats</button>
+        </div>
+        <div class="lb-panel" id="lbBody"></div>
+        <p class="lb-note" id="lbNote"></p>
+      </section>
+  </div>
+</div>
+
+<div class="modal" id="cardModal" role="dialog" aria-modal="true" aria-labelledby="cardTitle" hidden>
+  <div class="sheet lifecard" id="cardSheet" tabindex="-1">
+    <div class="lc-band"><span class="no">人生事件<b id="cardNo">No.01</b></span><span class="stg" id="cardStage"></span></div>
+    <div class="lc-body">
+      <div class="timer" aria-hidden="true"><i id="cardBar"></i></div>
+      <h3 id="cardTitle"></h3>
+      <p class="zh" id="cardTitleZh"></p>
+      <div class="choices" id="cardChoices"></div>
+      <div class="outcome" id="cardOutcome" hidden>
+        <div class="oc-head" id="ocHead"></div>
+        <p class="oc-effect" id="ocEffect"></p>
+        <p class="oc-tip" id="ocTip"></p>
+        <div class="oc-actions"><button class="btn" id="cardContinue">Continue<span class="zh">繼續</span></button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="endModal" role="dialog" aria-modal="true" aria-labelledby="endTitle" hidden>
+  <div class="sheet statement">
+    <div class="st-band"><span class="zh">結單</span><small id="stDate">STATEMENT</small><span class="seal" aria-hidden="true">結算</span></div>
+    <div class="st-body">
+      <p class="st-eyebrow" id="endEyebrow"></p>
+      <h3 id="endTitle" tabindex="-1"></h3>
+      <p class="sub" id="endSub"></p>
+      <ul class="rows">
+        <li class="big"><span class="lab">Net worth<small>淨資產</small></span><span class="dots"></span><span class="val" id="rNw"></span></li>
+        <li><span class="lab">Life stage<small>人生階段</small></span><span class="dots"></span><span class="val" id="rStage"></span></li>
+        <li><span class="lab">Best height<small>最高</small></span><span class="dots"></span><span class="val" id="rHeight"></span></li>
+        <li><span class="lab">Wise picks<small>明智選擇</small></span><span class="dots"></span><span class="val" id="rWise"></span></li>
+      </ul>
+      <div class="esec"><h4>Your 3 Falls<span class="zh">你跌過嘅陷阱</span></h4><ul class="fallrep" id="fallRep"></ul></div>
+      <div class="esec"><h4>Quick quiz<span class="zh">小測驗 · <span id="quizScore">0/3</span></span></h4><div id="quiz"></div></div>
+      <div class="esec">
+        <h4>Commit to one habit<span class="zh">今個學期實踐一個習慣</span></h4>
+        <div class="habits" id="habits"></div>
+        <div class="namerow">
+          <input id="nickname" maxlength="16" placeholder="Nickname 暱稱 (no real names)" autocomplete="off" aria-label="Nickname">
+          <button class="btn teal" id="postBtn">Post score<span class="zh">上榜</span></button>
+        </div>
+        <p class="post-status" id="postStatus"></p>
+      </div>
+      <div class="endactions">
+        <button class="btn alt" id="closeEnd">See tower<span class="zh">睇返座塔</span></button>
+        <button class="btn" id="againBtn">Play again<span class="zh">再玩</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="%%asset:vendor/matter-0.19.0.min.js%%"></script>
+<script src="%%asset:clay.js%%"></script>
+<script src="%%asset:audio.js%%"></script>
+<script src="%%asset:items/wise.js%%"></script>
+<script src="%%asset:items/risky-a.js%%"></script>
+<script src="%%asset:items/risky-b.js%%"></script>
+<script src="%%asset:items/scam.js%%"></script>
+<script src="%%asset:game.js%%"></script>
+</body>
+</html>

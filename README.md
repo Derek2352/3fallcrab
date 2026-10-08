@@ -1,1 +1,141 @@
-# 3fallcrab
+# 3 Fall Fun 人生跌塔 · Cloudflare edition
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Derek2352/3fallcrab)
+
+*Build your future, one block at a time.* A 3-minute physics stacking game about money choices, by **3 Fall Crab 整冧咗team** (HSUHK) for the Personal Finance Ambassador Programme 2026.
+
+This repo is a ready-to-deploy website:
+
+- **The game:** static files in `public/`, served from Cloudflare's edge.
+- **A live leaderboard:** a small Cloudflare Worker (`server/`) with a D1 database. It keeps a weekly board (resets Monday 00:00 HKT) and an all-time board, plus the anonymised "Stats" tab.
+- **`/admin`:** hide unsuitable nicknames and download every game as a CSV for your report.
+- **`/poster`:** a printable A4 booth poster with a QR code that points at your site.
+
+---
+
+## Deploy from GitHub (easiest, no installs)
+
+You only need a free [Cloudflare account](https://dash.cloudflare.com/sign-up). Pick one of these two:
+
+**A. Connect this repo** (for the repo owner; every push to `main` redeploys automatically)
+
+1. In the Cloudflare dashboard, go to **Workers & Pages → Create → Import a repository**. Connect GitHub if asked, then pick **Derek2352/3fallcrab**.
+2. Keep the project name `three-fall-fun`. Set the build command to `npm run build` and the deploy command to `npx wrangler deploy`.
+3. Click **Deploy**. Cloudflare creates the leaderboard database on the first build, then keeps using the same one on every later build.
+
+**B. Click the Deploy to Cloudflare button above** (for anyone else, e.g. another team)
+
+Cloudflare copies this repo into your own GitHub account, creates the database and deploys it. Later pushes to your copy redeploy automatically. The build and deploy commands are filled in from `package.json`, so just accept them.
+
+Either way, your game ends up at `https://three-fall-fun.<your-subdomain>.workers.dev`. To finish setting up, do the steps under [After the first deploy](#after-the-first-deploy). For a Git deploy, set the admin password in the dashboard: **Workers & Pages → three-fall-fun → Settings → Variables and Secrets → Add**, type **Secret**, name `ADMIN_TOKEN`. To set the link-preview address, edit `package.json` on GitHub; that push redeploys.
+
+---
+
+## Deploy from your computer (about 5 minutes)
+
+You need a free [Cloudflare account](https://dash.cloudflare.com/sign-up) and [Node.js](https://nodejs.org) 22 or newer. Wrangler, Cloudflare's command-line tool, won't run on older versions.
+
+```bash
+npm install
+npx wrangler login      # opens the browser once to connect your Cloudflare account
+npm run deploy
+```
+
+When it finishes, Wrangler prints your address, for example `https://three-fall-fun.<your-subdomain>.workers.dev`. Open it on your phone and play.
+
+- **The first deploy creates the database for you.** Wrangler creates a D1 database for the `DB` binding and writes its `database_id` into `wrangler.jsonc`. Keep that change (commit it if you use Git), so later deploys reuse the same database.
+- **New Cloudflare account?** You may be asked to pick a `workers.dev` subdomain first. Your team or school name works well.
+- **Want a different address?** Change `"name"` in `wrangler.jsonc` before the first deploy, or add a custom domain later in the dashboard: **Workers & Pages → three-fall-fun → Settings → Domains & Routes**.
+
+### After the first deploy
+
+1. **Turn on the admin page.** Run `npm run admin-token` and paste a long random password (16+ characters). Then open `https://<your-site>/admin` and enter it there.
+2. **Fix the link preview image.** WhatsApp, Instagram and Facebook need an absolute image URL. Put your address in `package.json` once, then deploy again:
+   ```json
+   "config": { "site_url": "https://three-fall-fun.<your-subdomain>.workers.dev" }
+   ```
+   Every later `npm run build` or `npm run deploy` uses it. A `SITE_URL` environment variable overrides it for a single build.
+3. **Print the booth poster.** Open `https://<your-site>/poster`, check the address under the QR code, then press **Print poster**. Use A4 and turn on "Background graphics".
+
+---
+
+## No terminal? Drag-and-drop the game only
+
+If you just need the game online quickly, without the shared leaderboard:
+
+1. In the Cloudflare dashboard, go to **Workers & Pages → Create → Pages → Upload assets**.
+2. Name the project, then drag the **`public`** folder in (the whole folder, not just `index.html`) and click **Deploy**.
+
+Everything works, but scores are saved **on each player's device** only. Cloudflare's drag-and-drop upload cannot run the leaderboard code. For the live weekly board and prizes, use `npm run deploy` above.
+
+### Other ways to deploy
+
+- **Cloudflare Pages with Functions.** `functions/api/[[path]].js` exposes the same API as a Pages Function. Use output directory `public`, build command `npm run build`, and a D1 binding named `DB`. Cloudflare now recommends Workers for new projects, so prefer the steps above.
+
+---
+
+## Run it on your computer
+
+```bash
+cp .dev.vars.example .dev.vars   # local admin token
+npm run dev                      # http://localhost:8787 with a local database
+```
+
+`npm run dev` builds `public/` and starts Wrangler. If you edit anything in `src/`, run `npm run build` again; the dev server picks up the new files.
+
+---
+
+## Settings
+
+Set these in `wrangler.jsonc` under `"vars"`, then `npm run deploy`. Secrets are set with Wrangler and never go in the file.
+
+| Name | Where | Default | What it does |
+|---|---|---|---|
+| `TIMEZONE` | vars | `Asia/Hong_Kong` | Time zone for the Monday weekly reset |
+| `LEADERBOARD_CLOSED` | vars | `"0"` | Set to `"1"` after the event. New scores are then saved on players' devices only; the board stays visible. |
+| `RATE_LIMIT` | vars | `20` | Max scores per minute from one network (one IPv4 address, or one IPv6 /64). Booth Wi-Fi and mobile networks share addresses, so keep it generous. |
+| `ADMIN_TOKEN` | secret, `npm run admin-token` | (off) | Turns on `/admin` and the admin API |
+| `IP_SALT` | secret, `npx wrangler secret put IP_SALT` | built-in | Extra salt for the hashed network id used by the rate limit |
+
+---
+
+## The leaderboard and your data
+
+- **What is saved per game:** nickname, score, floors reached, life stage, Life Event choices (card id plus wise, risky or none), habit pledge, quiz score, how the game ended, and the time.
+- **What is not saved:** real names, emails or IP addresses. For the rate limit, the API keeps a salted hash of the network address. The salt changes every week, so players can't be tracked over time.
+- **Nickname filter:** nicknames with common English or Cantonese swear words become "Anonymous crab 匿名蟹". This includes spaced-out, full-width and l33t spellings, while names like Jason99 and Fukuda pass. Invisible-character names are blocked too. Use `/admin` to hide anything else.
+- **Stats tab:** shows the share of wise choices, which of the 3 Falls players hit most, the most popular habit pledge and the average quiz score. It uses the latest 1,000 games.
+- **CSV export:** `/admin → Download CSV` gives every game, which is handy for the post-event report and the 70% quiz target.
+- **Prizes:** scores are reported by the player's browser, so a determined player could fake one. Before handing out a weekly prize, ask the winner to show their end-of-game statement or phone. Hide anything suspicious in `/admin`.
+- **Free-plan limits:** Workers gives 100,000 requests a day. D1 gives 5 million rows read and 100,000 rows written a day, enforced since 1 Sept 2026. One game is one score post, and the board refreshes only while it's on screen (every 45 s). A busy booth day is far below these limits.
+
+### API
+
+| Route | Use |
+|---|---|
+| `GET /api/health` | Is the database connected? |
+| `GET /api/scores` | This week's top 10 and the all-time top 10 |
+| `GET /api/scores?view=stats` | Anonymised totals for the Stats tab |
+| `POST /api/scores` | Save one finished game, validated server-side |
+| `GET /api/admin/scores`, `POST /api/admin/hide`, `GET /api/admin/export` | Admin; needs the `Authorization: Bearer <ADMIN_TOKEN>` header |
+
+The database table is created automatically on first use. `migrations/0001_create_scores.sql` holds the same schema if you prefer `npm run db:migrate`.
+
+---
+
+## Editing the game
+
+All game source lives in `src/`. After any change, run `npm run build`, which fingerprints the CSS and JS so browsers always load the newest version.
+
+| File | What's in it |
+|---|---|
+| `src/game.js` | Game rules, Life Event cards, quiz, habits and leaderboard client. Tuning constants are near the top: `GAME_MS` (3 min), `CARD_MS`, `MAX_DROPS`. |
+| `src/items/*.js` | The 32 everyday items: physics shape plus clay drawing for each |
+| `src/clay.js` | Clay rendering kit (palette, lighting, materials) |
+| `src/audio.js` | Synthesised music and sound effects, with no audio files |
+| `src/style.css`, `src/index.html` | Page layout |
+| `src/static/` | Copied as-is: icons, 404, admin, poster, `_headers` (security and cache headers) |
+| `server/api.js` | Leaderboard API (validation, rate limit, admin) |
+| `server/worker.js` | Worker entry point: `/api/*` goes to the API, everything else is static |
+
+Matter.js 0.19.0 (MIT) and qrcode-generator 1.4.4 (MIT) are bundled locally. Fonts come from Google Fonts.

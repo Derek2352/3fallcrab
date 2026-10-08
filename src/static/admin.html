@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin · 3 Fall Fun</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="/icons/favicon-32.png" sizes="32x32" type="image/png">
+<style>
+  :root{--bg:#FFF4E2;--card:#fff;--ink:#2E2838;--ink-2:#5B516C;--line:#EADBC4;--pink:#E8418B;--teal:#14968B;--red:#C42A24;--yellow:#FFD23F}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,-apple-system,"Segoe UI","Noto Sans HK","PingFang HK",sans-serif}
+  header{background:var(--yellow);padding:14px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  header img{width:36px;height:36px;border-radius:9px}
+  header h1{font-size:18px;margin:0;flex:1}
+  main{max-width:1100px;margin:0 auto;padding:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+  form{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  input,select,button{font:inherit}
+  input[type=password]{flex:1;min-width:220px;padding:9px 12px;border:1px solid var(--line);border-radius:10px}
+  select{padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:#fff}
+  button{padding:9px 14px;border:0;border-radius:10px;background:var(--ink);color:#fff;font-weight:600;cursor:pointer}
+  button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+  button.hide{background:var(--red)}
+  button.show{background:var(--teal)}
+  button:disabled{opacity:.5;cursor:default}
+  button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--pink);outline-offset:2px}
+  .msg{margin:8px 0 0;color:var(--ink-2)}
+  .msg.err{color:var(--red);font-weight:600}
+  .stats{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:10px}
+  .stats b{font-size:20px;display:block}
+  .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+  .bar .sp{flex:1}
+  .wrap{overflow-x:auto}
+  table{border-collapse:collapse;width:100%;min-width:860px}
+  th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+  th{font-size:12px;color:var(--ink-2);font-weight:600}
+  td.n{max-width:180px;overflow:hidden;text-overflow:ellipsis}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  tr.hidden td{color:#A99}
+  tr.hidden td.n{text-decoration:line-through}
+  .pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;background:#EEE}
+  .pill.h{background:#FDE2E0;color:var(--red)}
+  [hidden]{display:none!important}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+</style>
+</head>
+<body>
+<header>
+  <img src="/icons/icon-192.png" alt="">
+  <h1>3 Fall Fun · Leaderboard admin 管理</h1>
+  <button class="ghost" id="lockBtn" hidden>Lock</button>
+</header>
+<main>
+  <section class="card" id="loginCard">
+    <form id="loginForm">
+      <label for="token" class="sr">Admin token</label>
+      <input type="password" id="token" autocomplete="current-password" placeholder="ADMIN_TOKEN" required>
+      <button type="submit">Unlock</button>
+    </form>
+    <p class="msg" id="loginMsg">Enter the ADMIN_TOKEN secret you set with <code>npm run admin-token</code>. It is kept only in this browser tab.</p>
+  </section>
+  <section class="card" id="panel" hidden>
+    <div class="stats">
+      <div><b id="sTotal">–</b>games saved</div>
+      <div><b id="sHidden">–</b>hidden</div>
+      <div><b id="sWeek">–</b>current week</div>
+    </div>
+    <div class="bar">
+      <label for="weekSel">Show</label>
+      <select id="weekSel"><option value="">All weeks</option><option value="cur">This week</option></select>
+      <button class="ghost" id="refreshBtn">Refresh</button>
+      <span class="sp"></span>
+      <button id="csvBtn">Download CSV</button>
+    </div>
+    <p class="msg" id="panelMsg">Hide removes a game from the public board and the Stats tab. You can unhide it later.</p>
+    <div class="wrap">
+      <table>
+        <thead><tr><th>#</th><th>Saved (HKT)</th><th>Week</th><th>Nickname</th><th class="num">Score</th><th class="num">Floors</th>
+          <th class="num">Wise / risky / missed</th><th>Habit</th><th class="num">Quiz</th><th>Ended</th><th>Status</th><th></th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <p><button class="ghost" id="moreBtn" hidden>Load more</button></p>
+  </section>
+</main>
+<script src="/admin.js"></script>
+</body>
+</html>

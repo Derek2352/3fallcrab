@@ -1,0 +1,24 @@
+{
+  "name": "three-fall-fun",
+  "version": "1.0.0",
+  "private": true,
+  "description": "3 Fall Fun 人生跌塔 — a physics stacking money game with a live leaderboard, for Cloudflare Workers",
+  "type": "module",
+  "config": {
+    "site_url": ""
+  },
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "dev": "node tools/build.mjs && wrangler dev",
+    "deploy": "node tools/build.mjs && wrangler deploy",
+    "db:migrate": "wrangler d1 migrations apply DB --remote",
+    "admin-token": "wrangler secret put ADMIN_TOKEN",
+    "logs": "wrangler tail"
+  },
+  "devDependencies": {
+    "wrangler": "^4.148.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

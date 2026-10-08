@@ -1,0 +1,1 @@
+{"ok":false,"error":"static_only","note":"This copy of 3 Fall Fun is hosted without the leaderboard API, so scores stay on each device. Deploy with `npm run deploy` for the live board."}

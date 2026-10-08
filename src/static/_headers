@@ -1,0 +1,29 @@
+# Applied by Cloudflare to the static files (not to /api responses, which set their own headers).
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; media-src 'self' data: blob:; manifest-src 'self'; worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'self'
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/vendor/*
+  Cache-Control: public, max-age=86400
+
+/icons/*
+  Cache-Control: public, max-age=86400
+
+/admin
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-store
+
+/admin.html
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-store
+
+# Static-only hosting (e.g. Pages drag-and-drop): the game asks /api/scores, gets this stub and keeps scores on the device.
+# With the Worker (or Pages Functions) deployed, /api/* is answered by code and this file is never served.
+/api/scores
+  Content-Type: application/json; charset=utf-8
+  Cache-Control: no-store

@@ -1,0 +1,24 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  // Worker name: becomes https://three-fall-fun.<your-subdomain>.workers.dev
+  "name": "three-fall-fun",
+  "main": "server/worker.js",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"],
+    "not_found_handling": "404-page"
+  },
+  // Leaderboard database. No "database_id" needed: the first deploy creates the D1 database.
+  // A deploy from your computer writes the id back into this file (commit that change).
+  // Deploys from GitHub keep reusing the database already bound to the Worker.
+  "d1_databases": [
+    { "binding": "DB" }
+  ],
+  "vars": {
+    "TIMEZONE": "Asia/Hong_Kong",
+    "LEADERBOARD_CLOSED": "0"
+  },
+  "observability": { "enabled": true }
+}
