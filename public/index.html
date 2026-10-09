@@ -25,7 +25,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gluten:wght@400..900&family=LXGW+WenKai+TC:wght@400;700&family=DotGothic16&family=Noto+Sans+HK:wght@400;500;700;900&display=swap">
-<link rel="stylesheet" href="/assets/style.6d6814de62.css">
+<link rel="stylesheet" href="/assets/style.7df296fda7.css">
 </head>
 <body>
 <noscript><p style="margin:0;padding:16px;background:#2E2838;color:#fff;font:16px/1.5 system-ui,sans-serif;text-align:center">3 Fall Fun needs JavaScript to run. 請開啟 JavaScript 先玩到。</p></noscript>
@@ -217,15 +217,19 @@
         <li><span class="lab">Wise picks<small>明智選擇</small></span><span class="dots"></span><span class="val" id="rWise"></span></li>
       </ul>
       <div class="esec"><h4>Your 3 Falls<span class="zh">你中過嘅陷阱</span></h4><ul class="fallrep" id="fallRep"></ul></div>
-      <div class="esec"><h4>Quick quiz<span class="zh">小測驗 · <span id="quizScore">0/3</span></span></h4><div id="quiz"></div></div>
+      <div class="esec"><h4>Quick quiz<span class="zh">小測驗 · <span id="quizScore">0/3</span></span></h4>
+        <p class="esec-note">Tap an answer to see straight away if you're right. Answers are saved anonymously for our programme report. 撳一個答案，即刻知啱定錯。答案會匿名記錄，用嚟做計劃報告。</p>
+        <div id="quiz"></div></div>
       <div class="esec">
         <h4>Commit to one habit<span class="zh">揀一個好習慣，今個學期做到佢</span></h4>
         <div class="habits" id="habits"></div>
         <div class="namerow">
           <input id="nickname" maxlength="16" placeholder="Nickname 暱稱 (no real names)" autocomplete="off" aria-label="Nickname">
+          <input id="email" type="email" inputmode="email" maxlength="254" placeholder="Email for prizes (optional) 領獎電郵（選填）" autocomplete="email" spellcheck="false" aria-label="Email for prizes (optional)" aria-describedby="emailNote">
           <button class="btn teal" id="postBtn">Post score<span class="zh">上榜</span></button>
         </div>
-        <p class="post-status" id="postStatus"></p>
+        <p class="email-note" id="emailNote">Top scorers of the week and the month win prizes. Your email is only for our team to contact winners and never appears on the board. 每週同每月最高分都有獎。電郵只會用嚟聯絡得獎者，唔會喺排行榜出現。</p>
+        <p class="post-status" id="postStatus" aria-live="polite"></p>
       </div>
       <div class="endactions">
         <button class="btn alt" id="closeEnd">See tower<span class="zh">睇返座塔</span></button>
@@ -242,6 +246,7 @@
 <script src="/assets/risky-a.5a67e884e5.js"></script>
 <script src="/assets/risky-b.5057bd2b53.js"></script>
 <script src="/assets/scam.05ff1a07ff.js"></script>
-<script src="/assets/game.210fe0439d.js"></script>
+<script src="/assets/content.9b9ef69b42.js"></script>
+<script src="/assets/game.0cfe917814.js"></script>
 </body>
 </html>

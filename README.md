@@ -8,7 +8,7 @@ This repo is a ready-to-deploy website:
 
 - **The game:** static files in `public/`, served from Cloudflare's edge.
 - **A live leaderboard:** a small Cloudflare Worker (`server/`) with a D1 database. It keeps a weekly board (resets Monday 00:00 HKT) and an all-time board, plus the anonymised "Stats" tab.
-- **`/admin`:** hide unsuitable nicknames and download every game as a CSV for your report.
+- **`/admin`:** the survey results for your report (quiz, habits, Life Event choices, money traps, by week and month), the weekly and monthly winners with their emails, analysis-ready downloads, and Hide for unsuitable nicknames.
 - **`/poster`:** a printable A4 booth poster with a QR code that points at your site.
 
 ---
@@ -91,7 +91,7 @@ Set these in `wrangler.jsonc` under `"vars"`, then `npm run deploy`. Secrets are
 |---|---|---|---|
 | `TIMEZONE` | vars | `Asia/Hong_Kong` | Time zone for the Monday weekly reset |
 | `LEADERBOARD_CLOSED` | vars | `"0"` | Set to `"1"` after the event. New scores are then saved on players' devices only; the board stays visible. |
-| `RATE_LIMIT` | vars | `20` | Max scores per minute from one network (one IPv4 address, or one IPv6 /64). Booth Wi-Fi and mobile networks share addresses, so keep it generous. |
+| `RATE_LIMIT` | vars | `30` | Max new games saved per minute from one network (one IPv4 address, or one IPv6 /64). Every finished game is saved, and booth or campus Wi-Fi shares one address, so keep it generous. |
 | `ADMIN_TOKEN` | secret, `npm run admin-token` | (off) | Turns on `/admin` and the admin API |
 | `IP_SALT` | secret, `npx wrangler secret put IP_SALT` | built-in | Extra salt for the hashed network id used by the rate limit |
 
@@ -99,11 +99,21 @@ Set these in `wrangler.jsonc` under `"vars"`, then `npm run deploy`. Secrets are
 
 ## The leaderboard and your data
 
-- **What is saved per game:** nickname, score, floors reached, life stage, Life Event choices (card id plus wise, risky or none), habit pledge, quiz score, how the game ended, and the time.
-- **What is not saved:** real names, emails or IP addresses. For the rate limit, the API keeps a salted hash of the network address. The salt changes every week, so players can't be tracked over time.
+- **Every finished game is saved, anonymously, as soon as the statement opens:** score, floors reached, life stage, each Life Event choice (card plus wise, risky or missed), how the game ended and the time. As the player answers the quiz and picks a habit, the same record gets each quiz answer (which option, right or wrong) and the habit. The quiz shows right or wrong, with the reason, the moment an answer is tapped, and answers can't be changed after that. Nothing is ticked for the habit until the player picks one, so the pledge counts are real choices.
+- **Posting to the board** adds the nickname to that same record and shows it on the leaderboard. Players who don't post still count in the survey results, just not on the board.
+- **Email (optional, private):** players can leave an email when they post, so you can contact weekly and monthly winners. It is never shown on the board, never returned by any public API, never stored on the player's device, and once saved it is never changed or cleared. Only `/admin` (behind `ADMIN_TOKEN`, and Cloudflare Access if you keep it on `/admin`) shows it.
+- **What is not saved:** real names (unless someone types one as a nickname) or IP addresses. For the rate limit, the API keeps a salted hash of the network address. The salt changes every week, so players can't be tracked over time.
+- **If a save fails** (no signal at the booth), the game keeps the survey part on the device, without nickname or email, and sends it on the next visit.
 - **Nickname filter:** nicknames with common English or Cantonese swear words become "Anonymous crab 匿名蟹". This includes spaced-out, full-width and l33t spellings, while names like Jason99 and Fukuda pass. Invisible-character names are blocked too. Use `/admin` to hide anything else.
-- **Stats tab:** shows the share of wise choices, which of the 3 Falls players hit most, the most popular habit pledge and the average quiz score. It uses the latest 1,000 games.
-- **CSV export:** `/admin → Download CSV` gives every game, which is handy for the post-event report and the 70% quiz target.
+- **Stats tab:** shows the share of wise choices, which of the 3 Falls players hit most, the most popular habit pledge and how many players got 2 or 3 quiz questions right. It uses the latest 1,000 games.
+- **Survey results in `/admin`:** pick all time, a week or a month. You get players, quiz takers and the share who scored 2/3 or better against the 70% target, how each quiz question was answered (and the most common wrong answer), habit pledges, every Life Event card sorted by how often players chose the risky option, the 3 Falls, life stages reached, and week-by-week and month-by-month trends. Hidden games are left out.
+- **Winners:** `/admin → Winners` lists the top scores of any week or month with their emails, with copy buttons, and flags a player who appears twice.
+- **Downloads for your report** (`/admin → Downloads`, Excel-ready CSV):
+  - `games.csv`: one row per game, with each quiz answer and each Life Event choice in its own column.
+  - `quiz_answers.csv`: one row per quiz answer. Pivot it by question to see which questions and wrong answers trip players up.
+  - `life_events.csv`: one row per Life Event decision. Pivot it by card, life stage or trap.
+  - `Raw CSV`: every column exactly as stored.
+  Games saved before 9 October 2026 have the quiz total only, not each answer; the dashboard notes how many.
 - **Prizes:** scores are reported by the player's browser, so a determined player could fake one. Before handing out a weekly prize, ask the winner to show their end-of-game statement or phone. Hide anything suspicious in `/admin`.
 - **Free-plan limits:** Workers gives 100,000 requests a day. D1 gives 5 million rows read and 100,000 rows written a day, enforced since 1 Sept 2026. One game is one score post, and the board refreshes only while it's on screen (every 45 s). A busy booth day is far below these limits.
 
@@ -115,7 +125,7 @@ What could reset the board, and what stops it:
 
 - **Renaming the Worker or the `DB` binding.** Changing `"name"` in `wrangler.jsonc` (`three-fall-fun`) or the `DB` binding makes Cloudflare create a new, empty database. `npm run build` refuses to build if either changes, so a GitHub deploy fails safely instead of going live.
 - **SQL that wipes the table.** The build also refuses `DROP TABLE`, `TRUNCATE` or a `DELETE FROM scores` without `WHERE` anywhere in `server/`, `functions/` or `migrations/`.
-- **Changing the table later.** Only ever add columns (`ALTER TABLE scores ADD COLUMN ...`); never remove or rename them.
+- **Changing the table later.** Only ever add columns; never remove or rename them. New columns go in `ADDED` in `server/api.js`: the API adds them to the live table by itself on its next request, keeping every row.
 - **Deleting the database in the dashboard.** Don't. To stop new scores after the event, set `LEADERBOARD_CLOSED` to `"1"` instead; the board stays visible.
 
 If you ever really want a brand-new board, run the build with `ALLOW_LEADERBOARD_RESET=1`.
@@ -133,8 +143,8 @@ If you ever really want a brand-new board, run the build with `ALLOW_LEADERBOARD
 | `GET /api/health` | Is the database connected? |
 | `GET /api/scores` | This week's top 10 and the all-time top 10 |
 | `GET /api/scores?view=stats` | Anonymised totals for the Stats tab |
-| `POST /api/scores` | Save one finished game, validated server-side |
-| `GET /api/admin/scores`, `POST /api/admin/hide`, `GET /api/admin/export` | Admin; needs the `Authorization: Bearer <ADMIN_TOKEN>` header |
+| `POST /api/scores` | Save a finished game, then update it with quiz answers, habit, and the nickname and email when posting. Validated server-side; the score can't change after the first save |
+| `GET /api/admin/summary`, `/winners`, `/rows`, `/scores`, `/export`, `POST /api/admin/hide` | Admin: survey analysis (`?week=` or `?month=`), winners with emails, every game for the downloads, the games list, raw CSV, hide. Needs the `Authorization: Bearer <ADMIN_TOKEN>` header |
 
 The database table is created automatically on first use. `migrations/0001_create_scores.sql` holds the same schema if you prefer `npm run db:migrate`.
 
@@ -146,7 +156,8 @@ All game source lives in `src/`. After any change, run `npm run build`, which fi
 
 | File | What's in it |
 |---|---|
-| `src/game.js` | Game rules, Life Event cards, quiz, habits and leaderboard client. Tuning constants are near the top: `GAME_MS` (3 min), `CARD_MS`, `MAX_DROPS`. Vine items: `VINE_RARE` (chance a new item is vine-wrapped, 5%), `VINE_GRABS` (blocks one vine item can grab), `MAX_FUSED` (items per stuck-together group). |
+| `src/content.js` | Life Event cards, the quiz (with the reason shown after each answer) and the habit pledges, shared with the API so it can check answers and label the survey results. If you change what a question or card asks, give it a new `id`. |
+| `src/game.js` | Game rules, end-of-game statement and leaderboard client. Tuning constants are near the top: `GAME_MS` (3 min), `CARD_MS`, `MAX_DROPS`. Vine items: `VINE_RARE` (chance a new item is vine-wrapped, 5%), `VINE_GRABS` (blocks one vine item can grab), `MAX_FUSED` (items per stuck-together group). |
 | `src/items/*.js` | The 32 everyday items: physics shape plus clay drawing for each |
 | `src/clay.js` | Clay rendering kit (palette, lighting, materials) |
 | `src/audio.js` | Synthesised music and sound effects, with no audio files |

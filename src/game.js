@@ -26,73 +26,8 @@ const STEP = 1000 / 60;
 const FALL = [1.5, 1.8, 2.1, 2.4];
 const MAX_DROPS = 3;
 
-const STAGES = [
-  {at:0, en:"University", zh:"大學"},
-  {at:3, en:"First job", zh:"第一份工"},
-  {at:6, en:"Family", zh:"成家"},
-  {at:10, en:"Retirement", zh:"退休"}
-];
+const {STAGES, TRAPS, CARDS, QUIZ, HABITS} = window.TFF_CONTENT;   // src/content.js
 const TOP_AT = 14;
-
-const TRAPS = {
-  spend: {en:"Overspending", zh:"過度消費", d:"Credit cards & buy-now-pay-later 信用卡、先買後付",
-          eff:"A heavy debt ball and chain crashes onto your tower, followed by awkward shapes. 一個好重嘅債務鐵球會跌落你座塔度，跟住嚟嘅都係奇形怪狀嘅嘢。"},
-  scam:  {en:"Scams", zh:"騙局", d:"Fake tips, “renting” your account 貼士股、租戶口",
-          eff:"You lose HK$5,000. Slippery, bouncy scam items come next, and Hold is locked. 蝕咗HK$5,000，之後跌落嚟嘅騙局物件又滑又彈，仲會鎖住暫存。"},
-  delay: {en:"Putting off saving", zh:"拖延儲錢", d:"“I'll start next year” 「明年先儲」",
-          eff:"Time speeds up for 20s and your savings boost drops back to ×1.0. 時間加速20秒，儲蓄加成打回×1.0。"}
-};
-
-const CARDS = [
-  {id:"newphone", st:0, en:"Your phone still works, but the new model just launched.", zh:"部手機仲用得，但新款啱啱出咗。",
-   w:["Keep it and save HK$300 a month","繼續用住先，每個月儲HK$300"], r:["Get it today with buy-now-pay-later","先買後付，即刻換機"], trap:"spend",
-   tip:["Buy-now-pay-later plans stack up fast, and a missed payment can land on your credit report.","「先買後付」好易一單疊一單，遲還一期都可能影響信貸紀錄。"]},
-  {id:"cards", st:0, en:"A campus booth gives a free gift for every credit card you sign up for.", zh:"校園有個攤位話，每開一張信用卡就送份禮物。",
-   w:["Get one card and autopay the full balance","只開一張，設定自動找清卡數"], r:["Sign up for three and pay the minimum","一次開三張，每月只還最低還款額"], trap:"spend",
-   tip:["Card interest often runs above 30% a year. Paying only the minimum lets a small balance drag on for years.","信用卡實際年利率好多時超過30%。淨係還最低還款額，細數都可以拖成幾年。"]},
-  {id:"mule", st:0, en:"A stranger on Instagram offers HK$3,000 to “rent” your bank account.", zh:"IG有個陌生人出HK$3,000，想「租」你個銀行戶口。",
-   w:["Refuse and report it to 18222","拒絕，打去18222防騙易熱線"], r:["Easy money. Hand it over","咁易賺，借畀佢用"], trap:"scam",
-   tip:["Lending your account makes you a money mule. Money laundering in Hong Kong carries up to 14 years in prison.","借出戶口即係做「傀儡戶口」，洗黑錢最高可判監14年。"]},
-  {id:"tutor", st:0, en:"You earn HK$4,000 from part-time tutoring.", zh:"做補習賺到HK$4,000。",
-   w:["Save 20% first, then spend the rest","先儲起20%，剩低先用"], r:["Spend now, save whatever is left later","照用先，剩幾多先儲幾多"], trap:"delay",
-   tip:["Pay yourself first. Money saved on payday is money you can't spend by accident.","先儲後使：一收錢就儲起，就唔會唔覺意洗晒。"]},
-  {id:"salary", st:1, en:"First salary: HK$18,000.", zh:"第一份人工：HK$18,000。",
-   w:["Save 20% (HK$3,600) automatically on payday","出糧自動儲起20%（HK$3,600）"], r:["Buy the latest phone on instalments","分期買最新款手機"], trap:"spend",
-   tip:["Automating savings on payday is the easiest habit to keep. HK$3,600 a month is HK$43,200 a year.","出糧自動轉賬儲錢，最易堅持。每個月HK$3,600，一年就有HK$43,200。"]},
-  {id:"crypto", st:1, en:"A coworker's group chat promises a “guaranteed” 30% a month on crypto.", zh:"同事個群組話炒幣「保證」每月賺30%。",
-   w:["Check the SFC alert list and walk away","上證監會警示名單查吓，唔好理佢"], r:["Put in HK$10,000 before it's too late","即刻入HK$10,000，遲咗就冇"], trap:"scam",
-   tip:["Nobody can guarantee high returns. The SFC keeps a Suspicious Investment Products Alert List you can search.","冇人可以保證高回報。證監會有「可疑投資產品警示名單」，隨時可以上網查。"]},
-  {id:"mpf", st:1, en:"Your MPF account is open and the fund choice is up to you.", zh:"強積金戶口開咗，揀咩基金由你話事。",
-   w:["Compare funds and fees on the MPFA platform","上積金局平台比較基金同收費"], r:["Ignore it until you're 40","40歲先理"], trap:"delay",
-   tip:["You and your employer each put in 5% of your salary. Fees and fund choice compound over 40 years.","你同僱主每月各供人工嘅5%。收費高低同揀邊隻基金，影響會累積40年。"]},
-  {id:"trip", st:1, en:"Friends are planning a HK$15,000 trip to Japan next month.", zh:"朋友約你下個月去日本，要HK$15,000。",
-   w:["Start a travel fund and go in six months","開個旅行基金，半年後先去"], r:["Put it all on the credit card","全部碌卡先算"], trap:"spend",
-   tip:["A trip carried on a card at 30%+ interest can end up costing more than the flight and hotel.","碌卡旅行再慢慢還，利息隨時貴過機票酒店。"]},
-  {id:"wedding", st:2, en:"You're planning your wedding banquet.", zh:"準備擺酒結婚。",
-   w:["Keep it within what you've saved","量力而為，唔好超出儲蓄"], r:["Take a personal loan for 30 tables","借私人貸款擺30圍"], trap:"spend",
-   tip:["Borrowing for one big day can mean years of repayments while you start a family.","借錢擺酒，一日風光可能要還好多年。"]},
-  {id:"buffer", st:2, en:"Your household has no emergency fund yet.", zh:"屋企仲未有應急錢。",
-   w:["Build up 3 to 6 months of expenses","儲起3至6個月生活費"], r:["Start next year, maybe","明年先算啦"], trap:"delay",
-   tip:["An emergency fund turns a job loss or a medical bill into a setback instead of a debt spiral.","有應急錢，就算失業或者要睇醫生，都唔使借錢度日。"]},
-  {id:"call", st:2, en:"A caller claims to be mainland police: your ID is linked to a crime, so move your money to a “safe account”.", zh:"有人自稱內地公安，話你身份涉案，要將錢轉去「安全戶口」。",
-   w:["Hang up and call 18222","即刻收線，打18222問清楚"], r:["Transfer it to clear your name","轉錢證明清白"], trap:"scam",
-   tip:["Real police never ask you to transfer money. Hang up and check with the Anti-Scam Helpline 18222.","真警察唔會叫你轉錢。收線後可以打防騙易熱線18222查詢。"]},
-  {id:"insure", st:2, en:"A baby is on the way.", zh:"BB就快出世。",
-   w:["Get basic medical and term life cover","買基本醫療同定期人壽保險"], r:["Skip insurance. Nothing will happen","唔買保險，唔會咁大鑊嘅"], trap:"delay",
-   tip:["Basic cover is cheapest when you're young and healthy. Waiting raises the price and the risk.","後生又健康嗰陣買基本保障最平，拖得越耐越貴。"]},
-  {id:"lump", st:3, en:"You can withdraw your MPF at 65.", zh:"65歲可以攞返強積金。",
-   w:["Stay invested and draw down a little each year","繼續投資，每年攞少少"], r:["Put it all into a WhatsApp group's hot tip","全部買晒WhatsApp群組啲貼士股"], trap:"scam",
-   tip:["Retirees are prime targets for “hot tip” groups. Withdrawing in stages also spreads your risk.","退休人士係貼士群組騙徒嘅頭號目標。分開幾次攞，亦可以分散風險。"]},
-  {id:"romance", st:3, en:"An online friend you've never met urgently needs HK$50,000.", zh:"網上識咗個朋友，從未見過面，佢急住要HK$50,000。",
-   w:["Say no and talk it over with family","拒絕，同屋企人傾吓先"], r:["Send it. They seem so sincere","佢咁有誠意，過數畀佢"], trap:"scam",
-   tip:["Romance scams build trust for months before asking for money. Never pay someone you haven't met.","網上情緣騙案會花幾個月建立信任先開口借錢。未見過面就唔好過數。"]},
-  {id:"reno", st:3, en:"The flat needs a full renovation.", zh:"層樓要大裝修。",
-   w:["Pay from savings and do it in phases","用儲蓄，分階段慢慢裝"], r:["Do it all now on card instalments","一次過碌卡分期"], trap:"spend",
-   tip:["On a fixed retirement income, new debt is much harder to clear.","退休後收入有限，再借錢就好難還得清。"]},
-  {id:"will", st:3, en:"Your kids ask about your plans for later life.", zh:"仔女問你晚年有咩打算。",
-   w:["Write a will and a retirement budget now","而家立遺囑、做退休預算"], r:["Deal with it someday","第日先算"], trap:"delay",
-   tip:["A will and a budget protect your family from guesswork and disputes later.","立好遺囑、做好預算，屋企人第日就唔使估估吓，亦少啲爭拗。"]}
-];
 
 const SHOCKS = [
   ["Laid off for two months","失業兩個月"],
@@ -100,24 +35,6 @@ const SHOCKS = [
   ["Phone stolen, need a new one","手機畀人偷咗，要買過部"],
   ["A family member needs money","屋企人要你幫補"]
 ];
-
-const QUIZ = [
-  {q:["Someone offers HK$3,000 to “rent” your bank account. This is…","有人出HK$3,000「租」你個銀行戶口，呢個係…"],
-   o:[["Easy side income","輕鬆外快"],["Money laundering. You could go to prison","洗黑錢，隨時要坐監"],["Fine if it's a friend","朋友嘅話冇問題"]], a:1},
-  {q:["If you only pay the minimum on your credit card…","如果信用卡只還最低還款額…"],
-   o:[["Interest keeps growing on the rest","未還嘅錢會繼續滾利息"],["You pay no interest","唔使畀利息"],["Your credit score improves","信貸評分會變好"]], a:0},
-  {q:["The best time to start saving is…","最好幾時開始儲錢？"],
-   o:[["After your first promotion","第一次升職之後"],["When MPF starts","有強積金先算"],["Now, even a small amount","而家，少少都好"]], a:2}
-];
-
-const HABITS = [
-  {id:"save20", en:"Save 20% of my pay on payday", zh:"出糧先儲20%"},
-  {id:"payfull", en:"Pay my credit card in full every month", zh:"每月找清卡數"},
-  {id:"check", en:"Never lend my account; check before I invest", zh:"唔借戶口，投資前先查證"},
-  {id:"track", en:"Track my spending for 30 days", zh:"記賬30日"}
-];
-
-
 
 const DEFS = window.ITEM_DEFS || [];
 const POOLS = {wise: DEFS.filter(d => d.kind === "wise"), risky: DEFS.filter(d => d.kind === "risky"), scam: DEFS.filter(d => d.kind === "scam")};
@@ -153,7 +70,7 @@ function newState(){
     height:0, best:0, bestFloor:0, stage:0, play:0, acc:0, spawnAt:0, nextEvent:FIRST_CARD, shocks:[60000, 125000],
     speedUntil:0, fastOn:false, quakeUntil:0, pendingDebt:0, used:new Set(), mode:"idle", card:null, cardCount:0, over:null, posted:false,
     quiz:[null, null, null], camTop:-(H - 240), shake:0, splashes:[], dragX:null, steps:0, ledger:[], warned:false,
-    mood:{type:"idle", until:0}, lastImpact:new Map(), grabs:[], leaves:[]};
+    mood:{type:"idle", until:0}, lastImpact:new Map(), grabs:[], leaves:[], habit:null, rec:null};
 }
 function makeEngine(){
   engine = Engine.create({enableSleeping:true});
@@ -616,6 +533,7 @@ function shock(){
 // ---------- flow ----------
 function startGame(){
   A.unlock();
+  flushRecord(S);   // the last game's quiz answers or habit may still be waiting to be saved
   S = newState(); makeEngine(); S.mode = "playing";
   $("startOv").hidden = true; $("pauseOv").hidden = true; $("endModal").hidden = true; $("cardModal").hidden = true; $("seeOv").hidden = true; modalOpen(false);
   A.stage(0); A.mode("normal"); A.start();
@@ -696,7 +614,7 @@ document.addEventListener("keyup", e => {
 });
 window.addEventListener("blur", () => { keys.left = keys.right = false; softHeld = false; });
 document.addEventListener("visibilitychange", () => {
-  if (document.hidden){ if (S && S.mode === "playing") togglePause(); A.suspend(); }
+  if (document.hidden){ if (S && S.mode === "playing") togglePause(); A.suspend(); flushRecord(S, true); }
   else A.resume();
 });
 $("pad").querySelectorAll("button").forEach(b => {
@@ -1188,38 +1106,55 @@ function showEnd(){
   row("i-scam", "var(--purple)", TRAPS.scam.en + " " + TRAPS.scam.zh, TRAPS.scam.d, S.falls.scam);
   row("i-delay", "var(--blue)", TRAPS.delay.en + " " + TRAPS.delay.zh, TRAPS.delay.d, S.falls.delay);
   row("i-drop", "#fff", "Items dropped 跌落海", "Each one cost HK$1,000 每件扣HK$1,000", S.drops);
-  const qz = $("quiz"); qz.replaceChildren(); S.quiz = [null, null, null]; $("quizScore").textContent = "0/3";
+  // Quiz: each answer is marked right or wrong the moment it's tapped, with the reason, and then locked.
+  const qz = $("quiz"); qz.replaceChildren(); S.quiz = QUIZ.map(() => null);
+  const quizScore = () => { $("quizScore").textContent = S.quiz.filter(x => x && x.ok).length + "/" + QUIZ.length; };
+  quizScore();
   QUIZ.forEach((q, qi) => {
     const fs = document.createElement("fieldset"); fs.className = "qz";
     const lg = document.createElement("legend"); lg.textContent = (qi + 1) + ". " + q.q[0];
     const lz = document.createElement("small"); lz.textContent = q.q[1]; lg.appendChild(lz);
     const box = document.createElement("div"); box.className = "qopts";
+    const fb = document.createElement("p"); fb.className = "qfb"; fb.setAttribute("role", "status");
     q.o.forEach((o, oi) => {
       const b = document.createElement("button"); b.type = "button"; b.className = "qopt";
       b.textContent = o[0]; const z = document.createElement("small"); z.textContent = o[1]; b.appendChild(z);
       b.addEventListener("click", () => {
-        S.quiz[qi] = oi === q.a; A.sfx(oi === q.a ? "deposit" : "risky");
-        [...box.children].forEach((bb, j) => { bb.disabled = true; if (j === q.a) bb.classList.add("right"); else if (j === oi) bb.classList.add("wrong"); });
-        $("quizScore").textContent = S.quiz.filter(Boolean).length + "/3";
+        if (S.quiz[qi]) return;
+        const ok = oi === q.a; S.quiz[qi] = {pick: oi, ok}; A.sfx(ok ? "deposit" : "risky");
+        [...box.children].forEach((bb, j) => { bb.disabled = true; bb.classList.add(j === q.a ? "is-right" : j === oi ? "is-wrong" : "is-dim"); });
+        b.setAttribute("aria-pressed", "true");
+        const head = document.createElement("b");
+        head.textContent = ok ? "✓ Correct! 答啱咗！" : "✗ Not quite. It's “" + q.o[q.a][0] + "”. 答錯咗，答案係「" + q.o[q.a][1] + "」。";
+        const why = document.createElement("span"); why.textContent = q.why[0];
+        const wz = document.createElement("small"); wz.textContent = q.why[1];
+        fb.className = "qfb " + (ok ? "ok" : "no"); fb.replaceChildren(head, why, wz);
+        quizScore(); saveSoon();
       });
       box.appendChild(b);
     });
-    fs.append(lg, box); qz.appendChild(fs);
+    fs.append(lg, box, fb); qz.appendChild(fs);
   });
-  const hb = $("habits"); hb.replaceChildren();
-  HABITS.forEach((h, i) => {
+  // Habit: nothing is ticked until the player picks one, so the analysis only counts real pledges.
+  const hb = $("habits"); hb.replaceChildren(); S.habit = null;
+  HABITS.forEach(h => {
     const lab = document.createElement("label"); lab.className = "habit";
-    const inp = document.createElement("input"); inp.type = "radio"; inp.name = "habit"; inp.value = h.id; inp.id = "habit_" + h.id; if (i === 0) inp.checked = true;
+    const inp = document.createElement("input"); inp.type = "radio"; inp.name = "habit"; inp.value = h.id; inp.id = "habit_" + h.id;
+    inp.addEventListener("change", () => { if (inp.checked){ S.habit = h.id; saveSoon(); } });
     const t = document.createElement("span"); t.textContent = h.en; const z = document.createElement("small"); z.textContent = h.zh; t.appendChild(z);
     lab.append(inp, t); hb.appendChild(lab);
   });
   $("nickname").value = lsGet("tff_name", "");
+  const live = apiAllowed && !apiGone && dbWritable;
+  $("email").value = ""; $("email").classList.remove("bad"); $("email").hidden = $("emailNote").hidden = !live;   // never kept on the device
   $("postBtn").disabled = false; $("postBtn").firstChild.textContent = "Post score";
   const ps = $("postStatus"); ps.className = "post-status";
-  ps.textContent = db && dbWritable ? "Posts your nickname, score and choices. No real names, please. 只會顯示暱稱，唔好用真名。" : "Your score will be saved on this device. 分數會存喺呢部機。";
+  ps.textContent = live ? "Posts your nickname and score to the board. No real names, please. 排行榜只會顯示暱稱同分數，唔好用真名。" : "Your score will be saved on this device. 分數會存喺呢部機。";
   $("endModal").hidden = false; $("endModal").scrollTop = 0; endScroll = 0;
   endShownAt = performance.now(); modalOpen(true);
   $("endTitle").focus({preventScroll:true});
+  const game = S; game.rec = newRecord();
+  saveRecord(game).catch(e => keepForLater(game, e));
 }
 
 // ---------- leaderboard: live board from /api/scores (Cloudflare Pages Function + D1); this device is the fallback ----------
@@ -1275,31 +1210,109 @@ function schedulePoll(ms){
     schedulePoll(45000 * Math.pow(2, Math.min(pollFails, 3)));
   }, ms);
 }
+// ---------- this game's record ----------
+// Every finished game is saved as soon as the statement opens, anonymously: it feeds the Stats tab and the team's
+// survey analysis, not the board. It is saved again as the player answers the quiz, picks a habit and posts. Each
+// save sends the whole state with the game's random id and key, so the API keeps one row per game in whatever
+// order saves arrive. A save that can't get through waits on this device (without name or email) for the next visit.
+const hex = n => { const a = new Uint8Array(n); crypto.getRandomValues(a); return Array.from(a, b => b.toString(16).padStart(2, "0")).join(""); };
+const newRecord = () => ({gid: hex(16), key: hex(24), board: false, name: "", email: "", sent: "", last: null, chain: Promise.resolve(), timer: 0});
+const answersOf = st => st.quiz.flatMap((x, i) => x ? [{q: QUIZ[i].id, pick: x.pick}] : []);
+function recordBody(st){
+  const r = st.rec;
+  return {gid: r.gid, key: r.key, board: r.board, name: r.board ? r.name : undefined, email: r.board && r.email ? r.email : undefined,
+    score: Math.round(st.score), stage: st.stage, height: +(st.best / FLOOR).toFixed(1), drops: st.drops,
+    wise: st.wise, risky: st.risky, missed: st.missed, falls: {...st.falls}, choices: st.choices.slice(0, 20), ended: st.over,
+    answers: answersOf(st), habit: st.habit || null};
+}
+// Saves go out one at a time; each sends the latest state, and only if it changed since the last one.
+function saveRecord(st, opts = {}){
+  const r = st.rec; if (!r) return Promise.resolve(null);
+  clearTimeout(r.timer); r.timer = 0;
+  const run = async () => {
+    if (!db && apiAllowed && !apiGone) await refreshLB();
+    if (!db || !dbWritable){ const e = new Error("offline"); e.offline = true; if (db) e.code = "closed"; throw e; }
+    const body = JSON.stringify(recordBody(st));
+    if (body === r.sent) return r.last;
+    const j = await api(API, {method: "POST", headers: {"content-type": "application/json"}, body, keepalive: !!opts.keepalive});
+    r.sent = body; r.last = j; dropOutbox(r.gid);
+    return j;
+  };
+  const p = r.chain.then(run);
+  r.chain = p.catch(() => {});
+  return p;
+}
+function saveSoon(){
+  const st = S, r = st && st.rec; if (!r) return;
+  clearTimeout(r.timer);
+  r.timer = setTimeout(() => { r.timer = 0; saveRecord(st).catch(e => keepForLater(st, e)); }, 700);
+}
+function flushRecord(st, leaving){   // send a waiting save now (new game, or the page is being hidden)
+  const r = st && st.rec; if (!r || !r.timer) return;
+  saveRecord(st, {keepalive: leaving}).catch(e => keepForLater(st, e));
+}
+const OUTBOX = "tff_outbox";
+function keepForLater(st, e){
+  if (!apiAllowed || apiGone || !st.rec) return;   // no live board here at all
+  if (e && (e.code === "closed" || e.code === "locked" || e.code === "bad_key" || (e.status >= 400 && e.status < 500 && e.status !== 429))) return;
+  const body = recordBody(st); body.board = false; delete body.name; delete body.email;   // a later retry never posts to the board
+  body.t = Date.now();
+  lsSet(OUTBOX, lsGet(OUTBOX, []).filter(x => x.gid !== body.gid).concat([body]).slice(-20));
+}
+function dropOutbox(gid){ const box = lsGet(OUTBOX, []); if (box.some(x => x.gid === gid)) lsSet(OUTBOX, box.filter(x => x.gid !== gid)); }
+async function flushOutbox(){
+  const box = lsGet(OUTBOX, []).filter(x => x && x.gid && Date.now() - (x.t || 0) < 2 * 86400000);
+  lsSet(OUTBOX, box);
+  if (!box.length || !db || !dbWritable) return;
+  for (const x of box){
+    const body = {...x}; delete body.t;
+    try { await api(API, {method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify(body)}); dropOutbox(x.gid); }
+    catch(e){ if (e.status >= 400 && e.status < 500 && e.status !== 429) dropOutbox(x.gid); else break; }
+  }
+}
+
+const EMAIL_OK = /^[^\s@<>()[\]\\,;:"]{1,64}@[^\s@<>()[\]\\,;:"]+\.[^\s@<>()[\]\\,;:".]{2,}$/;
 $("postBtn").addEventListener("click", async () => {
-  const st = S; if (st.posted || st.posting) return; st.posting = true;
-  const name = sanitizeName($("nickname").value); lsSet("tff_name", name === "Anonymous crab 匿名蟹" ? "" : name);
-  const habit = (document.querySelector('input[name="habit"]:checked') || {}).value || null;
-  const answered = S.quiz.filter(v => v !== null).length;
-  const entry = {name, score: Math.round(S.score), stage: S.stage, height: +(S.best / FLOOR).toFixed(1), drops: S.drops,
-    wise: S.wise, risky: S.risky, missed: S.missed, falls: {...S.falls}, choices: S.choices.slice(0, 20), habit,
-    quiz: answered ? S.quiz.filter(Boolean).length : null, ended: S.over, at: new Date().toISOString(), week: localWeek()};
-  const btn = $("postBtn"); btn.disabled = true; btn.firstChild.textContent = "Posting…";
-  const ps = $("postStatus");
+  const st = S; if (st.posted || st.posting) return;
+  const ps = $("postStatus"), btn = $("postBtn"), em = $("email");
+  const email = em.hidden ? "" : em.value.trim();
+  if (email && (email.length > 254 || !EMAIL_OK.test(email))){
+    em.classList.add("bad"); em.focus(); ps.className = "post-status bad";
+    ps.textContent = "That email doesn't look right. Check it, or leave it blank. 電郵地址好似唔啱，請再檢查，或者留空。";
+    return;
+  }
+  em.classList.remove("bad"); st.posting = true;
+  const name = sanitizeName($("nickname").value); lsSet("tff_name", name === ANON ? "" : name);
+  const answers = answersOf(st), right = st.quiz.filter(x => x && x.ok).length;
+  const entry = {name, score: Math.round(st.score), stage: st.stage, height: +(st.best / FLOOR).toFixed(1), drops: st.drops,
+    wise: st.wise, risky: st.risky, missed: st.missed, falls: {...st.falls}, choices: st.choices.slice(0, 20), habit: st.habit || null,
+    answers, quiz: answers.length ? right : null, ended: st.over, at: new Date().toISOString(), week: localWeek()};   // the device copy never holds the email
+  btn.disabled = true; btn.firstChild.textContent = "Posting…"; ps.className = "post-status";
   if (!db && apiAllowed && !apiGone) await refreshLB();
   const saveLocal = () => { const arr = localScores(); arr.push(entry); lsSet("tff_scores_v3", arr.slice(-100)); };
   if (db && dbWritable){
+    const r = st.rec || (st.rec = newRecord());
+    r.board = true; r.name = name; r.email = email;
     try {
-      const j = await api(API, {method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify(entry)});
+      const j = await saveRecord(st);
       myLastId = j.id; myIds.add(j.id); lsSet("tff_my_ids", [...myIds].slice(-30)); st.posted = true; st.posting = false;
       myPost = {id: j.id, rank: j.rank || (j.rankCap || 500) + 1, week: j.week, name: j.name || name, score: entry.score, height: entry.height}; lsSet("tff_my_post", myPost);
       if (st === S){
         A.sfx("post"); ps.className = "post-status ok";
-        ps.textContent = (j.rank ? "You're #" + j.rank + " this week! 今個星期排第" + j.rank + "！ " : "On the live board! 已上榜！ ") + "Top weekly scorers win a prize. 每星期最高分有獎！";
+        ps.textContent = (j.rank ? "You're #" + j.rank + " this week! 今個星期排第" + j.rank + "！ " : "On the live board! 已上榜！ ") +
+          (email ? "We'll email you if you win a prize. 如果你得獎，我哋會電郵通知你。" : "Top scorers each week and month win prizes. 每週同每月最高分都有獎！");
         btn.firstChild.textContent = "Posted ✓";
       }
       lbSig = ""; refreshLB(true);
       return;
     } catch(e){
+      r.board = false; r.name = ""; r.email = "";   // posting happens only on a tap, so a later survey save mustn't post it
+      if (e.code === "bad_email"){
+        st.posting = false;
+        if (st === S){ btn.disabled = false; btn.firstChild.textContent = "Post score"; em.classList.add("bad"); ps.className = "post-status bad";
+          ps.textContent = "That email doesn't look right. Check it, or leave it blank. 電郵地址好似唔啱，請再檢查，或者留空。"; }
+        return;
+      }
       if (!e.status || e.status === 429 || (e.status >= 500 && e.code !== "no_database")){
         // Busy or offline: keep the button so they can try again.
         st.posting = false;
@@ -1368,19 +1381,21 @@ function bar(label, val, max, cls){
   d.append(l, v, tr); return d;
 }
 // Same shape the API's ?view=stats returns, so live and on-device data render through one path.
+// Quiz figures count finished quizzes only (older saved games kept just the number right).
 function aggregate(games){
-  const a = {games: games.length, wise: 0, risky: 0, missed: 0, falls: {spend: 0, scam: 0, delay: 0}, habits: {}, quizSum: 0, quizN: 0, sample: false};
+  const a = {games: games.length, wise: 0, risky: 0, missed: 0, falls: {spend: 0, scam: 0, delay: 0}, habits: {}, quizSum: 0, quizN: 0, quizPass: 0, sample: false};
   games.forEach(gm => {
     a.wise += +gm.wise || 0; a.risky += +gm.risky || 0; a.missed += +gm.missed || 0;
     if (gm.falls) for (const kk in a.falls) a.falls[kk] += +gm.falls[kk] || 0;
     if (gm.habit) a.habits[gm.habit] = (a.habits[gm.habit] || 0) + 1;
-    if (typeof gm.quiz === "number"){ a.quizSum += gm.quiz; a.quizN++; }
+    const done = Array.isArray(gm.answers) ? gm.answers.length === QUIZ.length : typeof gm.quiz === "number";
+    if (done && typeof gm.quiz === "number"){ a.quizSum += gm.quiz; a.quizN++; if (gm.quiz >= 2) a.quizPass++; }
   });
   return a;
 }
 function addAgg(a, b){
   const o = {...a, falls: {...a.falls}, habits: {...a.habits}};
-  o.games += b.games; o.wise += b.wise; o.risky += b.risky; o.missed += b.missed; o.quizSum += b.quizSum; o.quizN += b.quizN;
+  o.games += b.games; o.wise += b.wise; o.risky += b.risky; o.missed += b.missed; o.quizSum += b.quizSum; o.quizN += b.quizN; o.quizPass += b.quizPass || 0;
   for (const kk in o.falls) o.falls[kk] += b.falls[kk] || 0;
   for (const kk in b.habits) o.habits[kk] = (o.habits[kk] || 0) + b.habits[kk];
   return o;
@@ -1409,7 +1424,12 @@ async function renderInsights(){
   wrap.appendChild(hl);
   const topHabit = Object.entries(agg.habits).sort((a, b) => b[1] - a[1])[0];
   if (topHabit){ const h = HABITS.find(x => x.id === topHabit[0]); const hp = document.createElement("p"); hp.style.margin = "0"; hp.textContent = "Top habit pledged: " + (h ? h.en + " " + h.zh : topHabit[0]) + " (" + topHabit[1] + ")"; wrap.appendChild(hp); }
-  if (agg.quizN){ const qp = document.createElement("p"); qp.style.margin = "0"; qp.textContent = "Average quiz score: " + (agg.quizSum / agg.quizN).toFixed(1) + "/3 · " + agg.quizN + " quiz" + (agg.quizN === 1 ? "" : "zes"); wrap.appendChild(qp); }
+  if (agg.quizN){
+    const qp = document.createElement("p"); qp.style.margin = "0"; const pass = Math.round(100 * agg.quizPass / agg.quizN);
+    qp.textContent = "Quiz: " + pass + "% got 2 or 3 right · average " + (agg.quizSum / agg.quizN).toFixed(1) + "/3 · " + agg.quizN + " player" + (agg.quizN === 1 ? "" : "s") +
+      " 測驗：" + pass + "%人答啱2題或以上";
+    wrap.appendChild(qp);
+  }
   body.appendChild(wrap);
 }
 async function initDB(){
@@ -1417,6 +1437,7 @@ async function initDB(){
   const body = $("lbBody"); body.replaceChildren(); const p = document.createElement("p"); p.className = "lb-empty"; p.textContent = "Loading the live board… 載入排行榜中"; body.appendChild(p);
   await refreshLB();
   if (apiGone) return;
+  flushOutbox();
   schedulePoll(45000);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && performance.now() - lastFetch > 20000) refreshLB(); });
   if ("IntersectionObserver" in window){
