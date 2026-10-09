@@ -27,6 +27,8 @@ Use the Cloudflare account that holds the **3fallcrab.com** domain. Every push t
    - **Recommended:** keep it, but change its path so it covers only `3fallcrab.com/admin` (add `3fallcrab.com/api/admin` too). The game is then public, and the admin page gets a second lock.
    - Or delete the application.
 5. **Set the admin password.** Go to **Workers & Pages → three-fall-fun → Settings → Variables and Secrets → Add**. Choose type **Secret**, name it `ADMIN_TOKEN`, and set a long password (16+ characters). Then open [3fallcrab.com/admin](https://3fallcrab.com/admin).
+   - Choose type **Secret**, not Text. Deploys from GitHub never touch secrets, so the password keeps working.
+   - If Cloudflare suggests "Update your Wrangler configuration with these changes to keep deployments in sync", don't paste `ADMIN_TOKEN` into `wrangler.jsonc`: this repository is public, and the admin page shows players' emails. `wrangler.jsonc` already has `"keep_vars": true`, so deploys also keep any plain variables you add in the dashboard.
 6. **Print the booth poster** from [3fallcrab.com/poster](https://3fallcrab.com/poster). Use A4 with "Background graphics" turned on.
 7. **Turn on the privacy contact address.** The results screen and the page footer tell players to email **team@3fallcrab.com** to see or correct their data, or with any privacy question. Make that address reach your team (free, about 2 minutes):
    - In the Cloudflare dashboard, open **3fallcrab.com → Email → Email Routing** and click **Get started** (or **Enable**). Accept the DNS records it adds. If the domain already receives email somewhere else, skip this and change the address instead (see below).

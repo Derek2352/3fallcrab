@@ -20,6 +20,10 @@
     "TIMEZONE": "Asia/Hong_Kong",
     "LEADERBOARD_CLOSED": "0"
   },
+  // ADMIN_TOKEN (and IP_SALT) are passwords: set them in the Cloudflare dashboard as type "Secret", never in this
+  // file. This repository is public, and the admin page shows players' emails. Deploys never touch secrets, and
+  // keep_vars stops deploys from deleting any plain variables added in the dashboard, so both stay in sync.
+  "keep_vars": true,
   // Your domain. 3fallcrab.com must be a zone in the same Cloudflare account.
   // On a deploy from GitHub, Cloudflare points these two hostnames at this Worker (replacing their
   // existing A/AAAA/CNAME records; other records such as email are untouched). The workers.dev
