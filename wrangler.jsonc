@@ -1,7 +1,9 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  // Worker name: becomes https://three-fall-fun.<your-subdomain>.workers.dev
-  "name": "three-fall-fun",
+  // Worker name: the live Worker in the Cloudflare dashboard (it holds the leaderboard database), also
+  // https://freefallcrab.<your-subdomain>.workers.dev. Deploys from GitHub go to this Worker either way; keeping the
+  // name the same here means a deploy from a computer goes there too, instead of creating a second, empty one.
+  "name": "freefallcrab",
   "main": "server/worker.js",
   "compatibility_date": "2026-09-01",
   "assets": {

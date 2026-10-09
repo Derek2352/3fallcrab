@@ -18,15 +18,15 @@ This repo is a ready-to-deploy website:
 Use the Cloudflare account that holds the **3fallcrab.com** domain. Every push to `main` redeploys automatically.
 
 1. In the Cloudflare dashboard, go to **Workers & Pages → Create → Import a repository**. Connect GitHub if asked, then pick **Derek2352/3fallcrab**.
-2. Keep the project name `three-fall-fun`. Set the build command to `npm run build` and the deploy command to `npx wrangler deploy`.
+2. Name the Worker `freefallcrab`, the name in `wrangler.jsonc` (the live 3fallcrab.com Worker). Set the build command to `npm run build` and the deploy command to `npx wrangler deploy`.
 3. Click **Deploy**. Cloudflare:
    - creates the leaderboard database on the first build, then keeps using the same one on every later build;
    - attaches **3fallcrab.com** and **www.3fallcrab.com** to the game, replacing whatever those two hostnames pointed at before (email and other DNS records are untouched);
-   - keeps `https://three-fall-fun.<your-subdomain>.workers.dev` working as a backup address.
+   - keeps `https://freefallcrab.<your-subdomain>.workers.dev` working as a backup address.
 4. **Open the domain to the public.** 3fallcrab.com currently sits behind a Cloudflare Access login, so players would see a sign-in page. In **Zero Trust → Access → Applications**, find the app for `3fallcrab.com` and do one of these:
    - **Recommended:** keep it, but change its path so it covers only `3fallcrab.com/admin` (add `3fallcrab.com/api/admin` too). The game is then public, and the admin page gets a second lock.
    - Or delete the application.
-5. **Set the admin password.** Go to **Workers & Pages → three-fall-fun → Settings → Variables and Secrets → Add**. Choose type **Secret**, name it `ADMIN_TOKEN`, and set a long password (16+ characters). Then open [3fallcrab.com/admin](https://3fallcrab.com/admin).
+5. **Set the admin password.** Go to **Workers & Pages → freefallcrab → Settings → Variables and Secrets → Add**. Choose type **Secret**, name it `ADMIN_TOKEN`, and set a long password (16+ characters). Then open [3fallcrab.com/admin](https://3fallcrab.com/admin).
    - Choose type **Secret**, not Text. Deploys from GitHub never touch secrets, so the password keeps working.
    - If Cloudflare suggests "Update your Wrangler configuration with these changes to keep deployments in sync", don't paste `ADMIN_TOKEN` into `wrangler.jsonc`: this repository is public, and the admin page shows players' emails. `wrangler.jsonc` already has `"keep_vars": true`, so deploys also keep any plain variables you add in the dashboard.
 6. **Print the booth poster** from [3fallcrab.com/poster](https://3fallcrab.com/poster). Use A4 with "Background graphics" turned on.
@@ -52,7 +52,7 @@ npx wrangler login      # opens the browser once to connect your Cloudflare acco
 npm run deploy
 ```
 
-When it finishes, the game is live at https://3fallcrab.com, with `https://three-fall-fun.<your-subdomain>.workers.dev` as a backup. Open it on your phone and play. The first time, Wrangler may ask before it replaces the domain's existing DNS records; answer yes.
+When it finishes, the game is live at https://3fallcrab.com, with `https://freefallcrab.<your-subdomain>.workers.dev` as a backup. Open it on your phone and play. The first time, Wrangler may ask before it replaces the domain's existing DNS records; answer yes.
 
 - **The first deploy creates the database for you.** Wrangler creates a D1 database for the `DB` binding and writes its `database_id` into `wrangler.jsonc`. Keep that change (commit it if you use Git), so later deploys reuse the same database.
 - **New Cloudflare account?** You may be asked to pick a `workers.dev` subdomain first. Your team or school name works well.
@@ -144,7 +144,7 @@ Pushing to `main` redeploys only the code and the files in `public/`. The scores
 
 What could reset the board, and what stops it:
 
-- **Renaming the Worker or the `DB` binding.** Changing `"name"` in `wrangler.jsonc` (`three-fall-fun`) or the `DB` binding makes Cloudflare create a new, empty database. `npm run build` refuses to build if either changes, so a GitHub deploy fails safely instead of going live.
+- **Renaming the Worker or the `DB` binding.** Changing `"name"` in `wrangler.jsonc` (`freefallcrab`) or the `DB` binding makes Cloudflare create a new, empty database. `npm run build` refuses to build if either changes, so a GitHub deploy fails safely instead of going live.
 - **SQL that wipes the table.** The build also refuses `DROP TABLE`, `TRUNCATE` or a `DELETE FROM scores` without `WHERE` anywhere in `server/`, `functions/` or `migrations/`.
 - **Changing the table later.** Only ever add columns; never remove or rename them. New columns go in `ADDED` in `server/api.js`: the API adds them to the live table by itself on its next request, keeping every row.
 - **Deleting the database in the dashboard.** Don't. To stop new scores after the event, set `LEADERBOARD_CLOSED` to `"1"` instead; the board stays visible.
@@ -154,7 +154,7 @@ If you ever really want a brand-new board, run the build with `ALLOW_LEADERBOARD
 **Backups:**
 
 - **Quick:** `/admin → Download CSV` at any time.
-- **Full SQL copy:** find the database name in the Cloudflare dashboard under **Storage & Databases → D1** (it starts with `three-fall-fun`), then run `npx wrangler d1 export <database-name> --remote --output backup.sql`.
+- **Full SQL copy:** find the database name in the Cloudflare dashboard under **Workers & Pages → freefallcrab → Bindings** (the D1 database bound as `DB`), then run `npx wrangler d1 export <database-name> --remote --output backup.sql`.
 - **Undo a mistake:** D1 Time Travel can roll the database back to any minute in the last 7 days on the free plan (30 days on paid): `npx wrangler d1 time-travel restore <database-name> --timestamp=2026-10-09T12:00:00Z`.
 
 ### API

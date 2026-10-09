@@ -25,11 +25,11 @@ if (site && !/^https:\/\/[^/\s]+$/.test(site)) {
   process.exit(1);
 }
 
-// Leaderboard guard. The live scores sit in the D1 database bound as "DB" to the Worker "three-fall-fun";
+// Leaderboard guard. The live scores sit in the D1 database bound as "DB" to the Worker "freefallcrab";
 // every deploy reuses it. Renaming either makes Cloudflare create a new, empty database on the next deploy,
 // and a DROP/TRUNCATE/unfiltered DELETE would wipe it. Stop the build (so nothing deploys) if that happens.
 // Deliberate reset or a fork for another team: run with ALLOW_LEADERBOARD_RESET=1.
-const LIVE = { worker: "three-fall-fun", binding: "DB" };
+const LIVE = { worker: "freefallcrab", binding: "DB" };
 if (process.env.ALLOW_LEADERBOARD_RESET !== "1") {
   const problems = [];
   const jsonc = readFileSync(join(root, "wrangler.jsonc"), "utf8");
