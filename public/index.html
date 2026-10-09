@@ -25,10 +25,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gluten:wght@400..900&family=LXGW+WenKai+TC:wght@400;700&family=DotGothic16&family=Noto+Sans+HK:wght@400;500;700;900&display=swap">
-<link rel="stylesheet" href="/assets/style.df39ace9e0.css">
+<link rel="stylesheet" href="/assets/style.6169f0eb32.css">
 </head>
 <body>
-<noscript><p style="margin:0;padding:16px;background:#2E2838;color:#fff;font:16px/1.5 system-ui,sans-serif;text-align:center">3 Fall Fun needs JavaScript to run. 請開啟 JavaScript 去玩。</p></noscript>
+<noscript><p style="margin:0;padding:16px;background:#2E2838;color:#fff;font:16px/1.5 system-ui,sans-serif;text-align:center">3 Fall Fun needs JavaScript to run. 請開啟 JavaScript 先玩到。</p></noscript>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
     <symbol id="i-spend" viewBox="0 0 32 32"><rect x="3" y="8" width="26" height="17" rx="4" fill="#fff"/><rect x="3" y="12" width="26" height="4" fill="#2E2838"/><rect x="7" y="19" width="8" height="3" rx="1.5" fill="#FF7B35"/><circle cx="24" cy="21" r="5.5" fill="#FFC83D" stroke="#2E2838" stroke-width="1.5"/><path d="M24 18v6M22.3 19.6h3" stroke="#2E2838" stroke-width="1.4" stroke-linecap="round"/></symbol>
@@ -114,7 +114,7 @@
             <button class="btn" id="startBtn">Start<span class="zh">開始</span></button>
           </div>
         </div>
-        <div class="overlay seeov" id="seeOv" hidden><button class="btn" id="againBtn2">Play again<span class="zh">再玩</span></button></div>
+        <div class="overlay seeov" id="seeOv" hidden><button class="btn alt" id="resultsBtn" aria-label="Back to results">Results<span class="zh">睇返結算</span></button><button class="btn" id="againBtn2">Play again<span class="zh">再玩</span></button></div>
         <div class="overlay" id="pauseOv" hidden>
           <div class="ov-card"><h2>Paused</h2><p class="zh">暫停</p><button class="btn" id="resumeBtn">Resume<span class="zh">繼續</span></button></div>
         </div>
@@ -148,10 +148,10 @@
     <section class="howto clay" aria-label="How to play">
       <h2 class="h">How to play <span class="zh">玩法</span></h2>
       <ol class="how">
-          <li>Steer each falling item and let go. It lands with real weight, friction and bounce.<small>控制跌落物件，按真實物理落地、滑動、反彈。</small></li>
-          <li>The taller your tower, the further through life you get.<small>座塔越高，人生階段越後。</small></li>
-          <li>Life Event cards: wise choices bring flat, stable items. Risky ones bring footballs, bubble tea and handbags, plus one of the 3 Falls.<small>明智＝平穩物件；高危＝怪形物件＋跌入陷阱。</small></li>
-          <li>Job losses and medical bills shake the tower unless you have an emergency fund.<small>冇應急錢，突發事件會令座塔震。</small></li>
+          <li>Steer each falling item and let go. It lands with real weight, friction and bounce.<small>移好位就放手，物件會好似真嘢咁滑、碌、彈。</small></li>
+          <li>The taller your tower, the further through life you get.<small>塔疊得越高，人生就行得越遠。</small></li>
+          <li>Life Event cards: wise choices bring flat, stable items. Risky ones bring footballs, bubble tea and handbags, plus one of the 3 Falls.<small>揀得明智有平穩物件；揀高危就有奇形怪狀嘅嘢，仲會中伏。</small></li>
+          <li>Job losses and medical bills shake the tower unless you have an emergency fund.<small>冇應急錢，失業、醫藥費呢啲突發事件會令座塔震。</small></li>
         </ol>
       <ul class="keys" aria-label="Controls">
         <li><kbd>←</kbd><kbd>→</kbd> Move 移動</li>
@@ -163,7 +163,7 @@
         <li><kbd>1</kbd><kbd>2</kbd> Card answer 揀答案</li>
         <li><kbd>P</kbd> Pause 暫停</li>
         <li><kbd>M</kbd> Mute 靜音</li>
-        <li class="touch">Phone: drag to move, tap to rotate, swipe down to drop 手機：拖動、點擊、向下掃</li>
+        <li class="touch">Phone: drag to move, tap to rotate, swipe down to drop 手機：拖動移位、點一下轉向、向下掃即放</li>
       </ul>
     </section>
 
@@ -216,10 +216,10 @@
         <li><span class="lab">Best height<small>最高</small></span><span class="dots"></span><span class="val" id="rHeight"></span></li>
         <li><span class="lab">Wise picks<small>明智選擇</small></span><span class="dots"></span><span class="val" id="rWise"></span></li>
       </ul>
-      <div class="esec"><h4>Your 3 Falls<span class="zh">你跌過嘅陷阱</span></h4><ul class="fallrep" id="fallRep"></ul></div>
+      <div class="esec"><h4>Your 3 Falls<span class="zh">你中過嘅陷阱</span></h4><ul class="fallrep" id="fallRep"></ul></div>
       <div class="esec"><h4>Quick quiz<span class="zh">小測驗 · <span id="quizScore">0/3</span></span></h4><div id="quiz"></div></div>
       <div class="esec">
-        <h4>Commit to one habit<span class="zh">今個學期實踐一個習慣</span></h4>
+        <h4>Commit to one habit<span class="zh">揀一個好習慣，今個學期做到佢</span></h4>
         <div class="habits" id="habits"></div>
         <div class="namerow">
           <input id="nickname" maxlength="16" placeholder="Nickname 暱稱 (no real names)" autocomplete="off" aria-label="Nickname">
@@ -236,12 +236,12 @@
 </div>
 
 <script src="/assets/matter-0.19.0.min.bdf68e297d.js"></script>
-<script src="/assets/clay.68fd87ee0b.js"></script>
+<script src="/assets/clay.1b4ac05da2.js"></script>
 <script src="/assets/audio.e24aea6a63.js"></script>
-<script src="/assets/wise.97079a025b.js"></script>
+<script src="/assets/wise.483e521ff6.js"></script>
 <script src="/assets/risky-a.5a67e884e5.js"></script>
-<script src="/assets/risky-b.480a7553f9.js"></script>
-<script src="/assets/scam.f10855cb68.js"></script>
-<script src="/assets/game.e83f4f11d8.js"></script>
+<script src="/assets/risky-b.5057bd2b53.js"></script>
+<script src="/assets/scam.05ff1a07ff.js"></script>
+<script src="/assets/game.2b8eda5406.js"></script>
 </body>
 </html>

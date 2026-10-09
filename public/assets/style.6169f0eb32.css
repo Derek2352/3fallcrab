@@ -405,6 +405,9 @@ button{font-family:inherit;color:inherit}
 #startOv{align-items:flex-start;padding-top:12%}
 .ov-card h2{font-size:clamp(22px,7vw,28px)}
 .seeov{align-items:flex-end;padding-bottom:22px;pointer-events:none}
+/* back to the statement: a small pill in the top-left corner, clear of the tower and the Play again button */
+.seeov #resultsBtn{position:absolute;top:12px;left:12px;font-size:14px;padding:8px 13px 9px;white-space:nowrap}
+.seeov #resultsBtn .zh{font-size:12.5px}
 .seeov .btn{pointer-events:auto}
 /* Chinese never breaks mid-word */
 .tag b, .tag small, .pbs .k, .esec h4, .oc-head, .chip small, .h .zh, .dir .nm b, .stamp small, .kind, .rows .lab small{word-break:keep-all;overflow-wrap:break-word}

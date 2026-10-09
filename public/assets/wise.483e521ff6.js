@@ -310,7 +310,7 @@
       } },
 
     // ------------------------------------------------------------------ lemon tea carton
-    { id: "lemontea", en: "Carton of lemon tea", zh: "檸檬茶", kind: "wise",
+    { id: "lemontea", en: "Carton of lemon tea", zh: "紙包檸檬茶", kind: "wise",
       note: "upright drink carton with a straw: steady on its flat base, taller than wide",
       make(x, y){ const S = CLAY.shape;
         return S.body([...rectsOf(S, x, y, [LEMON.body, LEMON.fin, LEMON.straw]), S.convex(x, y, LEMON.earL), S.convex(x, y, LEMON.earR)], "card", {friction:0.75, frictionStatic:1.0, restitution:0.03, density:0.0021}); },

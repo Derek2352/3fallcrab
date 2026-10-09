@@ -36,83 +36,83 @@ const TOP_AT = 14;
 
 const TRAPS = {
   spend: {en:"Overspending", zh:"過度消費", d:"Credit cards & buy-now-pay-later 信用卡、先買後付",
-          eff:"A heavy debt ball and chain crashes onto your tower, then awkward items. 一個好重嘅債務鐵球跌落你座塔度，之後係怪形物件。"},
+          eff:"A heavy debt ball and chain crashes onto your tower, followed by awkward shapes. 一個好重嘅債務鐵球會跌落你座塔度，跟住嚟嘅都係奇形怪狀嘅嘢。"},
   scam:  {en:"Scams", zh:"騙局", d:"Fake tips, “renting” your account 貼士股、租戶口",
-          eff:"−HK$5,000. Slippery, bouncy scam items next, and hold is locked. 損失HK$5,000，之後係又滑又彈嘅騙局物件。"},
-  delay: {en:"Putting off saving", zh:"遲遲不儲蓄", d:"“I'll start next year” 「明年先儲」",
-          eff:"Time speeds up for 20s and your savings boost resets. 時間加速20秒，儲蓄加成歸零。"}
+          eff:"You lose HK$5,000. Slippery, bouncy scam items come next, and Hold is locked. 蝕咗HK$5,000，之後跌落嚟嘅騙局物件又滑又彈，仲會鎖住暫存。"},
+  delay: {en:"Putting off saving", zh:"拖延儲錢", d:"“I'll start next year” 「明年先儲」",
+          eff:"Time speeds up for 20s and your savings boost drops back to ×1.0. 時間加速20秒，儲蓄加成打回×1.0。"}
 };
 
 const CARDS = [
-  {id:"newphone", st:0, en:"Your phone still works, but the new model just launched.", zh:"部手機仲用得，但新款啱啱推出。",
-   w:["Keep it and save HK$300 a month","繼續用，每月儲HK$300"], r:["Buy it now with buy-now-pay-later","先買後付，即刻換機"], trap:"spend",
-   tip:["Buy-now-pay-later plans stack up fast, and a missed payment can land on your credit report.","「先買後付」好易越疊越多，遲還款會影響信貸紀錄。"]},
-  {id:"cards", st:0, en:"A campus booth gives a free gift for every credit card you sign up for.", zh:"校園攤位話每申請一張信用卡就送一份禮物。",
-   w:["Get one card and autopay the full balance","只申請一張，設定自動找清全數"], r:["Sign up for three and pay the minimum","申請三張，每月只還最低還款額"], trap:"spend",
-   tip:["Card interest often runs above 30% a year. Paying only the minimum lets a small balance drag on for years.","信用卡實際年利率常超過30%，只還最低還款額，小數目都可以拖好多年。"]},
-  {id:"mule", st:0, en:"A stranger on Instagram offers HK$3,000 to “rent” your bank account.", zh:"IG陌生人出HK$3,000「租」你個銀行戶口。",
-   w:["Refuse and report it to 18222","拒絕，並致電18222防騙易熱線"], r:["Easy money. Hand it over","咁易賺，借出戶口"], trap:"scam",
+  {id:"newphone", st:0, en:"Your phone still works, but the new model just launched.", zh:"部手機仲用得，但新款啱啱出咗。",
+   w:["Keep it and save HK$300 a month","繼續用住先，每個月儲HK$300"], r:["Get it today with buy-now-pay-later","先買後付，即刻換機"], trap:"spend",
+   tip:["Buy-now-pay-later plans stack up fast, and a missed payment can land on your credit report.","「先買後付」好易一單疊一單，遲還一期都可能影響信貸紀錄。"]},
+  {id:"cards", st:0, en:"A campus booth gives a free gift for every credit card you sign up for.", zh:"校園有個攤位話，每開一張信用卡就送份禮物。",
+   w:["Get one card and autopay the full balance","只開一張，設定自動找清卡數"], r:["Sign up for three and pay the minimum","一次開三張，每月只還最低還款額"], trap:"spend",
+   tip:["Card interest often runs above 30% a year. Paying only the minimum lets a small balance drag on for years.","信用卡實際年利率好多時超過30%。淨係還最低還款額，細數都可以拖成幾年。"]},
+  {id:"mule", st:0, en:"A stranger on Instagram offers HK$3,000 to “rent” your bank account.", zh:"IG有個陌生人出HK$3,000，想「租」你個銀行戶口。",
+   w:["Refuse and report it to 18222","拒絕，打去18222防騙易熱線"], r:["Easy money. Hand it over","咁易賺，借畀佢用"], trap:"scam",
    tip:["Lending your account makes you a money mule. Money laundering in Hong Kong carries up to 14 years in prison.","借出戶口即係做「傀儡戶口」，洗黑錢最高可判監14年。"]},
   {id:"tutor", st:0, en:"You earn HK$4,000 from part-time tutoring.", zh:"做補習賺到HK$4,000。",
-   w:["Save 20% first, then spend the rest","先儲起20%，再用其餘"], r:["Spend now, save whatever is left later","照用先，剩幾多先儲幾多"], trap:"delay",
-   tip:["Pay yourself first. Money saved on payday is money you can't spend by accident.","先支付自己：出糧即儲，就唔會唔覺意用晒。"]},
+   w:["Save 20% first, then spend the rest","先儲起20%，剩低先用"], r:["Spend now, save whatever is left later","照用先，剩幾多先儲幾多"], trap:"delay",
+   tip:["Pay yourself first. Money saved on payday is money you can't spend by accident.","先儲後使：一收錢就儲起，就唔會唔覺意洗晒。"]},
   {id:"salary", st:1, en:"First salary: HK$18,000.", zh:"第一份人工：HK$18,000。",
    w:["Save 20% (HK$3,600) automatically on payday","出糧自動儲起20%（HK$3,600）"], r:["Buy the latest phone on instalments","分期買最新款手機"], trap:"spend",
-   tip:["Automating savings on payday is the easiest habit to keep. HK$3,600 a month is HK$43,200 a year.","出糧自動轉賬儲錢最易堅持。每月HK$3,600，一年就係HK$43,200。"]},
+   tip:["Automating savings on payday is the easiest habit to keep. HK$3,600 a month is HK$43,200 a year.","出糧自動轉賬儲錢，最易堅持。每個月HK$3,600，一年就有HK$43,200。"]},
   {id:"crypto", st:1, en:"A coworker's group chat promises a “guaranteed” 30% a month on crypto.", zh:"同事個群組話炒幣「保證」每月賺30%。",
-   w:["Check the SFC alert list and walk away","查證監會可疑投資產品警示名單，然後離開"], r:["Put in HK$10,000 before it's too late","即刻入HK$10,000，遲咗就冇"], trap:"scam",
-   tip:["Nobody can guarantee high returns. The SFC keeps a Suspicious Investment Products Alert List you can search.","冇人可以保證高回報。證監會設有「可疑投資產品警示名單」可供查閱。"]},
-  {id:"mpf", st:1, en:"Your MPF account is open and the fund choice is up to you.", zh:"強積金戶口開咗，揀邊個基金由你決定。",
+   w:["Check the SFC alert list and walk away","上證監會警示名單查吓，唔好理佢"], r:["Put in HK$10,000 before it's too late","即刻入HK$10,000，遲咗就冇"], trap:"scam",
+   tip:["Nobody can guarantee high returns. The SFC keeps a Suspicious Investment Products Alert List you can search.","冇人可以保證高回報。證監會有「可疑投資產品警示名單」，隨時可以上網查。"]},
+  {id:"mpf", st:1, en:"Your MPF account is open and the fund choice is up to you.", zh:"強積金戶口開咗，揀咩基金由你話事。",
    w:["Compare funds and fees on the MPFA platform","上積金局平台比較基金同收費"], r:["Ignore it until you're 40","40歲先理"], trap:"delay",
-   tip:["You and your employer each put in 5% of your salary. Fees and fund choice compound over 40 years.","你同僱主各供款入息嘅5%。收費同基金選擇會滾存40年。"]},
-  {id:"trip", st:1, en:"Friends are planning a HK$15,000 trip to Japan next month.", zh:"朋友下個月去日本，要HK$15,000。",
+   tip:["You and your employer each put in 5% of your salary. Fees and fund choice compound over 40 years.","你同僱主每月各供人工嘅5%。收費高低同揀邊隻基金，影響會累積40年。"]},
+  {id:"trip", st:1, en:"Friends are planning a HK$15,000 trip to Japan next month.", zh:"朋友約你下個月去日本，要HK$15,000。",
    w:["Start a travel fund and go in six months","開個旅行基金，半年後先去"], r:["Put it all on the credit card","全部碌卡先算"], trap:"spend",
    tip:["A trip carried on a card at 30%+ interest can end up costing more than the flight and hotel.","碌卡旅行再慢慢還，利息隨時貴過機票酒店。"]},
   {id:"wedding", st:2, en:"You're planning your wedding banquet.", zh:"準備擺酒結婚。",
-   w:["Keep it within what you've saved","控制喺儲蓄範圍內"], r:["Take a personal loan for 30 tables","借私人貸款擺30圍"], trap:"spend",
+   w:["Keep it within what you've saved","量力而為，唔好超出儲蓄"], r:["Take a personal loan for 30 tables","借私人貸款擺30圍"], trap:"spend",
    tip:["Borrowing for one big day can mean years of repayments while you start a family.","借錢擺酒，一日風光可能要還好多年。"]},
   {id:"buffer", st:2, en:"Your household has no emergency fund yet.", zh:"屋企仲未有應急錢。",
    w:["Build up 3 to 6 months of expenses","儲起3至6個月生活費"], r:["Start next year, maybe","明年先算啦"], trap:"delay",
-   tip:["An emergency fund turns a job loss or a medical bill into a setback instead of a debt spiral.","有應急錢，失業或醫療開支先唔會變成債務。"]},
+   tip:["An emergency fund turns a job loss or a medical bill into a setback instead of a debt spiral.","有應急錢，就算失業或者要睇醫生，都唔使借錢度日。"]},
   {id:"call", st:2, en:"A caller claims to be mainland police: your ID is linked to a crime, so move your money to a “safe account”.", zh:"有人自稱內地公安，話你身份涉案，要將錢轉去「安全戶口」。",
-   w:["Hang up and call 18222","即刻收線，致電18222"], r:["Transfer it to clear your name","轉錢證明清白"], trap:"scam",
-   tip:["Real police never ask you to transfer money. Hang up and check with the Anti-Scam Helpline 18222.","真警察唔會叫你轉賬。收線後可致電防騙易熱線18222查詢。"]},
+   w:["Hang up and call 18222","即刻收線，打18222問清楚"], r:["Transfer it to clear your name","轉錢證明清白"], trap:"scam",
+   tip:["Real police never ask you to transfer money. Hang up and check with the Anti-Scam Helpline 18222.","真警察唔會叫你轉錢。收線後可以打防騙易熱線18222查詢。"]},
   {id:"insure", st:2, en:"A baby is on the way.", zh:"BB就快出世。",
    w:["Get basic medical and term life cover","買基本醫療同定期人壽保險"], r:["Skip insurance. Nothing will happen","唔買保險，唔會咁大鑊嘅"], trap:"delay",
-   tip:["Basic cover is cheapest when you're young and healthy. Waiting raises the price and the risk.","年輕健康時買基本保障最平，拖得越耐越貴。"]},
-  {id:"lump", st:3, en:"You can withdraw your MPF at 65.", zh:"65歲可以提取強積金。",
-   w:["Stay invested and draw down a little each year","繼續投資，每年慢慢提取"], r:["Put it all into a WhatsApp group's hot tip","全數投入WhatsApp群組嘅貼士股"], trap:"scam",
-   tip:["Retirees are prime targets for “hot tip” groups. Withdrawing in stages also spreads your risk.","退休人士係貼士群組騙徒嘅目標，分期提取亦可分散風險。"]},
-  {id:"romance", st:3, en:"An online friend you've never met urgently needs HK$50,000.", zh:"網上認識、從未見面嘅朋友急需HK$50,000。",
+   tip:["Basic cover is cheapest when you're young and healthy. Waiting raises the price and the risk.","後生又健康嗰陣買基本保障最平，拖得越耐越貴。"]},
+  {id:"lump", st:3, en:"You can withdraw your MPF at 65.", zh:"65歲可以攞返強積金。",
+   w:["Stay invested and draw down a little each year","繼續投資，每年攞少少"], r:["Put it all into a WhatsApp group's hot tip","全部買晒WhatsApp群組啲貼士股"], trap:"scam",
+   tip:["Retirees are prime targets for “hot tip” groups. Withdrawing in stages also spreads your risk.","退休人士係貼士群組騙徒嘅頭號目標。分開幾次攞，亦可以分散風險。"]},
+  {id:"romance", st:3, en:"An online friend you've never met urgently needs HK$50,000.", zh:"網上識咗個朋友，從未見過面，佢急住要HK$50,000。",
    w:["Say no and talk it over with family","拒絕，同屋企人傾吓先"], r:["Send it. They seem so sincere","佢咁有誠意，過數畀佢"], trap:"scam",
    tip:["Romance scams build trust for months before asking for money. Never pay someone you haven't met.","網上情緣騙案會花幾個月建立信任先開口借錢。未見過面就唔好過數。"]},
   {id:"reno", st:3, en:"The flat needs a full renovation.", zh:"層樓要大裝修。",
-   w:["Pay from savings and do it in phases","用儲蓄分階段裝修"], r:["Do it all now on card instalments","一次過碌卡分期"], trap:"spend",
-   tip:["On a fixed retirement income, new debt is much harder to clear.","退休後收入固定，新債務更難還清。"]},
+   w:["Pay from savings and do it in phases","用儲蓄，分階段慢慢裝"], r:["Do it all now on card instalments","一次過碌卡分期"], trap:"spend",
+   tip:["On a fixed retirement income, new debt is much harder to clear.","退休後收入有限，再借錢就好難還得清。"]},
   {id:"will", st:3, en:"Your kids ask about your plans for later life.", zh:"仔女問你晚年有咩打算。",
    w:["Write a will and a retirement budget now","而家立遺囑、做退休預算"], r:["Deal with it someday","第日先算"], trap:"delay",
-   tip:["A will and a budget protect your family from guesswork and disputes later.","立遺囑同做預算，可以免屋企人日後估估吓、甚至爭拗。"]}
+   tip:["A will and a budget protect your family from guesswork and disputes later.","立好遺囑、做好預算，屋企人第日就唔使估估吓，亦少啲爭拗。"]}
 ];
 
 const SHOCKS = [
   ["Laid off for two months","失業兩個月"],
-  ["Medical bill: HK$20,000","醫療開支 HK$20,000"],
-  ["Phone stolen, need a new one","手機被偷，要買過"],
-  ["A family member needs support","家人需要經濟支援"]
+  ["Medical bill: HK$20,000","醫藥費 HK$20,000"],
+  ["Phone stolen, need a new one","手機畀人偷咗，要買過部"],
+  ["A family member needs money","屋企人要你幫補"]
 ];
 
 const QUIZ = [
   {q:["Someone offers HK$3,000 to “rent” your bank account. This is…","有人出HK$3,000「租」你個銀行戶口，呢個係…"],
-   o:[["Easy side income","輕鬆外快"],["Money laundering. You could go to prison","洗黑錢，可以坐監"],["Fine if it's a friend","朋友嘅話冇問題"]], a:1},
+   o:[["Easy side income","輕鬆外快"],["Money laundering. You could go to prison","洗黑錢，隨時要坐監"],["Fine if it's a friend","朋友嘅話冇問題"]], a:1},
   {q:["If you only pay the minimum on your credit card…","如果信用卡只還最低還款額…"],
-   o:[["Interest keeps growing on the rest","餘額繼續滾利息"],["You pay no interest","唔使俾利息"],["Your credit score improves","信貸評分會提升"]], a:0},
+   o:[["Interest keeps growing on the rest","未還嘅錢會繼續滾利息"],["You pay no interest","唔使畀利息"],["Your credit score improves","信貸評分會變好"]], a:0},
   {q:["The best time to start saving is…","最好幾時開始儲錢？"],
    o:[["After your first promotion","第一次升職之後"],["When MPF starts","有強積金先算"],["Now, even a small amount","而家，少少都好"]], a:2}
 ];
 
 const HABITS = [
-  {id:"save20", en:"Save 20% of every income on payday", zh:"出糧先儲20%"},
-  {id:"payfull", en:"Pay my credit card in full every month", zh:"卡數每月找清"},
+  {id:"save20", en:"Save 20% of my pay on payday", zh:"出糧先儲20%"},
+  {id:"payfull", en:"Pay my credit card in full every month", zh:"每月找清卡數"},
   {id:"check", en:"Never lend my account; check before I invest", zh:"唔借戶口，投資前先查證"},
   {id:"track", en:"Track my spending for 30 days", zh:"記賬30日"}
 ];
@@ -165,6 +165,7 @@ function makeEngine(){
     for (const p of ev.pairs){
       const a = p.bodyA.parent, b = p.bodyB.parent;
       if (S.active && (a === S.active || b === S.active)) release(false);
+      if (a.tff) a.tff.capFall = 0; if (b.tff) b.tff.capFall = 0;
       // impact sound from the normal relative speed
       const n = p.collision && p.collision.normal; if (!n) continue;
       const rv = (a.velocity.x - b.velocity.x) * n.x + (a.velocity.y - b.velocity.y) * n.y;
@@ -178,7 +179,7 @@ function makeEngine(){
   });
 }
 function addItem(def, x, y, player){
-  const b = def.make(x, y);
+  const b = K.shape.fixInertia(def.make(x, y));   // again here: some items rebuild their parts after shape.body()
   b.tff = {def, player, released:!player, settled:false, at:S.play, eo:{x: x - b.position.x, y: y - b.position.y}};
   Composite.add(engine.world, b);
   return b;
@@ -197,12 +198,12 @@ function nextPiece(){ refill(); const it = S.queue.shift(); refill(); spawn(it);
 function release(hard){
   const b = S.active; if (!b) return;
   S.active = null; b.tff.released = true; b.tff.at = S.play;
-  if (hard){ Body.setVelocity(b, {x: b.velocity.x * 0.3, y: 11}); A.sfx("harddrop"); }
+  if (hard){ Body.setVelocity(b, {x: b.velocity.x * 0.3, y: HARD_DROP}); b.tff.capFall = HARD_DROP; A.sfx("harddrop"); }
   S.spawnAt = S.play + 420;
 }
 function doHold(){
   if (S.mode !== "playing" || !S.active || !S.canHold) return;
-  if (S.scamLock > 0){ stamp("Hold locked", "被呃到暫存鎖咗", "bad"); return; }
+  if (S.scamLock > 0){ stamp("Hold locked", "被呃咗，暫存用唔到", "bad"); return; }
   const def = S.active.tff.def; Composite.remove(engine.world, S.active); S.active = null;
   if (S.hold){ const h = S.hold; S.hold = def; spawn(h); } else { S.hold = def; nextPiece(); }
   S.canHold = false; A.sfx("hold"); drawPreviews();
@@ -212,7 +213,7 @@ function dropDebt(){
   if (!DEBT) return;
   const b = addItem(DEBT, W/2 + (Math.random() * 120 - 60), S.camTop + 40, false);
   Body.setVelocity(b, {x: 0, y: 4}); Body.setAngularVelocity(b, (Math.random() - .5) * 0.08);
-  A.sfx("debt"); stamp("Debt incoming!", "債務跌落嚟！", "bad");
+  A.sfx("debt"); stamp("Debt incoming!", "債務跌緊落嚟！", "bad");
 }
 function control(){
   const b = S.active; if (!b) return;
@@ -222,11 +223,26 @@ function control(){
   if (b.bounds.min.x < 6 && vx < 0) vx = 0;
   if (b.bounds.max.x > W - 6 && vx > 0) vx = 0;
   if (Math.abs(vx) > 0.5) A.sfx("move");
-  Body.setVelocity(b, {x: vx, y: fallSpeed() * (softHeld ? 4 : 1)});
+  Body.setVelocity(b, {x: vx, y: Math.min(fallSpeed() * (softHeld ? 4 : 1), MAX_SOFT)});
   Body.setAngularVelocity(b, 0);
   const da = S.targetAngle - b.angle;
   if (Math.abs(da) > 0.0005) Body.setAngle(b, b.angle + Math.sign(da) * Math.min(Math.abs(da), 0.22));
   Sleeping.set(b, false);
+}
+// One physics step with two safety nets. A hard-dropped item falls at a steady speed until it first touches
+// something (fast impacts sink into thin parts and get shoved out hard). And nothing may spin or fly faster
+// than a real knock could make it; in normal play neither limit is reached (stress-tested: peak 0.18 rad and
+// 14 px per step), they only catch rare solver blow-ups.
+const MAX_SOFT = 10, HARD_DROP = 11, MAX_SPIN = 0.3, MAX_SPEED = 22;
+function worldStep(){
+  for (const b of engine.world.bodies)
+    if (b.tff && b.tff.capFall && b.velocity.y > b.tff.capFall) Body.setVelocity(b, {x: b.velocity.x, y: b.tff.capFall});
+  Engine.update(engine, STEP); S.steps++;
+  for (const b of engine.world.bodies){
+    if (!b.tff || b === S.active || b.isSleeping) continue;
+    if (Math.abs(b.angularVelocity) > MAX_SPIN) Body.setAngularVelocity(b, Math.sign(b.angularVelocity) * MAX_SPIN);
+    if (b.speed > MAX_SPEED) Body.setVelocity(b, {x: b.velocity.x * MAX_SPEED / b.speed, y: b.velocity.y * MAX_SPEED / b.speed});
+  }
 }
 function physicsStep(){
   control();
@@ -237,7 +253,7 @@ function physicsStep(){
       Sleeping.set(b, false); Body.applyForce(b, b.position, {x: k * b.mass * 0.00075, y: 0});
     }
   }
-  Engine.update(engine, STEP); S.steps++;
+  worldStep();
   let h = 0;
   for (const b of engine.world.bodies.slice()){
     if (!b.tff) continue;
@@ -283,7 +299,7 @@ function physicsStep(){
       S.stage = ns; const st = STAGES[ns];
       A.sfx(ns === STAGES.length - 1 ? "win" : "stage", {stage: ns}); A.stage(ns);
       stamp(st.en, st.zh, "gold");
-      crab("Welcome to " + st.en + ". Items fall faster from here.", "歡迎嚟到「" + st.zh + "」，物件會跌得快啲。");
+      crab("Welcome to " + st.en + ". Items fall faster from here.", "去到「" + st.zh + "」喇！由而家起，啲嘢會跌得快啲。");
     }
     updateHUD();
   }
@@ -336,19 +352,19 @@ function choose(kind){
   if (kind === "wise"){
     S.wise++; S.rate = Math.min(2, +(S.rate + 0.2).toFixed(1)); S.fund = Math.min(3, S.fund + 1);
     S.forced = {type: "wise", n: 4};
-    head.className = "oc-head good"; head.appendChild(svgUse("i-good")); txt.textContent = "Wise move! 明智之選！";
-    effect = "Flat, stable items for the next 4 drops. Savings boost ×" + S.rate.toFixed(1) + ", emergency fund +1. 之後4件係平穩物件。";
+    head.className = "oc-head good"; head.appendChild(svgUse("i-good")); txt.textContent = "Good call! 揀得好！";
+    effect = "Flat, stable items for the next 4 drops. Savings boost ×" + S.rate.toFixed(1) + ", emergency fund +1. 之後4件都係平穩物件，儲蓄加成升到×" + S.rate.toFixed(1) + "，應急錢+1。";
     $("ocEffect").style.color = "var(--green-d)"; A.sfx("wise");
   } else {
     const trap = kind === "risky" ? c.trap : "delay";
     if (kind === "risky") S.risky++; else S.missed++;
     S.falls[trap]++;
     head.className = "oc-head bad"; const ic = svgUse(ICON[trap]); ic.style.background = trap === "spend" ? "var(--orange)" : trap === "scam" ? "var(--purple)" : "var(--blue)"; ic.style.borderRadius = "10px"; ic.style.padding = "3px"; head.appendChild(ic);
-    txt.textContent = (kind === "none" ? "You put it off. 拖延都係一種選擇。 " : "") + TRAPS[trap].en + " " + TRAPS[trap].zh;
+    txt.textContent = (kind === "none" ? "Time ran out, so it got put off. 諗咗太耐，結果拖咗落嚟。 " : "") + TRAPS[trap].en + " " + TRAPS[trap].zh;
     effect = TRAPS[trap].eff;
     $("ocEffect").style.color = "var(--red-d)"; A.sfx("risky");
     if (trap === "spend"){ S.rate = Math.max(1, +(S.rate - 0.2).toFixed(1)); S.forced = {type: "risky", n: 3}; S.pendingDebt++; }
-    else if (trap === "scam"){ const sl = Math.min(S.score, 5000); S.score -= sl; ledger({zh: "騙局", en: "Scam"}, -sl); S.forced = {type: "scam", n: 3}; S.scamLock = 4; A.sfx("scam"); }
+    else if (trap === "scam"){ const sl = Math.min(S.score, 5000); S.score -= sl; ledger({zh: "被騙", en: "Scam"}, -sl); S.forced = {type: "scam", n: 3}; S.scamLock = 4; A.sfx("scam"); }
     else { S.speedUntil = S.play + 20000; S.rate = 1; S.forced = {type: "risky", n: 2}; }
   }
   head.appendChild(txt);
@@ -391,7 +407,7 @@ function startGame(){
   $("startOv").hidden = true; $("pauseOv").hidden = true; $("endModal").hidden = true; $("cardModal").hidden = true; $("seeOv").hidden = true; modalOpen(false);
   A.stage(0); A.mode("normal"); A.start();
   renderLedger(); nextPiece();
-  crab("Steer each item and let go. Flat things stack; round things roll.", "控制每件物件再放手。平嘅易疊，圓嘅會碌。");
+  crab("Steer each item into place, then let go. Flat things stack; round things roll.", "搵好位置先放手。平嘅易疊，圓嘅會碌。");
   updateHUD(); setPauseUI(); $("board").focus({preventScroll:true});
 }
 function endGame(reason){
@@ -445,6 +461,7 @@ document.addEventListener("keydown", e => {
     } else if (S.card.flip && (k === "Enter" || k === " ")){ closeCard(); e.preventDefault(); }
     return;
   }
+  if (S.mode === "idle" && S.viewing && !$("seeOv").hidden && (k === "Escape" || k === "r" || k === "R")){ openResults(); e.preventDefault(); return; }
   if (S.mode === "idle" && (k === "Enter" || k === " ") && (!$("startOv").hidden || !$("seeOv").hidden)){ startGame(); e.preventDefault(); return; }
   if (k === "p" || k === "P" || k === "Escape"){ if (S.mode === "playing" || S.mode === "paused"){ togglePause(); e.preventDefault(); } return; }
   if (S.mode !== "playing") return;
@@ -502,7 +519,17 @@ $("startBtn").addEventListener("click", startGame);
 $("resumeBtn").addEventListener("click", togglePause);
 $("cardContinue").addEventListener("click", closeCard);
 $("againBtn").addEventListener("click", startGame);
-$("closeEnd").addEventListener("click", () => { $("endModal").hidden = true; modalOpen(false); S.viewing = true; S.mode = "idle"; S.queue = []; S.hold = null; drawPreviews(true); $("seeOv").hidden = false; setPauseUI(); $("againBtn2").focus(); });
+// "See tower" hides the statement without resetting it; "Back to results" (or Esc / R) brings it back as it was.
+let endScroll = 0;
+function openResults(){
+  if (!S || S.mode !== "idle" || !S.viewing) return;
+  $("seeOv").hidden = true; S.viewing = false; S.mode = "over";
+  $("endModal").hidden = false; $("endModal").scrollTop = endScroll;
+  endShownAt = performance.now(); modalOpen(true); setPauseUI();
+  $("closeEnd").focus({preventScroll:true});
+}
+$("resultsBtn").addEventListener("click", openResults);
+$("closeEnd").addEventListener("click", () => { endScroll = $("endModal").scrollTop; $("endModal").hidden = true; modalOpen(false); S.viewing = true; S.mode = "idle"; S.queue = []; S.hold = null; drawPreviews(true); $("seeOv").hidden = false; setPauseUI(); $("againBtn2").focus(); });
 $("againBtn2").addEventListener("click", startGame);
 cv.tabIndex = 0;
 
@@ -793,8 +820,8 @@ function drawPreviews(force){
   previewInto($("nextCv"), n0); previewInto($("holdCv"), S.hold); previewInto($("next2Cv"), n1);
   previewInto($("hudNext"), n0); previewInto($("hudHold"), S.hold);
   nameInto($("nextName"), n0, "");
-  nameInto($("holdName"), S.hold, S.scamLock > 0 ? "Locked by a scam 被鎖" : "Press C to keep one for later 按C暫存");
-  if (S.hold && S.scamLock > 0){ const lk = document.createElement("small"); lk.className = "locked"; lk.textContent = "Locked by a scam 被鎖"; $("holdName").appendChild(lk); }
+  nameInto($("holdName"), S.hold, S.scamLock > 0 ? "Locked by a scam 被騙鎖住" : "Press C to keep one for later 按C暫存");
+  if (S.hold && S.scamLock > 0){ const lk = document.createElement("small"); lk.className = "locked"; lk.textContent = "Locked by a scam 被騙鎖住"; $("holdName").appendChild(lk); }
   $("next2Name").textContent = n1 ? "Then: " + n1.en + " " + n1.zh : "";
 }
 
@@ -812,7 +839,7 @@ function buildStatic(){
   });
   const fl = $("fallsList"); fl.replaceChildren();
   const ch = $("fallsChips"); ch.replaceChildren();
-  const SHORT = {spend:"Overspend 過度消費", scam:"Scams 騙局", delay:"Put off 遲儲"};
+  const SHORT = {spend:"Overspend 過度消費", scam:"Scams 騙局", delay:"Put off 拖延"};
   Object.entries(TRAPS).forEach(([k, t]) => {
     const li = document.createElement("li"); li.className = "tag " + k;
     const tx = document.createElement("span"); const b = document.createElement("b"); b.textContent = t.en + " " + t.zh;
@@ -902,7 +929,7 @@ function frame(now){
         if (S.card.t >= CARD_MS) choose("none");
       } else if (S.card.t - S.card.flipAt > 7000) closeCard();
     } else if (S.mode === "playing") tick(dt);
-    else if (S.mode === "over" || (S.mode === "idle" && S.viewing)){ S.acc += dt; let n = 0; while (S.acc >= STEP && n++ < 3){ S.acc -= STEP; Engine.update(engine, STEP); S.steps++; } }
+    else if (S.mode === "over" || (S.mode === "idle" && S.viewing)){ S.acc += dt; let n = 0; while (S.acc >= STEP && n++ < 3){ S.acc -= STEP; worldStep(); } }
     draw();
   }
   requestAnimationFrame(frame);
@@ -927,8 +954,8 @@ function showEnd(){
   $("endEyebrow").textContent = S.over === "drops" ? "整冧咗！ 3 items fell into the harbour" : "夠鐘！ Time's up";
   $("endTitle").textContent = top ? "You made it to Retirement" : "You reached " + st.en;
   const ft = S.falls.spend + S.falls.scam + S.falls.delay;
-  $("endSub").textContent = ft === 0 ? "No money traps at all. Your tower stood on wise choices. 一個陷阱都冇跌落！"
-    : "You fell into " + ft + " money trap" + (ft > 1 ? "s" : "") + ". Here's what tipped your tower. 睇吓邊度令你座塔失衡。";
+  $("endSub").textContent = ft === 0 ? "No money traps at all. Your tower stood on wise choices. 一次都冇中伏！"
+    : "You fell into " + ft + " money trap" + (ft > 1 ? "s" : "") + ". Here's what tipped your tower. 睇吓係邊啲陷阱拖冧你座塔。";
   $("rStage").textContent = st.zh + " " + st.en;
   $("rNw").textContent = fmt(S.score);
   $("rHeight").textContent = (S.best / FLOOR).toFixed(1) + "F";
@@ -972,8 +999,8 @@ function showEnd(){
   $("nickname").value = lsGet("tff_name", "");
   $("postBtn").disabled = false; $("postBtn").firstChild.textContent = "Post score";
   const ps = $("postStatus"); ps.className = "post-status";
-  ps.textContent = db && dbWritable ? "Posts your nickname, score and choices. No real names, please. 只會顯示暱稱。" : "Your score will be saved on this device. 會儲存喺呢部裝置。";
-  $("endModal").hidden = false; $("endModal").scrollTop = 0;
+  ps.textContent = db && dbWritable ? "Posts your nickname, score and choices. No real names, please. 只會顯示暱稱，唔好用真名。" : "Your score will be saved on this device. 分數會存喺呢部機。";
+  $("endModal").hidden = false; $("endModal").scrollTop = 0; endScroll = 0;
   endShownAt = performance.now(); modalOpen(true);
   $("endTitle").focus({preventScroll:true});
 }
@@ -1050,7 +1077,7 @@ $("postBtn").addEventListener("click", async () => {
       myPost = {id: j.id, rank: j.rank || (j.rankCap || 500) + 1, week: j.week, name: j.name || name, score: entry.score, height: entry.height}; lsSet("tff_my_post", myPost);
       if (st === S){
         A.sfx("post"); ps.className = "post-status ok";
-        ps.textContent = (j.rank ? "You're #" + j.rank + " this week! 今個星期排第" + j.rank + "！ " : "On the live board! 已上榜！ ") + "Top weekly scorers win a prize.";
+        ps.textContent = (j.rank ? "You're #" + j.rank + " this week! 今個星期排第" + j.rank + "！ " : "On the live board! 已上榜！ ") + "Top weekly scorers win a prize. 每星期最高分有獎！";
         btn.firstChild.textContent = "Posted ✓";
       }
       lbSig = ""; refreshLB(true);
@@ -1061,16 +1088,16 @@ $("postBtn").addEventListener("click", async () => {
         st.posting = false;
         if (st === S){
           btn.disabled = false; btn.firstChild.textContent = "Try again";
-          ps.textContent = e.status === 429 ? "Lots of crabs posting at once. Wait a moment, then try again. 太多人同時上載，請稍後再試。"
-                                            : "Couldn't reach the live board. Check your connection, then try again. 連唔到排行榜，請再試。";
+          ps.textContent = e.status === 429 ? "Lots of crabs posting at once. Wait a moment, then try again. 太多人同時上榜，等陣再試吓。"
+                                            : "Couldn't reach the live board. Check your connection, then try again. 連唔到排行榜，檢查吓網絡再試。";
         }
         return;
       }
       if (e.code === "closed" || e.code === "no_database" || e.status === 403) dbWritable = false;
-      if (st === S) ps.textContent = e.code === "closed" ? "The live board is closed for new scores, so yours was saved on this device. 排行榜已截止，已儲存喺呢部裝置。"
-                                                         : "The live board couldn't take this score, so it was saved on this device. 已儲存喺呢部裝置。";
+      if (st === S) ps.textContent = e.code === "closed" ? "The live board is closed for new scores, so yours was saved on this device. 排行榜已經截止，分數存咗喺呢部機。"
+                                                         : "The live board couldn't take this score, so it was saved on this device. 排行榜收唔到呢個分數，已經存咗喺呢部機。";
     }
-  } else ps.textContent = "Saved on this device. 已儲存喺呢部裝置。";
+  } else ps.textContent = "Saved on this device. 已經存咗喺呢部機。";
   saveLocal(); myLocalAt = entry.at; st.posted = true; st.posting = false;
   if (st === S){ A.sfx("post"); ps.className = "post-status ok"; btn.firstChild.textContent = "Saved ✓"; }
   lbSig = ""; renderLB();
@@ -1161,7 +1188,7 @@ async function renderInsights(){
   for (const kk in falls) wrap.appendChild(bar(TRAPS[kk].en + " " + TRAPS[kk].zh, String(falls[kk]), fmax, "t-" + kk));
   const topFall = Object.entries(falls).sort((a, b) => b[1] - a[1])[0];
   const hl = document.createElement("p"); hl.style.margin = "2px 0 0";
-  hl.textContent = topFall[1] ? "Most common fall: " + TRAPS[topFall[0]].en + " " + TRAPS[topFall[0]].zh : "No falls recorded yet.";
+  hl.textContent = topFall[1] ? "Most common fall: " + TRAPS[topFall[0]].en + " " + TRAPS[topFall[0]].zh : "No falls recorded yet. 暫時冇人中伏。";
   wrap.appendChild(hl);
   const topHabit = Object.entries(agg.habits).sort((a, b) => b[1] - a[1])[0];
   if (topHabit){ const h = HABITS.find(x => x.id === topHabit[0]); const hp = document.createElement("p"); hp.style.margin = "0"; hp.textContent = "Top habit pledged: " + (h ? h.en + " " + h.zh : topHabit[0]) + " (" + topHabit[1] + ")"; wrap.appendChild(hp); }
@@ -1199,7 +1226,7 @@ function sampleTower(){
   let h = 0; for (const b of engine.world.bodies) if (b.tff && b.position.y < 5) h = Math.max(h, -b.bounds.min.y);
   S.height = h; S.camTop = Math.min(-(H - 240), -h - 330);
   S.queue = [pick("football") || fallback[0], pick("textbooks") || fallback[1] || fallback[0], pick("banana") || fallback[2] || fallback[0]];
-  crab("Hi! I'm the 3 Fall Crab. Every item you stack is a money decision.", "我係3 Fall Crab。你疊嘅每件物件，都係一個理財決定。");
+  crab("Hi! I'm the 3 Fall Crab. Every item you stack is a money decision.", "我係3 Fall Crab！你疊嘅每件嘢，都係一個理財決定。");
 }
 buildStatic(); sampleTower(); resize(); updateHUD(); renderLedger(); setMuteUI(); initDB();
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { SPR.clear(); previewCache.clear(); buildLayers(); drawPreviews(true); });

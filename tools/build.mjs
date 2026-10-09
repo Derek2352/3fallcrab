@@ -19,6 +19,38 @@ if (site && !/^https:\/\/[^/\s]+$/.test(site)) {
   process.exit(1);
 }
 
+// Leaderboard guard. The live scores sit in the D1 database bound as "DB" to the Worker "three-fall-fun";
+// every deploy reuses it. Renaming either makes Cloudflare create a new, empty database on the next deploy,
+// and a DROP/TRUNCATE/unfiltered DELETE would wipe it. Stop the build (so nothing deploys) if that happens.
+// Deliberate reset or a fork for another team: run with ALLOW_LEADERBOARD_RESET=1.
+const LIVE = { worker: "three-fall-fun", binding: "DB" };
+if (process.env.ALLOW_LEADERBOARD_RESET !== "1") {
+  const problems = [];
+  const jsonc = readFileSync(join(root, "wrangler.jsonc"), "utf8");
+  let json = "", inStr = false;
+  for (let i = 0; i < jsonc.length; i++) {
+    const c = jsonc[i];
+    if (inStr) { json += c; if (c === "\\") json += jsonc[++i] ?? ""; else if (c === '"') inStr = false; }
+    else if (c === '"') { inStr = true; json += c; }
+    else if (c === "/" && jsonc[i + 1] === "/") { while (i < jsonc.length && jsonc[i] !== "\n") i++; json += "\n"; }
+    else json += c;
+  }
+  const cfg = JSON.parse(json.replace(/,(\s*[}\]])/g, "$1"));
+  if (cfg.name !== LIVE.worker) problems.push(`wrangler.jsonc "name" is "${cfg.name}", the live Worker is "${LIVE.worker}"`);
+  if (!(cfg.d1_databases || []).some((d) => d.binding === LIVE.binding)) problems.push(`wrangler.jsonc has no D1 binding named "${LIVE.binding}"`);
+  for (const dir of ["server", "migrations", "functions"]) {
+    for (const f of walk(join(root, dir))) {
+      const text = readFileSync(f, "utf8");
+      if (/\b(DROP\s+TABLE|TRUNCATE)\b|\bDELETE\s+FROM\s+scores\b(?![^;`"']*\bWHERE\b)/i.test(text)) problems.push(`${relative(root, f)} contains SQL that could wipe the scores table`);
+    }
+  }
+  if (problems.length) {
+    console.error("Build stopped to protect the live leaderboard:\n  - " + problems.join("\n  - ") +
+      "\nIf you really mean to start a new leaderboard, run the build with ALLOW_LEADERBOARD_RESET=1.");
+    process.exit(1);
+  }
+}
+
 // Empty public/ in place (keeps the folder itself, so a running `wrangler dev` keeps watching it).
 mkdirSync(out, { recursive: true });
 for (const n of readdirSync(out)) rmSync(join(out, n), { recursive: true, force: true });

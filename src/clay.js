@@ -247,8 +247,22 @@
     body: (parts, material = "card", extra) => {
       const o = mat(material, extra); let b;
       if (parts.length === 1){ b = parts[0]; window.Matter.Body.set(b, o); if (o.density) window.Matter.Body.setDensity(b, o.density); }
-      else { parts.forEach(p => { if (o.density) window.Matter.Body.setDensity(p, o.density); }); b = window.Matter.Body.create(Object.assign({parts}, o)); }
+      else { parts.forEach(p => { if (o.density) window.Matter.Body.setDensity(p, o.density); }); b = window.Matter.Body.create(Object.assign({parts}, o)); shape.fixInertia(b); }
       b.plugin = b.plugin || {}; b.plugin.material = material;   // read by the audio engine for impact sounds
+      return b;
+    },
+    // Matter.js gives a compound body the sum of its parts' inertia about each part's OWN centre, with no
+    // parallel-axis term, so spread-out items (headphones, banana, fishing hook...) were up to 24x too easy
+    // to spin and whirled off anything they touched. Recompute it properly (same x4 scale Matter uses for
+    // single bodies). Idempotent: safe to call again after Body.setParts.
+    fixInertia: b => {
+      if (b.parts.length < 2) return b;
+      let I = 0;
+      for (let i = 1; i < b.parts.length; i++){
+        const p = b.parts[i], dx = p.position.x - b.position.x, dy = p.position.y - b.position.y;
+        I += p.inertia + 4 * p.mass * (dx * dx + dy * dy);
+      }
+      window.Matter.Body.setInertia(b, I);
       return b;
     }
   };

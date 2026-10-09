@@ -43,7 +43,7 @@
 
   window.ITEM_DEFS = (window.ITEM_DEFS || []).concat([
     // ------------------------------------------------------------------ bubble tea
-    { id: "bubbletea", en: "Daily bubble tea", zh: "每日珍珠奶茶", kind: "risky",
+    { id: "bubbletea", en: "Daily bubble tea", zh: "每日一杯珍奶", kind: "risky",
       note: "cup wider at the top than the bottom, domed lid and straw: top-heavy, tips easily",
       make(x, y){ const S = CLAY.shape; return S.body([C(S, x, y, BT.cup), C(S, x, y, BT.lid), R(S, x, y, BT.straw)], "plastic", {density:0.0015, friction:0.5}); },
       draw(g){ const K = CLAY;

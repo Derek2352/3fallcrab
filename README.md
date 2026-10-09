@@ -107,6 +107,25 @@ Set these in `wrangler.jsonc` under `"vars"`, then `npm run deploy`. Secrets are
 - **Prizes:** scores are reported by the player's browser, so a determined player could fake one. Before handing out a weekly prize, ask the winner to show their end-of-game statement or phone. Hide anything suspicious in `/admin`.
 - **Free-plan limits:** Workers gives 100,000 requests a day. D1 gives 5 million rows read and 100,000 rows written a day, enforced since 1 Sept 2026. One game is one score post, and the board refreshes only while it's on screen (every 45 s). A busy booth day is far below these limits.
 
+### Updating the live game without losing scores
+
+Pushing to `main` redeploys only the code and the files in `public/`. The scores live in the D1 database bound to the Worker as `DB`, and every deploy keeps using that same database, so the leaderboard carries on untouched. Scores saved on players' phones use fixed storage keys, so updates keep those too.
+
+What could reset the board, and what stops it:
+
+- **Renaming the Worker or the `DB` binding.** Changing `"name"` in `wrangler.jsonc` (`three-fall-fun`) or the `DB` binding makes Cloudflare create a new, empty database. `npm run build` refuses to build if either changes, so a GitHub deploy fails safely instead of going live.
+- **SQL that wipes the table.** The build also refuses `DROP TABLE`, `TRUNCATE` or a `DELETE FROM scores` without `WHERE` anywhere in `server/`, `functions/` or `migrations/`.
+- **Changing the table later.** Only ever add columns (`ALTER TABLE scores ADD COLUMN ...`); never remove or rename them.
+- **Deleting the database in the dashboard.** Don't. To stop new scores after the event, set `LEADERBOARD_CLOSED` to `"1"` instead; the board stays visible.
+
+If you ever really want a brand-new board, run the build with `ALLOW_LEADERBOARD_RESET=1`.
+
+**Backups:**
+
+- **Quick:** `/admin → Download CSV` at any time.
+- **Full SQL copy:** find the database name in the Cloudflare dashboard under **Storage & Databases → D1** (it starts with `three-fall-fun`), then run `npx wrangler d1 export <database-name> --remote --output backup.sql`.
+- **Undo a mistake:** D1 Time Travel can roll the database back to any minute in the last 7 days on the free plan (30 days on paid): `npx wrangler d1 time-travel restore <database-name> --timestamp=2026-10-09T12:00:00Z`.
+
 ### API
 
 | Route | Use |

@@ -55,7 +55,7 @@
 
   window.ITEM_DEFS = (window.ITEM_DEFS || []).concat([
     // ------------------------------------------------------------------ crypto coin
-    { id: "cryptocoin", en: "“Guaranteed” crypto coin", zh: "保證賺加密幣", kind: "scam",
+    { id: "cryptocoin", en: "“Guaranteed” crypto coin", zh: "「保證賺」加密幣", kind: "scam",
       note: "shiny coin with almost zero friction and a big bounce: skates and pings off the tower",
       make(x, y){ const S = CLAY.shape; return S.body([S.circle(x, y, COIN)], "slick", {restitution:0.7, density:0.0018}); },
       draw(g){ const K = CLAY; const coin = K.ball(0, 0, COIN, COIN, {lump:0.35, seed:11});
@@ -95,7 +95,7 @@
       } },
 
     // ------------------------------------------------------------------ fake parcel
-    { id: "fakeparcel", en: "Fake parcel SMS", zh: "假包裹短訊", kind: "scam",
+    { id: "fakeparcel", en: "Fake parcel SMS", zh: "假速遞短訊", kind: "scam",
       note: "looks like a solid box but bounces like rubber (restitution 0.85)",
       make(x, y){ const S = CLAY.shape; return S.body([R(S, x, y, PARCEL)], "slick", {friction:0.2, frictionStatic:0.3, restitution:0.85, density:0.0012}); },
       draw(g){ const K = CLAY; const [px, py, pw, ph, pr] = PARCEL;
@@ -143,7 +143,7 @@
       } },
 
     // ------------------------------------------------------------------ free gift
-    { id: "freegift", en: "“Free” gift", zh: "免費禮物", kind: "scam",
+    { id: "freegift", en: "“Free” gift", zh: "「免費」禮物", kind: "scam",
       note: "gift box with a huge bow on top: top-heavy and wrapped in slippery foil",
       make(x, y){ const S = CLAY.shape;
         return S.body([R(S, x, y, GIFT.box), R(S, x, y, GIFT.lid), C(S, x, y, GIFT.loopL), C(S, x, y, GIFT.loopR), S.circle(x + GIFT.knot[0], y + GIFT.knot[1], GIFT.knot[2])], "slick", {friction:0.1, frictionStatic:0.15, restitution:0.2, density:0.0014}); },
