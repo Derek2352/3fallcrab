@@ -28,14 +28,8 @@
     try { return new Date(iso).toLocaleString("en-GB", { timeZone: "Asia/Hong_Kong", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); }
     catch { return iso; }
   };
-  const HKT = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Hong_Kong", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
-  function hkt(iso) { // "2026-10-09 17:38" in Hong Kong time, for the CSVs
-    const t = Date.parse(iso);
-    if (Number.isNaN(t)) return "";
-    const p = {};
-    for (const x of HKT.formatToParts(t)) p[x.type] = x.value;
-    return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}`;
-  }
+  // "2026-10-09 17:38" in Asia/Hong_Kong time for the CSVs. Hong Kong is UTC+8 all year (no daylight saving), so adding 8 hours is exact.
+  const hkt = (iso) => { const t = Date.parse(iso); return Number.isNaN(t) ? "" : new Date(t + 8 * 3600e3).toISOString().slice(0, 16).replace("T", " "); };
   const fmt = (n) => (n == null ? "–" : Number(n).toLocaleString("en-US"));
   const pc = (v) => (v == null ? "–" : +Number(v).toFixed(1) + "%");
   const share = (a, b) => (b ? Math.round((1000 * a) / b) / 10 : null);
@@ -149,7 +143,7 @@
         const p = share(op.n, q.n);
         qrows.push({ cls: "opt" + (op.right ? " right" : ""), cells: [
           el("div", "opt-t", el("span", "mark", op.right ? ["✓", el("span", "sr", " right answer")] : ""), el("span", "", op.en, op.zh && zh(op.zh))),
-          fmt(op.n), [pc(p), meter(p, op.right ? "" : "dim")]] });
+          fmt(op.n), [pc(p), meter(p, op.right ? "ok" : "dim")]] });
       }
     });
     $("quizBox").replaceChildren(qrows.length
@@ -157,10 +151,10 @@
       : el("p", "msg", "No quiz questions yet."));
 
     $("scoreBox").replaceChildren(
-      ...s.quizScores.map((x) => el("div", "hrow", el("span", "", `${x.score}/${qn}`), meter(share(x.n, o.quizTakers), x.score >= o.quizPassMark ? "" : "pink"),
+      ...s.quizScores.map((x) => el("div", "hrow", el("span", "", `${x.score}/${qn}`), meter(share(x.n, o.quizTakers), x.score >= o.quizPassMark ? "ok" : "pink"),
         el("span", "hv", `${fmt(x.n)} · ${pc(share(x.n, o.quizTakers))}`))),
       el("p", "hint", o.quizTakers
-        ? `Out of ${fmt(o.quizTakers)} players who finished the quiz. Teal bars scored ${o.quizPassMark}/${qn} or better, which counts toward the ${o.quizTargetPct}% target.`
+        ? `Out of ${fmt(o.quizTakers)} players who finished the quiz. Green bars scored ${o.quizPassMark}/${qn} or better, which counts toward the ${o.quizTargetPct}% target.`
         : "No one has finished the quiz yet."));
 
     $("habitBox").replaceChildren(table([{ h: "Habit", c: "t" }, { h: "Players", c: "num" }, { h: "% of games", c: "num" }],
@@ -247,12 +241,13 @@
         b.title = "Copy this email"; b.setAttribute("aria-label", "Copy email of " + r.name); b.addEventListener("click", () => copy(mail, b, K + "Msg", mail));
         const floors = Number(r.height).toFixed(1), saved = when(r.created_at); // on a phone these two sit under the nickname
         return el("tr", "", el("td", "num", i + 1), el("td", "n", r.name, n > 1 && el("span", "pill rep", `repeat ×${n}`), el("span", "meta", `${floors} floors · ${saved}`)),
-          el("td", "num", fmt(r.score)), el("td", "num hide-sm", floors), el("td", "hide-sm", saved), el("td", "mail", mail ? [mail + " ", b] : "—"));
+          el("td", "num", fmt(r.score)), el("td", "num hide-sm", floors), el("td", "sv hide-sm", saved), el("td", "mail", mail ? [mail + " ", b] : "—"));
       });
       if (!rows.length) { const td = el("td", "t", "Nobody has posted a score in this period yet."); td.colSpan = 6; rows.push(el("tr", "", td)); }
       $(K + "Rows").replaceChildren(...rows);
       $(K + "Copy").disabled = !mails[kind].length;
-      $(K + "Info").textContent = mails[kind].length ? `${mails[kind].length} unique ${mails[kind].length === 1 ? "email" : "emails"}` : "No emails yet";
+      const n = mails[kind].length;
+      $(K + "Info").textContent = !j.rows.length ? "" : `${j.rows.length} ${j.rows.length === 1 ? "player" : "players"} · ${n ? `${n} unique ${n === 1 ? "email" : "emails"}` : "no emails yet"}`;
       say(K + "Msg", "");
     } catch (e) { if (my === seq[kind]) oops(K + "Msg")(e); }
   }
@@ -360,6 +355,7 @@
     td(`${r.wise} / ${r.risky} / ${r.missed}`, "num"); td(r.habit || "–"); td(quizText(r), "num w"); td(r.ended || "–");
     td(el("span", "pill" + (r.hidden ? " h" : ""), r.hidden ? "hidden" : "shown"));
     const b = el("button", r.hidden ? "show" : "hide", r.hidden ? "Unhide" : "Hide");
+    b.setAttribute("aria-label", `${b.textContent} game ${r.id}`);
     b.addEventListener("click", async () => {
       b.disabled = true;
       try {

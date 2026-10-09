@@ -62,7 +62,7 @@
   <main class="game">
     <aside class="col left" aria-label="Your money">
       <section class="passbook clay" aria-label="Savings passbook">
-        <div class="pb-cover"><span class="zh">存摺</span><small>A/C 3FALL-CRAB-2026</small></div>
+        <div class="pb-cover"><span class="zh" lang="zh-HK">存摺</span><small>A/C 3FALL-CRAB-2026</small></div>
         <div class="pb-page">
           <div class="bal"><span class="k"><b>結餘</b>Net worth</span><span class="v" id="nwVal">HK$0</span></div>
           <table class="ledger" aria-label="Passbook entries">
@@ -80,7 +80,7 @@
       </section>
 
       <section class="trapbar clay" aria-label="Money traps so far">
-        <h2 class="h">The 3 Falls <span class="zh">三大陷阱</span></h2>
+        <h2 class="h">The 3 Falls <span class="zh" lang="zh-HK">三大陷阱</span></h2>
         <ul class="chips" id="fallsChips"></ul>
       </section>
 
@@ -104,22 +104,24 @@
         <div class="overlay" id="startOv">
           <div class="ov-card">
             <h2>Stack your life</h2>
-            <p class="zh">疊出你嘅人生</p>
+            <p class="zh" lang="zh-HK">疊出你嘅人生</p>
             <p class="desc">Steer everyday items onto your tower. Balls roll, bags hook, phones tip, and vine-wrapped items stick where they land. Reach Retirement in 3 minutes. Three items in the harbour and it's over.</p>
             <ul class="quick kb-only" aria-label="Keyboard controls">
               <li><kbd>←</kbd><kbd>→</kbd> move <kbd>↑</kbd> rotate <kbd>Space</kbd> drop</li>
               <li><kbd>C</kbd> hold <kbd>P</kbd> pause <kbd>M</kbd> mute</li>
             </ul>
             <p class="quick touch-only">Drag to move · tap to rotate · swipe down to drop<br>拖動移位 · 點一下轉向 · 向下掃即放</p>
-            <button class="btn" id="startBtn">Start<span class="zh">開始</span></button>
+            <button class="btn" id="startBtn">Start<span class="zh" lang="zh-HK">開始</span></button>
+            <label class="slowread"><input type="checkbox" class="slowRead"> <span>Extra reading time <span class="zh" lang="zh-HK">加長閱讀時間</span><small>30 seconds for each Life Event card, and results stay until you tap Continue. 每張人生事件卡有30秒揀，結果會等你撳「繼續」先收。</small></span></label>
           </div>
         </div>
-        <div class="overlay seeov" id="seeOv" hidden><button class="btn alt" id="resultsBtn" aria-label="Back to results">Results<span class="zh">睇返結算</span></button><button class="btn" id="againBtn2">Play again<span class="zh">再玩</span></button></div>
+        <div class="overlay seeov" id="seeOv" hidden><button class="btn alt" id="resultsBtn" aria-label="Back to results">Results<span class="zh" lang="zh-HK">睇返結算</span></button><button class="btn" id="againBtn2">Play again<span class="zh" lang="zh-HK">再玩</span></button></div>
         <div class="overlay" id="pauseOv" hidden>
-          <div class="ov-card"><h2>Paused</h2><p class="zh">暫停</p><button class="btn" id="resumeBtn">Resume<span class="zh">繼續</span></button></div>
+          <div class="ov-card"><h2>Paused</h2><p class="zh" lang="zh-HK">暫停</p><button class="btn" id="resumeBtn">Resume<span class="zh" lang="zh-HK">繼續</span></button>
+            <label class="slowread"><input type="checkbox" class="slowRead"> <span>Extra reading time <span class="zh" lang="zh-HK">加長閱讀時間</span><small>30 seconds for each Life Event card, and results stay until you tap Continue. 每張人生事件卡有30秒揀，結果會等你撳「繼續」先收。</small></span></label></div>
         </div>
       </div>
-      <div class="pad" id="pad" aria-label="Touch controls">
+      <div class="pad" id="pad" role="group" aria-label="Touch controls">
         <button data-act="left" aria-label="Move left"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg><small>left</small></button>
         <button data-act="right" aria-label="Move right"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg><small>right</small></button>
         <button data-act="rotate" aria-label="Rotate"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12a7 7 0 1 1-2.1-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 3v4.5h-4.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg><small>turn</small></button>
@@ -131,13 +133,13 @@
 
     <aside class="col right" aria-label="Next item and life stage">
       <section class="tickets" aria-label="Next and held items">
-        <div class="ticket next"><div class="tt">Next <span class="zh">下一件</span></div><canvas id="nextCv" width="240" height="240"></canvas><div class="perf"></div><div class="nm" id="nextName"></div></div>
-        <div class="ticket hold"><div class="tt">Hold <span class="zh">暫存</span></div><canvas id="holdCv" width="200" height="200" data-slot="empty"></canvas><div class="perf"></div><div class="nm" id="holdName"></div></div>
+        <div class="ticket next"><div class="tt">Next <span class="zh" lang="zh-HK">下一件</span></div><canvas id="nextCv" width="240" height="240"></canvas><div class="perf"></div><div class="nm" id="nextName"></div></div>
+        <div class="ticket hold"><div class="tt">Hold <span class="zh" lang="zh-HK">暫存</span></div><canvas id="holdCv" width="200" height="200" data-slot="empty"></canvas><div class="perf"></div><div class="nm" id="holdName"></div></div>
         <div class="then"><canvas id="next2Cv" width="76" height="76"></canvas><span id="next2Name"></span></div>
       </section>
 
       <section class="directory clay" aria-label="Life stage directory">
-        <h2 class="h">Directory <span class="zh">大廈指示牌</span></h2>
+        <h2 class="h">Directory <span class="zh" lang="zh-HK">大廈指示牌</span></h2>
         <ul class="dir" id="dir"></ul>
         <p class="height"><span>Tower height 塔高</span><b id="heightVal">0.0F</b></p>
       </section>
@@ -146,7 +148,7 @@
 
   <div class="info" id="info">
     <section class="howto clay" aria-label="How to play">
-      <h2 class="h">How to play <span class="zh">玩法</span></h2>
+      <h2 class="h">How to play <span class="zh" lang="zh-HK">玩法</span></h2>
       <ol class="how">
           <li>Steer each falling item and let go. It lands with real weight, friction and bounce.<small>移好位就放手，物件會好似真嘢咁滑、碌、彈。</small></li>
           <li>The taller your tower, the further through life you get.<small>塔疊得越高，人生就行得越遠。</small></li>
@@ -168,12 +170,12 @@
     </section>
 
     <section class="falls clay" aria-label="The 3 Falls explained">
-      <h2 class="h">The 3 Falls <span class="zh">三大陷阱</span></h2>
+      <h2 class="h">The 3 Falls <span class="zh" lang="zh-HK">三大陷阱</span></h2>
       <ul class="tags" id="fallsList"></ul>
     </section>
 
     <section class="lbx clay" aria-label="Leaderboard">
-        <h2 class="h">Leaderboard <span class="zh">排行榜</span></h2>
+        <h2 class="h">Leaderboard <span class="zh" lang="zh-HK">排行榜</span></h2>
         <div class="tabs" role="group" aria-label="Leaderboard view">
           <button class="tab" data-tab="week" aria-pressed="true">本週 Week</button>
           <button class="tab" data-tab="all" aria-pressed="false">全部 All</button>
@@ -183,21 +185,27 @@
         <p class="lb-note" id="lbNote"></p>
       </section>
   </div>
+
+  <footer class="foot">
+    <p><b>Privacy</b> · Every finished game is saved anonymously for our programme report: score, choices, quiz answers and habit pledge. Only your nickname appears on the leaderboard. If you leave an email, only our team sees it, to contact prize winners. To see or correct your data, or for any question, email <a href="mailto:%%CONTACT_EMAIL%%">%%CONTACT_EMAIL%%</a>.</p>
+    <p class="zh" lang="zh-HK">私隱：每局遊戲都會匿名記錄分數、選擇、測驗答案同習慣，用嚟做計劃報告。排行榜只會顯示暱稱。如果你留低電郵，只有我哋團隊睇到，用嚟聯絡得獎者。想查閱或者更正你嘅資料，或者有任何問題，請電郵聯絡我哋。</p>
+  </footer>
 </div>
 
-<div class="modal" id="cardModal" role="dialog" aria-modal="true" aria-labelledby="cardTitle" hidden>
+<div class="modal" id="cardModal" role="dialog" aria-modal="true" aria-labelledby="cardTitle cardTitleZh" aria-describedby="cardHint" hidden>
   <div class="sheet lifecard" id="cardSheet" tabindex="-1">
     <div class="lc-band"><span class="no">人生事件<b id="cardNo">No.01</b></span><span class="stg" id="cardStage"></span></div>
     <div class="lc-body">
       <div class="timer" aria-hidden="true"><i id="cardBar"></i></div>
+      <p class="sr" id="cardHint"></p>
       <h3 id="cardTitle"></h3>
-      <p class="zh" id="cardTitleZh"></p>
+      <p class="zh" lang="zh-HK" id="cardTitleZh"></p>
       <div class="choices" id="cardChoices"></div>
       <div class="outcome" id="cardOutcome" hidden>
         <div class="oc-head" id="ocHead"></div>
         <p class="oc-effect" id="ocEffect"></p>
         <p class="oc-tip" id="ocTip"></p>
-        <div class="oc-actions"><button class="btn" id="cardContinue">Continue<span class="zh">繼續</span></button></div>
+        <div class="oc-actions"><button class="btn" id="cardContinue">Continue<span class="zh" lang="zh-HK">繼續</span></button></div>
       </div>
     </div>
   </div>
@@ -205,7 +213,7 @@
 
 <div class="modal" id="endModal" role="dialog" aria-modal="true" aria-labelledby="endTitle" hidden>
   <div class="sheet statement">
-    <div class="st-band"><span class="zh">結單</span><small id="stDate">STATEMENT</small><span class="seal" aria-hidden="true">結算</span></div>
+    <div class="st-band"><span class="zh" lang="zh-HK">結單</span><small id="stDate">STATEMENT</small><span class="seal" aria-hidden="true">結算</span></div>
     <div class="st-body">
       <p class="st-eyebrow" id="endEyebrow"></p>
       <h3 id="endTitle" tabindex="-1"></h3>
@@ -216,24 +224,27 @@
         <li><span class="lab">Best height<small>最高</small></span><span class="dots"></span><span class="val" id="rHeight"></span></li>
         <li><span class="lab">Wise picks<small>明智選擇</small></span><span class="dots"></span><span class="val" id="rWise"></span></li>
       </ul>
-      <div class="esec"><h4>Your 3 Falls<span class="zh">你中過嘅陷阱</span></h4><ul class="fallrep" id="fallRep"></ul></div>
-      <div class="esec"><h4>Quick quiz<span class="zh">小測驗 · <span id="quizScore">0/3</span></span></h4>
+      <div class="esec"><h4>Your 3 Falls<span class="zh" lang="zh-HK">你中過嘅陷阱</span></h4><ul class="fallrep" id="fallRep"></ul></div>
+      <div class="esec"><h4>Quick quiz<span class="zh" lang="zh-HK">小測驗 · <span id="quizScore">0/3</span></span></h4>
         <p class="esec-note">Tap an answer to see straight away if you're right. Answers are saved anonymously for our programme report. 撳一個答案，即刻知啱定錯。答案會匿名記錄，用嚟做計劃報告。</p>
         <div id="quiz"></div></div>
       <div class="esec">
-        <h4>Commit to one habit<span class="zh">揀一個好習慣，今個學期做到佢</span></h4>
+        <h4>Commit to one habit<span class="zh" lang="zh-HK">揀一個好習慣，今個學期做到佢</span></h4>
         <div class="habits" id="habits"></div>
         <div class="namerow">
-          <input id="nickname" maxlength="16" placeholder="Nickname 暱稱 (no real names)" autocomplete="off" aria-label="Nickname">
-          <input id="email" type="email" inputmode="email" maxlength="254" placeholder="Email for prizes (optional) 領獎電郵（選填）" autocomplete="email" spellcheck="false" aria-label="Email for prizes (optional)" aria-describedby="emailNote">
-          <button class="btn teal" id="postBtn">Post score<span class="zh">上榜</span></button>
+          <div class="fld"><label for="nickname">Nickname <span class="zh" lang="zh-HK">暱稱</span></label>
+            <input id="nickname" maxlength="16" placeholder="No real names 唔好用真名" autocomplete="off"></div>
+          <div class="fld em"><label for="email">Email for prizes <span class="opt">(optional)</span> <span class="zh" lang="zh-HK">領獎電郵（選填）</span></label>
+            <input id="email" type="email" inputmode="email" maxlength="254" placeholder="you@example.com" autocomplete="email" spellcheck="false" aria-describedby="emailNote privacyNote"></div>
+          <button class="btn teal" id="postBtn">Post score<span class="zh" lang="zh-HK">上榜</span></button>
         </div>
         <p class="email-note" id="emailNote">Top scorers of the week and the month win prizes. Your email is only for our team to contact winners and never appears on the board. 每週同每月最高分都有獎。電郵只會用嚟聯絡得獎者，唔會喺排行榜出現。</p>
+        <p class="email-note" id="privacyNote">To see or correct your email, or for any privacy question, email <a href="mailto:%%CONTACT_EMAIL%%">%%CONTACT_EMAIL%%</a>. 想查閱或者更正你嘅電郵，或者有任何私隱問題，請電郵聯絡我哋。</p>
         <p class="post-status" id="postStatus" aria-live="polite"></p>
       </div>
       <div class="endactions">
-        <button class="btn alt" id="closeEnd">See tower<span class="zh">睇返座塔</span></button>
-        <button class="btn" id="againBtn">Play again<span class="zh">再玩</span></button>
+        <button class="btn alt" id="closeEnd">See tower<span class="zh" lang="zh-HK">睇返座塔</span></button>
+        <button class="btn" id="againBtn">Play again<span class="zh" lang="zh-HK">再玩</span></button>
       </div>
     </div>
   </div>

@@ -8,7 +8,7 @@
 <link rel="icon" href="/icons/favicon-32.png" sizes="32x32" type="image/png">
 <style>
   :root{--bg:#FFF4E2;--card:#fff;--ink:#2E2838;--ink-2:#5B516C;--line:#EADBC4;--pink:#E8418B;--teal:#14968B;--red:#C42A24;--yellow:#FFD23F;
-    --teal-ink:#0B665E;--teal-bg:#E3F5F2;--red-bg:#FDEEEC;--tile:#FFFAF0;--track:#F2E6D2}
+    --teal-ink:#0B665E;--green:#2F9A4C;--green-ink:#1B6B33;--green-bg:#E5F5E9;--red-bg:#FDEEEC;--tile:#FFFAF0;--track:#F2E6D2}
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,-apple-system,"Segoe UI","Noto Sans HK","PingFang HK",sans-serif}
   header{background:var(--yellow);padding:14px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
@@ -18,6 +18,8 @@
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
   h2{font-size:16px;line-height:1.3;margin:0 0 10px}
   h2 .zh{display:inline;margin-left:6px;font-weight:400}
+
+  /* controls */
   form{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
   input,select,button,textarea{font:inherit}
   input[type=password]{flex:1;min-width:220px;padding:9px 12px;border:1px solid var(--line);border-radius:10px}
@@ -30,50 +32,63 @@
   button.mini{padding:2px 9px;font-size:12px;border-radius:8px}
   button:disabled{opacity:.5;cursor:default}
   button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,[role=tab]:focus-visible{outline:3px solid var(--pink);outline-offset:2px}
-  .msg{margin:8px 0 0;color:var(--ink-2)}
-  .msg:empty{display:none}
-  .msg.err{color:var(--red);font-weight:600}
-  .hint{color:var(--ink-2);font-size:12px}
-  .zh,.meta{display:block;color:var(--ink-2);font-size:12px}
-  .meta{display:none}
-  .stats{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:10px}
-  .stats b{font-size:20px;display:block}
   .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
   .bar h2{margin:0}
+  .bar .sp{flex:1}
   #periodBar{margin:0}
   #periodSel{flex:1 1 140px;min-width:0;max-width:260px}
-  .bar .sp{flex:1}
   .pair{display:flex;align-items:center;gap:8px;flex:1 1 150px;min-width:0;max-width:280px}
   .pair select{flex:1;min-width:0}
   .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px}
   .tabs button{flex:1 1 auto;background:#fff;color:var(--ink);border:1px solid var(--line)}
   .tabs button[aria-selected=true]{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+  /* text */
+  .msg{margin:8px 0 0;color:var(--ink-2)}
+  .msg:empty{display:none}
+  .msg.err{color:var(--red);font-weight:600}
+  .hint{color:var(--ink-2);font-size:12px}
+  .zh,.meta{display:block;color:var(--ink-2);font-size:12px}
+  .meta{display:none} /* a second line that only shows on a phone, where its column is hidden */
+  .stats{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:10px}
+  .stats b{font-size:20px;display:block}
+  .pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;background:#EEE;white-space:nowrap}
+  .pill.h,.pill.bad{background:#F9D3CF;color:#B62721}
+  .pill.ok{background:#CDEBD5;color:var(--green-ink)}
+  .pill.board{background:#CBEDE8;color:var(--teal-ink)}
+  .pill.rep{background:#FFE9A8;color:#6B4A00}
+
+  /* layout blocks */
   .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:14px}
   .grid2>.card{margin-bottom:0;min-width:0}
   .tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));grid-auto-flow:dense;gap:10px}
   .tile{display:flex;flex-direction:column;gap:2px;min-width:0;background:var(--tile);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
   .tile.kpi{grid-column:span 2}
-  .tile.ok{background:var(--teal-bg);border-color:var(--teal)}
+  .tile.ok{background:var(--green-bg);border-color:var(--green)}
   .tile.bad{background:var(--red-bg);border-color:var(--red)}
   .tile .tl{font-size:12px;font-weight:600;color:var(--ink-2)}
   .tile b{font-size:24px;line-height:1.2;font-variant-numeric:tabular-nums}
   .tile .ts{font-size:12px;color:var(--ink-2)}
   .tile .pill{align-self:flex-start;margin-top:4px;font-weight:600}
-  /* position:relative keeps the visually hidden .sr cells inside the scroller; the gradients are shadows that show when a table scrolls sideways */
+  .meter{display:inline-block;width:64px;height:8px;margin-left:8px;border-radius:99px;background:var(--track);overflow:hidden;vertical-align:middle}
+  .meter i{display:block;height:100%;background:var(--teal)}
+  .meter.ok i{background:var(--green)}
+  .meter.pink i{background:var(--pink)}
+  .meter.dim i{background:#C9B99F}
+  .hrow{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:10px;align-items:center;padding:5px 0}
+  .hrow .meter{display:block;width:auto;height:14px;margin:0}
+  .hrow .hv{white-space:nowrap;font-variant-numeric:tabular-nums}
+  .dl{display:grid;gap:10px;margin:10px 0}
+  .dlitem{display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between;background:var(--tile);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+  .dlitem div{flex:1 1 240px;min-width:0}
+  .dlitem b{display:block}
+  .dlitem span{font-size:12px;color:var(--ink-2)}
+
+  /* tables. position:relative keeps visually hidden .sr cells inside the scroller; the gradients are shadows shown when a table scrolls sideways */
   .wrap{overflow-x:auto;position:relative;
     background:linear-gradient(to right,#fff,#fff) left/16px 100% no-repeat local,linear-gradient(to left,#fff,#fff) right/16px 100% no-repeat local,
       linear-gradient(to right,rgba(46,40,56,.16),rgba(46,40,56,0)) left/14px 100% no-repeat scroll,linear-gradient(to left,rgba(46,40,56,.16),rgba(46,40,56,0)) right/14px 100% no-repeat scroll}
   table{border-collapse:collapse;width:100%}
-  table.wide{min-width:1000px}
-  table.wide th,table.wide td{padding:6px 5px}
-  table.wide th,td.w{white-space:normal}
-  table.wide td.n{max-width:130px}
-  table.wide td.em{max-width:200px}
-  table.wide td button{padding:4px 12px}
-  table.mid{min-width:640px}
-  table.win{min-width:480px}
-  table.sm th,table.quiz th{white-space:normal}
-  table.sm th,table.sm td,table.quiz th,table.quiz td{padding:7px 5px}
   th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
   th{font-size:12px;color:var(--ink-2);font-weight:600}
   th.num,td.num{text-align:right;font-variant-numeric:tabular-nums}
@@ -87,49 +102,44 @@
   tr.cur td{background:var(--tile);font-weight:600}
   tr.q td{background:var(--tile);vertical-align:top}
   tr.opt td:first-child{padding-left:22px}
-  tr.right td{background:var(--teal-bg)}
+  tr.right td{background:var(--green-bg)}
   tr.dim td{color:var(--ink-2)}
-  .mark{display:inline-block;width:18px;font-weight:700;color:var(--teal-ink)}
+  .mark{display:inline-block;width:18px;font-weight:700;color:var(--green-ink)}
   .opt-t{display:flex;align-items:flex-start;white-space:normal}
   .qs{display:block;font-size:12px;color:var(--ink-2);margin-top:2px}
-  .win th,.win td{white-space:normal;padding:6px}
-  .win td.mail{overflow-wrap:anywhere;min-width:140px}
-  .win td.n{max-width:none;overflow-wrap:anywhere;text-overflow:clip}
-  .win td.num{white-space:nowrap}
-  .win .pill{display:block;width:max-content;margin-top:2px}
-  .win button{margin-top:4px}
-  .pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;background:#EEE;white-space:nowrap}
-  .pill.h,.pill.bad{background:#F9D3CF;color:var(--red)}
-  .pill.ok,.pill.board{background:#CBEDE8;color:var(--teal-ink)}
-  .pill.rep{background:#FFE9A8;color:#6B4A00}
-  .meter{display:inline-block;width:64px;height:8px;margin-left:8px;border-radius:99px;background:var(--track);overflow:hidden;vertical-align:middle}
-  .meter i{display:block;height:100%;background:var(--teal)}
-  .meter.pink i{background:var(--pink)}
-  .meter.dim i{background:#C9B99F}
-  .hrow{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:10px;align-items:center;padding:5px 0}
-  .hrow .meter{display:block;width:auto;height:14px;margin:0}
-  .hrow .hv{white-space:nowrap;font-variant-numeric:tabular-nums}
-  .dl{display:grid;gap:10px;margin:10px 0}
-  .dlitem{display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between;background:var(--tile);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
-  .dlitem div{flex:1 1 240px;min-width:0}
-  .dlitem b{display:block}
-  .dlitem span{font-size:12px;color:var(--ink-2)}
+  table.sm th,table.sm td,table.quiz th,table.quiz td{padding:7px 5px}
+  table.sm th,table.quiz th{white-space:normal}
+  table.mid{min-width:640px}
+  table.win{min-width:480px}
+  table.win th,table.win td{white-space:normal;padding:6px}
+  table.win td.num,table.win td.sv{white-space:nowrap}
+  table.win td.mail{overflow-wrap:anywhere;min-width:140px}
+  table.win td.n{max-width:none;overflow-wrap:anywhere;text-overflow:clip}
+  table.win .pill{display:block;width:max-content;margin-top:2px}
+  table.win button{margin-top:4px}
+  table.wide{min-width:1000px;border-collapse:separate;border-spacing:0}
+  table.wide th,table.wide td{padding:6px 5px}
+  table.wide th,table.wide td.w{white-space:normal}
+  table.wide td.n{max-width:130px}
+  table.wide td.em{max-width:200px}
+  table.wide td button{padding:4px 12px}
+  /* the Hide / Unhide column stays in view while the table scrolls sideways */
+  table.wide th:last-child,table.wide td:last-child{position:sticky;right:0;background:#fff;box-shadow:-8px 0 8px -8px rgba(46,40,56,.25)}
+
   [hidden]{display:none!important}
   .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
   @media (min-width:700px){.tabs button{flex:0 0 auto}}
-  @media (min-width:561px){
-    table.wide{border-collapse:separate;border-spacing:0}
-    table.wide th:last-child,table.wide td:last-child{position:sticky;right:0;background:#fff;box-shadow:-8px 0 8px -8px rgba(46,40,56,.25)}
-  }
   @media (max-width:860px){.grid2{grid-template-columns:minmax(0,1fr)}}
   @media (max-width:560px){
-    .card{padding:12px}.tile b{font-size:22px}
-    .hide-sm,td .meter{display:none}.meta{display:block}
+    .card{padding:12px}
+    .tile b{font-size:22px}
+    .hide-sm,td .meter{display:none}
+    .meta{display:block}
     table.mid,table.win{min-width:0}
     table.cards,table.win{font-size:13px}
     table.cards th,table.cards td,table.win th,table.win td{padding:7px 3px}
     table.cards th{white-space:normal}
-    /* one block per row: label and value pairs instead of a sideways scroll */
+    /* one block per row (label and value pairs) instead of a sideways scroll */
     table.stack,table.stack tbody{display:block;min-width:0}
     table.stack thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
     table.stack tr{display:grid;grid-template-columns:1fr 1fr;gap:2px 16px;padding:8px 2px;border-bottom:1px solid var(--line)}
@@ -143,7 +153,7 @@
 <body>
 <header>
   <img src="/icons/icon-192.png" alt="">
-  <h1>3 Fall Fun · Leaderboard admin 管理</h1>
+  <h1>3 Fall Fun · Leaderboard admin <span lang="zh-HK">管理</span></h1>
   <button class="ghost" id="lockBtn" hidden>Lock</button>
 </header>
 <main>

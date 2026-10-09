@@ -22,6 +22,7 @@ const A = {
 // ---------- world ----------
 const W = 440, H = 700, PW = 270, FLOOR = 50, WATER_Y = 120;
 const GAME_MS = 180000, CARD_MS = 10000, FIRST_CARD = 15000, CARD_GAP = 24000;
+const SLOW_CARD_MS = 30000, RESULT_MS = 12000;   // Extra reading time: 30 s per card, results wait for Continue
 const STEP = 1000 / 60;
 const FALL = [1.5, 1.8, 2.1, 2.4];
 const MAX_DROPS = 3;
@@ -58,6 +59,39 @@ const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 function lsGet(k, d){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch(e){ return d; } }
 function lsSet(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
 const mmss = ms => { const s = Math.floor(ms / 1000); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
+// Screen readers read Chinese with an English voice unless it's marked, so every run of Chinese text on the page
+// is wrapped in lang="zh-HK" as it appears. Numbers and short codes inside a Chinese phrase (HK$3,600, 18222)
+// stay with it; English words don't.
+const ZH_RUN = /\p{Script=Han}(?:[\p{Script=Han}、。「」『』（）！？：；，～…]|(?:[0-9$%.,:/+×~\- ]|[A-Za-z](?![A-Za-z]{2})){1,14}(?=[\p{Script=Han}「『（！？。，、：；」』）]))*[、。」』）！？：；，～…]*/gu;
+const HAS_HAN = /\p{Script=Han}/u;
+function markZh(root){
+  if (!root || (root.nodeType !== 1 && root.nodeType !== 11)) return;
+  const walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), todo = [];
+  for (let n = walk.nextNode(); n; n = walk.nextNode()){
+    const p = n.parentElement, l = p && p.closest("[lang]");
+    if (p && HAS_HAN.test(n.data) && !/^(SCRIPT|STYLE|TEXTAREA|TITLE)$/.test(p.tagName) && (!l || l.lang === "en")) todo.push(n);
+  }
+  for (const n of todo){
+    const parts = []; let at = 0;
+    for (const m of n.data.matchAll(ZH_RUN)){
+      if (m.index > at) parts.push(n.data.slice(at, m.index));
+      const sp = document.createElement("span"); sp.lang = "zh-HK"; sp.textContent = m[0]; parts.push(sp); at = m.index + m[0].length;
+    }
+    if (at < n.data.length) parts.push(n.data.slice(at));
+    n.replaceWith(...parts);
+  }
+}
+const ZH_WATCH = {childList: true, subtree: true, characterData: true};
+const zhWatch = new MutationObserver(list => {
+  zhWatch.disconnect();
+  for (const m of list){
+    if (m.type === "characterData") markZh(m.target.parentNode);
+    else for (const n of m.addedNodes) markZh(n.nodeType === 3 ? n.parentNode : n);
+  }
+  zhWatch.observe(document.body, ZH_WATCH);
+});
+let slowRead = !!lsGet("tff_slow_read", false);   // Extra reading time (start and pause cards)
+const cardMs = () => slowRead ? SLOW_CARD_MS : CARD_MS;
 const ICON = {spend:"i-spend", scam:"i-scam", delay:"i-delay"};
 const svgUse = (id, cls) => { const s = document.createElementNS("http://www.w3.org/2000/svg", "svg"); s.setAttribute("viewBox", "0 0 32 32"); s.setAttribute("aria-hidden", "true"); if (cls) s.setAttribute("class", cls);
   const u = document.createElementNS("http://www.w3.org/2000/svg", "use"); u.setAttribute("href", "#" + id); s.appendChild(u); return s; };
@@ -465,6 +499,8 @@ function openCard(){
     box.appendChild(b);
   });
   $("cardOutcome").hidden = true; $("cardBar").style.transform = "scaleX(1)";
+  $("cardHint").textContent = "Life Event card. Choose within " + cardMs() / 1000 + " seconds: press 1 or 2, or tap a choice." +
+    (slowRead ? "" : " For more time, turn on Extra reading time when the game is paused.");
   $("cardModal").hidden = false;
   const sheet = $("cardSheet"); sheet.style.animation = "none"; void sheet.offsetWidth; sheet.style.animation = "";
   modalOpen(true); $("cardSheet").focus({preventScroll:true});
@@ -482,7 +518,7 @@ function choose(kind){
     head.className = "oc-head good"; head.appendChild(svgUse("i-good")); txt.textContent = "Good call! 揀得好！";
     effect = "Flat, stable items for the next 4 drops, and the first comes wrapped in vines: it sticks to whatever it touches. Savings boost ×" + S.rate.toFixed(1) + ", emergency fund +1. " +
       "之後4件都係平穩物件，第一件仲纏住藤蔓，掂到就黐住。儲蓄加成升到×" + S.rate.toFixed(1) + "，應急錢+1。";
-    $("ocEffect").style.color = "var(--green-d)"; A.sfx("wise");
+    $("ocEffect").style.color = "var(--green-t)"; A.sfx("wise");
   } else {
     const trap = kind === "risky" ? c.trap : "delay";
     if (kind === "risky") S.risky++; else S.missed++;
@@ -1058,11 +1094,11 @@ function frame(now){
     if (S.mode === "card" && S.card){
       S.card.t += dt;
       if (!S.card.flip){
-        const left = CARD_MS - S.card.t;
-        $("cardBar").style.transform = "scaleX(" + Math.max(0, left / CARD_MS).toFixed(3) + ")";
+        const left = cardMs() - S.card.t;
+        $("cardBar").style.transform = "scaleX(" + Math.max(0, left / cardMs()).toFixed(3) + ")";
         const sec = Math.ceil(left / 1000); if (sec <= 3 && sec < S.card.lastTick && sec > 0){ S.card.lastTick = sec; A.sfx("cardTick"); }
-        if (S.card.t >= CARD_MS) choose("none");
-      } else if (S.card.t - S.card.flipAt > 7000) closeCard();
+        if (S.card.t >= cardMs()) choose("none");
+      } else if (!slowRead && S.card.t - S.card.flipAt > RESULT_MS) closeCard();
     } else if (S.mode === "playing") tick(dt);
     else if (S.mode === "over" || (S.mode === "idle" && S.viewing)){ S.acc += dt; let n = 0; while (S.acc >= STEP && n++ < 3){ S.acc -= STEP; worldStep(); } }
     draw();
@@ -1099,7 +1135,7 @@ function showEnd(){
   const row = (icon, bg, title, sub, count) => {
     const li = document.createElement("li"); const ic = svgUse(icon); ic.style.background = bg; ic.style.borderRadius = "8px"; ic.style.padding = "2px";
     const m = document.createElement("span"); m.textContent = title; const s = document.createElement("small"); s.textContent = sub; m.appendChild(s);
-    const c = document.createElement("span"); c.className = "fc"; c.textContent = "×" + count; c.style.color = count ? "var(--red-d)" : "var(--green-d)";
+    const c = document.createElement("span"); c.className = "fc"; c.textContent = "×" + count; c.style.color = count ? "var(--red-d)" : "var(--green-t)";
     li.append(ic, m, c); fr.appendChild(li);
   };
   row("i-spend", "var(--orange)", TRAPS.spend.en + " " + TRAPS.spend.zh, TRAPS.spend.d, S.falls.spend);
@@ -1146,7 +1182,8 @@ function showEnd(){
   });
   $("nickname").value = lsGet("tff_name", "");
   const live = apiAllowed && !apiGone && dbWritable;
-  $("email").value = ""; $("email").classList.remove("bad"); $("email").hidden = $("emailNote").hidden = !live;   // never kept on the device
+  $("email").value = ""; emailError(false); $("email").closest(".fld").hidden = $("emailNote").hidden = !live;   // never kept on the device
+  if ($("privacyNote")) $("privacyNote").hidden = !live;
   $("postBtn").disabled = false; $("postBtn").firstChild.textContent = "Post score";
   const ps = $("postStatus"); ps.className = "post-status";
   ps.textContent = live ? "Posts your nickname and score to the board. No real names, please. 排行榜只會顯示暱稱同分數，唔好用真名。" : "Your score will be saved on this device. 分數會存喺呢部機。";
@@ -1272,16 +1309,22 @@ async function flushOutbox(){
 }
 
 const EMAIL_OK = /^[^\s@<>()[\]\\,;:"]{1,64}@[^\s@<>()[\]\\,;:"]+\.[^\s@<>()[\]\\,;:".]{2,}$/;
+function emailError(on){   // red outline plus aria-invalid, and the message under the button is read out with the field
+  const em = $("email"), notes = ["emailNote", "privacyNote"].filter(id => $(id)).join(" ");
+  em.classList.toggle("bad", on);
+  if (on) em.setAttribute("aria-invalid", "true"); else em.removeAttribute("aria-invalid");
+  em.setAttribute("aria-describedby", (on ? "postStatus " : "") + notes);
+}
 $("postBtn").addEventListener("click", async () => {
   const st = S; if (st.posted || st.posting) return;
   const ps = $("postStatus"), btn = $("postBtn"), em = $("email");
-  const email = em.hidden ? "" : em.value.trim();
+  const email = em.closest(".fld").hidden ? "" : em.value.trim();
   if (email && (email.length > 254 || !EMAIL_OK.test(email))){
-    em.classList.add("bad"); em.focus(); ps.className = "post-status bad";
+    emailError(true); em.focus(); ps.className = "post-status bad";
     ps.textContent = "That email doesn't look right. Check it, or leave it blank. 電郵地址好似唔啱，請再檢查，或者留空。";
     return;
   }
-  em.classList.remove("bad"); st.posting = true;
+  emailError(false); st.posting = true;
   const name = sanitizeName($("nickname").value); lsSet("tff_name", name === ANON ? "" : name);
   const answers = answersOf(st), right = st.quiz.filter(x => x && x.ok).length;
   const entry = {name, score: Math.round(st.score), stage: st.stage, height: +(st.best / FLOOR).toFixed(1), drops: st.drops,
@@ -1309,7 +1352,7 @@ $("postBtn").addEventListener("click", async () => {
       r.board = false; r.name = ""; r.email = "";   // posting happens only on a tap, so a later survey save mustn't post it
       if (e.code === "bad_email"){
         st.posting = false;
-        if (st === S){ btn.disabled = false; btn.firstChild.textContent = "Post score"; em.classList.add("bad"); ps.className = "post-status bad";
+        if (st === S){ btn.disabled = false; btn.firstChild.textContent = "Post score"; emailError(true); em.focus(); ps.className = "post-status bad";
           ps.textContent = "That email doesn't look right. Check it, or leave it blank. 電郵地址好似唔啱，請再檢查，或者留空。"; }
         return;
       }
@@ -1466,7 +1509,13 @@ function sampleTower(){
   S.queue = [pick("football") || fallback[0], pick("textbooks") || fallback[1] || fallback[0], pick("banana") || fallback[2] || fallback[0]];
   crab("Hi! I'm the 3 Fall Crab. Every item you stack is a money decision.", "我係3 Fall Crab！你疊嘅每件嘢，都係一個理財決定。");
 }
-buildStatic(); sampleTower(); resize(); updateHUD(); renderLedger(); setMuteUI(); initDB();
+buildStatic(); sampleTower(); resize(); updateHUD(); renderLedger(); setMuteUI();
+markZh(document.body); zhWatch.observe(document.body, ZH_WATCH);
+document.querySelectorAll(".slowRead").forEach(cb => {
+  cb.checked = slowRead;
+  cb.addEventListener("change", () => { slowRead = cb.checked; lsSet("tff_slow_read", slowRead); document.querySelectorAll(".slowRead").forEach(o => { o.checked = slowRead; }); });
+});
+initDB();
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { SPR.clear(); previewCache.clear(); buildLayers(); drawPreviews(true); });
 requestAnimationFrame(frame);
 })();

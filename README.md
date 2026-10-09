@@ -28,6 +28,13 @@ Use the Cloudflare account that holds the **3fallcrab.com** domain. Every push t
    - Or delete the application.
 5. **Set the admin password.** Go to **Workers & Pages → three-fall-fun → Settings → Variables and Secrets → Add**. Choose type **Secret**, name it `ADMIN_TOKEN`, and set a long password (16+ characters). Then open [3fallcrab.com/admin](https://3fallcrab.com/admin).
 6. **Print the booth poster** from [3fallcrab.com/poster](https://3fallcrab.com/poster). Use A4 with "Background graphics" turned on.
+7. **Turn on the privacy contact address.** The results screen and the page footer tell players to email **team@3fallcrab.com** to see or correct their data, or with any privacy question. Make that address reach your team (free, about 2 minutes):
+   - In the Cloudflare dashboard, open **3fallcrab.com → Email → Email Routing** and click **Get started** (or **Enable**). Accept the DNS records it adds. If the domain already receives email somewhere else, skip this and change the address instead (see below).
+   - Under **Destination addresses**, add the inbox that should get these emails, for example a shared team Gmail, and click the link in the verification email Cloudflare sends there.
+   - Under **Routing rules → Custom addresses**, create `team`, with the action **Send to an email** and your verified inbox.
+   - Send a test email to team@3fallcrab.com and check it arrives.
+
+   To show a different address, change `config.contact_email` in `package.json` and push. Leave it empty (`""`) to hide the contact lines.
 
 Link previews (WhatsApp, Instagram, Facebook) already point at `https://3fallcrab.com`; this is set in `package.json` → `config.site_url`.
 
@@ -82,6 +89,18 @@ npm run dev                      # http://localhost:8787 with a local database
 `npm run dev` builds `public/` and starts Wrangler. If you edit anything in `src/`, run `npm run build` again; the dev server picks up the new files.
 
 ---
+
+## Accessibility
+
+The game aims for WCAG 2.2 AA. An automated check (axe-core) finds no problems on any screen: game, Life Event cards, results, leaderboard, admin, poster and 404, on desktop and phone.
+
+- **Cantonese for screen readers:** all Chinese text is marked `lang="zh-HK"` as it appears, so VoiceOver and TalkBack read it with a Cantonese voice. Numbers inside a Chinese sentence, like HK$3,600, stay with it.
+- **Extra reading time:** a switch on the start and pause cards gives 30 seconds per Life Event card instead of 10, and the result stays until Continue is pressed. It is remembered on the device. Screen readers are told the time limit when a card opens. Even without it, a card result now stays for 12 seconds (was 7).
+- **Keyboard:** everything works without a mouse: arrows, Space, C, P, M in the game; 1 or 2 on Life Event cards; Tab and Enter on the results screen. Focus is always visible, and pop-ups move focus in and back out.
+- **Contrast:** text meets AA contrast. Bright backgrounds stay; text on them is ink or the colour behind white text is a little deeper.
+- **Forms:** nickname and email have visible labels; a mistyped email is announced and marked invalid; quiz feedback is announced.
+- **Motion and sound:** "Reduce motion" turns off the shake, bobbing and card animations; sound has a mute button and starts only after Start.
+- Controls are at least 24 × 24 px, and the pages fit a 320 px wide screen without sideways scrolling.
 
 ## Settings
 
@@ -156,6 +175,7 @@ All game source lives in `src/`. After any change, run `npm run build`, which fi
 
 | File | What's in it |
 |---|---|
+| `package.json` → `config` | `site_url` (link previews) and `contact_email` (privacy contact shown on the results screen and in the footer) |
 | `src/content.js` | Life Event cards, the quiz (with the reason shown after each answer) and the habit pledges, shared with the API so it can check answers and label the survey results. If you change what a question or card asks, give it a new `id`. |
 | `src/game.js` | Game rules, end-of-game statement and leaderboard client. Tuning constants are near the top: `GAME_MS` (3 min), `CARD_MS`, `MAX_DROPS`. Vine items: `VINE_RARE` (chance a new item is vine-wrapped, 5%), `VINE_GRABS` (blocks one vine item can grab), `MAX_FUSED` (items per stuck-together group). |
 | `src/items/*.js` | The 32 everyday items: physics shape plus clay drawing for each |

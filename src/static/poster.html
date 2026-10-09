@@ -36,7 +36,7 @@
   .url{font-size:5mm;font-weight:700;margin:1mm 0 5mm;word-break:break-all}
   .chips{display:flex;gap:3mm;flex-wrap:wrap;justify-content:center;margin-bottom:auto;padding-bottom:5mm}
   .chip{border-radius:999px;padding:2mm 5mm;font-size:4.4mm;font-weight:900;color:#fff}
-  .chip.a{background:var(--orange)} .chip.b{background:var(--purple)} .chip.c{background:var(--blue)}
+  .chip.a{background:var(--orange);color:var(--ink)} .chip.b{background:#7C59F0} .chip.c{background:var(--blue);color:var(--ink)}
   .foot{font-size:3.9mm;color:var(--ink-2);line-height:1.45}
   .foot b{color:var(--ink)}
   @media print{ html,body{background:none} .tools{display:none} .sheet{margin:0} }
@@ -44,6 +44,7 @@
 </style>
 </head>
 <body>
+<main>
 <div class="tools">
   <input id="url" type="url" aria-label="Game address for the QR code">
   <button id="printBtn">Print poster</button>
@@ -52,14 +53,15 @@
 <article class="sheet">
   <img class="crab" src="/icons/icon-512.png" alt="">
   <h1 aria-label="3 Fall Fun"><span>3</span><span>F</span><span>a</span><span>l</span><span>l</span><span>F</span><span>u</span><span>n</span></h1>
-  <p class="zh">人生跌塔</p>
-  <p class="tag">Build your future, one block at a time · 未來「理想」點</p>
+  <p class="zh" lang="zh-HK">人生跌塔</p>
+  <p class="tag">Build your future, one block at a time · <span lang="zh-HK">未來「理想」點</span></p>
   <div class="qrcard"><svg id="qr" role="img" aria-label="QR code"></svg></div>
-  <p class="scan">Scan to play!<small>掃一掃即玩 · 3分鐘 · 每星期有獎</small></p>
+  <p class="scan">Scan to play!<small lang="zh-HK">掃一掃即玩 · 3分鐘 · 每週同每月都有獎</small></p>
   <p class="url" id="urlText"></p>
-  <div class="chips"><span class="chip a">過度消費 Overspending</span><span class="chip b">騙局 Scams</span><span class="chip c">拖延儲錢 Putting off saving</span></div>
-  <p class="foot"><b>3 Fall Crab 整冧咗team</b> · HSUHK<br>個人理財大使計劃 2026 · Personal Finance Ambassador Programme</p>
+  <div class="chips"><span class="chip a"><span lang="zh-HK">過度消費</span> Overspending</span><span class="chip b"><span lang="zh-HK">騙局</span> Scams</span><span class="chip c"><span lang="zh-HK">拖延儲錢</span> Putting off saving</span></div>
+  <p class="foot"><b>3 Fall Crab <span lang="zh-HK">整冧咗</span>team</b> · HSUHK<br><span lang="zh-HK">個人理財大使計劃 2026</span> · Personal Finance Ambassador Programme</p>
 </article>
+</main>
 <script src="/vendor/qrcode-1.4.4.js"></script>
 <script src="/poster.js"></script>
 </body>

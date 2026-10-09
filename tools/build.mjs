@@ -14,6 +14,12 @@ const src = join(root, "src");
 const out = join(root, "public");
 const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 const site = (process.env.SITE_URL || pkg.config?.site_url || "").trim().replace(/\/+$/, "");
+// Contact address for privacy questions, shown on the results screen and in the page footer.
+const contact = (process.env.CONTACT_EMAIL ?? pkg.config?.contact_email ?? "").trim();
+if (contact && !/^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(contact)) {
+  console.error(`The contact email in package.json (config.contact_email) doesn't look like an email address (got "${contact}")`);
+  process.exit(1);
+}
 if (site && !/^https:\/\/[^/\s]+$/.test(site)) {
   console.error(`The site address should look like https://your-game.example.com, with no path (got "${site}")`);
   process.exit(1);
@@ -74,7 +80,8 @@ function asset(path) {
 function render(html) {
   html = html.replace(/%%asset:([^%]+)%%/g, (_, p) => asset(p.trim()));
   if (!site) html = html.replace(/^.*%%SITE_URL%%\/".*\n/gm, ""); // og:url only makes sense with a real address
-  return html.replaceAll("%%SITE_URL%%", site);
+  if (!contact) html = html.replace(/<p[^>]*>[^\n]*%%CONTACT_EMAIL%%[^\n]*<\/p>\n?/g, "").replaceAll(" privacyNote", ""); // no address: leave the contact lines out
+  return html.replaceAll("%%SITE_URL%%", site).replaceAll("%%CONTACT_EMAIL%%", contact);
 }
 
 writeFileSync(join(out, "index.html"), render(readFileSync(join(src, "index.html"), "utf8")));
