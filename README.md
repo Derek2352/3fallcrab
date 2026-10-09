@@ -146,7 +146,7 @@ All game source lives in `src/`. After any change, run `npm run build`, which fi
 
 | File | What's in it |
 |---|---|
-| `src/game.js` | Game rules, Life Event cards, quiz, habits and leaderboard client. Tuning constants are near the top: `GAME_MS` (3 min), `CARD_MS`, `MAX_DROPS`. |
+| `src/game.js` | Game rules, Life Event cards, quiz, habits and leaderboard client. Tuning constants are near the top: `GAME_MS` (3 min), `CARD_MS`, `MAX_DROPS`. Vine items: `VINE_RARE` (chance a new item is vine-wrapped, 5%), `VINE_GRABS` (blocks one vine item can grab), `MAX_FUSED` (items per stuck-together group). |
 | `src/items/*.js` | The 32 everyday items: physics shape plus clay drawing for each |
 | `src/clay.js` | Clay rendering kit (palette, lighting, materials) |
 | `src/audio.js` | Synthesised music and sound effects, with no audio files |

@@ -179,7 +179,7 @@ button{font-family:inherit;color:inherit}
 .ticket .nm{font-size:12px;line-height:1.3;min-height:30px}
 .ticket .nm small{display:block;color:var(--ink-2);font-family:var(--f-zh);font-size:12px}
 .kind{display:inline-block;margin-top:3px;font-size:10.5px;font-weight:800;padding:1px 8px;border-radius:999px;color:#fff}
-.kind.wise{background:var(--green-d)} .kind.risky{background:var(--orange-d)} .kind.scam{background:var(--purple-d)}
+.kind.wise{background:var(--green-d)} .kind.risky{background:var(--orange-d)} .kind.scam{background:var(--purple-d)} .kind.vine{background:#2B7A3D;margin-left:4px}
 .then{grid-column:1/-1;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2);margin-top:-2px}
 .then canvas{width:38px;height:38px;border-radius:10px;background:#fff;flex:none;box-shadow:inset -2px -2px 4px rgba(60,20,10,.12)}
 

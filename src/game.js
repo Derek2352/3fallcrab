@@ -153,7 +153,7 @@ function newState(){
     height:0, best:0, bestFloor:0, stage:0, play:0, acc:0, spawnAt:0, nextEvent:FIRST_CARD, shocks:[60000, 125000],
     speedUntil:0, fastOn:false, quakeUntil:0, pendingDebt:0, used:new Set(), mode:"idle", card:null, cardCount:0, over:null, posted:false,
     quiz:[null, null, null], camTop:-(H - 240), shake:0, splashes:[], dragX:null, steps:0, ledger:[], warned:false,
-    mood:{type:"idle", until:0}, lastImpact:new Map()};
+    mood:{type:"idle", until:0}, lastImpact:new Map(), grabs:[], leaves:[]};
 }
 function makeEngine(){
   engine = Engine.create({enableSleeping:true});
@@ -166,6 +166,8 @@ function makeEngine(){
       const a = p.bodyA.parent, b = p.bodyB.parent;
       if (S.active && (a === S.active || b === S.active)) release(false);
       if (a.tff) a.tff.capFall = 0; if (b.tff) b.tff.capFall = 0;
+      const ia = itemOfPart(p.bodyA), ib = itemOfPart(p.bodyB);
+      if (ia && ib && ia !== ib && (ia.tff.vine || ib.tff.vine)) queueGrab(ia, ib, p);
       // impact sound from the normal relative speed
       const n = p.collision && p.collision.normal; if (!n) continue;
       const rv = (a.velocity.x - b.velocity.x) * n.x + (a.velocity.y - b.velocity.y) * n.y;
@@ -180,7 +182,8 @@ function makeEngine(){
 }
 function addItem(def, x, y, player){
   const b = K.shape.fixInertia(def.make(x, y));   // again here: some items rebuild their parts after shape.body()
-  b.tff = {def, player, released:!player, settled:false, at:S.play, eo:{x: x - b.position.x, y: y - b.position.y}};
+  b.tff = {def, player, released:!player, settled:false, at:S.play, eo:{x: x - b.position.x, y: y - b.position.y}, vine: !!def.vine, parts: ownParts(b)};
+  for (const pt of b.tff.parts){ pt.plugin = pt.plugin || {}; pt.plugin.item = b; }
   Composite.add(engine.world, b);
   return b;
 }
@@ -190,10 +193,14 @@ function genItem(){
   else pool = Math.random() < 0.6 ? POOLS.wise : POOLS.risky;
   let it, guard = 0;
   do { it = pool[Math.floor(Math.random() * pool.length)]; } while (pool.length > 1 && it.id === S.lastId && guard++ < 10);
-  S.lastId = it.id; return it;
+  S.lastId = it.id;
+  return it.kind !== "scam" && Math.random() < VINE_RARE ? vineOf(it) : it;
 }
 function refill(){ while (S.queue.length < 3) S.queue.push(genItem()); }
-function spawn(def){ S.active = addItem(def, W/2, S.camTop + 85, true); S.targetAngle = 0; A.sfx("spawn"); }
+function spawn(def){
+  S.active = addItem(def, W/2, S.camTop + 85, true); S.targetAngle = 0; A.sfx("spawn");
+  if (def.vine){ A.sfx("vineGet"); stamp("Vine-wrapped! It sticks where it lands", "藤蔓物件：掂到就黐住", "good"); }
+}
 function nextPiece(){ refill(); const it = S.queue.shift(); refill(); spawn(it); S.canHold = true; drawPreviews(); }
 function release(hard){
   const b = S.active; if (!b) return;
@@ -238,6 +245,7 @@ function worldStep(){
   for (const b of engine.world.bodies)
     if (b.tff && b.tff.capFall && b.velocity.y > b.tff.capFall) Body.setVelocity(b, {x: b.velocity.x, y: b.tff.capFall});
   Engine.update(engine, STEP); S.steps++;
+  if (S.grabs.length) processGrabs();
   for (const b of engine.world.bodies){
     if (!b.tff || b === S.active || b.isSleeping) continue;
     if (Math.abs(b.angularVelocity) > MAX_SPIN) Body.setAngularVelocity(b, Math.sign(b.angularVelocity) * MAX_SPIN);
@@ -262,11 +270,12 @@ function physicsStep(){
       S.splashes.push({x: b.position.x, t: 0, big: b.mass > 8});
       A.sfx("splash");
       if (b === S.active){ S.active = null; S.spawnAt = S.play + 300; }
-      if (b.tff.player){
+      for (const m of membersOf(b)){
+        if (!m.tff.player) continue;
         S.drops++; const loss = Math.min(S.score, 1000); S.score -= loss;
-        ledger(b.tff.def, -loss, "跌落海");
+        ledger(m.tff.def, -loss, "跌落海");
         mood("cover", 1600);
-        stamp(b.tff.def.en + " fell in!", "跌咗落海 " + S.drops + "/" + MAX_DROPS, "bad");
+        stamp(m.tff.def.en + " fell in!", "跌咗落海 " + S.drops + "/" + MAX_DROPS, "bad");
         updateHUD();
         if (S.drops >= MAX_DROPS){ endGame("drops"); return; }
       }
@@ -276,10 +285,11 @@ function physicsStep(){
     const still = b.speed < 0.35 && b.angularSpeed < 0.03 && b.position.y < 5;
     b.tff.restN = still ? (b.tff.restN || 0) + 1 : 0;
     const resting = b.tff.restN >= 30;
-    if (b.tff.player && !b.tff.settled && resting && S.play - b.tff.at > 450){
-      b.tff.settled = true;
-      const k = b.tff.def.kind, base = k === "wise" ? 500 : k === "risky" ? 300 : 0;
-      if (base){ const gain = Math.round(base * S.rate / 10) * 10; S.score += gain; ledger(b.tff.def, gain); A.sfx("deposit", {amount: gain}); updateHUD(); }
+    for (const m of membersOf(b)){
+      if (!m.tff.player || m.tff.settled || !resting || S.play - m.tff.at <= 450) continue;
+      m.tff.settled = true;
+      const k = m.tff.def.kind, base = k === "wise" ? 500 : k === "risky" ? 300 : 0;
+      if (base){ const gain = Math.round(base * S.rate / 10) * 10; S.score += gain; ledger(m.tff.def, gain); A.sfx("deposit", {amount: gain}); updateHUD(); }
     }
     if (resting && S.play - b.tff.at > 300) h = Math.max(h, -b.bounds.min.y);
   }
@@ -302,6 +312,189 @@ function physicsStep(){
       crab("Welcome to " + st.en + ". Items fall faster from here.", "去到「" + st.zh + "」喇！由而家起，啲嘢會跌得快啲。");
     }
     updateHUD();
+  }
+}
+
+// ---------- vines ----------
+// Now and then (and as the reward for a wise answer) an item comes wrapped in vines. A vine-wrapped item grabs
+// any block it touches: the two are fused into one rigid compound body right after the physics step. (A joint
+// between them would fight the collision solver: stress-tested, joints left welded items creeping ~60% of the
+// time; fusing keeps them as still as unwelded ones.) Each item keeps its own sprite, drawn from its pose
+// relative to the fused body, and the vine visibly creeps onto whatever it grabbed.
+const VINE_RARE = 0.05, VINE_GRABS = 4, MAX_FUSED = 8;
+const vineDefs = new Map();
+function vineOf(def){
+  if (!def || def.vine || def.kind === "debt") return def;
+  let v = vineDefs.get(def.id);
+  if (!v){
+    v = Object.create(def);
+    Object.assign(v, {id: def.id + "~vine", vine: true, base: def,
+      en: "Vine-wrapped " + (/^[A-Z][a-z]/.test(def.en) ? def.en[0].toLowerCase() + def.en.slice(1) : def.en),
+      zh: "藤蔓" + def.zh,
+      draw(g){ def.draw(g); drawVineWrap(g, def); }});
+    vineDefs.set(def.id, v);
+  }
+  return v;
+}
+function ownParts(b){ return b.parts.length > 1 ? b.parts.slice(1) : [b]; }
+function membersOf(body){ return (body.tff && body.tff.members) || [body]; }
+function hostOf(item){ return item.tff.hostBody || item; }
+function itemOfPart(part){ const it = part.plugin && part.plugin.item; return it && it.tff ? it : null; }
+function poseOf(m){
+  const H = m.tff && m.tff.hostBody;
+  if (!H) return {x: m.position.x, y: m.position.y, a: m.angle};
+  const c = Math.cos(H.angle), s = Math.sin(H.angle), r = m.tff.rel;
+  return {x: H.position.x + r.x * c - r.y * s, y: H.position.y + r.x * s + r.y * c, a: H.angle + r.a};
+}
+function queueGrab(ia, ib, pair){
+  const sp = pair.collision && pair.collision.supports && pair.collision.supports[0];
+  const pa = poseOf(ia), pb = poseOf(ib);
+  S.grabs.push({ia, ib, x: sp ? sp.x : (pa.x + pb.x) / 2, y: sp ? sp.y : (pa.y + pb.y) / 2});
+}
+function processGrabs(){
+  const list = S.grabs; S.grabs = [];
+  for (const g of list){
+    const vm = g.ia.tff.vine ? g.ia : g.ib, other = vm === g.ia ? g.ib : g.ia;
+    if (other.tff.def.kind === "debt") continue;                       // vines can't hold the iron debt ball
+    const HA = hostOf(g.ia), HB = hostOf(g.ib);
+    if (HA === HB || HA === S.active || HB === S.active) continue;
+    if (!engine.world.bodies.includes(HA) || !engine.world.bodies.includes(HB)) continue;
+    if ((vm.tff.grabs || 0) >= VINE_GRABS || membersOf(HA).length + membersOf(HB).length > MAX_FUSED) continue;
+    vm.tff.grabs = (vm.tff.grabs || 0) + 1;
+    fuse(HA, HB);
+    addMark(other, g.x, g.y); if (other.tff.vine) addMark(vm, g.x, g.y);   // the vine creeps onto what it grabbed
+    burst(g.x, g.y);
+    A.sfx("vine", {pan: clamp(g.x / W * 2 - 1, -1, 1)});
+    if (vm.tff.player && !vm.tff.stuckOnce){ vm.tff.stuckOnce = true; stamp("Vines grab on!", "藤蔓黐住咗！", "good"); }
+  }
+}
+function fuse(A1, B1){
+  const mem = membersOf(A1).concat(membersOf(B1)), poses = mem.map(poseOf);
+  const va = Body.getVelocity(A1), vb = Body.getVelocity(B1), M = A1.mass + B1.mass;
+  const L = A1.inertia * Body.getAngularVelocity(A1) + B1.inertia * Body.getAngularVelocity(B1);
+  const heavy = A1.mass >= B1.mass ? A1 : B1;
+  Composite.remove(engine.world, [A1, B1]);
+  const H = Body.create({parts: mem.flatMap(m => m.tff.parts), friction: Math.max(A1.friction, B1.friction),
+    frictionStatic: Math.max(A1.frictionStatic, B1.frictionStatic), restitution: Math.min(A1.restitution, B1.restitution), frictionAir: Math.max(A1.frictionAir, B1.frictionAir)});
+  K.shape.fixInertia(H);
+  Body.setVelocity(H, {x: (A1.mass * va.x + B1.mass * vb.x) / M, y: (A1.mass * va.y + B1.mass * vb.y) / M});
+  Body.setAngularVelocity(H, clamp(L / H.inertia, -MAX_SPIN, MAX_SPIN));
+  H.plugin = {material: (heavy.plugin && heavy.plugin.material) || "card"};
+  H.tff = {host: true, members: mem, released: true, at: S.play, restN: 0};
+  mem.forEach((m, i) => { const p = poses[i]; m.tff.hostBody = H; m.tff.rel = {x: p.x - H.position.x, y: p.y - H.position.y, a: p.a - H.angle}; });
+  Composite.add(engine.world, H);
+  return H;
+}
+function addMark(m, x, y){
+  const p = poseOf(m), c = Math.cos(-p.a), s = Math.sin(-p.a), dx = x - p.x, dy = y - p.y;
+  const lx = dx * c - dy * s, ly = dx * s + dy * c;
+  (m.tff.marks = m.tff.marks || []).push({x: lx, y: ly, dir: Math.atan2(-ly, -lx), born: S.steps, seed: (S.steps * 7 + m.id * 13) % 997});
+  if (m.tff.marks.length > 4) m.tff.marks.shift();
+}
+function burst(x, y){
+  S.leaves.push({ring: true, x, y, t: 0});
+  if (reduceMotion) return;
+  for (let i = 0; i < 10; i++){
+    const a = Math.random() * Math.PI * 2, v = 1.2 + Math.random() * 2.2;
+    S.leaves.push({x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 1.2, a: Math.random() * 6.3, va: (Math.random() - 0.5) * 0.3, t: 0, col: i % 3 ? "#4CC36A" : "#B5E04A"});
+  }
+}
+function drawLeaf(c, x, y, ang, len, col){
+  if (len <= 0.3) return;
+  c.save(); c.translate(x, y); c.rotate(ang);
+  c.fillStyle = col || "#4CC36A"; c.beginPath(); c.moveTo(0, 0);
+  c.quadraticCurveTo(len * 0.5, -len * 0.5, len, 0); c.quadraticCurveTo(len * 0.5, len * 0.5, 0, 0); c.fill();
+  c.strokeStyle = "rgba(30,90,45,0.55)"; c.lineWidth = Math.max(0.4, len * 0.1); c.beginPath(); c.moveTo(0, 0); c.lineTo(len * 0.82, 0); c.stroke();
+  c.fillStyle = "rgba(255,255,255,0.4)"; c.beginPath(); c.ellipse(len * 0.42, -len * 0.15, len * 0.2, len * 0.07, 0, 0, 7); c.fill();
+  c.restore();
+}
+// creeping vines on a fused body: drawn over all its items and clipped to their combined outline, so the tendrils
+// cross the joint from the vine-wrapped item onto the block it grabbed but never hang in the air
+function drawMarks(c, H){
+  let path = null;
+  for (const m of H.tff.members){
+    const marks = m.tff.marks; if (!marks || !marks.length) continue;
+    if (!path){
+      path = new Path2D();
+      for (const part of H.parts.slice(1)){ part.vertices.forEach((v, i) => i ? path.lineTo(v.x, v.y) : path.moveTo(v.x, v.y)); path.closePath(); }
+      c.save(); c.clip(path); c.lineCap = "round"; c.lineJoin = "round";
+    }
+    const p = poseOf(m);
+    c.save(); c.translate(p.x, p.y); c.rotate(p.a);
+    for (const k of marks){
+      const g = clamp((S.steps - k.born) / 50, 0, 1), e = 1 - Math.pow(1 - g, 3), N = 10;
+      for (let j = 0; j < 4; j++){
+        const rr = ((k.seed * (j + 3) * 9301 + 49297) % 233280) / 233280;
+        let ang = k.dir + (j - 1.5) * 0.62 + (rr - 0.5) * 0.35;
+        const curl = (j % 2 ? 1 : -1) * (0.8 + rr * 0.9), len = (30 + rr * 22) * e;
+        let x = k.x - Math.cos(ang) * 5, y = k.y - Math.sin(ang) * 5; const pts = [[x, y, ang]];   // starts just across the joint
+        for (let i = 1; i <= N; i++){ ang += curl / N; x += Math.cos(ang) * len / N; y += Math.sin(ang) * len / N; pts.push([x, y, ang]); }
+        for (const [w, col, off] of [[4.4, "#2B6E36", 0], [3, "#4CC36A", 0], [1.1, "rgba(215,255,195,0.85)", -0.6]]){
+          c.strokeStyle = col;
+          for (let i = 1; i <= N; i++){
+            c.lineWidth = w * (1 - 0.55 * i / N); c.beginPath();
+            c.moveTo(pts[i - 1][0] + off, pts[i - 1][1] + off); c.lineTo(pts[i][0] + off, pts[i][1] + off); c.stroke();
+          }
+        }
+        for (const [t, side] of [[0.35, 1], [0.65, -1], [0.92, 1]]){        // leaves pop out as the tendril passes
+          if (e < t + 0.04) continue;
+          const q = pts[Math.round(t * N)];
+          drawLeaf(c, q[0], q[1], q[2] + side * 1.0, 6 * Math.min(1, (e - t) * 6), side > 0 ? "#4CC36A" : "#7DD35E");
+        }
+      }
+      c.fillStyle = "#2B6E36"; c.beginPath(); c.arc(k.x, k.y, 3.6 * e, 0, 7); c.fill();
+      c.fillStyle = "#8BE09A"; c.beginPath(); c.arc(k.x - 1, k.y - 1, 1.4 * e, 0, 7); c.fill();
+    }
+    c.restore();
+  }
+  if (path) c.restore();
+}
+function drawLeaves(c){
+  if (!S.leaves.length) return;
+  for (const q of S.leaves){
+    q.t++;
+    if (q.ring){ const k = q.t / 16; c.strokeStyle = "rgba(76,195,106," + (1 - k).toFixed(3) + ")"; c.lineWidth = 3 * (1 - k) + 0.5; c.beginPath(); c.arc(q.x, q.y, 4 + 18 * k, 0, 7); c.stroke(); continue; }
+    q.vy += 0.09; q.vx *= 0.98; q.x += q.vx; q.y += q.vy; q.a += q.va;
+    c.globalAlpha = Math.max(0, 1 - q.t / 42); drawLeaf(c, q.x, q.y, q.a, 5, q.col); c.globalAlpha = 1;
+  }
+  S.leaves = S.leaves.filter(q => q.t < (q.ring ? 16 : 42));
+}
+// the vine wrap on a vine-wrapped item's sprite: clay strands across the front, leaves rooted on the item
+const vineArt = new Map();
+function vineShape(def){
+  let v = vineArt.get(def.id); if (v) return v;
+  const probe = def.make(0, 0), polys = ownParts(probe).map(pt => pt.vertices.map(q => ({x: q.x, y: q.y})));
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const P of polys) for (const q of P){ x0 = Math.min(x0, q.x); y0 = Math.min(y0, q.y); x1 = Math.max(x1, q.x); y1 = Math.max(y1, q.y); }
+  v = {polys, x0, y0, w: x1 - x0, h: y1 - y0}; vineArt.set(def.id, v); return v;
+}
+function drawVineWrap(g, def){
+  const V = vineShape(def), r = K.rng([...def.id].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 1000003, 7));
+  const inside = (x, y) => V.polys.some(P => Matter.Vertices.contains(P, {x, y}));
+  const clip = new Path2D();
+  for (const P of V.polys){ P.forEach((q, i) => i ? clip.lineTo(q.x, q.y) : clip.moveTo(q.x, q.y)); clip.closePath(); }
+  const tall = V.h > V.w * 1.25, n = V.w * V.h > 2400 ? 2 : 1, strands = [];
+  for (let i = 0; i < n; i++){
+    const f0 = n === 1 ? 0.35 : (i ? 0.74 : 0.26), f1 = n === 1 ? 0.65 : (i ? 0.3 : 0.7);
+    const a = tall ? [V.x0 + V.w * f0, V.y0 - 3] : [V.x0 - 3, V.y0 + V.h * f0];
+    const b = tall ? [V.x0 + V.w * f1, V.y0 + V.h + 3] : [V.x0 + V.w + 3, V.y0 + V.h * f1];
+    const L = Math.hypot(b[0] - a[0], b[1] - a[1]), N = Math.max(10, Math.round(L / 3.5));
+    const nx = -(b[1] - a[1]) / L, ny = (b[0] - a[0]) / L, amp = 2.4 + r() * 1.4, wl = 15 + r() * 7, ph = r() * 6.28;
+    const pts = [];
+    for (let k = 0; k <= N; k++){ const t = k / N, wv = Math.sin((t * L / wl) * Math.PI * 2 + ph) * amp; pts.push([a[0] + (b[0] - a[0]) * t + nx * wv, a[1] + (b[1] - a[1]) * t + ny * wv]); }
+    strands.push(pts);
+  }
+  g.save(); g.clip(clip);
+  for (const pts of strands) K.blob(g, K.tube(pts, 3.6), "#3E9E4F", {depth: 1.1, soft: 1.5, sheen: false, texture: 0.05, rim: 0.7});
+  g.restore();
+  for (const pts of strands){
+    for (let k = 2; k < pts.length - 1; k += 3){
+      const [x, y] = pts[k]; if (!inside(x, y)) continue;
+      const [x2, y2] = pts[k + 1], side = (k / 3) % 2 < 1 ? 1 : -1;
+      const ang = Math.atan2(y2 - y, x2 - x) + side * (0.75 + r() * 0.5), len = 6 + r() * 2.5;
+      g.save(); g.shadowColor = "rgba(40,20,50,0.3)"; g.shadowBlur = 1.2; g.shadowOffsetX = 0.6; g.shadowOffsetY = 0.9;
+      drawLeaf(g, x, y, ang, len, r() < 0.7 ? "#4CC36A" : "#9AD84A"); g.restore();
+    }
   }
 }
 
@@ -353,7 +546,8 @@ function choose(kind){
     S.wise++; S.rate = Math.min(2, +(S.rate + 0.2).toFixed(1)); S.fund = Math.min(3, S.fund + 1);
     S.forced = {type: "wise", n: 4};
     head.className = "oc-head good"; head.appendChild(svgUse("i-good")); txt.textContent = "Good call! 揀得好！";
-    effect = "Flat, stable items for the next 4 drops. Savings boost ×" + S.rate.toFixed(1) + ", emergency fund +1. 之後4件都係平穩物件，儲蓄加成升到×" + S.rate.toFixed(1) + "，應急錢+1。";
+    effect = "Flat, stable items for the next 4 drops, and the first comes wrapped in vines: it sticks to whatever it touches. Savings boost ×" + S.rate.toFixed(1) + ", emergency fund +1. " +
+      "之後4件都係平穩物件，第一件仲纏住藤蔓，掂到就黐住。儲蓄加成升到×" + S.rate.toFixed(1) + "，應急錢+1。";
     $("ocEffect").style.color = "var(--green-d)"; A.sfx("wise");
   } else {
     const trap = kind === "risky" ? c.trap : "delay";
@@ -374,7 +568,9 @@ function choose(kind){
   crab(c.tip[0], c.tip[1]);
   $("cardChoices").hidden = true; $("cardOutcome").hidden = false;
   $("cardContinue").focus({preventScroll:true});
-  S.queue = []; refill(); drawPreviews(); updateHUD();
+  S.queue = []; refill();
+  if (kind === "wise"){ S.queue[0] = vineOf(S.queue[0]); setTimeout(() => A.sfx("vineGet"), 380); }
+  drawPreviews(); updateHUD();
 }
 function closeCard(){
   if (!S.card) return;
@@ -556,10 +752,11 @@ function spriteFor(def, q){
   if (SPR.size > SPR_MAX) SPR.delete(SPR.keys().next().value);
   return s;
 }
-function bodyAnchor(b){ const eo = b.tff.eo, c = Math.cos(b.angle), s = Math.sin(b.angle); return [b.position.x + eo.x*c - eo.y*s, b.position.y + eo.x*s + eo.y*c]; }
+function bodyAnchor(b){ const p = poseOf(b), eo = b.tff.eo, c = Math.cos(p.a), s = Math.sin(p.a); return [p.x + eo.x*c - eo.y*s, p.y + eo.x*s + eo.y*c, p.a]; }
 function drawBody(c, b, shadow){
-  const r = Math.round(b.angle / QA), q = ((r % 8) + 8) % 8, rest = b.angle - r * QA;
-  const s = spriteFor(b.tff.def, q); const [ax, ay] = bodyAnchor(b);
+  const [ax, ay, ang] = bodyAnchor(b);
+  const r = Math.round(ang / QA), q = ((r % 8) + 8) % 8, rest = ang - r * QA;
+  const s = spriteFor(b.tff.def, q);
   c.save();
   if (shadow){ c.translate(ax + 4, ay + 6); c.rotate(rest); c.drawImage(s.sh, s.x0 - s.m, s.y0 - s.m, s.w + s.m*2, s.h + s.m*2); }
   else { c.translate(ax, ay); c.rotate(rest); c.drawImage(s.img, s.x0, s.y0, s.w, s.h); }
@@ -701,7 +898,7 @@ function draw(){
   drawRuler(c);
   c.drawImage(L.plat, W/2 - PW/2 - 20, 0, PW + 40, 200);
   const a = S.active;
-  for (const b of engine.world.bodies) if (b.tff) drawBody(c, b, true);
+  for (const b of engine.world.bodies) if (b.tff) for (const m of membersOf(b)) drawBody(c, m, true);
   if (a && S.mode !== "over"){
     // dashed guide down to where the item will land, with a landing ring
     const others = engine.world.bodies.filter(b => b !== a), x = a.position.x;
@@ -711,8 +908,9 @@ function draw(){
     c.beginPath(); c.moveTo(x, a.bounds.max.y + 6); c.lineTo(x, land - 4); c.stroke(); c.setLineDash([]);
     c.strokeStyle = "rgba(255,95,162,0.9)"; c.lineWidth = 2.4; c.beginPath(); c.ellipse(x, land - 2, 9, 3.2, 0, 0, Math.PI * 2); c.stroke(); c.restore();
   }
-  for (const b of engine.world.bodies) if (b.tff && b !== a) drawBody(c, b, false);
+  for (const b of engine.world.bodies) if (b.tff && b !== a){ for (const m of membersOf(b)) drawBody(c, m, false); if (b.tff.members) drawMarks(c, b); }
   if (a) drawBody(c, a, false);
+  drawLeaves(c);
   drawLabels(c);
   // harbour in front (anything below the surface sinks behind it)
   const off = (S.steps * 0.35) % 60;
@@ -800,7 +998,8 @@ function previewInto(canvas, def){
   const bw = b.bounds.max.x - b.bounds.min.x, bh = b.bounds.max.y - b.bounds.min.y;
   const s = Math.min(w, h) * 0.8 / Math.max(bw, bh, 64);
   g.setTransform(s, 0, 0, s, w/2 - (b.bounds.min.x + bw/2) * s, h/2 - (b.bounds.min.y + bh/2) * s);
-  try { def.draw(g); } catch(e){}
+  // reuse the board sprite (cached) instead of re-sculpting the clay for every ticket and card thumbnail
+  try { const sp = spriteFor(def, 0); g.imageSmoothingQuality = "high"; g.drawImage(sp.img, sp.x0, sp.y0, sp.w, sp.h); } catch(e){ try { def.draw(g); } catch(e2){} }
 }
 function nameInto(el, def, empty){
   el.replaceChildren();
@@ -810,6 +1009,7 @@ function nameInto(el, def, empty){
   const chip = document.createElement("span"); chip.className = "kind " + def.kind;
   chip.textContent = def.kind === "wise" ? "Stable 穩陣" : def.kind === "risky" ? "Risky 高危" : "Scam 騙局";
   el.appendChild(chip);
+  if (def.vine){ const v = document.createElement("span"); v.className = "kind vine"; v.textContent = "Vine 藤蔓"; el.appendChild(v); }
 }
 let lastPrev = "";
 function drawPreviews(force){

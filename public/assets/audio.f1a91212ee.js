@@ -493,6 +493,26 @@
       var P = [93, 95, 98, 100, 102];
       for (var j = 0; j < 6; j++) coinTing(v, tl + 0.12 + j * 0.08, mtof(K(r, P[Math.floor(r.rand() * P.length)])), (r.rand() - 0.5) * 20, 0.12, 0.18);
     },
+    vine: function (v, t) {                                // vines grab on: leafy rustle, woody creak, springy "thwip"
+      var r = v.r;
+      for (var i = 0; i < 9; i++) noiseHit(v, t + i * 0.028 + r.rand() * 0.02, 0.002, 0.28 - i * 0.022, 0.035, "bandpass", 2600 + r.rand() * 3200, 1.6);
+      var cg = v.gain(0, v.out), cp = cg.gain;
+      cp.setValueAtTime(0, t); cp.linearRampToValueAtTime(0.18, t + 0.03); cp.setValueAtTime(0.18, t + 0.16); cp.linearRampToValueAtTime(0, t + 0.24);
+      var bp = v.filter("bandpass", 700, 7, cg, t); bp.frequency.exponentialRampToValueAtTime(1300, t + 0.22);
+      var co = v.osc("sawtooth", 95, t, t + 0.25, bp); co.frequency.exponentialRampToValueAtTime(150, t + 0.22);
+      var th = tone(v, "sine", 520, t + 0.05, 0.003, 0.5, 0.12); th.o.frequency.exponentialRampToValueAtTime(1250, t + 0.11);
+      tone(v, "triangle", mtof(K(r, 86)), t + 0.13, 0.003, 0.22, 0.25);
+      tone(v, "triangle", mtof(K(r, 93)), t + 0.2, 0.003, 0.18, 0.3);
+    },
+    vineGet: function (v, t) {                             // a vine-wrapped item is on its way: rustle + rising sparkle
+      var r = v.r;
+      noiseHit(v, t, 0.06, 0.16, 0.25, "bandpass", 3800, 1.2);
+      [81, 86, 90, 93, 98].forEach(function (m, k) {
+        tone(v, "triangle", mtof(K(r, m)), t + 0.04 + k * 0.06, 0.003, 0.2, 0.22);
+        tone(v, "sine", mtof(K(r, m)) * 2, t + 0.04 + k * 0.06, 0.003, 0.06, 0.15);
+      });
+      bell(v, t + 0.34, mtof(K(r, 98)), 0.18, 0.5);
+    },
     post: function (v, t) {                                // passbook dot-matrix printer + ding
       var bp = v.filter("bandpass", 2400, 1.2, v.out);
       for (var b = 0; b < 3; b++) {
@@ -511,10 +531,11 @@
   var LEVEL = {
     click: 0.7, spawn: 0.7, move: 1.35, rotate: 0.7, hold: 0.75, release: 0.7, harddrop: 0.85, deposit: 0.7,
     floor: 0.8, stage: 0.95, splash: 0.85, cardOpen: 0.8, cardTick: 0.75, wise: 0.9, risky: 0.85, stamp: 0.9,
-    debt: 0.95, scam: 0.75, quake: 1.0, shield: 0.9, timeWarn: 0.75, timeUp: 0.9, gameOver: 0.9, win: 1.0, post: 0.85
+    debt: 0.95, scam: 0.75, quake: 1.0, shield: 0.9, timeWarn: 0.75, timeUp: 0.9, gameOver: 0.9, win: 1.0, post: 0.85,
+    vine: 0.85, vineGet: 0.8
   };
   var THROTTLE = { move: 0.055, rotate: 0.05, click: 0.035, deposit: 0.045, spawn: 0.08, cardTick: 0.15, splash: 0.08,
-                   hold: 0.06, release: 0.05, harddrop: 0.08, stamp: 0.08, cardOpen: 0.1 };
+                   hold: 0.06, release: 0.05, harddrop: 0.08, stamp: 0.08, cardOpen: 0.1, vine: 0.06, vineGet: 0.3 };
   var LOW_PRIORITY = { move: 1, click: 1, spawn: 1, rotate: 1, hold: 1, release: 1, deposit: 1, cardTick: 1 };
 
   // ------------------------------------------------------------------ impacts
