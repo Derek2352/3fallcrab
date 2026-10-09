@@ -348,8 +348,11 @@ function poseOf(m){
 }
 function queueGrab(ia, ib, pair){
   const sp = pair.collision && pair.collision.supports && pair.collision.supports[0];
-  const pa = poseOf(ia), pb = poseOf(ib);
-  S.grabs.push({ia, ib, x: sp ? sp.x : (pa.x + pb.x) / 2, y: sp ? sp.y : (pa.y + pb.y) / 2});
+  const pa = poseOf(ia), pb = poseOf(ib), pre = new Map();
+  // how both sides moved just before they touched: this runs before the step's contact forces, so a block
+  // resting in the tower is still at rest here, not yet knocked by the item hitting it
+  for (const h of [hostOf(ia), hostOf(ib)]) pre.set(h, {v: Body.getVelocity(h), w: Body.getAngularVelocity(h)});
+  S.grabs.push({ia, ib, x: sp ? sp.x : (pa.x + pb.x) / 2, y: sp ? sp.y : (pa.y + pb.y) / 2, pre});
 }
 function processGrabs(){
   const list = S.grabs; S.grabs = [];
@@ -361,28 +364,42 @@ function processGrabs(){
     if (!engine.world.bodies.includes(HA) || !engine.world.bodies.includes(HB)) continue;
     if ((vm.tff.grabs || 0) >= VINE_GRABS || membersOf(HA).length + membersOf(HB).length > MAX_FUSED) continue;
     vm.tff.grabs = (vm.tff.grabs || 0) + 1;
-    fuse(HA, HB);
+    fuse(HA, HB, g.pre);
     addMark(other, g.x, g.y); if (other.tff.vine) addMark(vm, g.x, g.y);   // the vine creeps onto what it grabbed
     burst(g.x, g.y);
     A.sfx("vine", {pan: clamp(g.x / W * 2 - 1, -1, 1)});
     if (vm.tff.player && !vm.tff.stuckOnce){ vm.tff.stuckOnce = true; stamp("Vines grab on!", "藤蔓黐住咗！", "good"); }
   }
 }
-function fuse(A1, B1){
+function fuse(A1, B1, pre){
   const mem = membersOf(A1).concat(membersOf(B1)), poses = mem.map(poseOf);
-  const va = Body.getVelocity(A1), vb = Body.getVelocity(B1), M = A1.mass + B1.mass;
-  const L = A1.inertia * Body.getAngularVelocity(A1) + B1.inertia * Body.getAngularVelocity(B1);
+  // The vines catch the moving item: the group carries on as the stiller side moved just before they touched
+  // (usually a block resting in the tower). Averaged momentum, or the knock that block took from the impact,
+  // shoved whole groups across the platform.
+  const motion = b => (pre && pre.get(b)) || {v: Body.getVelocity(b), w: Body.getAngularVelocity(b)};
+  const stir = m => Math.hypot(m.v.x, m.v.y) + Math.abs(m.w) * 30, ma = motion(A1), mb = motion(B1);
+  const {v, w} = stir(ma) <= stir(mb) ? ma : mb;
   const heavy = A1.mass >= B1.mass ? A1 : B1;
   Composite.remove(engine.world, [A1, B1]);
   const H = Body.create({parts: mem.flatMap(m => m.tff.parts), friction: Math.max(A1.friction, B1.friction),
     frictionStatic: Math.max(A1.frictionStatic, B1.frictionStatic), restitution: Math.min(A1.restitution, B1.restitution), frictionAir: Math.max(A1.frictionAir, B1.frictionAir)});
   K.shape.fixInertia(H);
-  Body.setVelocity(H, {x: (A1.mass * va.x + B1.mass * vb.x) / M, y: (A1.mass * va.y + B1.mass * vb.y) / M});
-  Body.setAngularVelocity(H, clamp(L / H.inertia, -MAX_SPIN, MAX_SPIN));
+  Body.setVelocity(H, v);
+  Body.setAngularVelocity(H, clamp(w, -MAX_SPIN, MAX_SPIN));
   H.plugin = {material: (heavy.plugin && heavy.plugin.material) || "card"};
   H.tff = {host: true, members: mem, released: true, at: S.play, restN: 0};
   mem.forEach((m, i) => { const p = poses[i]; m.tff.hostBody = H; m.tff.rel = {x: p.x - H.position.x, y: p.y - H.position.y, a: p.a - H.angle}; });
+  for (const part of H.parts) part.isSleeping = false;   // a sleeping item's flag would stick to it as a part
   Composite.add(engine.world, H);
+  // Matter keeps each touching pair of parts with the bodies they belonged to when the touch began, and pushes
+  // the contact forces onto those bodies. Repoint every pair at the fused body, or nothing the group already
+  // rested on would hold it up or grip it: it sank into the platform and skidded. Contacts are rebuilt too,
+  // since they are keyed by the old body's outline.
+  for (const pair of engine.pairs.list){
+    const col = pair.collision;
+    if (col.parentA === col.bodyA.parent && col.parentB === col.bodyB.parent) continue;
+    col.parentA = col.bodyA.parent; col.parentB = col.bodyB.parent; pair.contacts = [];
+  }
   return H;
 }
 function addMark(m, x, y){
