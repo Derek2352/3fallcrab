@@ -570,7 +570,7 @@ function choose(kind){
     S.wiseRun++; S.afterCard = S.rate >= 2 && !S.said.has("boost") ? (S.said.add("boost"), "boost") : S.wiseRun === 3 ? "wise3" : "wise";
     head.className = "oc-head good"; head.appendChild(svgUse("i-good")); txt.textContent = "Good call! 揀得好！";
     en = "Next 4 items are stable, the first wrapped in vines · boost ×" + S.rate.toFixed(1) + " · emergency fund +1";
-    zh = "之後4件平穩，第一件纏住藤蔓・加成×" + S.rate.toFixed(1) + "・應急錢+1";
+    zh = "之後4件平穩，第一件纏住藤蔓·加成×" + S.rate.toFixed(1) + "·應急錢+1";
     $("ocEffect").style.color = "var(--green-t)"; A.sfx("wise");
   } else {
     const trap = kind === "risky" ? c.trap : "delay";
@@ -580,7 +580,7 @@ function choose(kind){
     head.className = "oc-head bad"; const ic = svgUse(ICON[trap]); ic.style.background = trap === "spend" ? "var(--orange)" : trap === "scam" ? "var(--purple)" : "var(--blue)"; ic.style.borderRadius = "10px"; ic.style.padding = "3px"; head.appendChild(ic);
     txt.textContent = TRAPS[trap].en + " " + TRAPS[trap].zh;
     [en, zh] = TRAPS[trap].hit;
-    if (kind === "none"){ en = "Time ran out, so it was put off · " + en; zh = "諗太耐，拖咗落嚟・" + zh; }
+    if (kind === "none"){ en = "Time ran out, so it was put off · " + en; zh = "諗太耐，即係拖延·" + zh; }
     $("ocEffect").style.color = "var(--red-d)"; A.sfx("risky");
     if (trap === "spend"){ S.rate = Math.max(1, +(S.rate - 0.2).toFixed(1)); S.forced = {type: "risky", n: 3}; S.pendingDebt++; }
     else if (trap === "scam"){ const sl = Math.min(S.score, 5000); loss = sl; S.score -= sl; ledger({zh: "被騙", en: "Scam"}, -sl); S.forced = {type: "scam", n: 3}; S.scamLock = 4; A.sfx("scam"); }
@@ -614,11 +614,11 @@ function closeCard(){
 function shock(){
   const sh = SHOCKS[Math.floor(Math.random() * SHOCKS.length)];
   if (S.fund > 0){
-    S.fund--; A.sfx("shield"); stamp(sh[0], "應急錢頂住咗 Emergency fund covered it", "good"); quip("shockOk", 2);
+    S.fund--; A.sfx("shield"); stamp(sh[0], sh[1] + "：應急錢頂住咗", "good"); quip("shockOk", 2);
     crab("Life happens: " + (sh[0][0].toLowerCase() + sh[0].slice(1)) + ". Your emergency fund kept the tower steady.", "突發：" + sh[1] + "。好彩有應急錢，座塔企得穩。");
   } else {
     S.quakeUntil = S.play + 1700; if (!reduceMotion) S.shake = 10; A.sfx("quake"); mood("worried", 2200); quip("shockBad", 2);
-    stamp(sh[0], "冇應急錢，座塔震！", "bad");
+    stamp(sh[0], sh[1] + "：冇應急錢，座塔震！", "bad");
     crab("Life happens: " + (sh[0][0].toLowerCase() + sh[0].slice(1)) + ". With no emergency fund, everything wobbles.", "突發：" + sh[1] + "。冇應急錢，成座塔都震。");
   }
   updateHUD();
@@ -633,7 +633,7 @@ function startGame(){
   $("startOv").hidden = true; $("pauseOv").hidden = true; $("endModal").hidden = true; $("cardModal").hidden = true; $("seeOv").hidden = true; modalOpen(false);
   A.stage(0); A.mode("normal"); A.start();
   renderLedger(); nextPiece();
-  crab("Steer each item into place, then let go. Flat things stack; round things roll.", "搵好位置先放手。平嘅易疊，圓嘅會碌。");
+  crab("Steer each item into place, then let go. Flat things stack; round things roll.", "搵好位置先放手。扁嘅易疊，圓嘅會碌。");
   hush(); S.pb = lsGet("tff_pb", 0); quip(S.pb > 0 ? "startPb" : "start", 2, fmt(S.pb));
   updateHUD(); setPauseUI(); $("board").focus({preventScroll:true});
 }
@@ -810,12 +810,12 @@ let endScroll = 0;
 function openResults(){
   if (!S || S.mode !== "idle" || !S.viewing) return;
   $("seeOv").hidden = true; S.viewing = false; S.mode = "over";
-  $("endModal").hidden = false; $("endModal").scrollTop = endScroll;
+  $("endModal").hidden = false; $("stScroll").scrollTop = endScroll;
   endShownAt = performance.now(); modalOpen(true); setPauseUI();
   $("closeEnd").focus({preventScroll:true});
 }
 $("resultsBtn").addEventListener("click", openResults);
-$("closeEnd").addEventListener("click", () => { endScroll = $("endModal").scrollTop; $("endModal").hidden = true; modalOpen(false); S.viewing = true; S.mode = "idle"; S.queue = []; S.hold = null; drawPreviews(true); $("seeOv").hidden = false; setPauseUI(); $("againBtn2").focus(); if (S.overKey) quip(S.overKey, 3); });
+$("closeEnd").addEventListener("click", () => { endScroll = $("stScroll").scrollTop; $("endModal").hidden = true; modalOpen(false); S.viewing = true; S.mode = "idle"; S.queue = []; S.hold = null; drawPreviews(true); $("seeOv").hidden = false; setPauseUI(); $("againBtn2").focus(); if (S.overKey) quip(S.overKey, 3); });
 $("againBtn2").addEventListener("click", startGame);
 cv.tabIndex = 0;
 
@@ -1203,9 +1203,9 @@ function drawPreviews(force){
   previewInto($("nextCv"), n0); previewInto($("holdCv"), S.hold); previewInto($("next2Cv"), n1);
   previewInto($("hudNext"), n0); previewInto($("hudHold"), S.hold);
   nameInto($("nextName"), n0, "");
-  nameInto($("holdName"), S.hold, S.scamLock > 0 ? "Locked by a scam 被騙鎖住" : "Press C to keep one for later 按C暫存");
-  if (S.hold && S.scamLock > 0){ const lk = document.createElement("small"); lk.className = "locked"; lk.textContent = "Locked by a scam 被騙鎖住"; $("holdName").appendChild(lk); }
-  $("next2Name").textContent = n1 ? "Then: " + n1.en + " " + n1.zh : "";
+  nameInto($("holdName"), S.hold, S.scamLock > 0 ? "Locked by a scam 被呃咗，暫存鎖住" : "Press C to keep one for later 按C暫存");
+  if (S.hold && S.scamLock > 0){ const lk = document.createElement("small"); lk.className = "locked"; lk.textContent = "Locked by a scam 被呃咗，暫存鎖住"; $("holdName").appendChild(lk); }
+  $("next2Name").textContent = n1 ? "Then 跟住：" + n1.en + " " + n1.zh : "";
 }
 
 // ---------- HUD, passbook, stamps ----------
@@ -1425,6 +1425,7 @@ function showEnd(){
   $("stDate").textContent = "STATEMENT · " + new Date().toLocaleDateString("en-GB", {day:"2-digit", month:"short", year:"numeric"}).toUpperCase();
   $("endEyebrow").textContent = S.over === "drops" ? "整冧咗！ 3 items fell into the harbour" : "夠鐘！ Time's up";
   $("endTitle").textContent = top ? "You made it to Retirement" : "You reached " + st.en;
+  const etz = document.createElement("span"); etz.className = "zh"; etz.textContent = top ? "成功退休！" : "去到「" + st.zh + "」"; $("endTitle").appendChild(etz);
   const ft = S.falls.spend + S.falls.scam + S.falls.delay;
   $("endSub").textContent = ft === 0 ? "No money traps at all! 一次都冇中伏！" : "You fell into " + ft + " money trap" + (ft > 1 ? "s" : "") + ". 中咗" + ft + "次伏。";
   $("rStage").textContent = st.zh + " " + st.en;
@@ -1493,7 +1494,7 @@ function showEnd(){
   $("postBtn").disabled = false; $("postBtn").firstChild.textContent = "Post score";
   const ps = $("postStatus"); ps.className = "post-status";
   ps.textContent = live ? "Only your nickname and score go on the board. 排行榜只顯示暱稱同分數。" : "Your score will be saved on this device. 分數會存喺呢部機。";
-  $("endModal").hidden = false; $("endModal").scrollTop = 0; endScroll = 0;
+  $("endModal").hidden = false; $("stScroll").scrollTop = 0; endScroll = 0;
   endShownAt = performance.now(); modalOpen(true);
   $("endTitle").focus({preventScroll:true});
   const game = S; game.rec = newRecord();
@@ -1622,10 +1623,10 @@ function emailError(on){   // red outline plus aria-invalid, and the message und
   if (on) em.setAttribute("aria-invalid", "true"); else em.removeAttribute("aria-invalid");
   em.setAttribute("aria-describedby", (on ? "postStatus " : "") + notes);
 }
-// the result of posting appears under the button: scroll it up from behind the sticky buttons if it's there
+// the result of posting appears under the button: scroll it into view if it's below the visible part
 const showStatus = () => requestAnimationFrame(() => {
-  const over = $("postStatus").getBoundingClientRect().bottom - document.querySelector(".endactions").getBoundingClientRect().top + 8;
-  if (over > 0) $("endModal").scrollBy({top: over, behavior: reduceMotion ? "auto" : "smooth"});
+  const box = $("stScroll"), over = $("postStatus").getBoundingClientRect().bottom - box.getBoundingClientRect().bottom + 8;
+  if (over > 0) box.scrollBy({top: over, behavior: reduceMotion ? "auto" : "smooth"});
 });
 $("postBtn").addEventListener("click", async () => {
   const st = S; if (st.posted || st.posting) return;
@@ -1776,14 +1777,14 @@ async function renderInsights(){
   for (const kk in falls) wrap.appendChild(bar(TRAPS[kk].en + " " + TRAPS[kk].zh, String(falls[kk]), fmax, "t-" + kk));
   const topFall = Object.entries(falls).sort((a, b) => b[1] - a[1])[0];
   const hl = document.createElement("p"); hl.style.margin = "2px 0 0";
-  hl.textContent = topFall[1] ? "Most common fall: " + TRAPS[topFall[0]].en + " " + TRAPS[topFall[0]].zh : "No falls recorded yet. 暫時冇人中伏。";
+  hl.textContent = topFall[1] ? "Most common fall: " + TRAPS[topFall[0]].en + " · 最多人中嘅陷阱：" + TRAPS[topFall[0]].zh : "No falls recorded yet. 暫時冇人中伏。";
   wrap.appendChild(hl);
   const topHabit = Object.entries(agg.habits).sort((a, b) => b[1] - a[1])[0];
-  if (topHabit){ const h = HABITS.find(x => x.id === topHabit[0]); const hp = document.createElement("p"); hp.style.margin = "0"; hp.textContent = "Top habit pledged: " + (h ? h.en + " " + h.zh : topHabit[0]) + " (" + topHabit[1] + ")"; wrap.appendChild(hp); }
+  if (topHabit){ const h = HABITS.find(x => x.id === topHabit[0]); const hp = document.createElement("p"); hp.style.margin = "0"; hp.textContent = "Top habit pledged: " + (h ? h.en : topHabit[0]) + " (" + topHabit[1] + ")" + (h ? " · 最多人揀嘅習慣：" + h.zh : ""); wrap.appendChild(hp); }
   if (agg.quizN){
     const qp = document.createElement("p"); qp.style.margin = "0"; const pass = Math.round(100 * agg.quizPass / agg.quizN);
     qp.textContent = "Quiz: " + pass + "% got 2 or 3 right · average " + (agg.quizSum / agg.quizN).toFixed(1) + "/3 · " + agg.quizN + " player" + (agg.quizN === 1 ? "" : "s") +
-      " 測驗：" + pass + "%人答啱2題或以上";
+      " · 測驗：有" + pass + "%人答啱2題或以上，平均" + (agg.quizSum / agg.quizN).toFixed(1) + "/3，共" + agg.quizN + "人";
     wrap.appendChild(qp);
   }
   body.appendChild(wrap);

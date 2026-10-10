@@ -636,9 +636,15 @@ html.fs .talk{inset:6px}
 .ov-card .fsgo{padding-inline:11px;gap:6px}
 .ov-card .desc{text-wrap:balance}
 /* statement: tighter quiz and habit options (habits: Cantonese beside the English, like the quiz) */
-.qopt{padding:7px 12px}
-.qopts{gap:5px}
 .habits{gap:6px}
 .habit{padding:7px 12px;align-items:center}
 .habit input{margin-top:0}
 .habit small{display:inline;margin-left:6px}
+.statement h3 .zh{display:block;margin-top:4px;font-family:var(--f-zh);font-size:18px;font-weight:700;color:var(--ink-2)}   /* the title in Cantonese */
+/* The statement scrolls inside its sheet and the two buttons sit below it, so they never cover an answer, a field
+   or the post result (they used to float over the bottom of the scrolling statement) */
+#endModal{overflow:hidden}
+.statement{display:flex;flex-direction:column;max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px)}
+.st-scroll{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+.statement .endactions{position:static;flex:none;margin:0;padding:12px 20px 16px;background:var(--cream);box-shadow:0 -1px 0 var(--cream-d), 0 -8px 14px -10px rgba(60,20,10,.35)}
+@media (max-width: 520px){ .statement .endactions{padding:10px 16px 14px} }
