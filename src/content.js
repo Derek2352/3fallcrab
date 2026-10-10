@@ -13,16 +13,21 @@ const STAGES = [
   {at:10, en:"Retirement", zh:"退休"}
 ];
 
+// eff: what a Fall does, in the 3 Falls panel; hit: the same as two short lines (English, Cantonese) for the card
+// result ({loss} is filled in with the money lost)
 const TRAPS = {
   spend: {en:"Overspending", zh:"過度消費", d:"Credit cards & buy-now-pay-later 信用卡、先買後付",
-          eff:"A heavy debt ball and chain crashes onto your tower, followed by awkward shapes. 一個好重嘅債務鐵球會跌落你座塔度，跟住嚟嘅都係奇形怪狀嘅嘢。"},
+          eff:"A heavy debt ball and chain crashes onto your tower, followed by awkward shapes. 一個好重嘅債務鐵球會跌落你座塔度，跟住嚟嘅都係奇形怪狀嘅嘢。",
+          hit:["A debt ball is coming · awkward shapes next · savings boost −0.2", "債務鐵球跌緊落嚟・跟住啲嘢奇形怪狀・儲蓄加成−0.2"]},
   scam:  {en:"Scams", zh:"騙局", d:"Fake tips, “renting” your account 貼士股、租戶口",
-          eff:"You lose HK$5,000. Slippery, bouncy scam items come next, and Hold is locked. 蝕咗HK$5,000，之後跌落嚟嘅騙局物件又滑又彈，仲會鎖住暫存。"},
+          eff:"You lose HK$5,000. Slippery, bouncy scam items come next, and Hold is locked. 蝕咗HK$5,000，之後跌落嚟嘅騙局物件又滑又彈，仲會鎖住暫存。",
+          hit:["{loss} · slippery, bouncy items next · Hold locked", "{loss}・跟住啲嘢又滑又彈・暫存鎖住"]},
   delay: {en:"Putting off saving", zh:"拖延儲錢", d:"“I'll start next year” 「明年先儲」",
-          eff:"Time speeds up for 20s and your savings boost drops back to ×1.0. 時間加速20秒，儲蓄加成打回×1.0。"}
+          eff:"Time speeds up for 20s and your savings boost drops back to ×1.0. 時間加速20秒，儲蓄加成打回×1.0。",
+          hit:["Time speeds up for 20 s · savings boost back to ×1.0", "時間加速20秒・儲蓄加成打回×1.0"]}
 };
 
-// tag: short label for the analysis tables in /admin
+// tag: short label for the analysis tables in /admin (also shown on the card once it's answered)
 const CARDS = [
   {id:"newphone", st:0, tag:["New phone model","新款手機"], en:"Your phone still works, but the new model just launched.", zh:"部手機仲用得，但新款啱啱出咗。",
    w:["Keep it and save HK$300 a month","繼續用住先，每個月儲HK$300"], r:["Get it today with buy-now-pay-later","先買後付，即刻換機"], trap:"spend",

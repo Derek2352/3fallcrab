@@ -533,6 +533,7 @@ function openCard(){
   document.querySelector(".lc-body").dataset.no = "人生事件 No." + String(S.cardCount).padStart(2, "0");
   $("cardStage").textContent = st.en + " · " + st.zh;
   $("cardTitle").textContent = c.en; $("cardTitleZh").textContent = c.zh;
+  $("cardTag").textContent = c.tag ? c.tag[0] + " · " + c.tag[1] : "";   // shown instead of the question once it's answered
   const box = $("cardChoices"); box.replaceChildren(); box.hidden = false;
   S.card.order.forEach((k, i) => {
     const b = document.createElement("button"); b.className = "choice"; b.type = "button";
@@ -550,7 +551,7 @@ function openCard(){
   $("cardHint").textContent = "Life Event card. Choose within " + cardMs() / 1000 + " seconds: press 1 or 2, or tap a choice." +
     (slowRead ? "" : " For more time, turn on Extra reading time when the game is paused.");
   $("cardModal").hidden = false;
-  const sheet = $("cardSheet"); sheet.style.animation = "none"; void sheet.offsetWidth; sheet.style.animation = "";
+  const sheet = $("cardSheet"); sheet.classList.remove("done"); sheet.style.animation = "none"; void sheet.offsetWidth; sheet.style.animation = "";
   modalOpen(true); $("cardSheet").focus({preventScroll:true});
 }
 // A tap meant for the board or the pad can land on a card that has just popped up (or on Continue, where a
@@ -562,14 +563,14 @@ function choose(kind){
   S.choices.push({card: c.id, pick: kind});
   const head = $("ocHead"); head.replaceChildren();
   const txt = document.createElement("span");
-  let effect;
+  let en, zh, loss = 0;
   if (kind === "wise"){
     S.wise++; S.rate = Math.min(2, +(S.rate + 0.2).toFixed(1)); S.fund = Math.min(3, S.fund + 1);
     S.forced = {type: "wise", n: 4};
     S.wiseRun++; S.afterCard = S.rate >= 2 && !S.said.has("boost") ? (S.said.add("boost"), "boost") : S.wiseRun === 3 ? "wise3" : "wise";
     head.className = "oc-head good"; head.appendChild(svgUse("i-good")); txt.textContent = "Good call! 揀得好！";
-    effect = "Flat, stable items for the next 4 drops, and the first comes wrapped in vines: it sticks to whatever it touches. Savings boost ×" + S.rate.toFixed(1) + ", emergency fund +1. " +
-      "之後4件都係平穩物件，第一件仲纏住藤蔓，掂到就黐住。儲蓄加成升到×" + S.rate.toFixed(1) + "，應急錢+1。";
+    en = "Next 4 items are stable, the first wrapped in vines · boost ×" + S.rate.toFixed(1) + " · emergency fund +1";
+    zh = "之後4件平穩，第一件纏住藤蔓・加成×" + S.rate.toFixed(1) + "・應急錢+1";
     $("ocEffect").style.color = "var(--green-t)"; A.sfx("wise");
   } else {
     const trap = kind === "risky" ? c.trap : "delay";
@@ -577,15 +578,18 @@ function choose(kind){
     S.wiseRun = 0; S.afterCard = trap;
     S.falls[trap]++;
     head.className = "oc-head bad"; const ic = svgUse(ICON[trap]); ic.style.background = trap === "spend" ? "var(--orange)" : trap === "scam" ? "var(--purple)" : "var(--blue)"; ic.style.borderRadius = "10px"; ic.style.padding = "3px"; head.appendChild(ic);
-    txt.textContent = (kind === "none" ? "Time ran out, so it got put off. 諗咗太耐，結果拖咗落嚟。 " : "") + TRAPS[trap].en + " " + TRAPS[trap].zh;
-    effect = TRAPS[trap].eff;
+    txt.textContent = TRAPS[trap].en + " " + TRAPS[trap].zh;
+    [en, zh] = TRAPS[trap].hit;
+    if (kind === "none"){ en = "Time ran out, so it was put off · " + en; zh = "諗太耐，拖咗落嚟・" + zh; }
     $("ocEffect").style.color = "var(--red-d)"; A.sfx("risky");
     if (trap === "spend"){ S.rate = Math.max(1, +(S.rate - 0.2).toFixed(1)); S.forced = {type: "risky", n: 3}; S.pendingDebt++; }
-    else if (trap === "scam"){ const sl = Math.min(S.score, 5000); S.score -= sl; ledger({zh: "被騙", en: "Scam"}, -sl); S.forced = {type: "scam", n: 3}; S.scamLock = 4; A.sfx("scam"); }
+    else if (trap === "scam"){ const sl = Math.min(S.score, 5000); loss = sl; S.score -= sl; ledger({zh: "被騙", en: "Scam"}, -sl); S.forced = {type: "scam", n: 3}; S.scamLock = 4; A.sfx("scam"); }
     else { S.speedUntil = S.play + 20000; S.rate = 1; S.forced = {type: "risky", n: 2}; }
   }
   head.appendChild(txt);
-  $("ocEffect").textContent = effect;
+  const ez = document.createElement("small"); ez.lang = "zh-HK"; ez.textContent = zh.replace("{loss}", fmt(-loss));
+  $("ocEffect").replaceChildren(document.createTextNode(en.replace("{loss}", fmt(-loss))), ez);
+  $("cardSheet").classList.add("done");
   const tip = $("ocTip"); tip.replaceChildren(document.createTextNode(c.tip[0]));
   const tz = document.createElement("small"); tz.textContent = c.tip[1]; tip.appendChild(tz);
   crab(c.tip[0], c.tip[1]);
@@ -1422,8 +1426,7 @@ function showEnd(){
   $("endEyebrow").textContent = S.over === "drops" ? "整冧咗！ 3 items fell into the harbour" : "夠鐘！ Time's up";
   $("endTitle").textContent = top ? "You made it to Retirement" : "You reached " + st.en;
   const ft = S.falls.spend + S.falls.scam + S.falls.delay;
-  $("endSub").textContent = ft === 0 ? "No money traps at all. Your tower stood on wise choices. 一次都冇中伏！"
-    : "You fell into " + ft + " money trap" + (ft > 1 ? "s" : "") + ". Here's what tipped your tower. 睇吓係邊啲陷阱拖冧你座塔。";
+  $("endSub").textContent = ft === 0 ? "No money traps at all! 一次都冇中伏！" : "You fell into " + ft + " money trap" + (ft > 1 ? "s" : "") + ". 中咗" + ft + "次伏。";
   $("rStage").textContent = st.zh + " " + st.en;
   $("rNw").textContent = fmt(S.score);
   $("rHeight").textContent = (S.best / FLOOR).toFixed(1) + "F";
@@ -1435,10 +1438,17 @@ function showEnd(){
     const c = document.createElement("span"); c.className = "fc"; c.textContent = "×" + count; c.style.color = count ? "var(--red-d)" : "var(--green-t)";
     li.append(ic, m, c); fr.appendChild(li);
   };
-  row("i-spend", "var(--orange)", TRAPS.spend.en + " " + TRAPS.spend.zh, TRAPS.spend.d, S.falls.spend);
-  row("i-scam", "var(--purple)", TRAPS.scam.en + " " + TRAPS.scam.zh, TRAPS.scam.d, S.falls.scam);
-  row("i-delay", "var(--blue)", TRAPS.delay.en + " " + TRAPS.delay.zh, TRAPS.delay.d, S.falls.delay);
-  row("i-drop", "#fff", "Items dropped 跌落海", "Each one cost HK$1,000 每件扣HK$1,000", S.drops);
+  // a row (with what it is) for each Fall the player hit and for drops; the Falls they dodged share one line
+  const FALLS = [["spend", "i-spend", "var(--orange)"], ["scam", "i-scam", "var(--purple)"], ["delay", "i-delay", "var(--blue)"]];
+  for (const [k, icon, bg] of FALLS) if (S.falls[k]) row(icon, bg, TRAPS[k].en + " " + TRAPS[k].zh, TRAPS[k].d, S.falls[k]);
+  if (S.drops) row("i-drop", "#fff", "Items dropped 跌落海", "Each one cost HK$1,000 每件扣HK$1,000", S.drops);
+  const dodged = FALLS.filter(([k]) => !S.falls[k]);
+  if (dodged.length){
+    const li = document.createElement("li"); li.className = "dodged";
+    const m = document.createElement("span"); m.textContent = dodged.length === 3 ? "Dodged all 3 Falls" : "Dodged: " + dodged.map(([k]) => TRAPS[k].en).join(", ");
+    const z = document.createElement("small"); z.textContent = dodged.length === 3 ? "三大陷阱全部避開" : "避開咗：" + dodged.map(([k]) => TRAPS[k].zh).join("、"); m.appendChild(z);
+    li.append(svgUse("i-good"), m); fr.appendChild(li);
+  }
   // Quiz: each answer is marked right or wrong the moment it's tapped, with the reason, and then locked.
   const qz = $("quiz"); qz.replaceChildren(); S.quiz = QUIZ.map(() => null);
   const quizScore = () => { $("quizScore").textContent = S.quiz.filter(x => x && x.ok).length + "/" + QUIZ.length; };
@@ -1479,11 +1489,10 @@ function showEnd(){
   });
   $("nickname").value = lsGet("tff_name", "");
   const live = apiAllowed && !apiGone && dbWritable;
-  $("email").value = ""; emailError(false); $("email").closest(".fld").hidden = $("emailNote").hidden = !live;   // never kept on the device
-  if ($("privacyNote")) $("privacyNote").hidden = !live;
+  $("email").value = ""; emailError(false); $("email").closest(".fld").hidden = $("emailNote").closest(".email-note").hidden = !live;   // never kept on the device
   $("postBtn").disabled = false; $("postBtn").firstChild.textContent = "Post score";
   const ps = $("postStatus"); ps.className = "post-status";
-  ps.textContent = live ? "Posts your nickname and score to the board. No real names, please. 排行榜只會顯示暱稱同分數，唔好用真名。" : "Your score will be saved on this device. 分數會存喺呢部機。";
+  ps.textContent = live ? "Only your nickname and score go on the board. 排行榜只顯示暱稱同分數。" : "Your score will be saved on this device. 分數會存喺呢部機。";
   $("endModal").hidden = false; $("endModal").scrollTop = 0; endScroll = 0;
   endShownAt = performance.now(); modalOpen(true);
   $("endTitle").focus({preventScroll:true});

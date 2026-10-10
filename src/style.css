@@ -558,9 +558,9 @@ button{font-family:inherit;color:inherit}
 /* ---------- full screen play ---------- */
 #fsBtn .fx{display:none} #fsBtn[aria-pressed="true"] .fx{display:inline} #fsBtn[aria-pressed="true"] .fo{display:none}
 .ov-acts{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
-.ov-card .fsgo{font-size:14px;padding:7px 14px 8px;border-radius:14px}   /* the second choice: smaller than Start */
-.ov-card .fsgo .zh{font-size:13px}
-.fsgo svg{width:16px;height:16px;margin-right:5px;vertical-align:-2px}
+.ov-card .fsgo{display:inline-flex;align-items:center;gap:7px;padding:7px 14px 8px;border-radius:14px;font-size:14px;line-height:1.05;text-align:left}   /* smaller than Start */
+.ov-card .fsgo .zh{display:block;margin:2px 0 0;font-size:12.5px}
+.fsgo svg{width:18px;height:18px;flex:none}
 /* Three buttons in the header on phones: a little smaller, and the title too, so they all fit on one line */
 @media (max-width: 480px){ .mast-right{gap:8px} .iconbtn{width:40px;height:40px;border-radius:14px} }
 @media (max-width: 480px) and (min-width: 361px){ .word{font-size:26px} }
@@ -604,3 +604,41 @@ html.fs .talk{inset:6px}
 .bubble.pop{animation:talkpop .38s cubic-bezier(.2,.9,.3,1.35)}
 @keyframes talkpop{0%{opacity:0;scale:.4}60%{opacity:1;scale:1.07}100%{scale:1}}
 @media (prefers-reduced-motion: reduce){ .bubble.pop{animation:talkfade .2s ease-out} @keyframes talkfade{from{opacity:0}to{opacity:1}} }
+
+/* ---------- less packed: start card, card result, statement, How to play ---------- */
+.ov-card .desc{font-size:13px;line-height:1.4}
+.ov-card .desc .zh{display:block;margin:2px 0 0;font-size:13px;color:var(--ink-2)}
+.ov-card .ctl{list-style:none;margin:0;padding:0;width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.ov-card .ctl.touch-only{display:none}
+@media (pointer: coarse){ .ov-card .ctl.kb-only{display:none} .ov-card .ctl.touch-only{display:grid} }
+.ov-card .ctl li{display:flex;flex-direction:column;align-items:center;gap:1px;font-size:12px;font-weight:700;line-height:1.2;color:var(--ink);text-align:center}
+.ov-card .ctl small{font-family:var(--f-zh);font-size:11.5px;font-weight:700;color:var(--ink-2)}
+.ov-card .ctl .ic{height:26px;display:flex;align-items:center;justify-content:center;gap:3px}
+.ov-card .ctl svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.ov-card .ctl kbd{font-family:var(--f-body);font-weight:800;font-size:11px;color:var(--ink);background:#fff;border-radius:7px;padding:1px 6px;box-shadow:inset -1px -2px 2px rgba(60,20,10,.15), 0 2px 0 var(--cream-d)}
+/* card result: the answered question shrinks to its short label; the effect is one English and one Cantonese line */
+.lc-tag{display:none;margin:0 0 10px;font-size:12.5px;font-weight:800;color:var(--ink-2)}
+.lifecard.done .lc-tag{display:block}
+.lifecard.done .timer, .lifecard.done h3, .lifecard.done #cardTitleZh{display:none}
+.oc-effect small{display:block;margin-top:2px;font-family:var(--f-zh);font-size:13px}
+/* statement: dodged Falls on one line */
+.fallrep li.dodged{color:var(--green-t);font-weight:700}
+.fallrep li.dodged small{font-weight:400}
+/* How to play on phones: one column, number beside the text */
+@media (max-width: 599px){
+  .howto .how{grid-template-columns:1fr;gap:8px}
+  .howto .how li{padding:9px 12px 10px 44px}
+  .howto .how li::before{top:9px}
+}
+/* Start and Full screen fit side by side on a phone-sized start card */
+.ov-acts{gap:6px}
+.ov-acts #startBtn{padding-inline:15px}
+.ov-card .fsgo{padding-inline:11px;gap:6px}
+.ov-card .desc{text-wrap:balance}
+/* statement: tighter quiz and habit options (habits: Cantonese beside the English, like the quiz) */
+.qopt{padding:7px 12px}
+.qopts{gap:5px}
+.habits{gap:6px}
+.habit{padding:7px 12px;align-items:center}
+.habit input{margin-top:0}
+.habit small{display:inline;margin-left:6px}
