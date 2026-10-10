@@ -95,5 +95,39 @@ const HABITS = [
   {id:"track", en:"Track my spending for 30 days", zh:"記賬30日"}
 ];
 
-root.TFF_CONTENT = {STAGES, TRAPS, CARDS, QUIZ, HABITS};
+// What the crab by the harbour says in its speech bubble during a game: it cheers good choices and teases bad ones.
+// Keep lines short (it's a bubble). One key per moment; a line is picked at random, not the same twice in a row.
+// {n} is filled in by the game (an amount).
+const QUIPS = {
+  start:     [["Let's build your future!", "一齊起你嘅未來！"], ["Flat things at the bottom. Trust me.", "平嘅放底，信我！"], ["Three minutes. No pressure!", "得三分鐘，唔使驚！"]],
+  startPb:   [["Your best is {n}. Beat it!", "你最高紀錄係{n}，破佢！"]],
+  steady:    [["Nice and steady!", "穩陣！"], ["Look at that stack!", "疊得好靚喎！"], ["Growing like compound interest!", "好似複利咁越疊越高！"]],
+  floor:     [["Higher and higher!", "越疊越高！"], ["Up we go!", "再上一層！"], ["The view's getting better!", "風景越嚟越靚！"]],
+  stage1:    [["First job! Save before you spend.", "第一份工！先儲後使！"]],
+  stage2:    [["Family time! Bills get bigger.", "成家喇！使費都大咗！"]],
+  stage3:    [["Retirement! You made it!", "退休喇！你做到喇！"]],
+  drop:      [["Splash! Money down the drain.", "撲通！啲錢落咗海！"], ["The fish say thanks!", "啲魚多謝你！"], ["Gravity wins that round.", "地心吸力贏咗一仗。"]],
+  lastDrop:  [["Careful! One more and it's over.", "小心！再跌一件就玩完！"]],
+  wise:      [["Smart move!", "醒目！"], ["Future you says thanks!", "將來嘅你多謝你！"], ["That's how savings grow.", "錢就係咁儲返嚟。"]],
+  wise3:     [["Three wise picks in a row!", "連續三次明智！"]],
+  boost:     [["Savings boost maxed: ×2!", "儲蓄加成爆燈：×2！"]],
+  spend:     [["Ka-ching! Here comes the debt.", "使咗錢，債就嚟喇！"], ["Buy now, cry later.", "而家買，遲啲喊。"]],
+  scam:      [["Too good to be true? It was.", "好到唔似真？真係假㗎！"], ["Scammed! Never lend your account.", "中伏！戶口唔好借人！"]],
+  delay:     [["Later never comes.", "遲啲即係唔做。"], ["Tick tock… time flies!", "嘀嗒嘀嗒…時間飛走喇！"]],
+  shockOk:   [["Phew! Emergency fund to the rescue.", "好彩有應急錢！"]],
+  shockBad:  [["No safety net! Hold on!", "冇應急錢，頂住呀！"], ["Wobble wobble!", "震呀震！"]],
+  noFund:    [["No emergency fund… feeling lucky?", "冇應急錢…靠好彩？"]],
+  rich:      [["{n}! A tower of money!", "{n}！錢都疊成塔！"]],
+  pb:        [["New personal best!", "破咗你嘅紀錄！"]],
+  poor:      [["Living on instant noodles?", "食緊公仔麵呀？"]],
+  clean:     [["Not one drop yet. Steady hands!", "一件都未跌，手好穩！"]],
+  hurry:     [["Final push! Stack it high!", "衝呀！疊高佢！"]],
+  overDrops: [["Game over… the harbour's richer.", "玩完…個海仲有錢過你。"]],
+  over0:     [["Time! Still at uni… go again?", "夠鐘！仲喺大學…再嚟？"]],
+  over1:     [["Time! A solid first job.", "夠鐘！第一份工都唔錯。"]],
+  over2:     [["Time! Family and savings, nice.", "夠鐘！成家又有錢，叻！"]],
+  over3:     [["Retired rich. Legend!", "退休富翁，傳奇！"]]
+};
+
+root.TFF_CONTENT = {STAGES, TRAPS, CARDS, QUIZ, HABITS, QUIPS};
 })(typeof window !== "undefined" ? window : globalThis);

@@ -179,7 +179,7 @@ All game source lives in `src/`. After any change, run `npm run build`, which fi
 | File | What's in it |
 |---|---|
 | `package.json` → `config` | `site_url` (link previews) and `contact_email` (privacy contact shown on the results screen and in the footer) |
-| `src/content.js` | Life Event cards, the quiz (with the reason shown after each answer) and the habit pledges, shared with the API so it can check answers and label the survey results. If you change what a question or card asks, give it a new `id`. |
+| `src/content.js` | Life Event cards, the quiz (with the reason shown after each answer) and the habit pledges, shared with the API so it can check answers and label the survey results. If you change what a question or card asks, give it a new `id`. Also `QUIPS`: what the crab says in its speech bubble during a game (one list of English + Cantonese lines per moment, picked at random; keep them short). |
 | `src/game.js` | Game rules, end-of-game statement and leaderboard client. Tuning constants are near the top: `GAME_MS` (3 min), `CARD_MS`, `MAX_DROPS`. Vine items: `VINE_RARE` (chance a new item is vine-wrapped, 5%), `VINE_GRABS` (blocks one vine item can grab), `MAX_FUSED` (items per stuck-together group). |
 | `src/items/*.js` | The 32 everyday items: physics shape plus clay drawing for each |
 | `src/clay.js` | Clay rendering kit (palette, lighting, materials) |

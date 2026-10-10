@@ -28,6 +28,7 @@ const FALL = [1.5, 1.8, 2.1, 2.4];
 const MAX_DROPS = 3;
 
 const {STAGES, TRAPS, CARDS, QUIZ, HABITS} = window.TFF_CONTENT;   // src/content.js
+const QUIPS = window.TFF_CONTENT.QUIPS || {};
 const TOP_AT = 14;
 
 const SHOCKS = [
@@ -104,7 +105,8 @@ function newState(){
     height:0, best:0, bestFloor:0, stage:0, play:0, acc:0, spawnAt:0, nextEvent:FIRST_CARD, shocks:[60000, 125000],
     speedUntil:0, fastOn:false, quakeUntil:0, pendingDebt:0, used:new Set(), mode:"idle", card:null, cardCount:0, over:null, posted:false,
     quiz:[null, null, null], camTop:-(H - 240), shake:0, splashes:[], dragX:null, steps:0, ledger:[], warned:false,
-    mood:{type:"idle", until:0}, lastImpact:new Map(), grabs:[], leaves:[], habit:null, rec:null};
+    mood:{type:"idle", until:0}, lastImpact:new Map(), grabs:[], leaves:[], habit:null, rec:null,
+    said:new Set(), streak:0, wiseRun:0, afterCard:null, overKey:null, pb:0};
 }
 function makeEngine(){
   engine = Engine.create({enableSleeping:true});
@@ -259,6 +261,7 @@ function physicsStep(){
         ledger(m.tff.def, -loss, "跌落海");
         mood("cover", 1600);
         stamp(m.tff.def.en + " fell in!", "跌咗落海 " + S.drops + "/" + MAX_DROPS, "bad");
+        S.streak = 0; if (S.drops === MAX_DROPS - 1) quip("lastDrop", 3); else if (S.drops < MAX_DROPS) quip("drop", 2);
         updateHUD();
         if (S.drops >= MAX_DROPS){ endGame("drops"); return; }
       }
@@ -273,6 +276,7 @@ function physicsStep(){
       m.tff.settled = true;
       const k = m.tff.def.kind, base = k === "wise" ? 500 : k === "risky" ? 300 : 0;
       if (base){ const gain = Math.round(base * S.rate / 10) * 10; S.score += gain; ledger(m.tff.def, gain); A.sfx("deposit", {amount: gain}); updateHUD(); }
+      if (++S.streak % 4 === 0) quip("steady", 1);   // every 4 items landed in a row without a drop
     }
     if (resting && S.play - b.tff.at > 300) h = Math.max(h, -b.bounds.min.y);
   }
@@ -285,13 +289,13 @@ function physicsStep(){
       const gain = Math.round(2000 * S.rate / 10) * 10; S.score += gain;
       ledger({zh: "第" + S.bestFloor + "層", en: "Floor " + S.bestFloor}, gain);
       A.sfx("floor", {floor: S.bestFloor}); mood("happy", 1200);
-      stamp("Floor " + S.bestFloor + " +" + fmt(gain), "第" + S.bestFloor + "層", "good");
+      stamp("Floor " + S.bestFloor + " +" + fmt(gain), "第" + S.bestFloor + "層", "good"); quip("floor", 1);
     }
     const ns = stageFor(S.best / FLOOR);
     if (ns > S.stage){
       S.stage = ns; const st = STAGES[ns];
       A.sfx(ns === STAGES.length - 1 ? "win" : "stage", {stage: ns}); A.stage(ns);
-      stamp(st.en, st.zh, "gold");
+      stamp(st.en, st.zh, "gold"); quip("stage" + ns, 3);
       crab("Welcome to " + st.en + ". Items fall faster from here.", "去到「" + st.zh + "」喇！由而家起，啲嘢會跌得快啲。");
     }
     updateHUD();
@@ -562,6 +566,7 @@ function choose(kind){
   if (kind === "wise"){
     S.wise++; S.rate = Math.min(2, +(S.rate + 0.2).toFixed(1)); S.fund = Math.min(3, S.fund + 1);
     S.forced = {type: "wise", n: 4};
+    S.wiseRun++; S.afterCard = S.rate >= 2 && !S.said.has("boost") ? (S.said.add("boost"), "boost") : S.wiseRun === 3 ? "wise3" : "wise";
     head.className = "oc-head good"; head.appendChild(svgUse("i-good")); txt.textContent = "Good call! 揀得好！";
     effect = "Flat, stable items for the next 4 drops, and the first comes wrapped in vines: it sticks to whatever it touches. Savings boost ×" + S.rate.toFixed(1) + ", emergency fund +1. " +
       "之後4件都係平穩物件，第一件仲纏住藤蔓，掂到就黐住。儲蓄加成升到×" + S.rate.toFixed(1) + "，應急錢+1。";
@@ -569,6 +574,7 @@ function choose(kind){
   } else {
     const trap = kind === "risky" ? c.trap : "delay";
     if (kind === "risky") S.risky++; else S.missed++;
+    S.wiseRun = 0; S.afterCard = trap;
     S.falls[trap]++;
     head.className = "oc-head bad"; const ic = svgUse(ICON[trap]); ic.style.background = trap === "spend" ? "var(--orange)" : trap === "scam" ? "var(--purple)" : "var(--blue)"; ic.style.borderRadius = "10px"; ic.style.padding = "3px"; head.appendChild(ic);
     txt.textContent = (kind === "none" ? "Time ran out, so it got put off. 諗咗太耐，結果拖咗落嚟。 " : "") + TRAPS[trap].en + " " + TRAPS[trap].zh;
@@ -596,6 +602,7 @@ function closeCard(){
     S.mode = "playing"; S.nextEvent = S.play + CARD_GAP;
     S.fastOn = S.play < S.speedUntil; A.mode(S.fastOn ? "fast" : "normal");
     while (S.pendingDebt > 0){ S.pendingDebt--; dropDebt(); }
+    if (S.afterCard){ quip(S.afterCard, 2); S.afterCard = null; }
     if (S.falls.delay && S.fastOn) stamp("Time flies!", "時間加速", "info");
   }
   $("board").focus({preventScroll:true});
@@ -603,10 +610,10 @@ function closeCard(){
 function shock(){
   const sh = SHOCKS[Math.floor(Math.random() * SHOCKS.length)];
   if (S.fund > 0){
-    S.fund--; A.sfx("shield"); stamp(sh[0], "應急錢頂住咗 Emergency fund covered it", "good");
+    S.fund--; A.sfx("shield"); stamp(sh[0], "應急錢頂住咗 Emergency fund covered it", "good"); quip("shockOk", 2);
     crab("Life happens: " + (sh[0][0].toLowerCase() + sh[0].slice(1)) + ". Your emergency fund kept the tower steady.", "突發：" + sh[1] + "。好彩有應急錢，座塔企得穩。");
   } else {
-    S.quakeUntil = S.play + 1700; if (!reduceMotion) S.shake = 10; A.sfx("quake"); mood("worried", 2200);
+    S.quakeUntil = S.play + 1700; if (!reduceMotion) S.shake = 10; A.sfx("quake"); mood("worried", 2200); quip("shockBad", 2);
     stamp(sh[0], "冇應急錢，座塔震！", "bad");
     crab("Life happens: " + (sh[0][0].toLowerCase() + sh[0].slice(1)) + ". With no emergency fund, everything wobbles.", "突發：" + sh[1] + "。冇應急錢，成座塔都震。");
   }
@@ -623,6 +630,7 @@ function startGame(){
   A.stage(0); A.mode("normal"); A.start();
   renderLedger(); nextPiece();
   crab("Steer each item into place, then let go. Flat things stack; round things roll.", "搵好位置先放手。平嘅易疊，圓嘅會碌。");
+  hush(); S.pb = lsGet("tff_pb", 0); quip(S.pb > 0 ? "startPb" : "start", 2, fmt(S.pb));
   updateHUD(); setPauseUI(); $("board").focus({preventScroll:true});
 }
 function endGame(reason){
@@ -633,6 +641,8 @@ function endGame(reason){
   A.mode("over"); setPauseUI();
   A.sfx(reason === "drops" ? "gameOver" : (S.stage === STAGES.length - 1 ? "win" : "timeUp"));
   mood(reason === "drops" ? "cover" : "happy", 4000);
+  S.overKey = reason === "drops" ? "overDrops" : "over" + S.stage; quip(S.overKey, 3);
+  if (S.score > lsGet("tff_pb", 0)) lsSet("tff_pb", Math.round(S.score));
   updateHUD();
   setTimeout(showEnd, reason === "drops" ? 1200 : 700);
 }
@@ -801,7 +811,7 @@ function openResults(){
   $("closeEnd").focus({preventScroll:true});
 }
 $("resultsBtn").addEventListener("click", openResults);
-$("closeEnd").addEventListener("click", () => { endScroll = $("endModal").scrollTop; $("endModal").hidden = true; modalOpen(false); S.viewing = true; S.mode = "idle"; S.queue = []; S.hold = null; drawPreviews(true); $("seeOv").hidden = false; setPauseUI(); $("againBtn2").focus(); });
+$("closeEnd").addEventListener("click", () => { endScroll = $("endModal").scrollTop; $("endModal").hidden = true; modalOpen(false); S.viewing = true; S.mode = "idle"; S.queue = []; S.hold = null; drawPreviews(true); $("seeOv").hidden = false; setPauseUI(); $("againBtn2").focus(); if (S.overKey) quip(S.overKey, 3); });
 $("againBtn2").addEventListener("click", startGame);
 cv.tabIndex = 0;
 
@@ -1092,6 +1102,7 @@ function draw(dt){
   const md = S.mood.until > S.play || S.mode === "over" ? S.mood.type : "idle";
   const bob = reduceMotion ? 0 : Math.sin(T / 14) * 1.5 + (md === "happy" ? -Math.abs(Math.sin(T / 5)) * 4 : 0) + (md === "worried" ? Math.sin(T * 1.3) * 1.5 : 0);
   c.drawImage(L.crab[md] || L.crab.idle, W/2 + 48, WATER_Y - 46 + bob, 80, 64);
+  placeTalk(md, bob);
   c.setTransform(k, 0, 0, k, 0, 0);
   if (S.mode === "playing" && S.play < S.speedUntil){ c.fillStyle = "rgba(255,123,53,0.08)"; c.fillRect(0, 0, W, H); }
   if (S.mode === "over" && S.over === "drops"){ c.fillStyle = "rgba(242,70,62,0.12)"; c.fillRect(0, 0, W, H); }
@@ -1247,7 +1258,8 @@ function updateTime(){
   const t = Math.floor(sec / 60) + ":" + String(sec % 60).padStart(2, "0");
   $("timeVal").textContent = t; $("hudTime").textContent = t;
   $("timeVal").classList.toggle("warn", sec <= 30);
-  if (sec <= 30 && !S.warned && S.mode === "playing"){ S.warned = true; A.sfx("timeWarn"); stamp("30 seconds left", "仲有30秒", "info"); }
+  if (sec <= 30 && !S.warned && S.mode === "playing"){ S.warned = true; A.sfx("timeWarn"); stamp("30 seconds left", "仲有30秒", "info"); quip("hurry", 3); }
+  statusQuips();
 }
 function updateHUD(){
   if (!S) return;
@@ -1276,11 +1288,83 @@ function stamp(en, zh, kind){
   const d = document.createElement("div"); d.className = "stamp " + (kind || "info");
   const slot = stampN++ % 2, a = S && S.active;
   const highItem = a && (a.position.y - S.camTop) < H * 0.45;
-  if (highItem) d.style.bottom = "calc(" + (WATER_Y - S.camTop > H ? 8 : Math.round((H - (WATER_Y - S.camTop)) / H * 100) + 4) + "% + " + (slot * 50) + "px)";
+  if (highItem) d.style.bottom = "calc(max(" + (WATER_Y - S.camTop > H ? 8 : Math.round((H - (WATER_Y - S.camTop)) / H * 100) + 4) + "%, " + Math.round(talkBand()) + "px) + " + (slot * 50) + "px)";   // above the crab's bubble
   else d.style.top = "calc(10px + " + (slot * 50) + "px)";
   d.style.setProperty("--r", ((stampN % 2 ? -1 : 1) * (2 + (stampN % 3) * 1.5)) + "deg");
   d.textContent = en; const z = document.createElement("small"); z.textContent = zh; d.appendChild(z);
   box.appendChild(d); A.sfx("stamp"); setTimeout(() => d.remove(), 1800);
+}
+// ---------- the crab's speech bubble ----------
+// The crab by the harbour cheers good choices and teases bad ones (lines in content.js). Each moment has a priority:
+// 3 always speaks (new stage, last item left, final seconds, game over), 2 cuts in over small talk (card results,
+// drops, shocks, money milestones), 1 is small talk, said only after the crab has been quiet for a while. A line
+// stays up for game time, so a pause or a Life Event card doesn't use it up (longer with Extra reading time); a
+// line that had to give way to a more important one is said right after it, if it's still fresh.
+const talk = {el: $("bubble"), say: $("bubbleSay"), face: document.querySelector("#bubble .face"), on: false, pri: 0, until: 0, last: -1e9,
+  pick: {}, w: 0, h: 0, x: NaN, y: NaN, docked: null, mood: "", next: null};
+function quip(key, pri, n){
+  const pool = QUIPS[key]; if (!S || !pool) return;
+  const now = S.play, busy = talk.on && (S.mode !== "playing" || now < talk.until);
+  if (busy && pri < talk.pri){ if (pri >= 2) talk.next = {key, pri, n, at: now}; return; }   // something more important is being said
+  if (pri <= 1 && (busy || now - talk.last < 6000)) return;            // small talk waits for a quiet moment
+  let i = Math.floor(Math.random() * pool.length);
+  if (pool.length > 1 && i === talk.pick[key]) i = (i + 1) % pool.length;
+  talk.pick[key] = i;
+  const [en, zh] = pool[i].map(t => t.replace("{n}", n == null ? "" : n));
+  const z = document.createElement("small"); z.lang = "zh-HK"; z.textContent = zh;
+  talk.say.replaceChildren(document.createTextNode(en), z);
+  const b = talk.el; b.style.maxWidth = Math.round(Math.min(250, TALK_TIP * SC - 16)) + "px";
+  b.hidden = false; b.classList.remove("pop"); void b.offsetWidth; b.classList.add("pop");
+  talk.w = b.offsetWidth; talk.h = b.offsetHeight; talk.x = talk.y = NaN;
+  talk.on = true; talk.pri = pri; talk.last = now; talk.until = now + Math.min(5200, 2400 + en.length * 45) * (slowRead ? 1.6 : 1);
+  needDraw = true;
+}
+function hush(){ talk.on = false; talk.pri = 0; talk.until = 0; talk.last = -1e9; talk.next = null; talk.el.hidden = true; }
+// shown while playing (until its time is up), and after the game (the verdict stays with the tower); not under a
+// card, the pause card or the start card
+function syncTalk(){
+  if (S.mode === "playing" && talk.on && S.play >= talk.until){
+    talk.on = false;
+    const q = talk.next; talk.next = null;
+    if (q && S.play - q.at < 6000) quip(q.key, q.pri, q.n);
+  }
+  const show = talk.on && !sideways && (S.mode === "playing" || S.mode === "over" || (S.mode === "idle" && S.viewing));
+  if (talk.el.hidden === show){ talk.el.hidden = !show; if (show){ talk.x = NaN; needDraw = true; } }
+}
+// The bubble sits left of the crab, level with its claws, between the platform and the water, so it never covers the
+// tower or where items land. Once the camera has climbed past the harbour it waits at the bottom of the board.
+const TALK_TIP = W/2 + 50, TALK_ROOM = 70;   // world x of the tail's tip (the crab's left claw); a tall bubble in px
+function placeTalk(md, bob){
+  const b = talk.el; if (b.hidden) return;
+  const cw = W * SC, ch = H * SC, tipX = TALK_TIP * SC, tipY = (WATER_Y - 30 + bob - S.camTop) * SC;
+  const floor = ch - (S.mode === "idle" && S.viewing ? 76 : 14);     // clear of Play again when looking at the tower
+  const docked = tipY + talk.h / 2 > floor;
+  if (docked !== talk.docked){ talk.docked = docked; b.classList.toggle("docked", docked); talk.w = b.offsetWidth; talk.h = b.offsetHeight; }
+  if (docked && talk.mood !== md && L.crab){
+    talk.mood = md; const g = talk.face.getContext("2d"); g.clearRect(0, 0, 64, 52); g.drawImage(L.crab[md] || L.crab.idle, 0, 0, 64, 52);
+  }
+  let x, y;
+  if (docked){ x = cw - talk.w - 10; y = floor - talk.h; }
+  else { x = tipX - 10 - talk.w; y = Math.max((30 - S.camTop) * SC + 4, tipY - talk.h / 2); }   // never above the platform's underside
+  x = Math.round(clamp(x, 6, cw - talk.w - 6)); y = Math.round(Math.max(6, y));
+  if (x !== talk.x || y !== talk.y){ talk.x = x; talk.y = y; b.style.transform = "translate(" + x + "px," + y + "px)"; }
+}
+// how far up from the board's bottom the bubble may reach, in px: stamps placed low stay above it
+function talkBand(){
+  const ch = H * SC, under = (30 - S.camTop) * SC, tipY = (WATER_Y - 30 - S.camTop) * SC;
+  const top = tipY + TALK_ROOM / 2 > ch - 14 ? ch - 14 - TALK_ROOM : Math.min(Math.max(under + 4, tipY - TALK_ROOM / 2), ch - 14 - TALK_ROOM);
+  return ch - top + 6;
+}
+// status and progress, checked once a second and when money changes: money milestones, a new personal best, a slow
+// start, a clean run, an emergency fund that's empty just before a shock
+function statusQuips(){
+  if (!S || S.mode !== "playing") return;
+  const once = (k, cond, pri, n) => { if (cond && !S.said.has(k)){ S.said.add(k); quip(k.replace(/\d+$/, ""), pri, n); } };
+  for (const v of [10000, 25000, 50000, 100000]) once("rich" + v, S.score >= v, 2, fmt(v));
+  once("pb", S.pb > 0 && S.score > S.pb, 2);
+  once("poor", S.play > 70000 && S.score < 3000, 1);
+  once("clean", S.play > 120000 && S.drops === 0, 1);
+  if (S.shocks.length && S.fund === 0 && S.play >= S.shocks[0] - 5000 && !S.said.has("noFund" + S.shocks[0])){ S.said.add("noFund" + S.shocks[0]); quip("noFund", 2); }
 }
 
 // ---------- loop ----------
@@ -1310,6 +1394,7 @@ function frame(now){
       live = S.mode !== "over" || $("endModal").hidden || awake();   // under the statement, a settled tower stays as drawn
     }
     ALPHA = clamp(S.acc / STEP, 0, 1);
+    syncTalk();
     // A still scene (start card, Life Event card, pause, statement over a settled tower) isn't redrawn 60 times a
     // second: that saves battery and keeps scrolling and the cards' animations smooth on phones.
     if (live || needDraw || S.shake > 0 || S.splashes.length || S.leaves.length || Math.abs(camTarget() - S.camTop) > 0.05){ needDraw = false; draw(dt); }

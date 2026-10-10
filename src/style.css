@@ -587,3 +587,20 @@ html.ingame{overscroll-behavior-y:none}   /* no pull-to-refresh (and a lost game
   .ov-card .desc, .ov-card .slowread small{display:none}
 }
 @media (max-width: 340px){ #startOv{padding-top:10px} .ov-card .fsgo{display:none} }   /* tiny phones: ⛶ is in the header */
+
+/* ---------- the crab's speech bubble (by the crab at the harbour) ---------- */
+.talk{position:absolute;inset:10px;pointer-events:none;overflow:hidden;border-radius:20px}
+html.fs .talk{inset:6px}
+.bubble{position:absolute;left:0;top:0;max-width:250px;padding:7px 12px 8px;border-radius:16px;background:#FFFDF7;color:var(--ink);
+  font-size:13px;font-weight:800;line-height:1.25;will-change:transform;transform-origin:calc(100% + 10px) 50%;
+  box-shadow:inset 2px 2px 1px #fff, inset -2px -3px 5px rgba(60,20,10,.12), 3px 4px 0 rgba(37,49,122,.28)}
+.bubble small{display:block;margin-top:1px;font-family:var(--f-zh);font-size:12.5px;font-weight:700;color:var(--ink-2)}
+.bubble::after{content:"";position:absolute;right:-9px;top:50%;margin-top:-7px;border-top:7px solid transparent;border-bottom:7px solid transparent;border-left:10px solid #FFFDF7;
+  filter:drop-shadow(2px 2px 0 rgba(37,49,122,.2))}   /* the tail, pointing right at the crab */
+.bubble.docked::after{display:none}
+.bubble .face{display:none;position:absolute;left:6px;top:50%;width:32px;height:26px;margin-top:-13px}
+.bubble.docked{padding-left:44px;transform-origin:50% 100%}
+.bubble.docked .face{display:block}
+.bubble.pop{animation:talkpop .38s cubic-bezier(.2,.9,.3,1.35)}
+@keyframes talkpop{0%{opacity:0;scale:.4}60%{opacity:1;scale:1.07}100%{scale:1}}
+@media (prefers-reduced-motion: reduce){ .bubble.pop{animation:talkfade .2s ease-out} @keyframes talkfade{from{opacity:0}to{opacity:1}} }
