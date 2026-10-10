@@ -98,9 +98,10 @@ The game aims for WCAG 2.2 AA. An automated check (axe-core) finds no problems o
 
 - **Cantonese for screen readers:** all Chinese text is marked `lang="zh-HK"` as it appears, so VoiceOver and TalkBack read it with a Cantonese voice. Numbers inside a Chinese sentence, like HK$3,600, stay with it.
 - **Extra reading time:** a switch on the start and pause cards gives 30 seconds per Life Event card instead of 10, and the result stays until Continue is pressed. It is remembered on the device. Screen readers are told the time limit when a card opens. Even without it, a card result now stays for 12 seconds (was 7).
-- **Keyboard:** everything works without a mouse: arrows, Space, C, P, M in the game; 1 or 2 on Life Event cards; Tab and Enter on the results screen. Focus is always visible, and pop-ups move focus in and back out.
+- **Keyboard:** everything works without a mouse: arrows, Space, C, P, M, F in the game; 1 or 2 on Life Event cards; Tab and Enter on the results screen. Focus is always visible, and pop-ups move focus in and back out.
 - **Contrast:** text meets AA contrast. Bright backgrounds stay; text on them is ink or the colour behind white text is a little deeper.
 - **Forms:** nickname and email have visible labels; a mistyped email is announced and marked invalid; quiz feedback is announced.
+- **Full screen:** the ⛶ button in the header, Full screen on the start card, or F plays with just the game on screen and the board as big as it fits. The browser goes full screen where it allows it (phones also stay upright); on iPhone the page still drops everything but the game, and Add to Home Screen opens it as a full-screen app.
 - **Motion and sound:** "Reduce motion" turns off the shake, bobbing and card animations; sound has a mute button and starts only after Start.
 - Controls are at least 24 × 24 px, and the pages fit a 320 px wide screen without sideways scrolling.
 

@@ -637,7 +637,7 @@ function endGame(reason){
   setTimeout(showEnd, reason === "drops" ? 1200 : 700);
 }
 function modalOpen(on){ const set = document.querySelector(".set"); if (set) set.inert = !!on; }
-function setPauseUI(){ const pb = $("pauseBtn"); const live = S && (S.mode === "playing" || S.mode === "paused"); pb.disabled = !live; const p = !!(S && S.mode === "paused"); pb.setAttribute("aria-pressed", String(p)); pb.setAttribute("aria-label", p ? "Resume game" : "Pause game"); }
+function setPauseUI(){ const pb = $("pauseBtn"); const live = S && (S.mode === "playing" || S.mode === "paused"); pb.disabled = !live; document.documentElement.classList.toggle("ingame", !!live); const p = !!(S && S.mode === "paused"); pb.setAttribute("aria-pressed", String(p)); pb.setAttribute("aria-label", p ? "Resume game" : "Pause game"); }
 function togglePause(){
   if (S.mode === "playing"){ S.mode = "paused"; $("pauseOv").hidden = false; A.mode("paused"); $("resumeBtn").focus({preventScroll:true}); }
   else if (S.mode === "paused"){ S.mode = "playing"; $("pauseOv").hidden = true; A.resume(); A.mode(S.play < S.speedUntil ? "fast" : "normal"); $("board").focus({preventScroll:true}); }
@@ -658,6 +658,36 @@ function act(a){
 }
 function setMuteUI(){ const m = A.muted(); $("muteBtn").setAttribute("aria-pressed", String(m)); $("muteBtn").setAttribute("aria-label", m ? "Unmute sound" : "Mute sound"); }
 function toggleMute(){ A.unlock(); A.toggle(); setMuteUI(); }
+// ---------- full screen play ----------
+// One tap (the ⛶ button, Full screen on the start card, or F) for just the game: the browser goes full screen where
+// it can (iPhones can't: there, Add to Home Screen does it), and either way the page hides everything but the game
+// and the board grows to fill the screen. A phone is held upright while full screen, where the browser allows it.
+const root = document.documentElement;
+const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement || null;
+const fsApi = !!(root.requestFullscreen || root.webkitRequestFullscreen);
+let fsOn = false;
+function setFs(on){
+  fsOn = on; root.classList.toggle("fs", on);
+  const b = $("fsBtn"); b.setAttribute("aria-pressed", String(on)); b.setAttribute("aria-label", on ? "Exit full screen" : "Play full screen");
+  lastFit = ""; resize();
+  if (on) window.scrollTo(0, 0);
+}
+function toggleFs(want = !fsOn){
+  if (want === fsOn && !!fsEl() === (want && fsApi)) return;
+  setFs(want);
+  try {
+    if (want && fsApi && !fsEl()){
+      const p = root.requestFullscreen ? root.requestFullscreen({navigationUI: "hide"}) : root.webkitRequestFullscreen();
+      Promise.resolve(p).then(() => {
+        if (Math.min(screen.width, screen.height) < 600 && screen.orientation && screen.orientation.lock) screen.orientation.lock("portrait").catch(() => {});
+      }, () => {});   // refused: the page-only full screen stays
+    } else if (!want && fsEl()) Promise.resolve(document.exitFullscreen ? document.exitFullscreen() : document.webkitExitFullscreen()).catch(() => {});
+  } catch(e){}
+}
+for (const ev of ["fullscreenchange", "webkitfullscreenchange"]) document.addEventListener(ev, () => {
+  if (!fsEl() && fsOn) setFs(false);   // left with Esc or the phone's back gesture
+  else { lastFit = ""; resize(); }     // the screen size changed: fit the board now
+});
 let endShownAt = 0;
 document.addEventListener("keydown", e => {
   if (!S) return;
@@ -669,6 +699,7 @@ document.addEventListener("keydown", e => {
   if (tag === "INPUT" || tag === "TEXTAREA") return;
   const k = e.key;
   if (k === "m" || k === "M"){ toggleMute(); e.preventDefault(); return; }
+  if ((k === "f" || k === "F") && !e.ctrlKey && !e.metaKey && !e.altKey){ toggleFs(); e.preventDefault(); return; }
   if (S.mode === "card" && S.card){
     if (!S.card.flip && (k === " " || k === "Enter") && !(e.target && e.target.classList && e.target.classList.contains("choice"))){ e.preventDefault(); return; }
     if (!S.card.flip && ["1","2","a","b","A","B"].includes(k)){
@@ -752,6 +783,8 @@ const endDrag = e => {
 cv.addEventListener("pointerup", endDrag); cv.addEventListener("pointercancel", endDrag);
 document.addEventListener("click", e => { if (e.target.closest && e.target.closest(".btn,.tab,.choice,.qopt,.iconbtn")) A.sfx("click"); });
 $("muteBtn").addEventListener("click", toggleMute);
+$("fsBtn").addEventListener("click", () => toggleFs());
+$("fsStartBtn").addEventListener("click", () => { toggleFs(true); startGame(); });
 $("pauseBtn").addEventListener("click", () => { if (S && (S.mode === "playing" || S.mode === "paused")) togglePause(); });
 $("hudHoldBtn").addEventListener("click", () => act("hold"));
 $("startBtn").addEventListener("click", startGame);
@@ -966,7 +999,11 @@ function resize(){
   // every picture mid-game.
   const vh = (narrow || touch) && document.documentElement.clientHeight || window.innerHeight;
   let availH, availW;
-  if (narrow){ availW = document.documentElement.clientWidth - 32 - 20; availH = vh - header - 70 - (padOn ? 100 : 0) - 40; }
+  if (narrow){
+    const cs = el => getComputedStyle(el), side = parseFloat(cs(document.querySelector(".set")).paddingLeft) + parseFloat(cs($("boardWrap")).paddingLeft);
+    availW = document.documentElement.clientWidth - 2 * side; availH = vh - header - 70 - (padOn ? 100 : 0) - 40;
+    // full screen on a phone: the board takes all the height the header, the status bar and the pad leave
+    if (fsOn) availH = vh - (document.querySelector(".set").offsetHeight - cv.offsetHeight); }
   else { availW = Math.max(260, window.innerWidth - 620); availH = vh - header - 70 - (padOn ? 100 : 0); }
   const fit = [narrow, padOn, availW, availH, window.devicePixelRatio].join();
   if (fit === lastFit) return;

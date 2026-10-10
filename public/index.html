@@ -25,7 +25,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gluten:wght@400..900&family=LXGW+WenKai+TC:wght@400;700&family=DotGothic16&family=Noto+Sans+HK:wght@400;500;700;900&display=swap">
-<link rel="stylesheet" href="/assets/style.bf9b0e86ef.css">
+<link rel="stylesheet" href="/assets/style.c1666b3bad.css">
 </head>
 <body>
 <noscript><p style="margin:0;padding:16px;background:#2E2838;color:#fff;font:16px/1.5 system-ui,sans-serif;text-align:center">3 Fall Fun needs JavaScript to run. 請開啟 JavaScript 先玩到。</p></noscript>
@@ -50,6 +50,9 @@
     </div>
     <div class="mast-right">
       <p class="credit"><b>3 Fall Crab 整冧咗team</b> · HSUHK<br>個人理財大使計劃 2026</p>
+      <button class="iconbtn" id="fsBtn" aria-pressed="false" aria-label="Play full screen" title="Full screen (F)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path class="fo" d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="#2E2838" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path class="fx" d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5" fill="none" stroke="#DF1B72" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
       <button class="iconbtn" id="pauseBtn" aria-label="Pause game" aria-pressed="false" disabled>
         <svg viewBox="0 0 24 24" aria-hidden="true"><g class="pz"><rect x="6" y="5" width="4.2" height="14" rx="1.6" fill="#2E2838"/><rect x="13.8" y="5" width="4.2" height="14" rx="1.6" fill="#2E2838"/></g><path class="pl" d="M8 5.5v13l11-6.5z" fill="#20C1B3"/></svg>
       </button>
@@ -108,10 +111,13 @@
             <p class="desc">Steer everyday items onto your tower. Balls roll, bags hook, phones tip, and vine-wrapped items stick where they land. Reach Retirement in 3 minutes. Three items in the harbour and it's over.</p>
             <ul class="quick kb-only" aria-label="Keyboard controls">
               <li><kbd>←</kbd><kbd>→</kbd> move <kbd>↑</kbd> rotate <kbd>Space</kbd> drop</li>
-              <li><kbd>C</kbd> hold <kbd>P</kbd> pause <kbd>M</kbd> mute</li>
+              <li><kbd>C</kbd> hold <kbd>P</kbd> pause <kbd>M</kbd> mute <kbd>F</kbd> full screen</li>
             </ul>
             <p class="quick touch-only">Drag to move · tap to rotate · swipe down to drop<br>拖動移位 · 點一下轉向 · 向下掃即放</p>
-            <button class="btn" id="startBtn">Start<span class="zh" lang="zh-HK">開始</span></button>
+            <div class="ov-acts">
+              <button class="btn" id="startBtn">Start<span class="zh" lang="zh-HK">開始</span></button>
+              <button class="btn alt fsgo" id="fsStartBtn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Full screen<span class="zh" lang="zh-HK">全螢幕</span></button>
+            </div>
             <label class="slowread"><input type="checkbox" class="slowRead"> <span>Extra reading time <span class="zh" lang="zh-HK">加長閱讀時間</span><small>30 seconds for each Life Event card, and results stay until you tap Continue. 每張人生事件卡有30秒揀，結果會等你撳「繼續」先收。</small></span></label>
           </div>
         </div>
@@ -165,6 +171,7 @@
         <li><kbd>1</kbd><kbd>2</kbd> Card answer 揀答案</li>
         <li><kbd>P</kbd> Pause 暫停</li>
         <li><kbd>M</kbd> Mute 靜音</li>
+        <li><kbd>F</kbd> Full screen 全螢幕</li>
         <li class="touch">Phone: drag to move, tap to rotate, swipe down to drop 手機：拖動移位、點一下轉向、向下掃即放</li>
       </ul>
     </section>
@@ -263,6 +270,6 @@
 <script src="/assets/risky-b.5057bd2b53.js"></script>
 <script src="/assets/scam.05ff1a07ff.js"></script>
 <script src="/assets/content.9b9ef69b42.js"></script>
-<script src="/assets/game.58a09f9e91.js"></script>
+<script src="/assets/game.f4ac0e90f8.js"></script>
 </body>
 </html>
