@@ -108,8 +108,11 @@
 
   // ---------- rendering primitives ----------
   const scaleOf = g => { const m = g.getTransform(); return Math.hypot(m.a, m.b) || 1; };
+  const pad = (blur, dx, dy) => Math.abs(dx) + Math.abs(dy) + blur * 2.5 + 4;
   // inverted mask (opaque outside `path`, clear inside) in device pixels around path.bb, so shading treats
-  // overlapping sub-paths as one union (an evenodd ring would leave dark holes where pieces overlap)
+  // overlapping sub-paths as one union (an evenodd ring would leave dark holes where pieces overlap).
+  // Drawn into one reused CPU-backed scratch canvas, resized to fit (which also clears it): no canvas per shadow.
+  let mc = null, mx = null;
   function invMask(g, path, pad){
     const bb = path.bb; if (!bb) return null;
     const m = g.getTransform();
@@ -118,38 +121,41 @@
     const x0 = Math.floor(Math.min(...pts.map(q => q[0]))), y0 = Math.floor(Math.min(...pts.map(q => q[1])));
     const w = Math.max(1, Math.ceil(Math.max(...pts.map(q => q[0]))) - x0), h = Math.max(1, Math.ceil(Math.max(...pts.map(q => q[1]))) - y0);
     if (w * h > 6e6) return null;
-    const c = document.createElement("canvas"); c.width = w; c.height = h; const x = c.getContext("2d");
+    if (!mc){ mc = document.createElement("canvas"); mx = mc.getContext("2d", {willReadFrequently: true}); }
+    mc.width = w; mc.height = h; const x = mx;
     x.fillStyle = "#000"; x.fillRect(0, 0, w, h);
     x.setTransform(m.a, m.b, m.c, m.d, m.e - x0, m.f - y0); x.globalCompositeOperation = "destination-out"; x.fill(path);
-    return {c, x0, y0};
+    return {c: mc, x0, y0};
+  }
+  // draw one inner shadow from a ready mask (null: evenodd fallback); the caller has already clipped to `path`
+  function shadeIn(g, path, mk, k, color, blur, dx, dy){
+    g.save(); g.shadowColor = color; g.shadowBlur = blur * k; g.shadowOffsetX = dx * k; g.shadowOffsetY = dy * k;
+    if (mk){ g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(mk.c, mk.x0, mk.y0); }
+    else { const ring = new Path2D(); ring.rect(-4000, -4000, 8000, 8000); ring.addPath(path); g.fillStyle = "#000"; g.fill(ring, "evenodd"); }
+    g.restore();
   }
   // soft inner shadow inside `path`: offset (dx,dy) in local units, blur in local units
   function inner(g, path, color, blur, dx, dy){
-    const k = scaleOf(g);
-    const mk = invMask(g, path, Math.abs(dx) + Math.abs(dy) + blur * 2.5 + 4);
-    g.save(); g.clip(path);
-    if (mk){
-      g.setTransform(1, 0, 0, 1, 0, 0);
-      g.shadowColor = color; g.shadowBlur = blur * k; g.shadowOffsetX = dx * k; g.shadowOffsetY = dy * k;
-      g.drawImage(mk.c, mk.x0, mk.y0);
-    } else {
-      g.shadowColor = color; g.shadowBlur = blur * k; g.shadowOffsetX = dx * k; g.shadowOffsetY = dy * k;
-      const ring = new Path2D(); ring.rect(-4000, -4000, 8000, 8000); ring.addPath(path);
-      g.fillStyle = "#000"; g.fill(ring, "evenodd");
-    }
-    g.restore();
+    const k = scaleOf(g), mk = invMask(g, path, pad(blur, dx, dy));
+    g.save(); g.clip(path); shadeIn(g, path, mk, k, color, blur, dx, dy); g.restore();
   }
   // soft blurred blob drawn via the off-canvas shadow trick (no ctx.filter needed: works in Safari)
-  function softSpot(g, clipPath, spot, color, blur){
-    const k = scaleOf(g); g.save(); if (clipPath) g.clip(clipPath);
-    const FAR = 6000; g.shadowColor = color; g.shadowBlur = blur * k; g.shadowOffsetX = -FAR * k; g.shadowOffsetY = 0;
+  function spotIn(g, spot, color, blur, k){
+    const FAR = 6000; g.save(); g.shadowColor = color; g.shadowBlur = blur * k; g.shadowOffsetX = -FAR * k; g.shadowOffsetY = 0;
     g.translate(FAR, 0); g.fillStyle = "#000"; g.fill(spot); g.restore();
   }
-  // fingerprint + speckle texture tile
-  const texCache = new WeakMap();
+  function softSpot(g, clipPath, spot, color, blur){
+    const k = scaleOf(g); g.save(); if (clipPath) g.clip(clipPath); spotIn(g, spot, color, blur, k); g.restore();
+  }
+  // fingerprint + speckle texture tile: drawn once, then only wrapped in a pattern per context
+  const texCache = new WeakMap(); let tile = null;
   function texPattern(g){
     let p = texCache.get(g); if (p) return p;
-    const q = 3, S = 90; const c = document.createElement("canvas"); c.width = c.height = S*q; const x = c.getContext("2d"); x.scale(q, q);
+    const q = 3; p = g.createPattern(tile || (tile = texTile(q)), "repeat"); if (p && p.setTransform) p.setTransform(new DOMMatrix().scale(1/q));
+    texCache.set(g, p); return p;
+  }
+  function texTile(q){
+    const S = 90; const c = document.createElement("canvas"); c.width = c.height = S*q; const x = c.getContext("2d"); x.scale(q, q);
     const r = rng(42);
     x.strokeStyle = "rgba(0,0,0,0.55)"; x.lineCap = "round";
     for (let f = 0; f < 3; f++){                         // a few faint fingerprint whorls
@@ -160,34 +166,34 @@
         x.stroke(); }
     }
     for (let i = 0; i < 260; i++){ x.fillStyle = r() > 0.5 ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.9)"; x.beginPath(); x.arc(r()*S, r()*S, 0.25 + r()*0.45, 0, 7); x.fill(); }
-    p = g.createPattern(c, "repeat"); if (p && p.setTransform) p.setTransform(new DOMMatrix().scale(1/q));
-    texCache.set(g, p); return p;
+    return c;
   }
-  function texture(g, path, amount = 0.12){
-    g.save(); g.clip(path); g.globalAlpha = amount; g.globalCompositeOperation = "overlay";
-    g.fillStyle = texPattern(g); g.fill(path); g.restore();
-  }
+  function texIn(g, path, amount){ g.save(); g.globalAlpha = amount; g.globalCompositeOperation = "overlay"; g.fillStyle = texPattern(g); g.fill(path); g.restore(); }
+  function texture(g, path, amount = 0.12){ g.save(); g.clip(path); texIn(g, path, amount); g.restore(); }
 
   // blob: THE clay fill. Base colour + inner shade (bottom-right) + light rim (top-left) + sheen + texture + soft rim line.
   // opt: {soft: shade blur (6), depth: shade offset (3.5), sheen: true|false|{x,y,rx,ry}, texture: 0.12, rim: 1, flat: false}
+  // The inner effects share two clips (shadows, then surface) instead of clipping once each.
   function blob(g, path, color, opt = {}){
     const c = col(color);
     g.save(); g.fillStyle = c; g.fill(path);
-    const depth = opt.depth ?? 4.2, soft = opt.soft ?? 6.5;
-    if (!opt.flat){
-      inner(g, path, rgba(shade(c, -0.6), 0.72), soft, -depth, -depth*1.15);          // core shadow, lower-right
-      inner(g, path, "rgba(255,255,255,0.55)", soft*0.55, depth*0.55, depth*0.7);     // light rim, upper-left
-      const bb = path.bb;
-      if (opt.sheen !== false && bb){
-        const sh = typeof opt.sheen === "object" ? opt.sheen : {x: bb.x + bb.w*0.3, y: bb.y + bb.h*0.26, rx: Math.max(2, bb.w*0.16), ry: Math.max(1.5, bb.h*0.1)};
-        softSpot(g, path, ellipse(sh.x, sh.y, sh.rx, sh.ry, -0.5), "rgba(255,255,255,0.75)", Math.max(2.5, Math.min(sh.rx, sh.ry) * 1.1));
-      }
+    const depth = opt.depth ?? 4.2, soft = opt.soft ?? 6.5, tex = opt.texture ?? 0.12, rim = opt.rim ?? 1, bb = path.bb, k = scaleOf(g);
+    const shd = !opt.flat, sp = shd && opt.sheen !== false && bb, mr = rim > 0 && path.merged;
+    if (shd){
+      const m1 = invMask(g, path, pad(soft, depth, depth*1.15));
+      g.save(); g.clip(path); shadeIn(g, path, m1, k, rgba(shade(c, -0.6), 0.72), soft, -depth, -depth*1.15);    // core shadow, lower-right
+      shadeIn(g, path, invMask(g, path, pad(soft*0.55, depth*0.55, depth*0.7)), k, "rgba(255,255,255,0.55)", soft*0.55, depth*0.55, depth*0.7);   // light rim, upper-left
+      g.restore();
     }
-    if ((opt.texture ?? 0.12) > 0) texture(g, path, opt.texture ?? 0.12);
-    if ((opt.rim ?? 1) > 0){
-      if (path.merged) inner(g, path, rgba(shade(c, -0.5), 0.75), 0.9 * (opt.rim ?? 1), 0, 0);   // union-safe rim (stroke would draw inner seams)
-      else { g.lineWidth = opt.rim ?? 1; g.strokeStyle = rgba(shade(c, -0.5), 0.55); g.stroke(path); }
+    if (sp || tex > 0 || mr){
+      g.save(); g.clip(path);
+      if (sp){ const sh = typeof opt.sheen === "object" ? opt.sheen : {x: bb.x + bb.w*0.3, y: bb.y + bb.h*0.26, rx: Math.max(2, bb.w*0.16), ry: Math.max(1.5, bb.h*0.1)};
+        spotIn(g, ellipse(sh.x, sh.y, sh.rx, sh.ry, -0.5), "rgba(255,255,255,0.75)", Math.max(2.5, Math.min(sh.rx, sh.ry) * 1.1), k); }
+      if (tex > 0) texIn(g, path, tex);
+      if (mr) shadeIn(g, path, invMask(g, path, pad(0.9 * rim, 0, 0)), k, rgba(shade(c, -0.5), 0.75), 0.9 * rim, 0, 0);   // union-safe rim (stroke would draw inner seams)
+      g.restore();
     }
+    if (rim > 0 && !path.merged){ g.lineWidth = rim; g.strokeStyle = rgba(shade(c, -0.5), 0.55); g.stroke(path); }
     g.restore();
   }
   // press: a small piece of clay pressed onto a surface (buttons, labels, eyes): lighter shading + tiny drop shadow

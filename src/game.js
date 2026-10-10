@@ -152,7 +152,20 @@ function spawn(def){
   S.active = addItem(def, W/2, S.camTop + 85, true); S.targetAngle = 0; A.sfx("spawn");
   if (def.vine){ A.sfx("vineGet"); stamp("Vine-wrapped! It sticks where it lands", "藤蔓物件：掂到就黐住", "good"); }
 }
-function nextPiece(){ refill(); const it = S.queue.shift(); refill(); spawn(it); S.canHold = true; drawPreviews(); }
+function nextPiece(){ refill(); const it = S.queue.shift(); refill(); spawn(it); S.canHold = true; drawPreviews(); prewarm(); }
+function prewarm(){   // pictures the next few seconds will need, made in spare time: the coming items upright
+  for (const d of S.queue) wantSprite(d, 0, 1);
+  if (S.hold) wantSprite(S.hold, 0, 1);
+}
+// The next game's first items are picked while the start card or the statement is showing, and their pictures
+// made then, so pressing Start or Play again doesn't stutter.
+let firstQueue = null;
+function planFirst(){   // picked as a fresh game would: the last game's forced run (after a card) doesn't carry over
+  const keep = S.forced, keepId = S.lastId; S.forced = {type: null, n: 0}; S.lastId = null;
+  firstQueue = [genItem(), genItem(), genItem()];
+  S.forced = keep; S.lastId = keepId;
+  firstQueue.forEach(d => wantSprite(d, 0, 1));
+}
 function release(hard){
   const b = S.active; if (!b) return;
   S.active = null; b.tff.released = true; b.tff.at = S.play;
@@ -164,7 +177,7 @@ function doHold(){
   if (S.scamLock > 0){ stamp("Hold locked", "被呃咗，暫存用唔到", "bad"); return; }
   const def = S.active.tff.def; Composite.remove(engine.world, S.active); S.active = null;
   if (S.hold){ const h = S.hold; S.hold = def; spawn(h); } else { S.hold = def; nextPiece(); }
-  S.canHold = false; A.sfx("hold"); drawPreviews();
+  S.canHold = false; A.sfx("hold"); drawPreviews(); prewarm();
 }
 function fallSpeed(){ let f = FALL[S.stage]; if (S.play < S.speedUntil) f *= 1.7; return f; }
 function dropDebt(){
@@ -192,6 +205,25 @@ function control(){
 // than a real knock could make it; in normal play neither limit is reached (stress-tested: peak 0.18 rad and
 // 14 px per step), they only catch rare solver blow-ups.
 const MAX_SOFT = 10, HARD_DROP = 11, MAX_SPIN = 0.3, MAX_SPEED = 22;
+// Physics runs in fixed 60 Hz steps but frames come at the screen's own rate (60, 90 or 120 Hz, never exactly
+// even). Each item remembers where it was before the latest step and every frame draws it part of the way from
+// there (ALPHA: the share of a step that has passed), so things move a little on every frame instead of
+// jumping on some and standing still on others.
+let ALPHA = 1;
+function snap(){
+  for (const b of engine.world.bodies) if (b.tff){ const p = b.tff.prev || (b.tff.prev = {x: 0, y: 0, a: 0}); p.x = b.position.x; p.y = b.position.y; p.a = b.angle; }
+}
+function lerpPose(B){
+  const p = B.tff && B.tff.prev;
+  if (!p || ALPHA >= 1) return {x: B.position.x, y: B.position.y, a: B.angle};
+  return {x: p.x + (B.position.x - p.x) * ALPHA, y: p.y + (B.position.y - p.y) * ALPHA, a: p.a + (B.angle - p.a) * ALPHA};
+}
+function drawPose(m){   // where an item is drawn this frame: a fused item goes with its group's drawn pose
+  const H = m.tff && m.tff.hostBody;
+  if (!H) return lerpPose(m);
+  const hp = lerpPose(H), c = Math.cos(hp.a), s = Math.sin(hp.a), r = m.tff.rel;
+  return {x: hp.x + r.x * c - r.y * s, y: hp.y + r.x * s + r.y * c, a: hp.a + r.a};
+}
 function worldStep(){
   for (const b of engine.world.bodies)
     if (b.tff && b.tff.capFall && b.velocity.y > b.tff.capFall) Body.setVelocity(b, {x: b.velocity.x, y: b.tff.capFall});
@@ -204,7 +236,7 @@ function worldStep(){
   }
 }
 function physicsStep(){
-  control();
+  snap(); control();
   if (S.play < S.quakeUntil){
     const k = Math.sin(S.play / 65);
     for (const b of engine.world.bodies){
@@ -378,19 +410,22 @@ function drawLeaf(c, x, y, ang, len, col){
 }
 // creeping vines on a fused body: drawn over all its items and clipped to their combined outline, so the tendrils
 // cross the joint from the vine-wrapped item onto the block it grabbed but never hang in the air
-function drawMarks(c, H){
+function drawMarks(c, H, T){
   let path = null;
   for (const m of H.tff.members){
     const marks = m.tff.marks; if (!marks || !marks.length) continue;
     if (!path){
       path = new Path2D();
       for (const part of H.parts.slice(1)){ part.vertices.forEach((v, i) => i ? path.lineTo(v.x, v.y) : path.moveTo(v.x, v.y)); path.closePath(); }
-      c.save(); c.clip(path); c.lineCap = "round"; c.lineJoin = "round";
+      // outline and marks sit at the group's latest physics pose: carry them to where the group is drawn this frame
+      const d = lerpPose(H);
+      c.save(); c.translate(d.x, d.y); c.rotate(d.a - H.angle); c.translate(-H.position.x, -H.position.y);
+      c.clip(path); c.lineCap = "round"; c.lineJoin = "round";
     }
     const p = poseOf(m);
     c.save(); c.translate(p.x, p.y); c.rotate(p.a);
     for (const k of marks){
-      const g = clamp((S.steps - k.born) / 50, 0, 1), e = 1 - Math.pow(1 - g, 3), N = 10;
+      const g = clamp((T - k.born) / 50, 0, 1), e = 1 - Math.pow(1 - g, 3), N = 10;
       for (let j = 0; j < 4; j++){
         const rr = ((k.seed * (j + 3) * 9301 + 49297) % 233280) / 233280;
         let ang = k.dir + (j - 1.5) * 0.62 + (rr - 0.5) * 0.35;
@@ -417,15 +452,16 @@ function drawMarks(c, H){
   }
   if (path) c.restore();
 }
-function drawLeaves(c){
+function drawLeaves(c, f){   // f: this frame's length in 60 Hz steps
   if (!S.leaves.length) return;
   for (const q of S.leaves){
-    q.t++;
-    if (q.ring){ const k = q.t / 16; c.strokeStyle = "rgba(76,195,106," + (1 - k).toFixed(3) + ")"; c.lineWidth = 3 * (1 - k) + 0.5; c.beginPath(); c.arc(q.x, q.y, 4 + 18 * k, 0, 7); c.stroke(); continue; }
-    q.vy += 0.09; q.vx *= 0.98; q.x += q.vx; q.y += q.vy; q.a += q.va;
+    q.t += f;
+    if (q.ring){ const k = Math.min(1, q.t / 16); c.strokeStyle = "rgba(76,195,106," + (1 - k).toFixed(3) + ")"; c.lineWidth = 3 * (1 - k) + 0.5; c.beginPath(); c.arc(q.x, q.y, 4 + 18 * k, 0, 7); c.stroke(); continue; }
+    q.vy += 0.09 * f; q.vx *= Math.pow(0.98, f); q.x += q.vx * f; q.y += q.vy * f; q.a += q.va * f;
     c.globalAlpha = Math.max(0, 1 - q.t / 42); drawLeaf(c, q.x, q.y, q.a, 5, q.col); c.globalAlpha = 1;
   }
   S.leaves = S.leaves.filter(q => q.t < (q.ring ? 16 : 42));
+  needDraw = true;   // the last frame of the burst clears it
 }
 // the vine wrap on a vine-wrapped item's sprite: clay strands across the front, leaves rooted on the item
 const vineArt = new Map();
@@ -471,12 +507,21 @@ function pickCard(){
   let c = CARDS.filter(k => k.st === S.stage && !S.used.has(k.id));
   if (!c.length) c = CARDS.filter(k => !S.used.has(k.id));
   if (!c.length){ S.used.clear(); c = CARDS.filter(k => k.st === S.stage); }
-  const card = c[Math.floor(Math.random() * c.length)]; S.used.add(card.id); return card;
+  return c[Math.floor(Math.random() * c.length)];
+}
+// The next card and the items pictured on its two choices are picked a few seconds before it opens, so their
+// pictures are made in spare time and the card deals in smoothly.
+function planCard(){
+  const c = pickCard(), order = Math.random() < 0.5 ? ["w","r"] : ["r","w"];
+  const thumbs = order.map(k => { const pool = k === "w" ? POOLS.wise : (c.trap === "scam" ? POOLS.scam : POOLS.risky); return pool[Math.floor(Math.random() * pool.length)]; });
+  thumbs.forEach(d => wantSprite(d, 0, 1));
+  return {c, order, thumbs, stage: S.stage};
 }
 function openCard(){
-  const c = pickCard();
+  const plan = S.plan && S.plan.stage === S.stage ? S.plan : planCard(), c = plan.c;
+  S.plan = null; S.used.add(c.id);
   S.cardCount++;
-  S.card = {c, t:0, flip:false, flipAt:0, order: Math.random() < 0.5 ? ["w","r"] : ["r","w"], lastTick:4};
+  S.card = {c, t:0, flip:false, flipAt:0, order: plan.order, lastTick:4};
   S.mode = "card"; softHeld = false; keys.left = keys.right = false; S.dragX = null;
   A.sfx("cardOpen"); A.mode("card");
   const st = STAGES[S.stage];
@@ -488,14 +533,13 @@ function openCard(){
   S.card.order.forEach((k, i) => {
     const b = document.createElement("button"); b.className = "choice"; b.type = "button";
     const key = document.createElement("span"); key.className = "key"; key.textContent = i === 0 ? "1" : "2";
-    const pool = k === "w" ? POOLS.wise : (c.trap === "scam" ? POOLS.scam : POOLS.risky);
     const th = document.createElement("canvas"); th.className = "thumb"; th.width = 88; th.height = 88; th.setAttribute("aria-hidden", "true");
     const t = document.createElement("span");
     const be = document.createElement("b"); be.textContent = c[k][0];
     const bz = document.createElement("small"); bz.textContent = c[k][1];
     t.append(be, bz); b.append(key, t, th);
-    requestAnimationFrame(() => previewInto(th, pool[Math.floor(Math.random() * pool.length)]));
-    b.addEventListener("click", () => choose(k === "w" ? "wise" : "risky"));
+    requestAnimationFrame(() => previewInto(th, plan.thumbs[i]));
+    b.addEventListener("click", e => { if (!tapTooSoon(e, 0)) choose(k === "w" ? "wise" : "risky"); });
     box.appendChild(b);
   });
   $("cardOutcome").hidden = true; $("cardBar").style.transform = "scaleX(1)";
@@ -505,6 +549,9 @@ function openCard(){
   const sheet = $("cardSheet"); sheet.style.animation = "none"; void sheet.offsetWidth; sheet.style.animation = "";
   modalOpen(true); $("cardSheet").focus({preventScroll:true});
 }
+// A tap meant for the board or the pad can land on a card that has just popped up (or on Continue, where a
+// choice was a moment ago): taps in the first 0.45 s are ignored. Keyboard presses (detail 0) always count.
+function tapTooSoon(e, since){ return e.detail !== 0 && !!S.card && S.card.t - since < 450; }
 function choose(kind){
   if (!S.card || S.card.flip) return;
   const c = S.card.c; S.card.flip = true; S.card.flipAt = S.card.t;
@@ -540,7 +587,7 @@ function choose(kind){
   $("cardContinue").focus({preventScroll:true});
   S.queue = []; refill();
   if (kind === "wise"){ S.queue[0] = vineOf(S.queue[0]); setTimeout(() => A.sfx("vineGet"), 380); }
-  drawPreviews(); updateHUD();
+  drawPreviews(); updateHUD(); prewarm();
 }
 function closeCard(){
   if (!S.card) return;
@@ -571,6 +618,7 @@ function startGame(){
   A.unlock();
   flushRecord(S);   // the last game's quiz answers or habit may still be waiting to be saved
   S = newState(); makeEngine(); S.mode = "playing";
+  if (firstQueue){ S.queue = firstQueue; S.lastId = firstQueue[2].id; firstQueue = null; }
   $("startOv").hidden = true; $("pauseOv").hidden = true; $("endModal").hidden = true; $("cardModal").hidden = true; $("seeOv").hidden = true; modalOpen(false);
   A.stage(0); A.mode("normal"); A.start();
   renderLedger(); nextPiece();
@@ -606,6 +654,7 @@ function act(a){
   else if (a === "rotR"){ S.targetAngle += Math.PI/12; if (S.active) A.sfx("rotate"); }
   else if (a === "drop") release(true);
   else if (a === "hold") doHold();
+  if (S.active && a.startsWith("rot")) wantSprite(S.active.tff.def, qOf(S.targetAngle), 0);   // the turn it's heading for
 }
 function setMuteUI(){ const m = A.muted(); $("muteBtn").setAttribute("aria-pressed", String(m)); $("muteBtn").setAttribute("aria-label", m ? "Unmute sound" : "Mute sound"); }
 function toggleMute(){ A.unlock(); A.toggle(); setMuteUI(); }
@@ -665,16 +714,39 @@ $("pad").querySelectorAll("button").forEach(b => {
 });
 const cv = $("board");
 let drag = null;
-function worldX(clientX){ const r = cv.getBoundingClientRect(); return (clientX - r.left) / r.width * W; }
-cv.addEventListener("pointerdown", e => { if (!S || S.mode !== "playing") return; drag = {x:e.clientX, y:e.clientY, t:performance.now(), moved:false}; try { cv.setPointerCapture(e.pointerId); } catch(_){} });
-cv.addEventListener("pointermove", e => { if (!drag || !S || S.mode !== "playing") return; if (Math.abs(e.clientX - drag.x) > 6) drag.moved = true; if (drag.moved) S.dragX = worldX(e.clientX); });
+function worldX(clientX, r){ r = r || cv.getBoundingClientRect(); return (clientX - r.left) / r.width * W; }
+// Board gestures. The first clear movement decides what a touch is: sideways steers (the item follows the finger),
+// downward doesn't (a slow drag down makes it fall faster while held). A swipe down drops the item, and so does a
+// flick down at the end of steering; a short touch that barely moved turns it. So a swipe down that drifts a
+// little no longer pulls the item across the board first, and a tap that rolls a few pixels still turns it.
+// (The board's place on screen is measured once per touch: measuring can force a layout.)
+const evT = e => e.timeStamp || performance.now();   // when the touch happened, not when the handler got to run
+cv.addEventListener("pointerdown", e => { if (!S || S.mode !== "playing") return; const t = evT(e);
+  drag = {x:e.clientX, y:e.clientY, t, axis:null, soft:false, r:cv.getBoundingClientRect(), pts:[[t, e.clientX, e.clientY]]}; try { cv.setPointerCapture(e.pointerId); } catch(_){} });
+cv.addEventListener("pointermove", e => {
+  if (!drag || !S || S.mode !== "playing") return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  drag.pts.push([evT(e), e.clientX, e.clientY]); if (drag.pts.length > 16) drag.pts.shift();
+  if (!drag.axis){
+    if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) drag.axis = "x";
+    else if (dy > 10 && dy > Math.abs(dx) * 1.2) drag.axis = "y";
+  }
+  if (drag.axis === "x") S.dragX = worldX(e.clientX, drag.r);
+  else if (drag.axis === "y" && dy > 28 && !drag.soft){ drag.soft = true; softHeld = true; }
+});
 const endDrag = e => {
   if (!drag) return;
-  const dt = performance.now() - drag.t, dy = e.clientY - drag.y, dx = e.clientX - drag.x;
-  if (S && S.mode === "playing"){
-    if (dy > 50 && dt < 350 && Math.abs(dy) > Math.abs(dx)) act("drop");
-    else if (!drag.moved && dt < 300 && Math.abs(dy) < 10) act("rotate");
+  const now = evT(e), dt = now - drag.t, dy = e.clientY - drag.y, dx = e.clientX - drag.x;
+  let p0 = drag.pts[drag.pts.length - 1];
+  for (const q of drag.pts) if (now - q[0] <= 200){ p0 = q; break; }   // where the finger was 0.2 s ago
+  const fy = e.clientY - p0[2], fx = e.clientX - p0[1];
+  if (S && S.mode === "playing" && e.type === "pointerup"){
+    const swipe = drag.axis !== "x" && dy > 45 && dy > Math.abs(dx) * 1.2 && dt < 450;
+    const flick = drag.axis === "x" && fy > 30 && fy > Math.abs(fx) * 1.2;
+    if (swipe || flick) act("drop");
+    else if (!drag.axis && dt < 300 && Math.abs(dx) < 10 && Math.abs(dy) < 10) act("rotate");
   }
+  if (drag.soft) softHeld = false;
   if (S) S.dragX = null; drag = null;
 };
 cv.addEventListener("pointerup", endDrag); cv.addEventListener("pointercancel", endDrag);
@@ -684,7 +756,7 @@ $("pauseBtn").addEventListener("click", () => { if (S && (S.mode === "playing" |
 $("hudHoldBtn").addEventListener("click", () => act("hold"));
 $("startBtn").addEventListener("click", startGame);
 $("resumeBtn").addEventListener("click", togglePause);
-$("cardContinue").addEventListener("click", closeCard);
+$("cardContinue").addEventListener("click", e => { if (!(S.card && tapTooSoon(e, S.card.flipAt))) closeCard(); });
 $("againBtn").addEventListener("click", startGame);
 // "See tower" hides the statement without resetting it; "Back to results" (or Esc / R) brings it back as it was.
 let endScroll = 0;
@@ -704,30 +776,74 @@ cv.tabIndex = 0;
 const ctx = cv.getContext("2d");
 let SC = 1, DPR = 1;
 const SPR = new Map(), SPR_MAX = 160, QA = Math.PI / 4;
+let usedText = false;   // did the sprite being made use lettering (it is made again once the web fonts arrive)
+const kText = K.text; K.text = function(){ usedText = true; return kText.apply(this, arguments); };
+const kOK = s => !!s && Math.abs(s.k - SC * DPR) <= 0.015 * SC * DPR;   // made at (about) the board's current scale
 function spriteFor(def, q){
   q = q || 0;
   const k = SC * DPR, key = def.id + "|" + q; let s = SPR.get(key);
-  if (s && s.k === k){ SPR.delete(key); SPR.set(key, s); return s; }      // LRU touch
+  if (kOK(s)){ SPR.delete(key); SPR.set(key, s); return s; }      // LRU touch
   const ang = q * QA, probe = def.make(0, 0), pad = 10;
   if (ang) Body.rotate(probe, ang, {x: 0, y: 0});
   const bb = probe.bounds;
   const x0 = bb.min.x - pad, y0 = bb.min.y - pad, w = bb.max.x - bb.min.x + pad*2, h = bb.max.y - bb.min.y + pad*2;
   const img = document.createElement("canvas"); img.width = Math.max(2, Math.ceil(w * k)); img.height = Math.max(2, Math.ceil(h * k));
   const g = img.getContext("2d"); g.setTransform(k, 0, 0, k, -x0 * k, -y0 * k); g.rotate(ang);
+  usedText = false;
   try { def.draw(g); } catch(e){ g.fillStyle = "#FF5FA2"; g.fillRect(bb.min.x, bb.min.y, bb.max.x - bb.min.x, bb.max.y - bb.min.y); }
   // soft contact shadow: blurred silhouette via the off-canvas shadow trick (Safari-safe)
   const m = 8, sh = document.createElement("canvas"); sh.width = img.width + Math.ceil(m*2*k); sh.height = img.height + Math.ceil(m*2*k);
   const sg = sh.getContext("2d"); const FAR = 10000;
   sg.shadowColor = "rgba(70,30,60,0.32)"; sg.shadowBlur = 5 * k; sg.shadowOffsetX = FAR; sg.drawImage(img, m*k - FAR, m*k);
-  s = {img, sh, x0, y0, w, h, m, k}; SPR.set(key, s);
+  s = {img, sh, x0, y0, w, h, m, k, q, text: usedText}; SPR.set(key, s);
   if (SPR.size > SPR_MAX) SPR.delete(SPR.keys().next().value);
   return s;
 }
-function bodyAnchor(b){ const p = poseOf(b), eo = b.tff.eo, c = Math.cos(p.a), s = Math.sin(p.a); return [p.x + eo.x*c - eo.y*s, p.y + eo.x*s + eo.y*c, p.a]; }
+// A sprite takes 15 ms to sculpt on a laptop and up to ten times that on a phone, so the frame never waits for one
+// when another will do: if this turn of the item isn't ready at this size yet, the nearest turn that is (or the
+// same turn made before a resize) is drawn rotated into place, and the right one is made in spare time.
+// Only an item never drawn before is made on the spot, and the coming items are made in advance (prewarm).
+function spriteNear(def, q, want){
+  const s = SPR.get(def.id + "|" + q);
+  if (kOK(s)){ SPR.delete(def.id + "|" + q); SPR.set(def.id + "|" + q, s); return s; }
+  let near = null;
+  for (let d = 1; d <= 4 && !near; d++){
+    const a = SPR.get(def.id + "|" + ((q + d) % 8)), b = SPR.get(def.id + "|" + ((q + 8 - d) % 8));
+    near = kOK(a) ? a : kOK(b) ? b : null;
+  }
+  for (let d = 0; d <= 4 && !near; d++) near = SPR.get(def.id + "|" + ((q + d) % 8)) || SPR.get(def.id + "|" + ((q + 8 - d) % 8)) || null;
+  if (!near) return spriteFor(def, q);
+  if (want) wantSprite(def, q, 0); else needDraw = true;   // passing through a turn mid-rotation: not worth making
+  return near;
+}
+// Spare-time work, most wanted first: one sprite (or scene layer) per idle moment.
+const JOBS = new Map();
+let jobT = 0;
+const onIdle = window.requestIdleCallback ? f => requestIdleCallback(f, {timeout: 500}) : f => setTimeout(() => f({timeRemaining: () => 8, didTimeout: true}), 40);
+function addJob(key, pri, run){
+  const j = JOBS.get(key);
+  if (j){ if (pri < j.pri) j.pri = pri; } else JOBS.set(key, {pri, run});
+  if (!jobT) jobT = onIdle(runJob);
+}
+function wantSprite(def, q, pri){
+  if (!kOK(SPR.get(def.id + "|" + q))) addJob(def.id + "|" + q, pri, () => { spriteFor(def, q); });
+}
+function runJob(dl){
+  jobT = 0;
+  let key = null, best = null;
+  for (const [k, j] of JOBS) if (!best || j.pri < best.pri){ key = k; best = j; }
+  if (!best) return;
+  if (dl.timeRemaining() >= 6 || dl.didTimeout){ JOBS.delete(key); best.run(); needDraw = true; if (previewsWaiting){ previewsWaiting = false; drawPreviews(true); } }
+  if (JOBS.size) jobT = onIdle(runJob);
+}
+const qOf = a => ((Math.round(a / QA) % 8) + 8) % 8;
+let drawN = 0;   // frames drawn
+function bodyAnchor(b){ const p = drawPose(b), eo = b.tff.eo, c = Math.cos(p.a), s = Math.sin(p.a); return [p.x + eo.x*c - eo.y*s, p.y + eo.x*s + eo.y*c, p.a]; }
 function drawBody(c, b, shadow){
   const [ax, ay, ang] = bodyAnchor(b);
-  const r = Math.round(ang / QA), q = ((r % 8) + 8) % 8, rest = ang - r * QA;
-  const s = spriteFor(b.tff.def, q);
+  const q = qOf(ang);
+  if (b.tff.q !== q){ b.tff.q = q; b.tff.qAt = drawN; }
+  const s = spriteNear(b.tff.def, q, drawN - b.tff.qAt >= 6), rest = ang - s.q * QA;
   c.save();
   if (shadow){ c.translate(ax + 4, ay + 6); c.rotate(rest); c.drawImage(s.sh, s.x0 - s.m, s.y0 - s.m, s.w + s.m*2, s.h + s.m*2); }
   else { c.translate(ax, ay); c.rotate(rest); c.drawImage(s.img, s.x0, s.y0, s.w, s.h); }
@@ -761,9 +877,12 @@ function crabArt(g, mood){
   else K.groove(g, K.poly([[-5, 10], [0, 12], [5, 10]], false), 1.3);
   K.press(g, K.ball(-12, 8, 3, 2, {lump:0.05}), "pink", {sheen:false, texture:0}); K.press(g, K.ball(12, 8, 3, 2, {lump:0.05}), "pink", {sheen:false, texture:0});
 }
-function buildLayers(){
+// Scene layers. soft: keep the current ones (drawn stretched for a moment) and remake them one by one in spare time,
+// so a resize or the web fonts arriving doesn't freeze the game.
+function buildLayers(soft, only){
+  const make = {};
   // sun + clouds (screen space, drawn with slow parallax)
-  L.sky = layer(W, 260, g => {
+  make.sky = () => layer(W, 260, g => {
     for (let i = 0; i < 8; i++){ const a = i * Math.PI / 4 + 0.2, r0 = 36, r1 = 47;
       K.blob(g, K.tube([[110 + r0*Math.cos(a), 95 + r0*Math.sin(a)], [110 + r1*Math.cos(a), 95 + r1*Math.sin(a)]], 6), "orange", {depth:1.4, soft:2, sheen:false, rim:0.5}); }
     K.blob(g, K.ball(110, 95, 30, 30, {lump:0.6, seed:3}), "#FFE45C", {sheen:{x:100, y:83, rx:9, ry:5}});
@@ -774,7 +893,7 @@ function buildLayers(){
     cloud(300, 78, 1, 11); cloud(215, 180, 0.72, 21); cloud(92, 228, 0.55, 31);
   });
   // skyline: colourful clay towers (parallax)
-  L.city = layer(W + 60, 260, g => {
+  make.city = () => layer(W + 60, 260, g => {
     // Lion Rock-ish hill behind the city
     K.blob(g, K.blobPoly([[-20, 260], [-20, 170], [40, 140], [95, 128], [130, 104], [158, 96], [172, 110], [200, 122], [260, 140], [330, 150], [400, 136], [W + 80, 150], [W + 80, 260]], {lump:1.2, seed:4, step:14}), "#3FAE6A", {depth:5, soft:9, sheen:false});
     const r = K.rng(77); const cols = ["pink", "teal", "purple", "orange", "blue", "green", "red", "yellow"];
@@ -796,7 +915,7 @@ function buildLayers(){
     g.save(); g.globalCompositeOperation = "source-atop"; g.fillStyle = "rgba(160,220,255,0.42)"; g.fillRect(0, 0, W + 60, 260); g.restore();
   });
   // harbour (world units, wide so it can scroll)
-  L.sea = layer(W + 120, 220, g => {
+  make.sea = () => layer(W + 120, 220, g => {
     const sea = K.slab((W + 120)/2, 120, W + 160, 240, 0, {lump:0.6, seed:5});
     K.blob(g, sea, "blue", {depth:6, soft:10, sheen:false, texture:0.18});
     for (let row = 0; row < 5; row++){
@@ -805,7 +924,7 @@ function buildLayers(){
     }
   });
   // platform + pillar
-  L.plat = layer(PW + 40, 200, g => {
+  make.plat = () => layer(PW + 40, 200, g => {
     K.blob(g, K.slab(PW/2 + 20, 120, 74, 190, 8, {lump:0.8, seed:2}), "#3A3F9E", {depth:5, soft:8});
     for (let y = 50; y < 200; y += 22) K.groove(g, K.poly([[PW/2 - 14, y], [PW/2 + 54, y]], false), 1.2);
     K.blob(g, K.slab(PW/2 + 20, 15, PW, 30, 7, {lump:1.0, seed:6}), "yellow", {sheen:{x:70, y:7, rx:30, ry:3}});
@@ -813,7 +932,7 @@ function buildLayers(){
     K.text(g, "SAVINGS FOUNDATION", PW/2 + 52, 16.5, {size:11.5, font:"display", color:"#25317A", weight:900});
   });
   // a red-sail junk that drifts across the harbour
-  L.junk = layer(80, 60, g => {
+  make.junk = () => layer(80, 60, g => {
     K.blob(g, K.tube([[40, 6], [40, 44]], 2.4), "brown", {depth:0.8, soft:1, sheen:false, rim:0.4});
     for (const [cx, w, hgt] of [[26, 22, 30], [52, 18, 24]]){
       const sail = K.blobPoly([[cx - w/2, 44 - hgt], [cx + w/2, 40 - hgt], [cx + w/2 + 2, 42], [cx - w/2 - 2, 44]], {lump:0.4, seed:cx});
@@ -823,44 +942,68 @@ function buildLayers(){
     K.blob(g, K.blobPoly([[4, 44], [76, 42], [68, 56], [12, 56]], {lump:0.4, seed:8}), "#A0522D", {depth:2, soft:3, sheen:false});
     K.press(g, K.slab(40, 47, 50, 3, 1, {lump:0.1}), "yellow", {sheen:false, texture:0});
   });
-  L.crab = {};
-  for (const m of ["idle", "happy", "worried", "cover"]) L.crab[m] = layer(80, 64, g => { g.translate(40, 30); crabArt(g, m); });
-  // logo + panel crabs
+  make.crab = () => { const o = {}; for (const m of ["idle", "happy", "worried", "cover"]) o[m] = layer(80, 64, g => { g.translate(40, 30); crabArt(g, m); }); return o; };
+  for (const name in make){
+    if (only && name !== only) continue;
+    if (soft && L[name]) addJob("layer:" + name, 0.5, () => { L[name] = make[name](); });
+    else L[name] = make[name]();
+  }
+}
+function drawCrabs(){   // logo + panel crabs (fixed size, drawn once)
   for (const [id, m] of [["crabLogo", "happy"], ["crabSay", "idle"]]){
     const c = $(id); const g = c.getContext("2d"); g.setTransform(1,0,0,1,0,0); g.clearRect(0, 0, c.width, c.height);
     const s = c.width / 80; g.setTransform(s, 0, 0, s, 40*s, 32*s); crabArt(g, m);
   }
 }
+const PREVIEWS = ["nextCv", "holdCv", "next2Cv", "hudNext", "hudHold"];
+let lastFit = "";
 function resize(){
-  const narrow = matchMedia("(max-width: 899px)").matches;
+  const narrow = matchMedia("(max-width: 899px)").matches, touch = matchMedia("(pointer: coarse)").matches;
   const padOn = getComputedStyle($("pad")).display !== "none";
   const header = document.querySelector(".mast").offsetHeight;
+  // Phones and tablets size the board to the screen with the browser's bars showing (it doesn't change as you
+  // scroll or type), so the address bar sliding away or the keyboard opening doesn't resize the board and remake
+  // every picture mid-game.
+  const vh = (narrow || touch) && document.documentElement.clientHeight || window.innerHeight;
   let availH, availW;
-  if (narrow){ availW = document.documentElement.clientWidth - 32 - 20; availH = window.innerHeight - header - 70 - (padOn ? 100 : 0) - 40; }
-  else { availW = Math.max(260, window.innerWidth - 620); availH = window.innerHeight - header - 70 - (padOn ? 100 : 0); }
+  if (narrow){ availW = document.documentElement.clientWidth - 32 - 20; availH = vh - header - 70 - (padOn ? 100 : 0) - 40; }
+  else { availW = Math.max(260, window.innerWidth - 620); availH = vh - header - 70 - (padOn ? 100 : 0); }
+  const fit = [narrow, padOn, availW, availH, window.devicePixelRatio].join();
+  if (fit === lastFit) return;
+  lastFit = fit;
   const prevSC = SC, prevDPR = DPR;
   SC = Math.max(0.3, Math.min(availH / H, availW / W, 1.25));
   DPR = Math.min(2, window.devicePixelRatio || 1);
-  cv.width = Math.round(W * SC * DPR); cv.height = Math.round(H * SC * DPR);
+  const cw = Math.round(W * SC * DPR), ch = Math.round(H * SC * DPR);
+  if (cv.width !== cw || cv.height !== ch){ cv.width = cw; cv.height = ch; needDraw = true; }
   cv.style.width = Math.round(W * SC) + "px"; cv.style.height = Math.round(H * SC) + "px";
   $("pad").style.maxWidth = Math.max(300, W * SC + 20) + "px";
-  if (!L.sky || Math.abs(SC - prevSC) > 0.015 || DPR !== prevDPR) buildLayers();
-  drawPreviews();
+  if (!L.sky) buildLayers();
+  else if (Math.abs(SC - prevSC) > 0.015 || DPR !== prevDPR) buildLayers(true);
   const gw = document.querySelector('.col.right').getBoundingClientRect().right - document.querySelector('.col.left').getBoundingClientRect().left; $("info").style.maxWidth = narrow ? "" : Math.round(gw) + "px"; document.querySelector(".mast").style.maxWidth = narrow ? "" : Math.round(gw) + "px";
+  for (const id of PREVIEWS) $(id)._sz = null;
+  drawPreviews(true);
 }
 let rzT = 0; window.addEventListener("resize", () => { clearTimeout(rzT); rzT = setTimeout(resize, 220); });
 
-function draw(){
-  const c = ctx, k = SC * DPR;
-  const target = Math.min(-(H - 240), -S.height - 330);
-  S.camTop += (target - S.camTop) * 0.05;
+const camTarget = () => Math.min(-(H - 240), -S.height - 330);
+let skyDusk = -1, skyFill = null;
+// dt: this frame's length in ms. Everything that moves on its own (camera, shake, splashes, leaves, sea, boat, crab)
+// moves by time, not by frames, so it runs at the same speed on a 60 Hz or a 120 Hz screen.
+function draw(dt){
+  const c = ctx, k = SC * DPR, f = (dt || STEP) / STEP, T = S.steps + ALPHA; drawN++;
+  const target = camTarget();
+  S.camTop += (target - S.camTop) * (1 - Math.pow(0.95, f));
   let sx = 0;
-  if (S.shake > 0){ sx = (Math.random() - .5) * S.shake; S.shake = Math.max(0, S.shake - 0.4); }
+  if (S.shake > 0){ sx = (Math.random() - .5) * S.shake; S.shake = Math.max(0, S.shake - 0.4 * f); }
   const rise = -S.camTop - (H - 240);                    // how far the camera has climbed
   c.setTransform(k, 0, 0, k, 0, 0);
-  const sky = c.createLinearGradient(0, 0, 0, H), dusk = clamp((S.best / FLOOR - 5) / 6, 0, 1);
-  sky.addColorStop(0, mixHex("#3FB4FF", "#FF8E5A", dusk)); sky.addColorStop(0.65, mixHex("#8EDBFF", "#FFC36E", dusk)); sky.addColorStop(1, mixHex("#C8F0FF", "#FFE7A8", dusk));
-  c.fillStyle = sky; c.fillRect(0, 0, W, H);
+  const dusk = Math.round(clamp((S.best / FLOOR - 5) / 6, 0, 1) * 200) / 200;
+  if (dusk !== skyDusk){
+    skyDusk = dusk; skyFill = c.createLinearGradient(0, 0, 0, H);
+    skyFill.addColorStop(0, mixHex("#3FB4FF", "#FF8E5A", dusk)); skyFill.addColorStop(0.65, mixHex("#8EDBFF", "#FFC36E", dusk)); skyFill.addColorStop(1, mixHex("#C8F0FF", "#FFE7A8", dusk));
+  }
+  c.fillStyle = skyFill; c.fillRect(0, 0, W, H);
   c.drawImage(L.sky, 0, Math.min(40, rise * 0.05) - 10, W, 260);
   const cityY = Math.min(H - 110, (WATER_Y - S.camTop) - 250 + rise * 0.85);
   c.drawImage(L.city, -30, cityY, W + 60, 260);
@@ -871,26 +1014,34 @@ function draw(){
   const a = S.active;
   for (const b of engine.world.bodies) if (b.tff) for (const m of membersOf(b)) drawBody(c, m, true);
   if (a && S.mode !== "over"){
-    // dashed guide down to where the item will land, with a landing ring
-    const others = engine.world.bodies.filter(b => b !== a), x = a.position.x;
-    let y = a.bounds.max.y + 6, land = WATER_Y;
-    for (; y < WATER_Y; y += 5){ if (Matter.Query.point(others, {x, y}).length){ land = y; break; } }
+    // dashed guide down to where the item will land, with a landing ring. Only bodies under the item can stop it:
+    // the scan starts at the highest of them, steps on a fixed 5 px grid (so the ring doesn't shimmer while the
+    // item falls), then closes in on the surface.
+    const ap = lerpPose(a), x = ap.x, y0 = a.bounds.max.y + (ap.y - a.position.y) + 6, under = [];
+    let top = WATER_Y, land = WATER_Y;
+    for (const b of engine.world.bodies) if (b !== a && b.bounds.min.x <= x && b.bounds.max.x >= x && b.bounds.max.y >= y0){ under.push(b); top = Math.min(top, b.bounds.min.y); }
+    for (let y = Math.ceil(Math.max(y0, top) / 5) * 5; y < WATER_Y; y += 5){
+      if (!Matter.Query.point(under, {x, y}).length) continue;
+      let lo = y - 5, hi = y;
+      for (let i = 0; i < 3; i++){ const mid = (lo + hi) / 2; if (Matter.Query.point(under, {x, y: mid}).length) hi = mid; else lo = mid; }
+      land = Math.max(y0, hi); break;
+    }
     c.save(); c.strokeStyle = "rgba(255,95,162,0.8)"; c.setLineDash([5, 7]); c.lineWidth = 2.2; c.lineCap = "round";
-    c.beginPath(); c.moveTo(x, a.bounds.max.y + 6); c.lineTo(x, land - 4); c.stroke(); c.setLineDash([]);
+    c.beginPath(); c.moveTo(x, y0); c.lineTo(x, land - 4); c.stroke(); c.setLineDash([]);
     c.strokeStyle = "rgba(255,95,162,0.9)"; c.lineWidth = 2.4; c.beginPath(); c.ellipse(x, land - 2, 9, 3.2, 0, 0, Math.PI * 2); c.stroke(); c.restore();
   }
-  for (const b of engine.world.bodies) if (b.tff && b !== a){ for (const m of membersOf(b)) drawBody(c, m, false); if (b.tff.members) drawMarks(c, b); }
+  for (const b of engine.world.bodies) if (b.tff && b !== a){ for (const m of membersOf(b)) drawBody(c, m, false); if (b.tff.members) drawMarks(c, b, T); }
   if (a) drawBody(c, a, false);
-  drawLeaves(c);
+  drawLeaves(c, f);
   drawLabels(c);
   // harbour in front (anything below the surface sinks behind it)
-  const off = (S.steps * 0.35) % 60;
+  const off = (T * 0.35) % 60;
   c.drawImage(L.sea, -60 - off, WATER_Y - 6, W + 120, 220);
   c.fillStyle = "rgba(20,30,90,0.28)"; c.beginPath(); c.ellipse(W/2, WATER_Y + 6, 46, 6, 0, 0, Math.PI * 2); c.fill();
-  const jx = ((S.steps * 0.22) % (W + 160)) - 100, jy = WATER_Y - 44 + (reduceMotion ? 0 : Math.sin(S.steps / 22) * 1.6);
+  const jx = ((T * 0.22) % (W + 160)) - 100, jy = WATER_Y - 44 + (reduceMotion ? 0 : Math.sin(T / 22) * 1.6);
   c.drawImage(L.junk, jx, jy, 80, 60);
   for (const sp of S.splashes){
-    sp.t += 1; const t = sp.t / 45, n = sp.big ? 9 : 6;
+    sp.t += f; const t = sp.t / 45, n = sp.big ? 9 : 6;
     for (let i = 0; i < n; i++){
       const ang = Math.PI * (0.15 + 0.7 * i / (n - 1)), v = (sp.big ? 3.4 : 2.6) * (0.8 + (i % 3) * 0.15);
       const px = sp.x + Math.cos(ang) * v * sp.t * 1.2 * (i % 2 ? 1 : -1), py = WATER_Y - Math.sin(ang) * v * sp.t + 0.09 * sp.t * sp.t;
@@ -899,10 +1050,10 @@ function draw(){
       c.fillStyle = "rgba(255,255,255,0.85)"; c.beginPath(); c.arc(px - 0.9, py - 0.9, 1.1, 0, 7); c.fill();
     }
   }
-  S.splashes = S.splashes.filter(sp => sp.t < 45);
+  if (S.splashes.length){ S.splashes = S.splashes.filter(sp => sp.t < 45); needDraw = true; }
   // crab mascot by the pillar
   const md = S.mood.until > S.play || S.mode === "over" ? S.mood.type : "idle";
-  const bob = reduceMotion ? 0 : Math.sin(S.steps / 14) * 1.5 + (md === "happy" ? -Math.abs(Math.sin(S.steps / 5)) * 4 : 0) + (md === "worried" ? Math.sin(S.steps * 1.3) * 1.5 : 0);
+  const bob = reduceMotion ? 0 : Math.sin(T / 14) * 1.5 + (md === "happy" ? -Math.abs(Math.sin(T / 5)) * 4 : 0) + (md === "worried" ? Math.sin(T * 1.3) * 1.5 : 0);
   c.drawImage(L.crab[md] || L.crab.idle, W/2 + 48, WATER_Y - 46 + bob, 80, 64);
   c.setTransform(k, 0, 0, k, 0, 0);
   if (S.mode === "playing" && S.play < S.speedUntil){ c.fillStyle = "rgba(255,123,53,0.08)"; c.fillRect(0, 0, W, H); }
@@ -953,10 +1104,13 @@ function mixHex(a, b, t){ const pa = parseInt(a.slice(1), 16), pb = parseInt(b.s
 function roundRect(c, x, y, w, h, r){ c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
 
 const previewCache = new Map();
+let previewsWaiting = false;   // a preview was drawn from a stand-in sprite; redraw it when the right one is made
 function previewInto(canvas, def){
+  // the size is measured once per layout (resize clears it): measuring forces a layout, and hidden ones are skipped
+  const r = canvas._sz || (canvas._sz = canvas.getBoundingClientRect());
+  if (!r.width || !r.height) return;
   const g = canvas.getContext("2d");
-  const r = canvas.getBoundingClientRect();
-  const w = Math.max(20, Math.round((r.width || 60) * DPR)), h = Math.max(20, Math.round((r.height || 60) * DPR));
+  const w = Math.max(20, Math.round(r.width * DPR)), h = Math.max(20, Math.round(r.height * DPR));
   if (canvas.width !== w || canvas.height !== h){ canvas.width = w; canvas.height = h; }
   g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, w, h);
   if (!def){
@@ -969,8 +1123,14 @@ function previewInto(canvas, def){
   const bw = b.bounds.max.x - b.bounds.min.x, bh = b.bounds.max.y - b.bounds.min.y;
   const s = Math.min(w, h) * 0.8 / Math.max(bw, bh, 64);
   g.setTransform(s, 0, 0, s, w/2 - (b.bounds.min.x + bw/2) * s, h/2 - (b.bounds.min.y + bh/2) * s);
-  // reuse the board sprite (cached) instead of re-sculpting the clay for every ticket and card thumbnail
-  try { const sp = spriteFor(def, 0); g.imageSmoothingQuality = "high"; g.drawImage(sp.img, sp.x0, sp.y0, sp.w, sp.h); } catch(e){ try { def.draw(g); } catch(e2){} }
+  // reuse the board sprite (cached) instead of re-sculpting the clay for every ticket and card thumbnail; one made
+  // before a resize stands in until the sharp one is ready
+  try {
+    let sp = SPR.get(def.id + "|0");
+    if (!sp) sp = spriteFor(def, 0);
+    else if (!kOK(sp)){ wantSprite(def, 0, 0); previewsWaiting = true; }
+    g.imageSmoothingQuality = "high"; g.drawImage(sp.img, sp.x0, sp.y0, sp.w, sp.h);
+  } catch(e){ try { def.draw(g); } catch(e2){} }
 }
 function nameInto(el, def, empty){
   el.replaceChildren();
@@ -1087,21 +1247,35 @@ function stamp(en, zh, kind){
 }
 
 // ---------- loop ----------
-let last = performance.now();
+let last = performance.now(), needDraw = true;   // needDraw: the picture changed outside the physics (resize, a new sprite)
+// A phone turned sideways mid-game would leave a tiny board: the game pauses (a Life Event card's clock stops too)
+// and asks for the phone to be turned back. The statement and the leaderboard work either way.
+const SIDEWAYS = matchMedia("(orientation: landscape) and (max-height: 500px) and (pointer: coarse)");
+let sideways = false;
+const awake = () => engine.world.bodies.some(b => b.tff && !b.isSleeping);
 function frame(now){
   const dt = Math.min(50, now - last); last = now;
   if (S){
+    const side = SIDEWAYS.matches && (S.mode === "playing" || S.mode === "paused" || S.mode === "card");
+    if (side !== sideways){ sideways = side; $("turnOv").hidden = !side; if (side && S.mode === "playing") togglePause(); }
+    let live = false;
     if (S.mode === "card" && S.card){
-      S.card.t += dt;
+      if (!sideways) S.card.t += dt;
       if (!S.card.flip){
         const left = cardMs() - S.card.t;
         $("cardBar").style.transform = "scaleX(" + Math.max(0, left / cardMs()).toFixed(3) + ")";
         const sec = Math.ceil(left / 1000); if (sec <= 3 && sec < S.card.lastTick && sec > 0){ S.card.lastTick = sec; A.sfx("cardTick"); }
         if (S.card.t >= cardMs()) choose("none");
       } else if (!slowRead && S.card.t - S.card.flipAt > RESULT_MS) closeCard();
-    } else if (S.mode === "playing") tick(dt);
-    else if (S.mode === "over" || (S.mode === "idle" && S.viewing)){ S.acc += dt; let n = 0; while (S.acc >= STEP && n++ < 3){ S.acc -= STEP; worldStep(); } }
-    draw();
+    } else if (S.mode === "playing"){ tick(dt); live = true; }
+    else if (S.mode === "over" || (S.mode === "idle" && S.viewing)){
+      S.acc += dt; let n = 0; while (S.acc >= STEP && n++ < 3){ S.acc -= STEP; snap(); worldStep(); }
+      live = S.mode !== "over" || $("endModal").hidden || awake();   // under the statement, a settled tower stays as drawn
+    }
+    ALPHA = clamp(S.acc / STEP, 0, 1);
+    // A still scene (start card, Life Event card, pause, statement over a settled tower) isn't redrawn 60 times a
+    // second: that saves battery and keeps scrolling and the cards' animations smooth on phones.
+    if (live || needDraw || S.shake > 0 || S.splashes.length || S.leaves.length || Math.abs(camTarget() - S.camTop) > 0.05){ needDraw = false; draw(dt); }
   }
   requestAnimationFrame(frame);
 }
@@ -1110,6 +1284,7 @@ function tick(dt){
   if (S.play >= GAME_MS){ endGame("time"); return; }
   if (S.fastOn && S.play >= S.speedUntil){ S.fastOn = false; A.mode("normal"); }
   if (S.active && S.play >= S.nextEvent){ openCard(); return; }
+  if (!S.plan && S.play >= S.nextEvent - 4000) S.plan = planCard();
   if (S.active && S.shocks.length && S.play >= S.shocks[0]){ S.shocks.shift(); shock(); }
   if (!S.active && S.spawnAt && S.play >= S.spawnAt){ S.spawnAt = 0; if (S.scamLock > 0) S.scamLock--; nextPiece(); }
   S.acc += dt; let n = 0;
@@ -1192,6 +1367,7 @@ function showEnd(){
   $("endTitle").focus({preventScroll:true});
   const game = S; game.rec = newRecord();
   saveRecord(game).catch(e => keepForLater(game, e));
+  planFirst();
 }
 
 // ---------- leaderboard: live board from /api/scores (Cloudflare Pages Function + D1); this device is the fallback ----------
@@ -1315,6 +1491,11 @@ function emailError(on){   // red outline plus aria-invalid, and the message und
   if (on) em.setAttribute("aria-invalid", "true"); else em.removeAttribute("aria-invalid");
   em.setAttribute("aria-describedby", (on ? "postStatus " : "") + notes);
 }
+// the result of posting appears under the button: scroll it up from behind the sticky buttons if it's there
+const showStatus = () => requestAnimationFrame(() => {
+  const over = $("postStatus").getBoundingClientRect().bottom - document.querySelector(".endactions").getBoundingClientRect().top + 8;
+  if (over > 0) $("endModal").scrollBy({top: over, behavior: reduceMotion ? "auto" : "smooth"});
+});
 $("postBtn").addEventListener("click", async () => {
   const st = S; if (st.posted || st.posting) return;
   const ps = $("postStatus"), btn = $("postBtn"), em = $("email");
@@ -1344,7 +1525,7 @@ $("postBtn").addEventListener("click", async () => {
         A.sfx("post"); ps.className = "post-status ok";
         ps.textContent = (j.rank ? "You're #" + j.rank + " this week! 今個星期排第" + j.rank + "！ " : "On the live board! 已上榜！ ") +
           (email ? "We'll email you if you win a prize. 如果你得獎，我哋會電郵通知你。" : "Top scorers each week and month win prizes. 每週同每月最高分都有獎！");
-        btn.firstChild.textContent = "Posted ✓";
+        btn.firstChild.textContent = "Posted ✓"; showStatus();
       }
       lbSig = ""; refreshLB(true);
       return;
@@ -1363,6 +1544,7 @@ $("postBtn").addEventListener("click", async () => {
           btn.disabled = false; btn.firstChild.textContent = "Try again";
           ps.textContent = e.status === 429 ? "Lots of crabs posting at once. Wait a moment, then try again. 太多人同時上榜，等陣再試吓。"
                                             : "Couldn't reach the live board. Check your connection, then try again. 連唔到排行榜，檢查吓網絡再試。";
+          showStatus();
         }
         return;
       }
@@ -1372,7 +1554,7 @@ $("postBtn").addEventListener("click", async () => {
     }
   } else ps.textContent = "Saved on this device. 已經存咗喺呢部機。";
   saveLocal(); myLocalAt = entry.at; st.posted = true; st.posting = false;
-  if (st === S){ A.sfx("post"); ps.className = "post-status ok"; btn.firstChild.textContent = "Saved ✓"; }
+  if (st === S){ A.sfx("post"); ps.className = "post-status ok"; btn.firstChild.textContent = "Saved ✓"; showStatus(); }
   lbSig = ""; renderLB();
 });
 document.querySelectorAll(".tab").forEach(b => b.addEventListener("click", () => {
@@ -1492,30 +1674,47 @@ async function initDB(){
 }
 
 // ---------- boot: a settled sample tower behind the start card ----------
+// Where the plan below settles (id, x, y, angle, outline points): running it takes ~600 physics steps at load,
+// so the settled tower is placed directly. If an item's shape has changed since, the plan runs as before.
+const TOWER = [["lunchbox", 152.06, -21.076, -0.0027, 52], ["textbooks", 261.858, -20.288, 0.0062, 24], ["steamer", 180.307, -68.17, -0.0086, 44],
+               ["piggybank", 281.871, -76.162, 0.0083, 62], ["handbag", 224.615, -131.694, -0.0968, 52]];
 function sampleTower(){
   S = newState(); makeEngine();
   const pick = id => DEFS.find(d => d.id === id);
-  const plan = [["lunchbox", -70, -26], ["textbooks", 42, -24], ["steamer", -40, -70], ["piggybank", 60, -75], ["calculator", -80, -120],
-                ["handbag", 10, -125], ["bubbletea", 80, -140], ["football", -30, -175], ["passbook", 40, -190]];
-  const fallback = DEFS.filter(d => d.kind !== "debt");
-  plan.forEach(([id, x, y], i) => {
-    const def = pick(id) || fallback[i % fallback.length]; if (!def) return;
-    addItem(def, W/2 + x, y, false); for (let s = 0; s < 45; s++) Engine.update(engine, STEP);
+  const points = b => b.parts.reduce((s, q, i) => s + (i || b.parts.length === 1 ? q.vertices.length : 0), 0);
+  const placed = TOWER.every(([id, x, y, a, n]) => {
+    const def = pick(id); if (!def) return false;
+    const b = addItem(def, x, y, false); Body.setAngle(b, a); Body.setPosition(b, {x, y}); Sleeping.set(b, true);
+    return points(b) === n;
   });
-  for (let s = 0; s < 200; s++) Engine.update(engine, STEP);
-  for (const b of engine.world.bodies.slice()) if (b.tff && b.position.y > WATER_Y) Composite.remove(engine.world, b);
+  if (!placed){
+    for (const b of engine.world.bodies.slice()) if (b.tff) Composite.remove(engine.world, b);
+    const plan = [["lunchbox", -70, -26], ["textbooks", 42, -24], ["steamer", -40, -70], ["piggybank", 60, -75], ["calculator", -80, -120],
+                  ["handbag", 10, -125], ["bubbletea", 80, -140], ["football", -30, -175], ["passbook", 40, -190]];
+    const fallback = DEFS.filter(d => d.kind !== "debt");
+    plan.forEach(([id, x, y], i) => {
+      const def = pick(id) || fallback[i % fallback.length]; if (!def) return;
+      addItem(def, W/2 + x, y, false); for (let s = 0; s < 45; s++) Engine.update(engine, STEP);
+    });
+    for (let s = 0; s < 200; s++) Engine.update(engine, STEP);
+    for (const b of engine.world.bodies.slice()) if (b.tff && b.position.y > WATER_Y) Composite.remove(engine.world, b);
+  }
   let h = 0; for (const b of engine.world.bodies) if (b.tff && b.position.y < 5) h = Math.max(h, -b.bounds.min.y);
   S.height = h; S.camTop = Math.min(-(H - 240), -h - 330);
   S.queue = [pick("football") || fallback[0], pick("textbooks") || fallback[1] || fallback[0], pick("banana") || fallback[2] || fallback[0]];
   crab("Hi! I'm the 3 Fall Crab. Every item you stack is a money decision.", "我係3 Fall Crab！你疊嘅每件嘢，都係一個理財決定。");
 }
-buildStatic(); sampleTower(); resize(); updateHUD(); renderLedger(); setMuteUI();
+buildStatic(); sampleTower(); resize(); drawCrabs(); updateHUD(); renderLedger(); setMuteUI(); planFirst();
 markZh(document.body); zhWatch.observe(document.body, ZH_WATCH);
 document.querySelectorAll(".slowRead").forEach(cb => {
   cb.checked = slowRead;
   cb.addEventListener("change", () => { slowRead = cb.checked; lsSet("tff_slow_read", slowRead); document.querySelectorAll(".slowRead").forEach(o => { o.checked = slowRead; }); });
 });
 initDB();
-if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { SPR.clear(); previewCache.clear(); buildLayers(); drawPreviews(true); });
+// Pictures with lettering are remade once the web fonts have arrived, in spare time; until then the first ones stay up.
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => {
+  for (const s of SPR.values()) if (s.text) s.k = -1;
+  buildLayers(true, "plat"); needDraw = true; drawPreviews(true);
+});
 requestAnimationFrame(frame);
 })();
