@@ -397,7 +397,7 @@ button{font-family:inherit;color:inherit}
   .ov-card h2{font-size:24px}
 }
 @media (max-width: 380px), (max-height: 640px) and (max-width: 899px){
-  .ov-card .desc, .ov-card .slowread small{display:none}
+  .ov-card .desc{display:none}
   .word{font-size:26px}
   .zh-title{font-size:16px;letter-spacing:2px}
   #crabLogo{width:42px;height:34px}
@@ -514,12 +514,6 @@ button{font-family:inherit;color:inherit}
 .namerow .fld input{flex:none;width:100%}
 .email-note a, .foot a{color:var(--navy);font-weight:700;text-decoration:underline;text-underline-offset:2px}
 
-/* Extra reading time switch on the start and pause cards */
-.slowread{display:flex;gap:8px;align-items:flex-start;text-align:left;font-size:13px;font-weight:700;color:var(--ink);cursor:pointer;max-width:260px;margin-top:2px}
-.slowread input{width:24px;height:24px;margin:-2px 0 0;flex:none;accent-color:var(--hot)}
-.ov-card .slowread .zh{font-family:var(--f-zh);font-size:13px;font-weight:700;color:var(--ink);margin:0 0 0 4px;white-space:nowrap}
-.slowread small{display:block;font-weight:400;font-size:11.5px;line-height:1.35;color:var(--ink-2);margin-top:2px}
-
 /* privacy footer */
 .foot{max-width:860px;margin:22px auto 0;padding:12px 16px;border-radius:16px;background:rgba(255,244,226,.88);font-size:12.5px;line-height:1.5;color:var(--ink)}
 .foot p{margin:0}
@@ -557,10 +551,6 @@ button{font-family:inherit;color:inherit}
 
 /* ---------- full screen play ---------- */
 #fsBtn .fx{display:none} #fsBtn[aria-pressed="true"] .fx{display:inline} #fsBtn[aria-pressed="true"] .fo{display:none}
-.ov-acts{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
-.ov-card .fsgo{display:inline-flex;align-items:center;gap:7px;padding:7px 14px 8px;border-radius:14px;font-size:14px;line-height:1.05;text-align:left}   /* smaller than Start */
-.ov-card .fsgo .zh{display:block;margin:2px 0 0;font-size:12.5px}
-.fsgo svg{width:18px;height:18px;flex:none}
 /* Three buttons in the header on phones: a little smaller, and the title too, so they all fit on one line */
 @media (max-width: 480px){ .mast-right{gap:8px} .iconbtn{width:40px;height:40px;border-radius:14px} }
 @media (max-width: 480px) and (min-width: 361px){ .word{font-size:26px} }
@@ -580,13 +570,13 @@ html.fs .set{padding-top:max(8px, env(safe-area-inset-top));padding-bottom:max(1
   html.fs #crabLogo{width:40px;height:32px}
 }
 html.ingame{overscroll-behavior-y:none}   /* no pull-to-refresh (and a lost game) from a stray swipe mid-game */
-/* Short boards (most phones with the browser's bars showing): the start card keeps to the essentials, so Start,
-   Full screen and Extra reading time all show without scrolling inside it (How to play is just below the board) */
+/* Short boards (most phones with the browser's bars showing): the start card keeps to the essentials, so Start and
+   the two chips under it show without scrolling inside it (How to play is just below the board) */
 @media (max-width: 899px) and (max-height: 760px){
   #startOv{padding-top:10px}
-  .ov-card .desc, .ov-card .slowread small{display:none}
+  .ov-card .desc{display:none}
 }
-@media (max-width: 340px){ #startOv{padding-top:10px} .ov-card .fsgo{display:none} }   /* tiny phones: ⛶ is in the header */
+@media (max-width: 340px){ #startOv{padding-top:10px} #fsStartBtn{display:none} }   /* tiny phones: ⛶ is in the header */
 
 /* ---------- the crab's speech bubble (by the crab at the harbour) ---------- */
 .talk{position:absolute;inset:10px;pointer-events:none;overflow:hidden;border-radius:20px}
@@ -630,10 +620,6 @@ html.fs .talk{inset:6px}
   .howto .how li{padding:9px 12px 10px 44px}
   .howto .how li::before{top:9px}
 }
-/* Start and Full screen fit side by side on a phone-sized start card */
-.ov-acts{gap:6px}
-.ov-acts #startBtn{padding-inline:15px}
-.ov-card .fsgo{padding-inline:11px;gap:6px}
 .ov-card .desc{text-wrap:balance}
 /* statement: tighter quiz and habit options (habits: Cantonese beside the English, like the quiz) */
 .habits{gap:6px}
@@ -648,3 +634,33 @@ html.fs .talk{inset:6px}
 .st-scroll{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain}
 .statement .endactions{position:static;flex:none;margin:0;padding:12px 20px 16px;background:var(--cream);box-shadow:0 -1px 0 var(--cream-d), 0 -8px 14px -10px rgba(60,20,10,.35)}
 @media (max-width: 520px){ .statement .endactions{padding:10px 16px 14px} }
+
+/* ---------- start and pause cards: one big button, the settings as small chips under it ----------
+   Full screen is a raised chip; the card timer is a sunken slot with the chosen time as a pink knob (radio buttons
+   underneath, so it is one two-option choice for keyboards and screen readers). */
+.ov-card .btn.go{font-size:21px;padding:12px 34px 13px;border-radius:18px;min-width:min(200px,100%);margin:2px 0 4px}
+.ov-card .btn.go .zh{font-size:16px}
+#startOv .ov-card{max-width:320px}   /* room for both chips on one row */
+#startOv{container-type:inline-size}
+#startOv .ov-card h2{font-size:clamp(19px, calc(10.4cqi - 3px), 28px)}   /* the title stays on one line on narrow boards (iPhone SE) */
+.ov-card .ctl{display:flex;justify-content:space-around}   /* the longest gesture label gets the most room */
+.ov-card .ctl li{flex:0 1 auto;min-width:0}
+.ov-card .ctl small{white-space:nowrap}   /* Cantonese labels never break mid-word */
+@media (pointer: coarse){ .ov-card .ctl.touch-only{display:flex} }
+.ov-opts{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 5px;width:100%}
+.ov-chip{display:inline-flex;align-items:center;gap:4px;min-height:38px;padding:4px 9px 4px 7px;border:0;border-radius:13px;background:#8FE3DA;color:var(--ink);
+  font-family:var(--f-body);font-size:11.5px;font-weight:800;line-height:1.15;text-align:left;
+  box-shadow:inset 1px 1px 0 rgba(255,255,255,.5), inset -2px -2px 4px rgba(0,0,0,.14), 0 3px 0 var(--teal-d)}
+.ov-opts > .ov-chip{flex:1 1 auto;justify-content:center}   /* fill the row; stacked (narrow boards) both are full width */
+button.ov-chip{appearance:none;cursor:pointer;transition:transform .08s, box-shadow .08s}
+button.ov-chip:active{transform:translateY(2px);box-shadow:inset 1px 1px 0 rgba(255,255,255,.5), inset -2px -2px 4px rgba(0,0,0,.14), 0 1px 0 var(--teal-d)}
+.ov-chip svg{width:17px;height:17px;flex:none;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.ov-card .ov-chip .zh{display:block;margin:1px 0 0;font-family:var(--f-zh);font-size:11px;font-weight:700;color:var(--ink)}
+.ctime{padding:3px 3px 3px 7px;gap:3px;box-shadow:inset 2px 2px 4px rgba(0,0,0,.16), inset -1px -1px 0 rgba(255,255,255,.45)}
+.ctime .k{margin-right:2px;white-space:nowrap}
+.ctime label{position:relative;display:block}
+.ctime input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
+.ctime label > span{display:block;min-width:32px;padding:7px 5px 8px;border-radius:10px;font-size:12.5px;font-weight:800;line-height:1.1;text-align:center;color:var(--ink)}
+.ctime input:checked + span{background:var(--hot);color:#fff;box-shadow:inset 1px 1px 0 rgba(255,255,255,.45), inset -2px -2px 3px rgba(0,0,0,.18), 0 2px 0 var(--hot-d)}
+.ctime input:focus-visible + span{outline:3px solid var(--navy);outline-offset:2px}
+@media (max-width: 380px){ #startOv .ov-card{padding-inline:12px} .ov-chip{font-size:11px} .ov-card .ov-chip .zh{font-size:10.5px} .ov-chip svg{width:15px;height:15px} }   /* 360-wide phones: still one row */

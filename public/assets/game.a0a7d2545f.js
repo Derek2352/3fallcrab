@@ -91,7 +91,7 @@ const zhWatch = new MutationObserver(list => {
   }
   zhWatch.observe(document.body, ZH_WATCH);
 });
-let slowRead = !!lsGet("tff_slow_read", false);   // Extra reading time (start and pause cards)
+let slowRead = !!lsGet("tff_slow_read", false);   // card timer set to 30 s (start and pause cards)
 const cardMs = () => slowRead ? SLOW_CARD_MS : CARD_MS;
 const ICON = {spend:"i-spend", scam:"i-scam", delay:"i-delay"};
 const svgUse = (id, cls) => { const s = document.createElementNS("http://www.w3.org/2000/svg", "svg"); s.setAttribute("viewBox", "0 0 32 32"); s.setAttribute("aria-hidden", "true"); if (cls) s.setAttribute("class", cls);
@@ -549,7 +549,7 @@ function openCard(){
   });
   $("cardOutcome").hidden = true; $("cardBar").style.transform = "scaleX(1)";
   $("cardHint").textContent = "Life Event card. Choose within " + cardMs() / 1000 + " seconds: press 1 or 2, or tap a choice." +
-    (slowRead ? "" : " For more time, turn on Extra reading time when the game is paused.");
+    (slowRead ? "" : " For more time on later cards, pause the game and set the card timer to 30 seconds.");
   $("cardModal").hidden = false;
   const sheet = $("cardSheet"); sheet.classList.remove("done"); sheet.style.animation = "none"; void sheet.offsetWidth; sheet.style.animation = "";
   modalOpen(true); $("cardSheet").focus({preventScroll:true});
@@ -1838,10 +1838,13 @@ function sampleTower(){
 }
 buildStatic(); sampleTower(); resize(); drawCrabs(); updateHUD(); renderLedger(); setMuteUI(); planFirst();
 markZh(document.body); zhWatch.observe(document.body, ZH_WATCH);
-document.querySelectorAll(".slowRead").forEach(cb => {
-  cb.checked = slowRead;
-  cb.addEventListener("change", () => { slowRead = cb.checked; lsSet("tff_slow_read", slowRead); document.querySelectorAll(".slowRead").forEach(o => { o.checked = slowRead; }); });
-});
+// Card timer, 10 s or 30 s: the same choice on the start and pause cards
+const syncTimer = () => document.querySelectorAll(".ctime input").forEach(r => { r.checked = r.value === (slowRead ? "30" : "10"); });
+document.querySelectorAll(".ctime input").forEach(r => r.addEventListener("change", () => {
+  if (!r.checked) return;
+  slowRead = r.value === "30"; lsSet("tff_slow_read", slowRead); syncTimer();
+}));
+syncTimer();
 initDB();
 // Pictures with lettering are remade once the web fonts have arrived, in spare time; until then the first ones stay up.
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => {

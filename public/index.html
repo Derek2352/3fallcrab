@@ -25,7 +25,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gluten:wght@400..900&family=LXGW+WenKai+TC:wght@400;700&family=DotGothic16&family=Noto+Sans+HK:wght@400;500;700;900&display=swap">
-<link rel="stylesheet" href="/assets/style.421725c814.css">
+<link rel="stylesheet" href="/assets/style.9275594c2c.css">
 </head>
 <body>
 <noscript><p style="margin:0;padding:16px;background:#2E2838;color:#fff;font:16px/1.5 system-ui,sans-serif;text-align:center">3 Fall Fun needs JavaScript to run. 請開啟 JavaScript 先玩到。</p></noscript>
@@ -120,17 +120,19 @@
               <li><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12a7 7 0 1 1-2.1-5"/><path d="M18 3v4.5h-4.5"/></svg></span>Tap: turn<small lang="zh-HK">撳一下轉向</small></li>
               <li><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 11l5 5 5-5M6 20h12"/></svg></span>Swipe ↓: drop<small lang="zh-HK">向下掃即放</small></li>
             </ul>
-            <div class="ov-acts">
-              <button class="btn" id="startBtn">Start<span class="zh" lang="zh-HK">開始</span></button>
-              <button class="btn alt fsgo" id="fsStartBtn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Full screen<span class="zh" lang="zh-HK">全螢幕</span></span></button>
+            <button class="btn go" id="startBtn">Start<span class="zh" lang="zh-HK">開始</span></button>
+            <div class="ov-opts">
+              <button class="ov-chip" id="fsStartBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg><span>Full screen<span class="zh" lang="zh-HK">全螢幕</span></span></button>
+              <div class="ov-chip ctime" role="radiogroup" aria-labelledby="ctStartK"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V9.8M9.5 2.6h5M12 2.6V6M18.2 6.8l1.6-1.6"/></svg><span class="k" id="ctStartK">Card timer<span class="zh" lang="zh-HK">揀答案時間</span></span>
+                <label><input type="radio" name="ctStart" value="10"><span>10<span aria-hidden="true">s</span><span class="sr"> seconds</span></span></label><label><input type="radio" name="ctStart" value="30"><span>30<span aria-hidden="true">s</span><span class="sr"> seconds</span></span></label></div>
             </div>
-            <label class="slowread"><input type="checkbox" class="slowRead"> <span>Extra reading time <span class="zh" lang="zh-HK">加長閱讀時間</span><small>30 seconds per card · 每張卡30秒</small></span></label>
           </div>
         </div>
         <div class="overlay seeov" id="seeOv" hidden><button class="btn alt" id="resultsBtn" aria-label="Back to results">Results<span class="zh" lang="zh-HK">睇返結算</span></button><button class="btn" id="againBtn2">Play again<span class="zh" lang="zh-HK">再玩</span></button></div>
         <div class="overlay" id="pauseOv" hidden>
-          <div class="ov-card"><h2>Paused</h2><p class="zh" lang="zh-HK">暫停</p><button class="btn" id="resumeBtn">Resume<span class="zh" lang="zh-HK">繼續</span></button>
-            <label class="slowread"><input type="checkbox" class="slowRead"> <span>Extra reading time <span class="zh" lang="zh-HK">加長閱讀時間</span><small>30 seconds per card · 每張卡30秒</small></span></label></div>
+          <div class="ov-card"><h2>Paused</h2><p class="zh" lang="zh-HK">暫停</p><button class="btn go" id="resumeBtn">Resume<span class="zh" lang="zh-HK">繼續</span></button>
+            <div class="ov-opts"><div class="ov-chip ctime" role="radiogroup" aria-labelledby="ctPauseK"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V9.8M9.5 2.6h5M12 2.6V6M18.2 6.8l1.6-1.6"/></svg><span class="k" id="ctPauseK">Card timer<span class="zh" lang="zh-HK">揀答案時間</span></span>
+              <label><input type="radio" name="ctPause" value="10"><span>10<span aria-hidden="true">s</span><span class="sr"> seconds</span></span></label><label><input type="radio" name="ctPause" value="30"><span>30<span aria-hidden="true">s</span><span class="sr"> seconds</span></span></label></div></div></div>
         </div>
       </div>
       <div class="pad" id="pad" role="group" aria-label="Touch controls">
@@ -278,6 +280,6 @@
 <script src="/assets/risky-b.5057bd2b53.js"></script>
 <script src="/assets/scam.05ff1a07ff.js"></script>
 <script src="/assets/content.ea82320576.js"></script>
-<script src="/assets/game.0d5e580d76.js"></script>
+<script src="/assets/game.a0a7d2545f.js"></script>
 </body>
 </html>

@@ -97,7 +97,7 @@ npm run dev                      # http://localhost:8787 with a local database
 The game aims for WCAG 2.2 AA. An automated check (axe-core) finds no problems on any screen: game, Life Event cards, results, leaderboard, admin, poster and 404, on desktop and phone.
 
 - **Cantonese for screen readers:** all Chinese text is marked `lang="zh-HK"` as it appears, so VoiceOver and TalkBack read it with a Cantonese voice. Numbers inside a Chinese sentence, like HK$3,600, stay with it.
-- **Extra reading time:** a switch on the start and pause cards gives 30 seconds per Life Event card instead of 10, and the result stays until Continue is pressed. It is remembered on the device. Screen readers are told the time limit when a card opens. Even without it, a card result now stays for 12 seconds (was 7).
+- **Card timer:** a 10s | 30s choice on the start and pause cards. 30s gives 30 seconds per Life Event card instead of 10, and the result stays until Continue is pressed. It is remembered on the device, and screen readers hear it as a two-option choice. They are also told the time limit when a card opens. With 10s, a card result stays for 12 seconds (was 7).
 - **Keyboard:** everything works without a mouse: arrows, Space, C, P, M, F in the game; 1 or 2 on Life Event cards; Tab and Enter on the results screen. Focus is always visible, and pop-ups move focus in and back out.
 - **Contrast:** text meets AA contrast. Bright backgrounds stay; text on them is ink or the colour behind white text is a little deeper.
 - **Forms:** nickname and email have visible labels; a mistyped email is announced and marked invalid; quiz feedback is announced.
