@@ -414,18 +414,12 @@ function drawLeaf(c, x, y, ang, len, col){
 }
 // creeping vines on a fused body: drawn over all its items and clipped to their combined outline, so the tendrils
 // cross the joint from the vine-wrapped item onto the block it grabbed but never hang in the air
-function drawMarks(c, H, T){
-  let path = null;
+function paintMarks(c, H, T){   // c is set up in world units at the group's latest physics pose
+  const path = new Path2D();
+  for (const part of H.parts.slice(1)){ part.vertices.forEach((v, i) => i ? path.lineTo(v.x, v.y) : path.moveTo(v.x, v.y)); path.closePath(); }
+  c.save(); c.clip(path); c.lineCap = "round"; c.lineJoin = "round";
   for (const m of H.tff.members){
     const marks = m.tff.marks; if (!marks || !marks.length) continue;
-    if (!path){
-      path = new Path2D();
-      for (const part of H.parts.slice(1)){ part.vertices.forEach((v, i) => i ? path.lineTo(v.x, v.y) : path.moveTo(v.x, v.y)); path.closePath(); }
-      // outline and marks sit at the group's latest physics pose: carry them to where the group is drawn this frame
-      const d = lerpPose(H);
-      c.save(); c.translate(d.x, d.y); c.rotate(d.a - H.angle); c.translate(-H.position.x, -H.position.y);
-      c.clip(path); c.lineCap = "round"; c.lineJoin = "round";
-    }
     const p = poseOf(m);
     c.save(); c.translate(p.x, p.y); c.rotate(p.a);
     for (const k of marks){
@@ -454,7 +448,37 @@ function drawMarks(c, H, T){
     }
     c.restore();
   }
-  if (path) c.restore();
+  c.restore();
+}
+// 0: no vines; -1: still creeping; otherwise a signature of the grown vines (changes when one is added)
+function marksSig(H, T){
+  let sig = 0;
+  for (const m of H.tff.members) if (m.tff.marks) for (const k of m.tff.marks){ if (T - k.born < 50) return -1; sig += k.born + 1; }
+  return sig;
+}
+// A grown vine no longer changes: it is painted once into a picture that turns with its group (150-odd strokes a
+// vine, every frame, were the most expensive thing on the board). paint: stroke by stroke anyway (the settled pile,
+// drawn once, keeps them as crisp as ever).
+function drawMarks(c, H, T, paint){
+  const sig = marksSig(H, T); if (!sig) return;
+  const d = lerpPose(H);   // the vines sit at the group's latest physics pose: carried to where it is drawn this frame
+  if (sig < 0 || paint){ c.save(); c.translate(d.x, d.y); c.rotate(d.a - H.angle); c.translate(-H.position.x, -H.position.y); paintMarks(c, H, T); c.restore(); return; }
+  const k = SC * DPR; let mc = H.tff.mc;
+  if (!mc || mc.k !== k || mc.sig !== sig){
+    const ca = Math.cos(-H.angle), sa = Math.sin(-H.angle);   // the group's outline in its own frame
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const part of H.parts.slice(1)) for (const v of part.vertices){
+      const dx = v.x - H.position.x, dy = v.y - H.position.y, lx = dx * ca - dy * sa, ly = dx * sa + dy * ca;
+      x0 = Math.min(x0, lx); y0 = Math.min(y0, ly); x1 = Math.max(x1, lx); y1 = Math.max(y1, ly);
+    }
+    x0 -= 3; y0 -= 3; x1 += 3; y1 += 3;
+    const img = (mc && mc.img) || document.createElement("canvas");
+    img.width = Math.max(2, Math.ceil((x1 - x0) * k)); img.height = Math.max(2, Math.ceil((y1 - y0) * k));
+    const g = img.getContext("2d"); g.setTransform(k, 0, 0, k, -x0 * k, -y0 * k); g.rotate(-H.angle); g.translate(-H.position.x, -H.position.y);
+    paintMarks(g, H, T);
+    mc = H.tff.mc = {img, k, sig, x0, y0, w: x1 - x0, h: y1 - y0};
+  }
+  c.save(); c.translate(d.x, d.y); c.rotate(d.a); c.drawImage(mc.img, mc.x0, mc.y0, mc.w, mc.h); c.restore();
 }
 function drawLeaves(c, f){   // f: this frame's length in 60 Hz steps
   if (!S.leaves.length) return;
@@ -820,7 +844,7 @@ $("againBtn2").addEventListener("click", startGame);
 cv.tabIndex = 0;
 
 // ---------- rendering: sprites ----------
-const ctx = cv.getContext("2d");
+const ctx = cv.getContext("2d", {alpha: false});   // opaque: the sky covers it all, so the page never blends it
 let SC = 1, DPR = 1;
 const SPR = new Map(), SPR_MAX = 160, QA = Math.PI / 4;
 let usedText = false;   // did the sprite being made use lettering (it is made again once the web fonts arrive)
@@ -899,6 +923,7 @@ function drawBody(c, b, shadow){
 
 // ---------- rendering: scene layers (clay, cached) ----------
 const L = {};
+let layerVer = 0;   // bumped whenever a layer is remade
 function layer(w, h, fn){ const k = SC * DPR; const c = document.createElement("canvas"); c.width = Math.ceil(w * k); c.height = Math.ceil(h * k); const g = c.getContext("2d"); g.setTransform(k, 0, 0, k, 0, 0); fn(g); return c; }
 function crabArt(g, mood){
   // a clay crab centred on (0,0), ~64×46 units
@@ -992,8 +1017,8 @@ function buildLayers(soft, only){
   make.crab = () => { const o = {}; for (const m of ["idle", "happy", "worried", "cover"]) o[m] = layer(80, 64, g => { g.translate(40, 30); crabArt(g, m); }); return o; };
   for (const name in make){
     if (only && name !== only) continue;
-    if (soft && L[name]) addJob("layer:" + name, 0.5, () => { L[name] = make[name](); });
-    else L[name] = make[name]();
+    if (soft && L[name]) addJob("layer:" + name, 0.5, () => { L[name] = make[name](); layerVer++; });
+    else { L[name] = make[name](); layerVer++; }
   }
 }
 function drawCrabs(){   // logo + panel crabs (fixed size, drawn once)
@@ -1039,6 +1064,120 @@ let rzT = 0; window.addEventListener("resize", () => { clearTimeout(rzT); rzT = 
 
 const camTarget = () => Math.min(-(H - 240), -S.height - 330);
 let skyDusk = -1, skyFill = null;
+// ---------- what stays still is drawn once ----------
+// A frame used to draw every item twice (shadow, then item) and every vine stroke, so a long game's pile made each
+// frame slower. Now the sky and the city are drawn once while the camera holds still (BACK), and items that have
+// settled (with their shadows and vines) are drawn once into two pictures (PILE): one under everything that moves
+// (the settled shadows), one with the settled items. A frame draws only those pictures and what is moving. An item
+// that shifts by more than a hair leaves the pile and is drawn live until it settles again.
+const PAD = 32;   // how far a sprite and its shadow reach past the item's outline, in world units
+const BACK = {c: null, key: "", next: ""};
+const PILE = {s: null, b: null, set: new Set(), list: [], k: 0, at: -99, top: 0, h: 0, w0: 0, w1: 0, x0: 0, x1: 0};
+function paintSky(g, k, skyY, cityY){
+  g.setTransform(k, 0, 0, k, 0, 0); g.fillStyle = skyFill; g.fillRect(0, 0, W, H);
+  g.drawImage(L.sky, 0, skyY, W, 260); g.drawImage(L.city, -30, cityY, W + 60, 260);
+}
+function backdrop(c, k, skyY, cityY){
+  const key = [cv.width, cv.height, skyDusk, layerVer, Math.round(skyY * k * 2), Math.round(cityY * k * 2)].join();
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  if (key === BACK.key){ c.drawImage(BACK.c, 0, 0); return; }
+  if (key !== BACK.next){ BACK.next = key; paintSky(c, k, skyY, cityY); return; }   // moving with the camera: drawn as is
+  if (!BACK.c) BACK.c = document.createElement("canvas");
+  if (BACK.c.width !== cv.width || BACK.c.height !== cv.height){ BACK.c.width = cv.width; BACK.c.height = cv.height; }
+  paintSky(BACK.c.getContext("2d", {alpha: false}), k, skyY, cityY); BACK.key = key;
+  c.drawImage(BACK.c, 0, 0);
+}
+// its exact pictures are made at this size, and any vines on it have finished growing
+function picturesOK(b){
+  for (const m of membersOf(b)){
+    if (!kOK(SPR.get(m.tff.def.id + "|" + qOf(poseOf(m).a)))) return false;
+    if (m.tff.marks) for (const mk of m.tff.marks) if (S.steps - mk.born < 52) return false;
+  }
+  return true;
+}
+const settled = b => (b.isSleeping || b.tff.sn >= 24) && picturesOK(b);
+function stale(b){   // a settled item's sprite has been remade since the pile was drawn (the web fonts arrived)
+  for (const m of membersOf(b)){ const s = SPR.get(m.tff.def.id + "|" + qOf(poseOf(m).a)); if (s && !kOK(s)) return true; }
+  return false;
+}
+const inWindow = b => b.bounds.max.y + PAD >= PILE.w0 && b.bounds.min.y - PAD <= PILE.w1;
+function join(b){
+  PILE.set.add(b); b.tff.cp = {x: b.position.x, y: b.position.y, a: b.angle}; b.tff.cb = {y0: b.bounds.min.y, y1: b.bounds.max.y};
+  PILE.x0 = Math.min(PILE.x0, b.bounds.min.x - PAD); PILE.x1 = Math.max(PILE.x1, b.bounds.max.x + PAD);   // how wide the pile reaches
+}
+// Draw the settled items between world y0 and y1 (a band across the board), over what was there. A change in the
+// pile redraws only its own band: the items around it are drawn again, the rest of the picture is kept.
+function pileBand(y0, y1, T){
+  const k = PILE.k, top = PILE.top, p0 = Math.max(0, Math.floor((y0 - top) * k)), p1 = Math.min(PILE.h, Math.ceil((y1 - top) * k));
+  if (p1 <= p0) return;
+  const gs = PILE.s.getContext("2d"), gb = PILE.b.getContext("2d"), a0 = top + p0 / k, a1 = top + p1 / k;
+  for (const g of [gs, gb]){ g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, p0, g.canvas.width, p1 - p0); g.beginPath(); g.rect(0, p0, g.canvas.width, p1 - p0); g.clip(); g.setTransform(k, 0, 0, k, 0, -top * k); }
+  const keep = ALPHA, here = PILE.list.filter(b => b.tff.cb.y1 + PAD >= a0 && b.tff.cb.y0 - PAD <= a1);
+  ALPHA = 1;   // settled: drawn where the physics has them
+  for (const b of here) for (const m of membersOf(b)) drawBody(gs, m, true);
+  for (const b of here){ for (const m of membersOf(b)) drawBody(gb, m, false); if (b.tff.members) drawMarks(gb, b, T, true); }
+  ALPHA = keep;
+  gs.restore(); gb.restore();
+}
+function renderPile(k, T){
+  const w0 = S.camTop - H / 2, w1 = S.camTop + H * 1.5;   // the view and half a view either side
+  Object.assign(PILE, {set: new Set(), list: [], k, at: drawN, w0, w1, h: 0, x0: Infinity, x1: -Infinity});
+  let y0 = Infinity, y1 = -Infinity;
+  for (const b of engine.world.bodies){
+    if (!b.tff || b === S.active || !inWindow(b) || !settled(b)) continue;
+    join(b); y0 = Math.min(y0, b.bounds.min.y); y1 = Math.max(y1, b.bounds.max.y);
+  }
+  PILE.list = engine.world.bodies.filter(b => PILE.set.has(b));
+  if (!PILE.list.length) return;
+  // room on top for the next few items; on the camera's own pixel grid, so the picture lands exactly where live drawing would
+  const top = S.camTop + Math.round((Math.max(w0, y0 - PAD - 150) - S.camTop) * k) / k, w = cv.width, h = Math.ceil((y1 + PAD - top) * k);
+  for (const key of ["s", "b"]){
+    const img = PILE[key] || (PILE[key] = document.createElement("canvas"));
+    if (img.width !== w || img.height < h){ img.width = w; img.height = Math.ceil(h * 1.2); }   // kept, and only ever grown
+  }
+  PILE.top = top; PILE.h = h;
+  pileBand(top, top + h / k, T);
+}
+function updatePile(k, T){
+  const here = new Set();
+  for (const b of engine.world.bodies){
+    if (!b.tff) continue; here.add(b);
+    const an = b.tff.an;   // still: how many frames it has stayed within a hair of one spot
+    if (!an || Math.abs(b.position.x - an.x) > 0.15 || Math.abs(b.position.y - an.y) > 0.15 || Math.abs(b.angle - an.a) > 0.003){ b.tff.an = {x: b.position.x, y: b.position.y, a: b.angle}; b.tff.sn = 0; }
+    else b.tff.sn++;
+  }
+  if (!PILE.h || PILE.k !== k || S.camTop < PILE.w0 || S.camTop + H > PILE.w1){   // nothing drawn yet, a new size, or the camera moved on
+    if (drawN - PILE.at >= 8 || PILE.k !== k || PILE.h){ renderPile(k, T); } return;
+  }
+  const off = (PILE.top - S.camTop) * k;   // the camera moved by a fraction of a pixel and has stopped: line up again
+  if (Math.abs(off - Math.round(off)) > 0.1 && Math.abs(camTarget() - S.camTop) < 0.05 && drawN - PILE.at >= 60){ renderPile(k, T); return; }
+  const bands = [];
+  for (const b of PILE.list){   // what moved, fell, or got a new sprite leaves (its band is redrawn without it)
+    const cp = b.tff.cp;
+    if (!here.has(b) || b === S.active || Math.abs(b.position.x - cp.x) > 0.25 || Math.abs(b.position.y - cp.y) > 0.25 || Math.abs(b.angle - cp.a) > 0.005 || stale(b)){
+      PILE.set.delete(b); bands.push([b.tff.cb.y0 - PAD, b.tff.cb.y1 + PAD]);
+    }
+  }
+  if (bands.length > 8){ Object.assign(PILE, {set: new Set(), list: [], h: 0, at: drawN}); return; }   // a lot is moving: all live for now
+  if (drawN - PILE.at >= 4) for (const b of engine.world.bodies){   // what has settled joins
+    if (!b.tff || b === S.active || PILE.set.has(b) || !inWindow(b) || !settled(b)) continue;
+    if (b.bounds.min.y - PAD < PILE.top || b.bounds.max.y + PAD > PILE.top + PILE.h / k){ renderPile(k, T); return; }   // outside the picture
+    join(b); bands.push([b.bounds.min.y - PAD, b.bounds.max.y + PAD]);
+  }
+  if (!bands.length) return;
+  PILE.list = engine.world.bodies.filter(b => PILE.set.has(b)); PILE.at = drawN;
+  bands.sort((p, q) => p[0] - q[0]);
+  let cur = bands[0].slice();
+  for (const bd of bands.slice(1)){ if (bd[0] <= cur[1]) cur[1] = Math.max(cur[1], bd[1]); else { pileBand(cur[0], cur[1], T); cur = bd.slice(); } }
+  pileBand(cur[0], cur[1], T);
+}
+function blitPile(c, k, img){
+  if (!PILE.h) return;
+  const x0 = clamp(Math.floor(PILE.x0 * k), 0, img.width), x1 = clamp(Math.ceil(PILE.x1 * k), x0, img.width);   // only as wide as the pile
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  if (x1 > x0) c.drawImage(img, x0, 0, x1 - x0, PILE.h, x0, Math.round((PILE.top - S.camTop) * k), x1 - x0, PILE.h);   // whole pixels: crisp
+  c.setTransform(k, 0, 0, k, 0, -S.camTop * k);
+}
 // dt: this frame's length in ms. Everything that moves on its own (camera, shake, splashes, leaves, sea, boat, crab)
 // moves by time, not by frames, so it runs at the same speed on a 60 Hz or a 120 Hz screen.
 function draw(dt){
@@ -1048,22 +1187,22 @@ function draw(dt){
   let sx = 0;
   if (S.shake > 0){ sx = (Math.random() - .5) * S.shake; S.shake = Math.max(0, S.shake - 0.4 * f); }
   const rise = -S.camTop - (H - 240);                    // how far the camera has climbed
-  c.setTransform(k, 0, 0, k, 0, 0);
   const dusk = Math.round(clamp((S.best / FLOOR - 5) / 6, 0, 1) * 200) / 200;
   if (dusk !== skyDusk){
     skyDusk = dusk; skyFill = c.createLinearGradient(0, 0, 0, H);
     skyFill.addColorStop(0, mixHex("#3FB4FF", "#FF8E5A", dusk)); skyFill.addColorStop(0.65, mixHex("#8EDBFF", "#FFC36E", dusk)); skyFill.addColorStop(1, mixHex("#C8F0FF", "#FFE7A8", dusk));
   }
-  c.fillStyle = skyFill; c.fillRect(0, 0, W, H);
-  c.drawImage(L.sky, 0, Math.min(40, rise * 0.05) - 10, W, 260);
-  const cityY = Math.min(H - 110, (WATER_Y - S.camTop) - 250 + rise * 0.85);
-  c.drawImage(L.city, -30, cityY, W + 60, 260);
+  backdrop(c, k, Math.min(40, rise * 0.05) - 10, Math.min(H - 110, (WATER_Y - S.camTop) - 250 + rise * 0.85));
   // world
+  const still = sx === 0;   // a quake shakes everything: then it is all drawn live
+  if (still) updatePile(k, T);
   c.setTransform(k, 0, 0, k, k * sx, -S.camTop * k);
   drawRuler(c);
   c.drawImage(L.plat, W/2 - PW/2 - 20, 0, PW + 40, 200);
-  const a = S.active;
-  for (const b of engine.world.bodies) if (b.tff) for (const m of membersOf(b)) drawBody(c, m, true);
+  const a = S.active, v0 = S.camTop, v1 = S.camTop + H, live = [];   // what moves, in view (out of view isn't drawn)
+  for (const b of engine.world.bodies) if (b.tff && !(still && PILE.set.has(b)) && b.bounds.max.y + PAD >= v0 && b.bounds.min.y - PAD <= v1) live.push(b);
+  if (still) blitPile(c, k, PILE.s);
+  for (const b of live) for (const m of membersOf(b)) drawBody(c, m, true);
   if (a && S.mode !== "over"){
     // dashed guide down to where the item will land, with a landing ring. Only bodies under the item can stop it:
     // the scan starts at the highest of them, steps on a fixed 5 px grid (so the ring doesn't shimmer while the
@@ -1081,7 +1220,8 @@ function draw(dt){
     c.beginPath(); c.moveTo(x, y0); c.lineTo(x, land - 4); c.stroke(); c.setLineDash([]);
     c.strokeStyle = "rgba(255,95,162,0.9)"; c.lineWidth = 2.4; c.beginPath(); c.ellipse(x, land - 2, 9, 3.2, 0, 0, Math.PI * 2); c.stroke(); c.restore();
   }
-  for (const b of engine.world.bodies) if (b.tff && b !== a){ for (const m of membersOf(b)) drawBody(c, m, false); if (b.tff.members) drawMarks(c, b, T); }
+  if (still) blitPile(c, k, PILE.b);
+  for (const b of live) if (b !== a){ for (const m of membersOf(b)) drawBody(c, m, false); if (b.tff.members) drawMarks(c, b, T); }
   if (a) drawBody(c, a, false);
   drawLeaves(c, f);
   drawLabels(c);
