@@ -104,8 +104,9 @@ The game aims for WCAG 2.2 AA. An automated check (axe-core) finds no problems o
 - **Cantonese for screen readers:** all Chinese text is marked `lang="zh-HK"` as it appears, so VoiceOver and TalkBack read it with a Cantonese voice. Numbers inside a Chinese sentence, like HK$3,600, stay with it.
 - **Card timer:** a 10s | 30s choice on the start and pause cards. 30s gives 30 seconds per Life Event card instead of 10, and the result stays until Continue is pressed. It is remembered on the device, and screen readers hear it as a two-option choice. They are also told the time limit when a card opens. With 10s, a card result stays for 12 seconds (was 7).
 - **Keyboard:** everything works without a mouse: arrows, Space, C, P, M, F in the game; 1 or 2 on Life Event cards; Tab and Enter on the results screen. Focus is always visible, and pop-ups move focus in and back out.
-- **Contrast:** text meets AA contrast. Bright backgrounds stay; text on them is ink or the colour behind white text is a little deeper.
+- **Contrast:** text meets AA contrast. Bright backgrounds stay; text on them is ink or the colour behind white text is a little deeper. In Windows High Contrast mode the chosen card timer, the coins, the countdown bars and the selected tab show in the system's highlight colours.
 - **Forms:** nickname and email have visible labels; a mistyped email is announced and marked invalid; quiz feedback is announced.
+- **Screen readers:** a Life Event's outcome is read with the Continue button, the coin meters read as "2 of 3", and the ⛶, pause and mute buttons keep their names and report on or off.
 - **Full screen:** the ⛶ button in the header, Full screen on the start card, or F plays with just the game on screen and the board as big as it fits. The browser goes full screen where it allows it (phones also stay upright); on iPhone the page still drops everything but the game, and Add to Home Screen opens it as a full-screen app.
 - **Motion and sound:** "Reduce motion" turns off the shake, bobbing and card animations; sound has a mute button and starts only after Start.
 - Controls are at least 24 × 24 px, and the pages fit a 320 px wide screen without sideways scrolling.
@@ -190,8 +191,9 @@ All game source lives in `src/`. After any change, run `npm run build`, which fi
 | `src/clay.js` | Clay rendering kit (palette, lighting, materials) |
 | `src/audio.js` | Synthesised music and sound effects, with no audio files |
 | `src/style.css`, `src/index.html` | Page layout |
-| `src/static/` | Copied as-is: icons, 404, admin, poster, `_headers` (security and cache headers) |
+| `src/fonts/` | The fonts, cut down to the characters the game uses. After adding Chinese text anywhere in `src/`, run `npm run fonts` (needs Python 3 and, once, `pip install fonttools brotli`) and commit `src/fonts/`. Until then `npm run build` warns, and the new characters show in the visitor's system Chinese font. |
+| `src/static/` | Copied as-is: icons (`og.jpg` is the link-preview picture), 404, admin, poster, `_headers` (security and cache headers) |
 | `server/api.js` | Leaderboard API (validation, rate limit, admin) |
 | `server/worker.js` | Worker entry point: `/api/*` goes to the API, everything else is static |
 
-Matter.js 0.19.0 (MIT) and qrcode-generator 1.4.4 (MIT) are bundled locally. Fonts come from Google Fonts.
+Matter.js 0.19.0 (MIT) and qrcode-generator 1.4.4 (MIT) are bundled locally. The fonts are self-hosted: Gluten, Noto Sans HK, LXGW WenKai TC and DotGothic16, under the SIL Open Font License 1.1 (`src/fonts/OFL.txt`, published with them).

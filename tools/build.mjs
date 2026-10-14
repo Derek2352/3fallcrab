@@ -68,7 +68,10 @@ function asset(path) {
   if (hashed.has(path)) return hashed.get(path);
   const file = join(src, path);
   if (!existsSync(file)) throw new Error(`Missing asset: src/${path}`);
-  const body = readFileSync(file);
+  let body = readFileSync(file);
+  // A stylesheet can point at other assets, e.g. url(%%asset:fonts/gluten.woff2%%). Those are fingerprinted first, so the
+  // stylesheet's own fingerprint changes whenever a font does.
+  if (extname(path) === ".css") body = Buffer.from(body.toString("utf8").replace(/%%asset:([^%]+)%%/g, (_, p) => asset(p.trim())));
   const hash = createHash("sha256").update(body).digest("hex").slice(0, 10);
   const ext = extname(path);
   const name = `${basename(path, ext)}.${hash}${ext}`;
@@ -86,6 +89,8 @@ function render(html) {
 
 writeFileSync(join(out, "index.html"), render(readFileSync(join(src, "index.html"), "utf8")));
 for (const f of walk(out)) if (f.endsWith(".html")) writeFileSync(f, render(readFileSync(f, "utf8")));
+// The fonts' licence (the SIL Open Font License wants it to travel with them) is published next to them in assets/.
+if ([...hashed.keys()].some((p) => p.endsWith(".woff2"))) asset("fonts/OFL.txt");
 
 function walk(dir) {
   return readdirSync(dir).flatMap((n) => {
@@ -98,8 +103,49 @@ const files = walk(out);
 const bytes = files.reduce((n, f) => n + statSync(f).size, 0);
 console.log(`Built public/ — ${files.length} files, ${(bytes / 1024).toFixed(0)} KB${site ? `, SITE_URL ${site}` : ""}`);
 for (const [from, to] of hashed) console.log(`  src/${from} -> ${to}`);
-const left = files.filter((f) => f.endsWith(".html") && readFileSync(f, "utf8").includes("%%"));
+const left = files.filter((f) => /\.(html|css)$/.test(f) && readFileSync(f, "utf8").includes("%%"));
 if (left.length) {
   console.error("Unreplaced placeholders in: " + left.map((f) => relative(root, f)).join(", "));
   process.exit(1);
+}
+
+// Fonts: the page uses self-hosted subsets of its fonts (src/fonts/, made by `npm run fonts`), which hold only the characters
+// that were in src/ at the time. A Chinese character they lack is not an error: it is drawn by the visitor's system Chinese
+// font, which the font stacks already name. So this only warns; a failing build would block a deploy of card text edited on
+// GitHub. The scan rules (what is read, how escapes are decoded) match tools/subset-fonts.py.
+{
+  const skipDirs = new Set(["vendor", "fonts"]), skipFiles = new Set(["admin.html", "admin.js"]);
+  const cjk = /[⺀-鿿豈-﫿︰-﹏＀-￯\u{20000}-\u{2FA1F}]/u;
+  const decode = (text, ext) => {
+    const chr = (hex) => { try { return String.fromCodePoint(parseInt(hex, 16)); } catch { return ""; } };
+    if (ext === ".html") text = text.replace(/&#x([0-9a-f]+);/gi, (_, h) => chr(h)).replace(/&#(\d+);/g, (_, d) => chr((+d).toString(16)));
+    if (ext === ".html" || ext === ".js") return text.replace(/\\u\{([0-9a-f]{1,6})\}|\\u([0-9a-f]{4})/gi, (_, a, b) => chr(a || b));
+    if (ext === ".css") return text.replace(/\\([0-9a-f]{1,6})[ \t\r\n]?/gi, (_, h) => chr(h));
+    return text;
+  };
+  const used = new Map(); // character -> the files it is in
+  (function scan(dir) {
+    for (const n of readdirSync(dir).sort()) {
+      const p = join(dir, n);
+      if (statSync(p).isDirectory()) { if (!skipDirs.has(n)) scan(p); continue; }
+      if (!/\.(html|js|css)$/.test(n) || skipFiles.has(n)) continue;
+      for (const ch of decode(readFileSync(p, "utf8"), extname(n))) {
+        if (!cjk.test(ch)) continue;
+        if (!used.has(ch)) used.set(ch, new Set());
+        used.get(ch).add(relative(src, p));
+      }
+    }
+  })(src);
+  const list = join(src, "fonts", "chars.txt");
+  if (!existsSync(list)) {
+    console.warn("\nWARNING: src/fonts/chars.txt is missing, so the build can't tell which Chinese characters the self-hosted fonts lack. Run `npm run fonts`.");
+  } else {
+    const built = new Set(readFileSync(list, "utf8").replace(/[\r\n]/g, ""));
+    const missing = [...used.keys()].filter((ch) => !built.has(ch));
+    if (missing.length) {
+      const where = [...new Set(missing.flatMap((ch) => [...used.get(ch)]))];
+      console.warn(`\nWARNING: ${missing.length} Chinese character${missing.length === 1 ? "" : "s"} in src/ ${missing.length === 1 ? "is" : "are"} not in the self-hosted fonts (src/fonts/chars.txt):\n  ${missing.slice(0, 80).join(" ")}${missing.length > 80 ? " …" : ""}\n  (in ${where.join(", ")})\n` +
+        "Until the fonts are rebuilt, visitors see them in their system's Chinese font. To add them, run `npm run fonts` (needs Python with fonttools and brotli, see the README) and commit src/fonts/.");
+    }
+  }
 }

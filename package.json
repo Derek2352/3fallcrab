@@ -10,6 +10,7 @@
   },
   "scripts": {
     "build": "node tools/build.mjs",
+    "fonts": "python3 tools/subset-fonts.py",
     "dev": "node tools/build.mjs && wrangler dev",
     "deploy": "node tools/build.mjs && wrangler deploy",
     "db:migrate": "wrangler d1 migrations apply DB --remote",

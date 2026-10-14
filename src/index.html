@@ -24,9 +24,8 @@
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="3 Fall Fun: a clay tower of everyday items on a Hong Kong harbour pier">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gluten:wght@400..900&family=LXGW+WenKai+TC:wght@400;700&family=DotGothic16&family=Noto+Sans+HK:wght@400;500;700;900&display=swap">
+<link rel="preload" href="%%asset:fonts/gluten.woff2%%" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="%%asset:fonts/noto-sans-hk.woff2%%" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="%%asset:style.css%%">
 </head>
 <body>
@@ -79,8 +78,8 @@
         <div class="pb-stats">
           <div class="pbs"><span class="k">Time left<i>剩餘時間</i></span><span class="v" id="timeVal">3:00</span></div>
           <div class="pbs"><span class="k">Savings boost<i>儲蓄加成</i></span><span class="v" id="rateVal">×1.0</span></div>
-          <div class="pbs"><span class="k">Emergency fund<i>應急錢</i></span><div class="coins" id="fundCoins"><i class="coin"></i><i class="coin"></i><i class="coin"></i></div></div>
-          <div class="pbs"><span class="k">Dropped<i>跌落海 · 3 = out</i></span><div class="coins" id="dropCoins"><i class="coin"></i><i class="coin"></i><i class="coin"></i></div></div>
+          <div class="pbs"><span class="k">Emergency fund<i>應急錢</i></span><div class="coins" id="fundCoins" role="img" aria-label="0 of 3"><i class="coin"></i><i class="coin"></i><i class="coin"></i></div></div>
+          <div class="pbs"><span class="k">Dropped<i>跌落海 · 3 = out</i></span><div class="coins" id="dropCoins" role="img" aria-label="0 of 3"><i class="coin"></i><i class="coin"></i><i class="coin"></i></div></div>
         </div>
       </section>
 
@@ -228,7 +227,7 @@
         <div class="oc-head" id="ocHead"></div>
         <p class="oc-effect" id="ocEffect"></p>
         <p class="oc-tip" id="ocTip"></p>
-        <div class="oc-actions"><button class="btn" id="cardContinue">Continue<span class="zh" lang="zh-HK">繼續</span></button></div>
+        <div class="oc-actions"><button class="btn" id="cardContinue" aria-describedby="ocHead ocEffect ocTip">Continue<span class="zh" lang="zh-HK">繼續</span></button></div>
       </div>
     </div>
   </div>

@@ -1,3 +1,17 @@
+/* Web fonts, self-hosted: subsets of Gluten, Noto Sans HK, LXGW WenKai TC and DotGothic16 (SIL Open Font License 1.1;
+   licences: /assets/OFL.8a1e7fd598.txt). `npm run fonts` makes src/fonts/*.woff2 from the characters used in src/, and
+   `npm run build` warns about a Chinese character they lack (the system font draws it). The family names and weights
+   are the ones Google Fonts served, so --f-* below and clay.js (canvas lettering) stay as they are. */
+@font-face{font-family:"Gluten";font-style:normal;font-weight:400 900;font-display:swap;src:url(/assets/gluten.842f8cce6e.woff2) format("woff2")}
+/* Noto Sans HK is one variable file. Four faces, not one 400 900 range, so a weight-800 label still uses the 900 face, as before. */
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/noto-sans-hk.cc29cca0d7.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:500;font-display:swap;src:url(/assets/noto-sans-hk.cc29cca0d7.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/noto-sans-hk.cc29cca0d7.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:900;font-display:swap;src:url(/assets/noto-sans-hk.cc29cca0d7.woff2) format("woff2")}
+@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/lxgw-wenkai-tc-regular.537b0e3be1.woff2) format("woff2")}
+@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/lxgw-wenkai-tc-bold.73f2c56ea9.woff2) format("woff2")}
+@font-face{font-family:"DotGothic16";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/dotgothic16.2e853f276a.woff2) format("woff2")}
+
 /* Layout: a clay tabletop set — passbook + 3 Falls | the diorama board | tickets, building directory, leaderboard.
    One light (top-left) everywhere: CSS shadows fall down-right like the canvas clay. Single bright theme by design. */
 :root{
@@ -384,7 +398,7 @@ button{font-family:inherit;color:inherit}
 }
 @media (pointer: coarse) and (min-width: 900px){ .pad{display:grid} .touchhint{display:block} }
 @media (prefers-reduced-motion: reduce){
-  .stamp{animation:fadeonly 1.7s forwards} .lifecard{animation:none} .tag .n.hit{animation:none} .ledger tr.new td{animation:none}
+  .stamp{animation:fadeonly 1.7s forwards} .lifecard{animation:none} .tag .n.hit{animation:none} .chip .n.hit{animation:none} .ledger tr.new td{animation:none}
   @keyframes fadeonly{0%,80%{opacity:1;transform:translate(-50%,0) rotate(var(--r,0deg))}100%{opacity:0;transform:translate(-50%,0) rotate(var(--r,0deg))}}
 }
 
@@ -592,6 +606,8 @@ html.fs .talk{inset:6px}
 .bubble .face{display:none;position:absolute;left:6px;top:50%;width:32px;height:26px;margin-top:-13px}
 .bubble.docked{padding-left:44px;transform-origin:50% 100%}
 .bubble.docked .face{display:block}
+.bubble.docked.slim{padding-left:12px} .bubble.docked.slim .face{display:none}   /* narrow board: room for the words */
+.bubble .say{overflow-wrap:break-word}
 .bubble.pop{animation:talkpop .38s cubic-bezier(.2,.9,.3,1.35)}
 @keyframes talkpop{0%{opacity:0;scale:.4}60%{opacity:1;scale:1.07}100%{scale:1}}
 @media (prefers-reduced-motion: reduce){ .bubble.pop{animation:talkfade .2s ease-out} @keyframes talkfade{from{opacity:0}to{opacity:1}} }
@@ -642,11 +658,12 @@ html.fs .talk{inset:6px}
 .ov-card .btn.go{font-size:21px;padding:12px 34px 13px;border-radius:18px;min-width:min(200px,100%);margin:2px 0 4px}
 .ov-card .btn.go .zh{font-size:16px}
 #startOv .ov-card{max-width:320px}   /* room for both chips on one row */
-#startOv{container-type:inline-size}
+#startOv{container-type:size}
 #startOv .ov-card h2{font-size:clamp(19px, calc(10.4cqi - 3px), 28px)}   /* the title stays on one line on narrow boards (iPhone SE) */
 .ov-card .ctl{display:flex;justify-content:space-around}   /* the longest gesture label gets the most room */
 .ov-card .ctl li{flex:0 1 auto;min-width:0}
 .ov-card .ctl small{white-space:nowrap}   /* Cantonese labels never break mid-word */
+@container (max-width: 212px){ #startOv .ov-card .ctl small{white-space:normal;overflow-wrap:anywhere} }   /* ...unless the board is too narrow for them to sit side by side */
 @media (pointer: coarse){ .ov-card .ctl.touch-only{display:flex} }
 .ov-opts{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 5px;width:100%}
 .ov-chip{display:inline-flex;align-items:center;gap:4px;min-height:38px;padding:4px 9px 4px 7px;border:0;border-radius:13px;background:#8FE3DA;color:var(--ink);
@@ -674,3 +691,24 @@ button, .habit, #board, .pad{-webkit-tap-highlight-color:transparent}   /* each 
 .set{padding-left:max(16px, env(safe-area-inset-left));padding-right:max(16px, env(safe-area-inset-right))}
 .modal, .turnov{padding-left:max(16px, env(safe-area-inset-left));padding-right:max(16px, env(safe-area-inset-right))}
 @media (max-width: 899px){ html.fs .set{padding-left:max(6px, env(safe-area-inset-left));padding-right:max(6px, env(safe-area-inset-right))} }
+
+/* Short boards (a small phone with the browser's bars showing, a desktop zoomed to 150-200%): the start card drops the
+   extras, least needed first, so Start and the two chips stay in view without scrolling inside the card */
+@container (max-height: 380px){ #startOv .ov-card .desc{display:none} }
+@container (max-height: 345px){
+  #startOv .ov-card .ctl{display:none}   /* How to play is below the board */
+  #startOv .ov-card{gap:6px;padding-top:12px;padding-bottom:12px}
+  #startOv .ov-card .btn.go{padding-top:9px;padding-bottom:10px;margin:0 0 2px}
+}
+@container (max-height: 260px){ #startOv .ov-card > .zh{display:none} #startOv .ov-card h2{font-size:20px} }
+/* Windows High Contrast (forced colours): backgrounds become the system colour, so a state shown only by a colour
+   gets the system highlight, or the text colour, instead */
+@media (forced-colors: active){
+  .ctime label > span{border:2px solid transparent}
+  .ctime input:checked + span{forced-color-adjust:none;background:Highlight;color:HighlightText;border-color:Highlight}
+  .ov-chip, .btn, .iconbtn{border:2px solid ButtonText}
+  .coin{border:2px solid CanvasText} .coin.on, .coin.hit{forced-color-adjust:none;background:CanvasText}
+  .timer i, .bar2 .track i, .dir li .bar{forced-color-adjust:none;background:CanvasText}
+  .tab[aria-pressed="true"], .dir li.on, .dir li.on *{forced-color-adjust:none;background:Highlight;color:HighlightText} .dir li.on .bar{background:HighlightText}
+  .bubble::after{display:none}
+}

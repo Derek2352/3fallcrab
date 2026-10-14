@@ -680,7 +680,7 @@ function endGame(reason){
   setTimeout(showEnd, reason === "drops" ? 1200 : 700);
 }
 function modalOpen(on){ const set = document.querySelector(".set"); if (set) set.inert = !!on; }
-function setPauseUI(){ const pb = $("pauseBtn"); const live = S && (S.mode === "playing" || S.mode === "paused"); pb.disabled = !live; document.documentElement.classList.toggle("ingame", !!live); const p = !!(S && S.mode === "paused"); pb.setAttribute("aria-pressed", String(p)); pb.setAttribute("aria-label", p ? "Resume game" : "Pause game"); }
+function setPauseUI(){ const pb = $("pauseBtn"); const live = S && (S.mode === "playing" || S.mode === "paused"); pb.disabled = !live; document.documentElement.classList.toggle("ingame", !!live); const p = !!(S && S.mode === "paused"); pb.setAttribute("aria-pressed", String(p)); }   // the label stays "Pause game": pressed = paused
 function togglePause(){
   if (S.mode === "playing"){ S.mode = "paused"; $("pauseOv").hidden = false; A.mode("paused"); $("resumeBtn").focus({preventScroll:true}); }
   else if (S.mode === "paused"){ S.mode = "playing"; $("pauseOv").hidden = true; A.resume(); A.mode(S.play < S.speedUntil ? "fast" : "normal"); $("board").focus({preventScroll:true}); }
@@ -699,7 +699,7 @@ function act(a){
   else if (a === "hold") doHold();
   if (S.active && a.startsWith("rot")) wantSprite(S.active.tff.def, qOf(S.targetAngle), 0);   // the turn it's heading for
 }
-function setMuteUI(){ const m = A.muted(); $("muteBtn").setAttribute("aria-pressed", String(m)); $("muteBtn").setAttribute("aria-label", m ? "Unmute sound" : "Mute sound"); }
+function setMuteUI(){ const m = A.muted(); $("muteBtn").setAttribute("aria-pressed", String(m)); }
 function toggleMute(){ A.unlock(); A.toggle(); setMuteUI(); }
 // ---------- full screen play ----------
 // One tap (the ⛶ button, Full screen on the start card, or F) for just the game: the browser goes full screen where
@@ -711,7 +711,7 @@ const fsApi = !!(root.requestFullscreen || root.webkitRequestFullscreen);
 let fsOn = false;
 function setFs(on){
   fsOn = on; root.classList.toggle("fs", on);
-  const b = $("fsBtn"); b.setAttribute("aria-pressed", String(on)); b.setAttribute("aria-label", on ? "Exit full screen" : "Play full screen");
+  const b = $("fsBtn"); b.setAttribute("aria-pressed", String(on));
   lastFit = ""; resize();
   if (on) window.scrollTo(0, 0);
 }
@@ -1080,7 +1080,7 @@ const PAD = 32;   // how far a sprite and its shadow reach past the item's outli
 const BACK = {c: null, key: "", next: ""};
 const PILE = {s: null, b: null, set: new Set(), list: [], k: 0, at: -99, top: 0, h: 0, w0: 0, w1: 0, x0: 0, x1: 0};
 function paintSky(g, k, skyY, cityY){
-  g.setTransform(k, 0, 0, k, 0, 0); g.fillStyle = skyFill; g.fillRect(0, 0, W, H);
+  g.setTransform(k, 0, 0, k, 0, 0); g.fillStyle = skyFill; g.fillRect(0, 0, W + 1, H + 1);   // +1: the canvas rounds up to whole pixels
   g.drawImage(L.sky, 0, skyY, W, 260); g.drawImage(L.city, -30, cityY, W + 60, 260);
 }
 function backdrop(c, k, skyY, cityY){
@@ -1107,6 +1107,21 @@ function stale(b){   // a settled item's sprite has been remade since the pile w
   return false;
 }
 const inWindow = b => b.bounds.max.y + PAD >= PILE.w0 && b.bounds.min.y - PAD <= PILE.w1;
+// Newest on top, as when every item was drawn live in world order. The pile pictures go under everything that is
+// drawn live, so an item may only be in them if no live item older than it reaches it. near: their pictures can touch.
+const near = (a, b) => a.bounds.min.x - PAD <= b.bounds.max.x + PAD && b.bounds.min.x - PAD <= a.bounds.max.x + PAD &&
+                       a.bounds.min.y - PAD <= b.bounds.max.y + PAD && b.bounds.min.y - PAD <= a.bounds.max.y + PAD;
+function blocked(b){   // an older item that is drawn live reaches it, so it has to wait out of the pile
+  for (const o of engine.world.bodies){ if (o === b) return false; if (o.tff && !PILE.set.has(o) && near(o, b)) return true; }
+  return false;
+}
+function keepOrder(bands){   // items that just left the pile take out the newer items they reach, and those theirs
+  const rank = new Map(engine.world.bodies.map((b, i) => [b, i])), todo = engine.world.bodies.filter(b => b.tff && !PILE.set.has(b));
+  while (todo.length){
+    const o = todo.pop(), r = rank.get(o);
+    for (const b of PILE.list) if (PILE.set.has(b) && rank.get(b) > r && near(o, b)){ PILE.set.delete(b); bands.push([b.tff.cb.y0 - PAD, b.tff.cb.y1 + PAD]); todo.push(b); }
+  }
+}
 function join(b){
   PILE.set.add(b); b.tff.cp = {x: b.position.x, y: b.position.y, a: b.angle}; b.tff.cb = {y0: b.bounds.min.y, y1: b.bounds.max.y};
   PILE.x0 = Math.min(PILE.x0, b.bounds.min.x - PAD); PILE.x1 = Math.max(PILE.x1, b.bounds.max.x + PAD);   // how wide the pile reaches
@@ -1130,7 +1145,7 @@ function renderPile(k, T){
   Object.assign(PILE, {set: new Set(), list: [], k, at: drawN, w0, w1, h: 0, x0: Infinity, x1: -Infinity});
   let y0 = Infinity, y1 = -Infinity;
   for (const b of engine.world.bodies){
-    if (!b.tff || b === S.active || !inWindow(b) || !settled(b)) continue;
+    if (!b.tff || b === S.active || !inWindow(b) || !settled(b) || blocked(b)) continue;
     join(b); y0 = Math.min(y0, b.bounds.min.y); y1 = Math.max(y1, b.bounds.max.y);
   }
   PILE.list = engine.world.bodies.filter(b => PILE.set.has(b));
@@ -1164,9 +1179,10 @@ function updatePile(k, T){
       PILE.set.delete(b); bands.push([b.tff.cb.y0 - PAD, b.tff.cb.y1 + PAD]);
     }
   }
+  if (bands.length) keepOrder(bands);
   if (bands.length > 8){ Object.assign(PILE, {set: new Set(), list: [], h: 0, at: drawN}); return; }   // a lot is moving: all live for now
   if (drawN - PILE.at >= 4) for (const b of engine.world.bodies){   // what has settled joins
-    if (!b.tff || b === S.active || PILE.set.has(b) || !inWindow(b) || !settled(b)) continue;
+    if (!b.tff || b === S.active || PILE.set.has(b) || !inWindow(b) || !settled(b) || blocked(b)) continue;
     if (b.bounds.min.y - PAD < PILE.top || b.bounds.max.y + PAD > PILE.top + PILE.h / k){ renderPile(k, T); return; }   // outside the picture
     join(b); bands.push([b.bounds.min.y - PAD, b.bounds.max.y + PAD]);
   }
@@ -1421,6 +1437,7 @@ function updateHUD(){
   $("hudDrops").textContent = S.drops + "/" + MAX_DROPS;
   [...$("fundCoins").children].forEach((p, i) => p.classList.toggle("on", i < S.fund));
   [...$("dropCoins").children].forEach((p, i) => p.classList.toggle("hit", i < S.drops));
+  $("fundCoins").setAttribute("aria-label", S.fund + " of 3"); $("dropCoins").setAttribute("aria-label", S.drops + " of " + MAX_DROPS);
   for (const k in S.falls){ const el = $("fall_" + k); if (el.textContent !== String(S.falls[k])){ el.textContent = S.falls[k]; el.classList.remove("hit"); void el.offsetWidth; if (S.falls[k]) el.classList.add("hit"); } }
   $("dir").querySelectorAll("li").forEach(li => {
     const i = +li.dataset.i, st = STAGES[i], nextAt = i < STAGES.length - 1 ? STAGES[i + 1].at : TOP_AT;
@@ -1463,9 +1480,9 @@ function quip(key, pri, n){
   const [en, zh] = pool[i].map(t => t.replace("{n}", n == null ? "" : n));
   const z = document.createElement("small"); z.lang = "zh-HK"; z.textContent = zh;
   talk.say.replaceChildren(document.createTextNode(en), z);
-  const b = talk.el; b.style.maxWidth = Math.round(Math.min(250, TALK_TIP * SC - 16)) + "px";
+  const b = talk.el; b.classList.remove("docked", "slim"); talk.docked = false; b.style.maxWidth = talkWidth(false);
   b.hidden = false; b.classList.remove("pop"); void b.offsetWidth; b.classList.add("pop");
-  talk.w = b.offsetWidth; talk.h = b.offsetHeight; talk.x = talk.y = NaN;
+  talk.w = b.offsetWidth; talk.h = talk.hu = b.offsetHeight; talk.x = talk.y = NaN;   // hu: its height beside the crab
   talk.on = true; talk.pri = pri; talk.last = now; talk.until = now + Math.min(5200, 2400 + en.length * 45) * (slowRead ? 1.6 : 1);
   needDraw = true;
 }
@@ -1484,12 +1501,18 @@ function syncTalk(){
 // The bubble sits left of the crab, level with its claws, between the platform and the water, so it never covers the
 // tower or where items land. Once the camera has climbed past the harbour it waits at the bottom of the board.
 const TALK_TIP = W/2 + 50, TALK_ROOM = 70;   // world x of the tail's tip (the crab's left claw); a tall bubble in px
+// Beside the crab the bubble is as wide as the room left of it. Docked at the bottom it may use the board's width (a
+// narrow column there would make it tall and cover the tower), and on a narrow board it leaves out the crab's face.
+const talkWidth = docked => Math.round(docked ? Math.min(320, W * SC - 20) : Math.min(250, TALK_TIP * SC - 16)) + "px";
 function placeTalk(md, bob){
   const b = talk.el; if (b.hidden) return;
   const cw = W * SC, ch = H * SC, tipX = TALK_TIP * SC, tipY = (WATER_Y - 30 + bob - S.camTop) * SC;
   const floor = ch - (S.mode === "idle" && S.viewing ? 76 : 14);     // clear of Play again when looking at the tower
-  const docked = tipY + talk.h / 2 > floor;
-  if (docked !== talk.docked){ talk.docked = docked; b.classList.toggle("docked", docked); talk.w = b.offsetWidth; talk.h = b.offsetHeight; }
+  const docked = tipY + talk.hu / 2 > floor;   // decided by its height beside the crab, so it can't flip back and forth
+  if (docked !== talk.docked){
+    talk.docked = docked; b.classList.toggle("docked", docked); b.classList.toggle("slim", docked && cw < 260); b.style.maxWidth = talkWidth(docked);
+    talk.w = b.offsetWidth; talk.h = b.offsetHeight;
+  }
   if (docked && talk.mood !== md && L.crab){
     talk.mood = md; const g = talk.face.getContext("2d"); g.clearRect(0, 0, 64, 52); g.drawImage(L.crab[md] || L.crab.idle, 0, 0, 64, 52);
   }
@@ -1527,14 +1550,22 @@ const awake = () => engine.world.bodies.some(b => b.tff && !b.isSleeping);
 // One error in a frame (a canvas the browser refused to allocate, say) must not stop the game: the next frame is
 // asked for first, the error is logged once, and the drawing caches start over (they rebuild themselves).
 let frameErr = false;
+const dropCaches = () => { Object.assign(PILE, {s: null, b: null, set: new Set(), list: [], h: 0, k: 0}); Object.assign(BACK, {c: null, key: "", next: ""}); needDraw = true; };
 function frame(now){
   requestAnimationFrame(frame);
   try { frameBody(now); }
   catch(e){
     if (!frameErr){ frameErr = true; console.error(e); }
-    Object.assign(PILE, {s: null, b: null, set: new Set(), list: [], h: 0, k: 0}); Object.assign(BACK, {c: null, key: "", next: ""}); needDraw = true;
+    dropCaches();
   }
 }
+// The graphics process was reset (it happens on a tablet left open all day): every canvas comes back blank, so all
+// the pictures are made again.
+cv.addEventListener("contextrestored", () => {
+  SPR.clear(); buildLayers(); dropCaches();
+  for (const b of engine.world.bodies) if (b.tff) b.tff.mc = null;
+  drawPreviews(true);
+});
 function frameBody(now){
   const raw = now - last, dt = Math.min(50, raw); last = now;
   if (S){
