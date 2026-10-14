@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Admin · 3 Fall Fun</title>
 <meta name="robots" content="noindex, nofollow">
+<meta name="site" content="%%SITE_URL%%/">
 <link rel="icon" href="/icons/favicon-32.png" sizes="32x32" type="image/png">
 <style>
   :root{--bg:#FFF4E2;--card:#fff;--ink:#2E2838;--ink-2:#5B516C;--line:#EADBC4;--pink:#E8418B;--teal:#14968B;--red:#C42A24;--yellow:#FFD23F;
@@ -288,7 +289,7 @@
     <div id="pane-downloads" role="tabpanel" aria-labelledby="tab-downloads" hidden>
       <section class="card">
         <h2>Downloads <small class="zh" lang="zh-HK">下載</small></h2>
-        <p class="msg">CSV files for Excel and Google Sheets, built in this browser from every saved game. Hidden games are included (see the <code>hidden</code> column). Times are Hong Kong time.</p>
+        <p class="msg">CSV files for Excel and Google Sheets, built in this browser from every saved game. Hidden games are included (see the <code>hidden</code> column in each file). Times are Hong Kong time.</p>
         <div class="dl">
           <div class="dlitem"><div><b>games.csv</b><span>One row per game: score, floors, life stage, habit, quiz answers and every Life Event choice.</span></div><button id="dlGames">Download</button></div>
           <div class="dlitem"><div><b>quiz_answers.csv</b><span>One row per quiz answer, for pivot tables. Older games did not keep their answers.</span></div><button id="dlAnswers">Download</button></div>
@@ -313,7 +314,7 @@
           <div class="pair"><label for="gPeriod">Period</label><select id="gPeriod"><option value="">All time</option></select></div>
           <div class="pair"><label for="gBoard">Board</label><select id="gBoard"><option value="">All</option><option value="1">On board</option><option value="0">Anonymous</option></select></div>
         </div>
-        <p class="msg" id="panelMsg">Hide removes a game from the public board, the Stats tab and the analysis. You can unhide it later.</p>
+        <p class="msg" id="panelMsg">For a rude nickname, use Anonymise name: the game stays on the board as "Anonymous crab" and keeps counting in the analysis. Hide is for junk or test games: it removes a game from the public board, the Stats tab and the analysis. You can unhide it later.</p>
         <div class="wrap">
           <table class="wide">
             <thead><tr><th scope="col" class="num">#</th><th scope="col">Saved (HKT)</th><th scope="col">Week</th><th scope="col">Nickname</th><th scope="col">Email</th><th scope="col">Board</th><th scope="col" class="num">Score</th><th scope="col" class="num">Floors</th>

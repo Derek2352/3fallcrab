@@ -29,10 +29,15 @@ CREATE TABLE IF NOT EXISTS scores (
   gid TEXT,                            -- the game page's id for this game
   edit_hash TEXT,
   edits INTEGER NOT NULL DEFAULT 0,
-  updated_at TEXT
+  updated_at TEXT,
+  items INTEGER,                       -- items that landed and paid out (newer game pages)
+  real_ms INTEGER,                     -- real time spent playing, in ms (newer game pages)
+  quiz_prior INTEGER                   -- quizzes this device had finished before this game: 0 = a first attempt
 );
 CREATE INDEX IF NOT EXISTS idx_scores_week ON scores (week, hidden, score DESC, id);
 CREATE INDEX IF NOT EXISTS idx_scores_all ON scores (hidden, score DESC, id);
 CREATE INDEX IF NOT EXISTS idx_scores_ip ON scores (ip_hash, created_at);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_scores_gid ON scores (gid);
 CREATE INDEX IF NOT EXISTS idx_scores_month ON scores (month, hidden, score DESC, id);
+CREATE TABLE IF NOT EXISTS admin_fails (net TEXT NOT NULL, at TEXT NOT NULL);   -- wrong admin passwords, kept for a day
+CREATE INDEX IF NOT EXISTS idx_admin_fails ON admin_fails (net, at);

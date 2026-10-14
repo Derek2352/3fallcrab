@@ -1,5 +1,10 @@
 (() => {
 "use strict";
+// Opened over plain http (an old link, a typed address): move to https first, since the API saves over https only.
+// Only on the site's own address (the canonical link), so local copies still run over http.
+{ const home = /^https:\/\/([^/]+)/.exec((document.querySelector('link[rel="canonical"]') || {}).href || "");
+  if (location.protocol === "http:" && home && (location.host === home[1] || location.host === "www." + home[1])){
+    location.replace("https://" + location.host + location.pathname + location.search + location.hash); return; } }
 const {Engine, Bodies, Body, Composite, Events, Sleeping} = Matter;
 const K = window.CLAY;
 
@@ -106,7 +111,7 @@ function newState(){
     speedUntil:0, fastOn:false, quakeUntil:0, pendingDebt:0, used:new Set(), mode:"idle", card:null, cardCount:0, over:null, posted:false,
     quiz:[null, null, null], camTop:-(H - 240), shake:0, splashes:[], dragX:null, steps:0, ledger:[], warned:false,
     mood:{type:"idle", until:0}, lastImpact:new Map(), grabs:[], leaves:[], habit:null, rec:null,
-    said:new Set(), streak:0, wiseRun:0, afterCard:null, overKey:null, pb:0};
+    said:new Set(), streak:0, wiseRun:0, afterCard:null, overKey:null, pb:0, items:0, realMs:0, endAt:0, prior:0, quizDone:false};
 }
 function makeEngine(){
   engine = Engine.create({enableSleeping:true});
@@ -275,7 +280,7 @@ function physicsStep(){
       if (!m.tff.player || m.tff.settled || !resting || S.play - m.tff.at <= 450) continue;
       m.tff.settled = true;
       const k = m.tff.def.kind, base = k === "wise" ? 500 : k === "risky" ? 300 : 0;
-      if (base){ const gain = Math.round(base * S.rate / 10) * 10; S.score += gain; ledger(m.tff.def, gain); A.sfx("deposit", {amount: gain}); updateHUD(); }
+      if (base){ const gain = Math.round(base * S.rate / 10) * 10; S.score += gain; S.items++; ledger(m.tff.def, gain); A.sfx("deposit", {amount: gain}); updateHUD(); }
       if (++S.streak % 4 === 0) quip("steady", 1);   // every 4 items landed in a row without a drop
     }
     if (resting && S.play - b.tff.at > 300) h = Math.max(h, -b.bounds.min.y);
@@ -663,7 +668,7 @@ function startGame(){
 }
 function endGame(reason){
   if (S.mode === "over") return;
-  S.mode = "over"; S.over = reason;
+  S.mode = "over"; S.over = reason; S.endAt = Date.now();
   if (S.active){ S.active.tff.released = true; S.active = null; }
   $("cardModal").hidden = true; S.card = null;
   A.mode("over"); setPauseUI();
@@ -747,7 +752,8 @@ document.addEventListener("keydown", e => {
     return;
   }
   if (S.mode === "idle" && S.viewing && !$("seeOv").hidden && (k === "Escape" || k === "r" || k === "R")){ openResults(); e.preventDefault(); return; }
-  if (S.mode === "idle" && (k === "Enter" || k === " ") && (!$("startOv").hidden || !$("seeOv").hidden)){ startGame(); e.preventDefault(); return; }
+  const onControl = !!(e.target && e.target.closest && e.target.closest("button, a, label, [role=tab]"));   // it does its own thing
+  if (S.mode === "idle" && (k === "Enter" || k === " ") && !onControl && (!$("startOv").hidden || !$("seeOv").hidden)){ startGame(); e.preventDefault(); return; }
   if (k === "p" || k === "P" || k === "Escape"){ if (S.mode === "playing" || S.mode === "paused"){ togglePause(); e.preventDefault(); } return; }
   if (S.mode !== "playing") return;
   switch (k){
@@ -1444,7 +1450,7 @@ function stamp(en, zh, kind){
 // drops, shocks, money milestones), 1 is small talk, said only after the crab has been quiet for a while. A line
 // stays up for game time, so a pause or a Life Event card doesn't use it up (longer with Extra reading time); a
 // line that had to give way to a more important one is said right after it, if it's still fresh.
-const talk = {el: $("bubble"), say: $("bubbleSay"), face: document.querySelector("#bubble .face"), on: false, pri: 0, until: 0, last: -1e9,
+const talk = {el: $("bubble"), pos: $("bpos"), say: $("bubbleSay"), face: document.querySelector("#bubble .face"), on: false, pri: 0, until: 0, last: -1e9,
   pick: {}, w: 0, h: 0, x: NaN, y: NaN, docked: null, mood: "", next: null};
 function quip(key, pri, n){
   const pool = QUIPS[key]; if (!S || !pool) return;
@@ -1491,7 +1497,7 @@ function placeTalk(md, bob){
   if (docked){ x = cw - talk.w - 10; y = floor - talk.h; }
   else { x = tipX - 10 - talk.w; y = Math.max((30 - S.camTop) * SC + 4, tipY - talk.h / 2); }   // never above the platform's underside
   x = Math.round(clamp(x, 6, cw - talk.w - 6)); y = Math.round(Math.max(6, y));
-  if (x !== talk.x || y !== talk.y){ talk.x = x; talk.y = y; b.style.transform = "translate(" + x + "px," + y + "px)"; }
+  if (x !== talk.x || y !== talk.y){ talk.x = x; talk.y = y; talk.pos.style.transform = "translate(" + x + "px," + y + "px)"; }   // on the wrapper: the pop scales the bubble alone
 }
 // how far up from the board's bottom the bubble may reach, in px: stamps placed low stay above it
 function talkBand(){
@@ -1518,8 +1524,19 @@ let last = performance.now(), needDraw = true;   // needDraw: the picture change
 const SIDEWAYS = matchMedia("(orientation: landscape) and (max-height: 500px) and (pointer: coarse)");
 let sideways = false;
 const awake = () => engine.world.bodies.some(b => b.tff && !b.isSleeping);
+// One error in a frame (a canvas the browser refused to allocate, say) must not stop the game: the next frame is
+// asked for first, the error is logged once, and the drawing caches start over (they rebuild themselves).
+let frameErr = false;
 function frame(now){
-  const dt = Math.min(50, now - last); last = now;
+  requestAnimationFrame(frame);
+  try { frameBody(now); }
+  catch(e){
+    if (!frameErr){ frameErr = true; console.error(e); }
+    Object.assign(PILE, {s: null, b: null, set: new Set(), list: [], h: 0, k: 0}); Object.assign(BACK, {c: null, key: "", next: ""}); needDraw = true;
+  }
+}
+function frameBody(now){
+  const raw = now - last, dt = Math.min(50, raw); last = now;
   if (S){
     const side = SIDEWAYS.matches && (S.mode === "playing" || S.mode === "paused" || S.mode === "card");
     if (side !== sideways){ sideways = side; $("turnOv").hidden = !side; if (side && S.mode === "playing") togglePause(); }
@@ -1532,9 +1549,11 @@ function frame(now){
         const sec = Math.ceil(left / 1000); if (sec <= 3 && sec < S.card.lastTick && sec > 0){ S.card.lastTick = sec; A.sfx("cardTick"); }
         if (S.card.t >= cardMs()) choose("none");
       } else if (!slowRead && S.card.t - S.card.flipAt > RESULT_MS) closeCard();
-    } else if (S.mode === "playing"){ tick(dt); live = true; }
+    } else if (S.mode === "playing"){ S.realMs += Math.min(1000, raw); tick(dt); live = true; }   // real time played (a slow device plays in slow motion)
     else if (S.mode === "over" || (S.mode === "idle" && S.viewing)){
       S.acc += dt; let n = 0; while (S.acc >= STEP && n++ < 3){ S.acc -= STEP; snap(); worldStep(); }
+      // an item knocked off at the end sinks out of sight behind the harbour: dropped, so a settled tower can rest
+      for (const b of engine.world.bodies.slice()) if (b.tff && b.position.y > WATER_Y + 40) Composite.remove(engine.world, b);
       live = S.mode !== "over" || $("endModal").hidden || awake();   // under the statement, a settled tower stays as drawn
     }
     ALPHA = clamp(S.acc / STEP, 0, 1);
@@ -1543,7 +1562,6 @@ function frame(now){
     // second: that saves battery and keeps scrolling and the cards' animations smooth on phones.
     if (live || needDraw || S.shake > 0 || S.splashes.length || S.leaves.length || Math.abs(camTarget() - S.camTop) > 0.05){ needDraw = false; draw(dt); }
   }
-  requestAnimationFrame(frame);
 }
 function tick(dt){
   S.play += dt; updateTime();
@@ -1594,6 +1612,7 @@ function showEnd(){
   const qz = $("quiz"); qz.replaceChildren(); S.quiz = QUIZ.map(() => null);
   const quizScore = () => { $("quizScore").textContent = S.quiz.filter(x => x && x.ok).length + "/" + QUIZ.length; };
   quizScore();
+  S.prior = Math.min(99, +lsGet("tff_quiz_n", 0) || 0);   // quizzes finished on this device before this game
   QUIZ.forEach((q, qi) => {
     const fs = document.createElement("fieldset"); fs.className = "qz";
     const lg = document.createElement("legend"); lg.textContent = (qi + 1) + ". " + q.q[0];
@@ -1613,6 +1632,7 @@ function showEnd(){
         const why = document.createElement("span"); why.textContent = q.why[0];
         const wz = document.createElement("small"); wz.textContent = q.why[1];
         fb.className = "qfb " + (ok ? "ok" : "no"); fb.replaceChildren(head, why, wz);
+        if (!S.quizDone && S.quiz.every(Boolean)){ S.quizDone = true; lsSet("tff_quiz_n", (+lsGet("tff_quiz_n", 0) || 0) + 1); }
         quizScore(); saveSoon();
       });
       box.appendChild(b);
@@ -1678,6 +1698,7 @@ function refreshLB(force){
     lbWeek = (j.weekTop || []).map(e => ({...e, _id: e.id}));
     lbAll = (j.allTop || []).map(e => ({...e, _id: e.id}));
     if (tab !== "insights" || first) renderLB();
+    flushOutboxSoon();
     return true;
   }).catch(e => {
     // Static-only hosting answers "static_only" (public/api/scores); a Worker without D1 answers "no_database".
@@ -1708,7 +1729,8 @@ function recordBody(st){
   return {gid: r.gid, key: r.key, board: r.board, name: r.board ? r.name : undefined, email: r.board && r.email ? r.email : undefined,
     score: Math.round(st.score), stage: st.stage, height: +(st.best / FLOOR).toFixed(1), drops: st.drops,
     wise: st.wise, risky: st.risky, missed: st.missed, falls: {...st.falls}, choices: st.choices.slice(0, 20), ended: st.over,
-    answers: answersOf(st), habit: st.habit || null};
+    answers: answersOf(st), habit: st.habit || null,
+    items: st.items, real_ms: Math.round(st.realMs), at: st.endAt || undefined, prior: st.prior};   // checked by the server; at buckets a late retry
 }
 // Saves go out one at a time; each sends the latest state, and only if it changed since the last one.
 function saveRecord(st, opts = {}){
@@ -1720,7 +1742,7 @@ function saveRecord(st, opts = {}){
     const body = JSON.stringify(recordBody(st));
     if (body === r.sent) return r.last;
     const j = await api(API, {method: "POST", headers: {"content-type": "application/json"}, body, keepalive: !!opts.keepalive});
-    r.sent = body; r.last = j; dropOutbox(r.gid);
+    r.sent = body; r.last = j; dropOutbox(r.gid); flushOutboxSoon();
     return j;
   };
   const p = r.chain.then(run);
@@ -1742,12 +1764,12 @@ function keepForLater(st, e){
   if (e && (e.code === "closed" || e.code === "locked" || e.code === "bad_key" || (e.status >= 400 && e.status < 500 && e.status !== 429))) return;
   const body = recordBody(st); body.board = false; delete body.name; delete body.email;   // a later retry never posts to the board
   body.t = Date.now();
-  lsSet(OUTBOX, lsGet(OUTBOX, []).filter(x => x.gid !== body.gid).concat([body]).slice(-20));
+  lsSet(OUTBOX, lsGet(OUTBOX, []).filter(x => x.gid !== body.gid).concat([body]).slice(-100));   // under 1 KB each
 }
 function dropOutbox(gid){ const box = lsGet(OUTBOX, []); if (box.some(x => x.gid === gid)) lsSet(OUTBOX, box.filter(x => x.gid !== gid)); }
 async function flushOutbox(){
-  const box = lsGet(OUTBOX, []).filter(x => x && x.gid && Date.now() - (x.t || 0) < 2 * 86400000);
-  lsSet(OUTBOX, box);
+  const all = lsGet(OUTBOX, []), box = all.filter(x => x && x.gid && Date.now() - (x.t || 0) < 2 * 86400000);
+  if (box.length !== all.length) lsSet(OUTBOX, box);
   if (!box.length || !db || !dbWritable) return;
   for (const x of box){
     const body = {...x}; delete body.t;
@@ -1755,6 +1777,10 @@ async function flushOutbox(){
     catch(e){ if (e.status >= 400 && e.status < 500 && e.status !== 429) dropOutbox(x.gid); else break; }
   }
 }
+// Games kept on this device go out whenever the board is reachable again: after any save gets through, when the
+// board refreshes, and when the device comes back online (a booth tablet may stay open all day). One at a time.
+let flushing = null;
+function flushOutboxSoon(){ if (!flushing) flushing = flushOutbox().catch(() => {}).finally(() => { flushing = null; }); }
 
 const EMAIL_OK = /^[^\s@<>()[\]\\,;:"]{1,64}@[^\s@<>()[\]\\,;:"]+\.[^\s@<>()[\]\\,;:".]{2,}$/;
 function emailError(on){   // red outline plus aria-invalid, and the message under the button is read out with the field
@@ -1934,8 +1960,8 @@ async function initDB(){
   const body = $("lbBody"); body.replaceChildren(); const p = document.createElement("p"); p.className = "lb-empty"; p.textContent = "Loading the live board… 載入排行榜中"; body.appendChild(p);
   await refreshLB();
   if (apiGone) return;
-  flushOutbox();
   schedulePoll(45000);
+  window.addEventListener("online", () => refreshLB(true));
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && performance.now() - lastFetch > 20000) refreshLB(); });
   if ("IntersectionObserver" in window){
     new IntersectionObserver(es => {

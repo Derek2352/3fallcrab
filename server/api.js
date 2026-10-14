@@ -11,6 +11,7 @@
 //   GET  /api/admin/winners        -> top posted scores of a ?week= or ?month=, with emails (needs ADMIN_TOKEN)
 //   GET  /api/admin/rows           -> every game, 500 at a time (?after=<id>), for the analysis CSVs (needs ADMIN_TOKEN)
 //   POST /api/admin/hide           -> hide / unhide a game {id, hidden}                 (needs ADMIN_TOKEN)
+//   POST /api/admin/rename         -> replace a game's nickname with the anonymous one {id} (needs ADMIN_TOKEN)
 //   GET  /api/admin/export         -> every game as one CSV                             (needs ADMIN_TOKEN)
 //
 // Optional environment variables (Pages > Settings > Variables and Secrets):
@@ -18,7 +19,8 @@
 //   LEADERBOARD_CLOSED  "1" stops new games being saved (e.g. after the event); the board stays visible
 //   TIMEZONE            IANA zone for the weekly reset and the months, default Asia/Hong_Kong
 //   RATE_LIMIT          max new games per minute from one network, default 30
-//   IP_SALT             extra salt for the hashed network id used only for rate limiting
+//   IP_SALT             secret key for the hashed network id used only for rate limiting (if unset, one is derived
+//                       from ADMIN_TOKEN). The hash is cleared from each game after a few minutes.
 
 import "../src/content.js"; // quiz, habits and cards, shared with the game page (sets globalThis.TFF_CONTENT)
 
@@ -36,6 +38,11 @@ const QUIZ_TAKER = `(quiz_answered = ${QUIZ.length} OR (quiz_answered IS NULL AN
 const EDIT_HOURS = 24; // the game page can add answers / post the score for this long after the game ends
 const MAX_EDITS = 60;
 const PICKS = ["wise", "risky", "none"];
+const TRAP_OF = new Map(CARDS.map((c) => [c.id, c.trap]));
+// Limits that no real game can pass, from the game's rules (src/game.js; unchanged since launch):
+const MAX_CARDS = 7;   // cards open at 15 s of play, then 24 s after each one closes (play stops while a card is open): an 8th would need 183 s of a 180 s game
+const MAX_ITEMS = 430; // the next item arrives 420 ms after one is let go: at most 180 s / 420 ms + 1 items can be placed
+const ADMIN_FAILS = 20, ADMIN_FAIL_MIN = 15; // wrong admin passwords allowed from one network per 15 minutes
 const ENDS = ["time", "drops"];
 // Nicknames that hit these become the anonymous name. Anything else unpleasant: hide it from admin.html.
 // Short Latin words only match at the start of a word (or as a whole word) so "Grape", "Jason99" and "Fukuda" stay.
@@ -71,6 +78,9 @@ export const SCHEMA = [
   `CREATE INDEX IF NOT EXISTS idx_scores_week ON scores (week, hidden, score DESC, id)`,
   `CREATE INDEX IF NOT EXISTS idx_scores_all ON scores (hidden, score DESC, id)`,
   `CREATE INDEX IF NOT EXISTS idx_scores_ip ON scores (ip_hash, created_at)`,
+  // wrong admin passwords, per hashed network, kept for a day (see admin())
+  `CREATE TABLE IF NOT EXISTS admin_fails (net TEXT NOT NULL, at TEXT NOT NULL)`,
+  `CREATE INDEX IF NOT EXISTS idx_admin_fails ON admin_fails (net, at)`,
 ];
 
 // Columns added after launch. ADD COLUMN keeps every existing row as it is; games saved before have posted = 1
@@ -85,6 +95,9 @@ export const ADDED = [
   ["edit_hash", "TEXT"], // SHA-256 of the game page's secret key for this row
   ["edits", "INTEGER NOT NULL DEFAULT 0"],
   ["updated_at", "TEXT"],
+  ["items", "INTEGER"], // items that landed and paid out (newer game pages): lets staff check a top score
+  ["real_ms", "INTEGER"], // real time spent playing, in ms (newer game pages): far above 180000 = a slowed-down game
+  ["quiz_prior", "INTEGER"], // quizzes this device had finished before this game (newer game pages): 0 = a first attempt
 ];
 const SCHEMA_2 = [
   `CREATE UNIQUE INDEX IF NOT EXISTS idx_scores_gid ON scores (gid)`,
@@ -116,10 +129,11 @@ async function migrate(db, tz) {
   }
 }
 
+const SECURE = { "strict-transport-security": "max-age=31536000", "x-content-type-options": "nosniff" };
 const json = (data, status = 200, headers = {}) =>
   new Response(JSON.stringify(data), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", ...headers },
+    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", ...SECURE, ...headers },
   });
 const fail = (error, status, headers) => json({ ok: false, error }, status, headers);
 
@@ -196,11 +210,42 @@ function blocked(name) {
   return false;
 }
 
+// Life Event choices, [{card, pick}]: each card once (a card never comes up twice in a game), well-formed ids only.
 function cleanChoices(list) {
   if (!Array.isArray(list)) return [];
-  return list.slice(0, 20).flatMap((c) =>
-    c && typeof c.card === "string" && /^[a-z0-9_-]{1,24}$/.test(c.card) && PICKS.includes(c.pick) ? [{ card: c.card, pick: c.pick }] : [],
-  );
+  const seen = new Set();
+  return list.slice(0, 20).flatMap((c) => {
+    if (!c || typeof c.card !== "string" || !/^[a-z0-9_-]{1,24}$/.test(c.card) || !PICKS.includes(c.pick) || seen.has(c.card)) return [];
+    seen.add(c.card);
+    return [{ card: c.card, pick: c.pick }];
+  });
+}
+// The decision counters come from the choices themselves, not from separate numbers the page sends, so one request
+// can't count for more than one game. A missed card is putting off saving; a risky pick is its card's trap.
+function tally(choices) {
+  const t = { wise: 0, risky: 0, missed: 0, fall_spend: 0, fall_scam: 0, fall_delay: 0 };
+  for (const c of choices) {
+    if (c.pick === "wise") t.wise++;
+    else if (c.pick === "none") { t.missed++; t.fall_delay++; }
+    else { t.risky++; const trap = TRAP_OF.get(c.card); if (trap) t["fall_" + trap]++; }
+  }
+  return t;
+}
+const stageOf = (floors) => STAGES.reduce((s, st, i) => (floors >= st.at ? i : s), 0);
+// A game the rules make impossible is refused, so an edited request can't top the board. Every rule holds for every
+// version of the game page released so far (scoring has not changed since launch):
+// - every gain (Math.round(x * rate / 10) * 10) and loss (all or 1000 / 5000 of it) is a multiple of 10;
+// - points need an item resting on the platform, which sets the height (height is rounded to 0.1 floor);
+// - the life stage is worked out from the height;
+// - an item pays at most 500 x the savings boost, a new floor 2000 x the boost, and the boost starts at x1, grows
+//   only with wise answers (+0.2 each) and stops at x2; with no item count, the most items a game can place is used.
+function implausible(v, wise, items) {
+  if (v.score % 10 !== 0) return "score_step";
+  if (v.score > 0 && v.height <= 0) return "no_height";
+  if (v.stage !== stageOf(v.height) && v.stage !== stageOf(v.height - 0.05)) return "stage";
+  const boost = Math.min(2, 1 + 0.2 * wise), floors = Math.floor(v.height + 0.05);
+  if (v.score > boost * (500 * (items ?? MAX_ITEMS) + 2000 * floors)) return "score";
+  return null;
 }
 
 // Optional contact email for prize winners: trimmed, otherwise kept exactly as typed.
@@ -272,6 +317,13 @@ async function sha256(text) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
+// Network id for rate limits: a hash keyed with a secret (IP_SALT, or one derived from ADMIN_TOKEN), so a copy of
+// the database can't be turned back into addresses. Never the address itself.
+async function netHash(ip, scope, env) {
+  const token = String(env.ADMIN_TOKEN || "");
+  const key = env.IP_SALT || (token.length >= 16 ? await sha256("ip-key|" + token) : "3-fall-fun");
+  return (await sha256(networkKey(ip) + "|" + scope + "|" + key)).slice(0, 24);
+}
 
 // ---------- public routes ----------
 
@@ -321,9 +373,9 @@ async function post(request, env, db) {
   if (closed(env)) return fail("closed", 403);
   const origin = request.headers.get("origin");
   if (origin) {
-    let host = "";
-    try { host = new URL(origin).host; } catch {}
-    if (host !== new URL(request.url).host) return fail("origin", 403);
+    let from = "";
+    try { from = new URL(origin).origin; } catch {}
+    if (from !== new URL(request.url).origin) return fail("origin", 403); // scheme too: a page loaded over http can't post
   }
   if (!(request.headers.get("content-type") || "").toLowerCase().includes("application/json")) return fail("content_type", 415);
   const declared = Number(request.headers.get("content-length") || 0);
@@ -346,26 +398,32 @@ async function post(request, env, db) {
   }
   const answers = cleanAnswers(b.answers);
   const habit = HABITS.includes(b.habit) ? b.habit : null;
-  const change = { key, board, name: b.name, email, answers, habit };
+  const now = new Date(), tz = timeZone(env);
+  const change = { key, board, name: b.name, email, answers, habit, now, tz };
   if (gid) {
     const saved = await findGame(db, gid);
     if (saved) return update(db, saved, change);
   }
 
-  const now = new Date(), tz = timeZone(env);
-  const week = isoWeek(now, tz);
+  // A game kept on the device while offline counts in the week and month it was played (up to 2 days back), unless it
+  // goes on the board: the board always uses the server's time.
+  const played = !board && typeof b.at === "number" && Number.isFinite(b.at) ? new Date(Math.min(now.getTime(), Math.max(now.getTime() - 48 * 3600000, b.at))) : now;
+  const week = isoWeek(played, tz);
   const at = now.toISOString();
-  const falls = b.falls && typeof b.falls === "object" ? b.falls : {};
   const perQuestion = Array.isArray(b.answers);
+  const choices = cleanChoices(b.choices);
+  if (choices.length > MAX_CARDS) return fail("implausible", 422);
+  const counts = tally(choices);
+  const items = Number.isInteger(b.items) && b.items >= 0 ? b.items : null;
+  if (items !== null && items > MAX_ITEMS) return fail("implausible", 422);
   const values = {
     name: board ? cleanName(b.name) : NAME_DEFAULT,
     score: Math.round(score),
     stage: int(b.stage, 0, 3),
     height: Math.round(Math.min(999, Math.max(0, Number(b.height) || 0)) * 10) / 10,
     drops: int(b.drops, 0, 3),
-    wise: int(b.wise, 0, 99), risky: int(b.risky, 0, 99), missed: int(b.missed, 0, 99),
-    fall_spend: int(falls.spend, 0, 99), fall_scam: int(falls.scam, 0, 99), fall_delay: int(falls.delay, 0, 99),
-    choices: JSON.stringify(cleanChoices(b.choices)),
+    ...counts,
+    choices: JSON.stringify(choices),
     habit,
     // older game pages send only how many they got right (quiz); newer ones send each answer
     quiz: perQuestion ? quizRight(answers) : Number.isInteger(b.quiz) && b.quiz >= 0 && b.quiz <= QUIZ.length ? b.quiz : null,
@@ -373,20 +431,25 @@ async function post(request, env, db) {
     quiz_answers: perQuestion ? JSON.stringify(answers) : null,
     ended: ENDS.includes(b.ended) ? b.ended : null,
     week,
-    month: monthKey(now, tz),
+    month: monthKey(played, tz),
     created_at: at,
     updated_at: at,
     posted: board ? 1 : 0,
     email: email ?? null,
     gid,
     edit_hash: key ? await sha256(key) : null,
+    items,
+    real_ms: Number.isFinite(Number(b.real_ms)) && b.real_ms !== null ? int(b.real_ms, 0, 3600000) : null,
+    quiz_prior: Number.isInteger(b.prior) && b.prior >= 0 ? Math.min(99, b.prior) : null,
     ip_hash: null,
   };
+  if (implausible(values, counts.wise, items)) return fail("implausible", 422);
 
-  // Rate limit by a salted hash of the network (rotates weekly; the address itself is never stored).
-  // The count and the insert are one statement, so a burst of parallel posts cannot all slip past the limit.
+  // Rate limit by a keyed hash of the network (the address itself is never stored; the hash is cleared below once
+  // the minute it is needed for has passed). The count and the insert are one statement, so a burst of parallel
+  // posts cannot all slip past the limit.
   const ip = request.headers.get("cf-connecting-ip") || "";
-  values.ip_hash = ip ? (await sha256(networkKey(ip) + "|" + week + "|" + (env.IP_SALT || "3-fall-fun"))).slice(0, 24) : null;
+  values.ip_hash = ip ? await netHash(ip, isoWeek(now, tz), env) : null;
   const limit = int(env.RATE_LIMIT || 30, 1, 1000);
   const since = new Date(now.getTime() - 60000).toISOString();
   const cols = Object.keys(values), n = cols.length, ipAt = cols.indexOf("ip_hash") + 1;
@@ -401,12 +464,14 @@ async function post(request, env, db) {
     return saved ? update(db, saved, change) : fail("rate_limited", 429, { "retry-after": "60" });
   }
   const id = ins.meta.last_row_id;
+  await db.prepare("UPDATE scores SET ip_hash = NULL WHERE id IN (SELECT id FROM scores WHERE ip_hash IS NOT NULL AND created_at < ?1 LIMIT 500)")
+    .bind(new Date(now.getTime() - 5 * 60000).toISOString()).run();
   if (!board) return json({ ok: true, id, week, board: false }, 201);
   return json({ ok: true, id, board: true, ...(await rankOf(db, week, values.score, id)), week, name: values.name }, 201);
 }
 
 const findGame = (db, gid) =>
-  db.prepare("SELECT id, edit_hash, posted, name, email, habit, quiz_answers, score, week, created_at, edits FROM scores WHERE gid = ?1").bind(gid).first();
+  db.prepare("SELECT id, edit_hash, posted, name, email, habit, quiz_answers, score, week, month, created_at, edits FROM scores WHERE gid = ?1").bind(gid).first();
 
 async function update(db, saved, c) {
   if (!saved.edit_hash || (await sha256(c.key)) !== saved.edit_hash) return fail("bad_key", 403);
@@ -415,17 +480,21 @@ async function update(db, saved, c) {
   const posted = saved.posted || c.board ? 1 : 0;
   const name = !saved.posted && c.board ? cleanName(c.name) : saved.name; // the nickname is set once, when posting
   const email = saved.email ?? (c.board ? c.email ?? null : null); // write once: a saved email is never changed or cleared
+  // Posted for the first time after its week or month has ended (the statement was left open overnight, say): the game
+  // goes on this week's board, so a finished week's or month's winners never change afterwards.
+  let week = saved.week, month = saved.month;
+  if (!saved.posted && c.board) { week = isoWeek(c.now, c.tz); month = monthKey(c.now, c.tz); }
   const same = JSON.stringify(answers) === (saved.quiz_answers || "[]") && habit === saved.habit && posted === saved.posted && email === saved.email;
   if (!same) {
     if (saved.edits >= MAX_EDITS || Date.now() - Date.parse(saved.created_at) > EDIT_HOURS * 3600000) return fail("locked", 409);
     await db
       .prepare(`UPDATE scores SET quiz_answers = ?1, quiz_answered = ?2, quiz = ?3, habit = ?4, posted = ?5, name = ?6,
-        email = COALESCE(email, ?7), edits = edits + 1, updated_at = ?8 WHERE id = ?9`)
-      .bind(JSON.stringify(answers), answers.length, quizRight(answers), habit, posted, name, email, new Date().toISOString(), saved.id)
+        email = COALESCE(email, ?7), edits = edits + 1, updated_at = ?8, week = ?9, month = COALESCE(?10, month) WHERE id = ?11`)
+      .bind(JSON.stringify(answers), answers.length, quizRight(answers), habit, posted, name, email, new Date().toISOString(), week, month, saved.id)
       .run();
-  }
-  if (!posted) return json({ ok: true, id: saved.id, week: saved.week, board: false });
-  return json({ ok: true, id: saved.id, board: true, ...(await rankOf(db, saved.week, saved.score, saved.id)), week: saved.week, name });
+  } else week = saved.week;
+  if (!posted) return json({ ok: true, id: saved.id, week, board: false });
+  return json({ ok: true, id: saved.id, board: true, ...(await rankOf(db, week, saved.score, saved.id)), week, name });
 }
 
 // Weekly rank, counting at most RANK_CAP rows so a low score in a busy week stays cheap (null = beyond the cap).
@@ -450,7 +519,7 @@ async function authorised(request, env) {
   return diff === 0;
 }
 
-const ADMIN_COLS = "id, name, email, posted, score, stage, height, drops, wise, risky, missed, fall_spend, fall_scam, fall_delay, choices, habit, quiz, quiz_answered, quiz_answers, ended, week, month, created_at, updated_at, hidden";
+const ADMIN_COLS = "id, name, email, posted, score, stage, height, drops, wise, risky, missed, fall_spend, fall_scam, fall_delay, choices, habit, quiz, quiz_answered, quiz_answers, ended, week, month, created_at, updated_at, hidden, items, real_ms, quiz_prior";
 
 // ?week=2026-W41 or ?month=2026-10 narrows a view; neither means every game.
 function period(url) {
@@ -472,6 +541,8 @@ async function summary(db, p) {
       ${sum("fall_spend")} AS spend, ${sum("fall_scam")} AS scam, ${sum("fall_delay")} AS delay`;
   const res = await db.batch([
     q(`SELECT ${TREND}, ${sum("quiz_answered >= 1")} AS quizStarted, ${sum("quiz_answered IS NULL AND quiz IS NOT NULL")} AS quizLegacy,
+        ${sum(`${QUIZ_TAKER} AND quiz_prior = 0`)} AS quizFirst, ${sum(`${QUIZ_TAKER} AND quiz_prior = 0 AND quiz >= ${QUIZ_PASS}`)} AS quizFirstPass,
+        ${sum(`${QUIZ_TAKER} AND quiz_prior IS NOT NULL`)} AS quizPriorKnown,
         ${sum(`${QUIZ_TAKER} AND quiz = ${QUIZ.length}`)} AS quizPerfect, ${sum(`CASE WHEN ${QUIZ_TAKER} THEN quiz END`)} AS quizSum,
         MAX(score) AS bestScore, ROUND(AVG(height), 1) AS avgHeight, ${sum("ended = 'time'")} AS endedTime, ${sum("ended = 'drops'")} AS endedDrops,
         ${sum("fall_spend > 0")} AS gSpend, ${sum("fall_scam > 0")} AS gScam, ${sum("fall_delay > 0")} AS gDelay,
@@ -509,6 +580,8 @@ async function summary(db, p) {
       quizQuestions: QUIZ.length, quizPassMark: QUIZ_PASS, quizTargetPct: 70,
       quizStarted: o.quizStarted || 0, quizTakers: o.quizTakers || 0, quizLegacy: o.quizLegacy || 0,
       quizPass: o.quizPass || 0, quizPassPct: pct(o.quizPass, o.quizTakers), quizPerfect: o.quizPerfect || 0,
+      // a device's first finished quiz only (replays see the same questions with the answers already shown)
+      quizFirst: o.quizFirst || 0, quizFirstPass: o.quizFirstPass || 0, quizFirstPct: pct(o.quizFirstPass, o.quizFirst), quizPriorKnown: o.quizPriorKnown || 0,
       quizAvg: o.quizTakers ? Math.round((100 * o.quizSum) / o.quizTakers) / 100 : null,
       habits: o.habits || 0, habitPct: pct(o.habits, games),
       avgScore: o.avgScore, bestScore: o.bestScore, avgHeight: o.avgHeight, endedTime: o.endedTime || 0, endedDrops: o.endedDrops || 0,
@@ -544,7 +617,24 @@ async function summary(db, p) {
 
 async function admin(path, request, env, db) {
   if (String(env.ADMIN_TOKEN || "").length < 16) return fail("admin_disabled", 404);
-  if (!(await authorised(request, env))) return fail("unauthorised", 401);
+  // Guessing the password is slowed down: after ADMIN_FAILS wrong ones from a network in ADMIN_FAIL_MIN minutes, that
+  // network gets no answer either way until the window passes (so a lucky guess can't be told apart).
+  const ip = request.headers.get("cf-connecting-ip") || "";
+  const net = ip ? await netHash(ip, "admin", env) : null;
+  if (net) {
+    const since = new Date(Date.now() - ADMIN_FAIL_MIN * 60000).toISOString();
+    const f = await db.prepare("SELECT COUNT(*) AS n FROM admin_fails WHERE net = ?1 AND at > ?2").bind(net, since).first();
+    if ((f?.n || 0) >= ADMIN_FAILS) return fail("rate_limited", 429, { "retry-after": String(ADMIN_FAIL_MIN * 60) });
+  }
+  if (!(await authorised(request, env))) {
+    if (net) {
+      await db.batch([
+        db.prepare("INSERT INTO admin_fails (net, at) VALUES (?1, ?2)").bind(net, new Date().toISOString()),
+        db.prepare("DELETE FROM admin_fails WHERE at < ?1").bind(new Date(Date.now() - 86400000).toISOString()),
+      ]);
+    }
+    return fail("unauthorised", 401);
+  }
   const url = new URL(request.url), now = new Date(), tz = timeZone(env);
   const current = { week: isoWeek(now, tz), month: monthKey(now, tz) };
   if (path === "scores" && request.method === "GET") {
@@ -555,7 +645,7 @@ async function admin(path, request, env, db) {
     const where = p.where + (on === "1" ? " AND posted = 1" : on === "0" ? " AND posted = 0" : "");
     const [rows, count] = await db.batch([
       db.prepare(`SELECT ${ADMIN_COLS} FROM scores WHERE ${where} ORDER BY id DESC LIMIT ?${args.length + 1} OFFSET ?${args.length + 2}`).bind(...args, limit, offset),
-      db.prepare("SELECT COUNT(*) AS n, COALESCE(SUM(hidden), 0) AS hidden, COALESCE(SUM(posted), 0) AS posted, COALESCE(SUM(email IS NOT NULL), 0) AS emails FROM scores"),
+      db.prepare("SELECT COUNT(*) AS n, COALESCE(SUM(hidden), 0) AS hidden, COALESCE(SUM(posted = 1 AND hidden = 0), 0) AS posted, COALESCE(SUM(email IS NOT NULL), 0) AS emails FROM scores"),
     ]);
     const c = count.results[0] || {};
     return json({ ok: true, ...current, total: c.n || 0, hiddenTotal: c.hidden || 0, postedTotal: c.posted || 0, emailTotal: c.emails || 0, rows: rows.results });
@@ -571,7 +661,7 @@ async function admin(path, request, env, db) {
     const asked = period(url), p = asked.key ? asked : { type: "week", key: current.week, where: "week = ?1" };
     const limit = int(url.searchParams.get("limit") || 20, 1, 100);
     const { results } = await db
-      .prepare(`SELECT id, name, email, score, height, stage, created_at, week, month FROM scores
+      .prepare(`SELECT id, name, email, score, height, stage, created_at, week, month, drops, wise, ended, items, real_ms FROM scores
         WHERE posted = 1 AND hidden = 0 AND ${p.where} ORDER BY score DESC, id ASC LIMIT ?2`)
       .bind(p.key, limit)
       .all();
@@ -585,6 +675,15 @@ async function admin(path, request, env, db) {
     const res = await db.prepare("UPDATE scores SET hidden = ?1 WHERE id = ?2").bind(b.hidden === false ? 0 : 1, id).run();
     statsMemo = null;
     return json({ ok: true, id, hidden: b.hidden !== false, changed: res.meta.changes || 0 });
+  }
+  if (path === "rename" && request.method === "POST") { // a rude nickname: the game stays on the board and in the analysis
+    let b;
+    try { b = JSON.parse((await readBody(request, MAX_BODY)) ?? "x"); } catch { return fail("bad_json", 400); }
+    const id = int(b && b.id, 0, Number.MAX_SAFE_INTEGER);
+    if (!id) return fail("bad_id", 400);
+    const res = await db.prepare("UPDATE scores SET name = ?1 WHERE id = ?2").bind(NAME_DEFAULT, id).run();
+    statsMemo = null;
+    return json({ ok: true, id, name: NAME_DEFAULT, changed: res.meta.changes || 0 });
   }
   if (path === "export" && request.method === "GET") {
     const { results } = await db.prepare(`SELECT ${ADMIN_COLS} FROM scores ORDER BY id ASC`).all();
@@ -600,6 +699,7 @@ async function admin(path, request, env, db) {
         "content-type": "text/csv; charset=utf-8",
         "content-disposition": `attachment; filename="3-fall-fun-scores-${new Date().toISOString().slice(0, 10)}.csv"`,
         "cache-control": "no-store",
+        ...SECURE,
       },
     });
   }
@@ -609,8 +709,15 @@ async function admin(path, request, env, db) {
 // ---------- entry ----------
 
 export async function handle(request, env) {
-  const path = new URL(request.url).pathname.replace(/\/+$/, "");
+  const u = new URL(request.url), path = u.pathname.replace(/\/+$/, "");
   const method = request.method;
+  // HTTPS only: a nickname, an email or the admin password must never cross the network in the clear. Cloudflare's
+  // edge says which scheme the visitor used (local `wrangler dev` sends neither header, so it is left alone).
+  const scheme = (request.headers.get("x-forwarded-proto") || (/"scheme":"(\w+)"/.exec(request.headers.get("cf-visitor") || "") || [])[1] || "").toLowerCase();
+  if (u.protocol === "http:" && scheme === "http") {
+    if (method === "GET" || method === "HEAD") return Response.redirect("https://" + u.host + u.pathname + u.search, 301);
+    return fail("https_required", 403);
+  }
   try {
     if (path === "/api/health") {
       if (!env.DB) return json({ ok: true, database: false, closed: closed(env) });

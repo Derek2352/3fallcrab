@@ -3,11 +3,16 @@
 // cards and stages in the CSVs. Text always goes in with textContent / append(text), never as HTML.
 (() => {
   "use strict";
+  // Opened over plain http on the site's own address: move to https before the password is ever sent.
+  { const m = document.querySelector('meta[name="site"]'), home = m && /^https:\/\/([^/]+)/.exec(m.content || "");
+    if (location.protocol === "http:" && home && (location.host === home[1] || location.host === "www." + home[1])) {
+      location.replace("https://" + location.host + location.pathname + location.search + location.hash); return; } }
   const $ = (id) => document.getElementById(id);
   const KEY = "tff_admin_token";
   const PAGE = 100; // games per page in the table
   const ROWS = 500; // games per request while a CSV is being built
   const TOP = 20; // winners listed per week / month
+  const ANON = "Anonymous crab 匿名蟹"; // the name a game gets when its nickname is anonymised (same as the API)
   const C = window.TFF_CONTENT || { STAGES: [], TRAPS: {}, CARDS: [], QUIZ: [], HABITS: [] };
   const QN = C.QUIZ.length || 3; // questions in the quiz
   const TABS = ["survey", "decisions", "trends", "winners", "downloads", "games"];
@@ -121,11 +126,13 @@
     $("kpiPeriod").textContent = picked ? "· " + picked.textContent : "";
     const hit = o.quizPassPct == null ? null : o.quizPassPct >= o.quizTargetPct;
     $("tiles").replaceChildren(
-      tile("Players", fmt(o.games), "games saved"),
+      tile("Games", fmt(o.games), "games saved"),
       tile("On the board", fmt(o.posted), fmt(o.anonymous) + " saved anonymously"),
       tile("Quiz finished", fmt(o.quizTakers), ratio(o.quizTakers, o.games, "games")),
       tile(`Scored ${o.quizPassMark}/${qn} or better`, pc(o.quizPassPct), `${fmt(o.quizPass)} of ${fmt(o.quizTakers)} who finished · target ${o.quizTargetPct}%`,
         hit == null ? ["", "No quiz data yet"] : hit ? ["ok", "Target met ✓"] : ["bad", "Not met yet ✗"], "kpi"),
+      tile(`First try: ${o.quizPassMark}/${qn} or better`, pc(o.quizFirstPct), `${fmt(o.quizFirstPass)} of ${fmt(o.quizFirst)} first quizzes on a device` +
+        (o.quizTakers > o.quizPriorKnown ? ` · ${fmt(o.quizTakers - o.quizPriorKnown)} older ${o.quizTakers - o.quizPriorKnown === 1 ? "game" : "games"} not counted` : "")),
       tile("Average quiz score", o.quizAvg == null ? "–" : `${o.quizAvg}/${qn}`, "of those who finished"),
       tile(`Perfect ${qn}/${qn}`, fmt(o.quizPerfect), ratio(o.quizPerfect, o.quizTakers, "those who finished")),
       tile("Pledged a habit", pc(o.habitPct), fmt(o.habits) + " players"),
@@ -240,7 +247,11 @@
         const n = times.get(key(r)) || 0, mail = key(r) && r.email.trim(), b = el("button", "ghost mini", "Copy");
         b.title = "Copy this email"; b.setAttribute("aria-label", "Copy email of " + r.name); b.addEventListener("click", () => copy(mail, b, K + "Msg", mail));
         const floors = Number(r.height).toFixed(1), saved = when(r.created_at); // on a phone these two sit under the nickname
-        return el("tr", "", el("td", "num", i + 1), el("td", "n", r.name, n > 1 && el("span", "pill rep", `repeat ×${n}`), el("span", "meta", `${floors} floors · ${saved}`)),
+        // evidence for checking a prize score: items placed and real playing time (newer game pages send them); a
+        // full-length game that took far longer than 3 minutes was played in slow motion
+        const slow = r.ended === "time" && r.real_ms > 270000, check = [r.items != null && `${r.items} items`, r.real_ms != null && `${Math.round(r.real_ms / 1000)} s played`, `${r.drops} dropped`].filter(Boolean).join(" · ");
+        return el("tr", "", el("td", "num", i + 1), el("td", "n", r.name, n > 1 && el("span", "pill rep", `repeat ×${n}`), slow && el("span", "pill rep", "slow motion: check"),
+          el("span", "meta", `${floors} floors · ${saved}`), el("span", "meta", check)),
           el("td", "num", fmt(r.score)), el("td", "num hide-sm", floors), el("td", "sv hide-sm", saved), el("td", "mail", mail ? [mail + " ", b] : "—"));
       });
       if (!rows.length) { const td = el("td", "t", "Nobody has posted a score in this period yet."); td.colSpan = 6; rows.push(el("tr", "", td)); }
@@ -263,13 +274,13 @@
   const list = (text) => { try { const v = JSON.parse(text || "[]"); return Array.isArray(v) ? v.filter((x) => x && typeof x === "object") : []; } catch { return []; } };
   const stageName = (i) => (C.STAGES[i] || {}).en || "";
   const choice = (c) => (c.pick === "none" ? "missed" : c.pick);
-  const lead = (r) => [r.id, hkt(r.created_at), r.week, r.month, r.posted ? 1 : 0]; // game_id, saved_hkt, week, month, on_board
+  const lead = (r) => [r.id, hkt(r.created_at), r.week, r.month, r.posted && !r.hidden ? 1 : 0]; // game_id, saved_hkt, week, month, on_board
 
   function gamesCsv(rows) {
     const pass = Math.ceil((QN * 2) / 3); // same rule as the server: 2 of 3
     const head = ["game_id", "saved_hkt", "week", "month", "on_board", "hidden", "nickname", "email", "score", "floors", "life_stage", "ended", "items_dropped",
       "wise_picks", "risky_picks", "missed_picks", "fall_overspending", "fall_scams", "fall_putting_off_saving", "habit_id", "habit", "quiz_answered", "quiz_correct", "quiz_2plus",
-      ...C.QUIZ.flatMap((q) => ["q_" + q.id, "q_" + q.id + "_correct"]), ...C.CARDS.map((c) => "card_" + c.id)];
+      ...C.QUIZ.flatMap((q) => ["q_" + q.id, "q_" + q.id + "_correct"]), ...C.CARDS.map((c) => "card_" + c.id), "items_placed", "seconds_played", "quizzes_before"];
     return csv(head, rows.map((r) => {
       const answers = new Map(list(r.quiz_answers).map((a) => [a.q, a])), picks = new Map();
       for (const c of list(r.choices)) if (!picks.has(c.card)) picks.set(c.card, choice(c));
@@ -278,21 +289,21 @@
         r.wise, r.risky, r.missed, r.fall_spend, r.fall_scam, r.fall_delay, r.habit, (C.HABITS.find((h) => h.id === r.habit) || {}).en,
         r.quiz_answered, r.quiz, done ? (r.quiz >= pass ? 1 : 0) : "",
         ...C.QUIZ.flatMap((q) => { const a = answers.get(q.id); return a ? [(q.o[a.pick] || [])[0], (a.ok ?? a.pick === q.a) ? 1 : 0] : ["", ""]; }),
-        ...C.CARDS.map((c) => picks.get(c.id))];
+        ...C.CARDS.map((c) => picks.get(c.id)), r.items, r.real_ms == null ? "" : Math.round(r.real_ms / 1000), r.quiz_prior];
     }));
   }
   function answersCsv(rows) {
-    const head = ["game_id", "saved_hkt", "week", "month", "on_board", "question_no", "question_id", "question", "answer_no", "answer", "correct"];
+    const head = ["game_id", "saved_hkt", "week", "month", "on_board", "question_no", "question_id", "question", "answer_no", "answer", "correct", "hidden"];
     return csv(head, rows.flatMap((r) => list(r.quiz_answers).map((a) => {
       const i = C.QUIZ.findIndex((q) => q.id === a.q), q = C.QUIZ[i];
-      return [...lead(r), i < 0 ? "" : i + 1, a.q, q ? q.q[0] : "", Number.isInteger(a.pick) ? a.pick + 1 : "", q && q.o[a.pick] ? q.o[a.pick][0] : "", (a.ok ?? (q && a.pick === q.a)) ? 1 : 0];
+      return [...lead(r), i < 0 ? "" : i + 1, a.q, q ? q.q[0] : "", Number.isInteger(a.pick) ? a.pick + 1 : "", q && q.o[a.pick] ? q.o[a.pick][0] : "", (a.ok ?? (q && a.pick === q.a)) ? 1 : 0, r.hidden ? 1 : 0];
     })));
   }
   function eventsCsv(rows) {
-    const head = ["game_id", "saved_hkt", "week", "month", "on_board", "order", "card_id", "card", "life_stage", "trap", "choice"], byId = new Map(C.CARDS.map((c) => [c.id, c]));
+    const head = ["game_id", "saved_hkt", "week", "month", "on_board", "order", "card_id", "card", "life_stage", "trap", "choice", "hidden"], byId = new Map(C.CARDS.map((c) => [c.id, c]));
     return csv(head, rows.flatMap((r) => list(r.choices).map((c, i) => {
       const card = byId.get(c.card);
-      return [...lead(r), i + 1, c.card, card ? card.tag[0] : "", card ? stageName(card.st) : "", card ? (C.TRAPS[card.trap] || {}).en : "", choice(c)];
+      return [...lead(r), i + 1, c.card, card ? card.tag[0] : "", card ? stageName(card.st) : "", card ? (C.TRAPS[card.trap] || {}).en : "", choice(c), r.hidden ? 1 : 0];
     })));
   }
   async function allRows(progress) { // every game, page by page
@@ -363,7 +374,19 @@
         r.hidden = r.hidden ? 0 : 1; tr.replaceWith(gameRow(r)); afterHide();
       } catch (e) { oops("panelMsg")(e); b.disabled = false; }
     });
-    td(b);
+    // a rude nickname: replaced with the anonymous one, and the game stays on the board and in the analysis
+    const anon = r.posted && r.name !== ANON && el("button", "ghost mini", "Anonymise name");
+    if (anon) {
+      anon.setAttribute("aria-label", `Anonymise the nickname of game ${r.id}`);
+      anon.addEventListener("click", async () => {
+        anon.disabled = true;
+        try {
+          await call("/api/admin/rename", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: r.id }) });
+          r.name = ANON; tr.replaceWith(gameRow(r)); afterHide();
+        } catch (e) { oops("panelMsg")(e); anon.disabled = false; }
+      });
+    }
+    td(anon ? [b, " ", anon] : b);
     return tr;
   }
   async function loadGames(reset) { // false when a newer request or Lock got in first

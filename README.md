@@ -26,6 +26,8 @@ Use the Cloudflare account that holds the **3fallcrab.com** domain. Every push t
 4. **Open the domain to the public.** 3fallcrab.com currently sits behind a Cloudflare Access login, so players would see a sign-in page. In **Zero Trust → Access → Applications**, find the app for `3fallcrab.com` and do one of these:
    - **Recommended:** keep it, but change its path so it covers only `3fallcrab.com/admin` (add `3fallcrab.com/api/admin` too). The game is then public, and the admin page gets a second lock.
    - Or delete the application.
+
+   Check **www.3fallcrab.com** too: on 14 October 2026 it still showed the sign-in page, so change or delete its Access application the same way. Then, in **3fallcrab.com → Rules**, create a redirect rule from the **Redirect from WWW to root** template, so every player lands on one address and keeps one best score.
 5. **Set the admin password.** Go to **Workers & Pages → freefallcrab → Settings → Variables and Secrets → Add**. Choose type **Secret**, name it `ADMIN_TOKEN`, and set a long password (16+ characters). Then open [3fallcrab.com/admin](https://3fallcrab.com/admin).
    - Choose type **Secret**, not Text. Deploys from GitHub never touch secrets, so the password keeps working.
    - If Cloudflare suggests "Update your Wrangler configuration with these changes to keep deployments in sync", don't paste `ADMIN_TOKEN` into `wrangler.jsonc`: this repository is public, and the admin page shows players' emails. `wrangler.jsonc` already has `"keep_vars": true`, so deploys also keep any plain variables you add in the dashboard.
@@ -37,6 +39,9 @@ Use the Cloudflare account that holds the **3fallcrab.com** domain. Every push t
    - Send a test email to team@3fallcrab.com and check it arrives.
 
    To show a different address, change `config.contact_email` in `package.json` and push. Leave it empty (`""`) to hide the contact lines.
+8. **Two security switches** (1 minute), in the dashboard for **3fallcrab.com**:
+   - **SSL/TLS → Edge Certificates → Always Use HTTPS: On.** The site already tells browsers to stay on HTTPS, and the API refuses plain HTTP, but this sends `http://` visitors to the secure page before anything loads.
+   - **Security → Bots → JavaScript detections: Off.** The site's security policy blocks the script it adds (the script changes on every request, so it can't be allowed), and no bot rule here uses it.
 
 Link previews (WhatsApp, Instagram, Facebook) already point at `https://3fallcrab.com`; this is set in `package.json` → `config.site_url`.
 
@@ -60,7 +65,7 @@ When it finishes, the game is live at https://3fallcrab.com, with `https://freef
 
 ### After the first deploy
 
-1. **Open the domain to the public** by changing its Cloudflare Access login; see step 4 of the GitHub steps above.
+1. **Open the domain to the public** by changing its Cloudflare Access login, and turn on the security switches; see steps 4 and 8 of the GitHub steps above.
 2. **Turn on the admin page.** Run `npm run admin-token` and paste a long random password (16+ characters). Then open https://3fallcrab.com/admin and enter it there.
 3. **Print the booth poster.** Open https://3fallcrab.com/poster, check the address under the QR code, then press **Print poster**. Use A4 and turn on "Background graphics".
 
@@ -115,28 +120,28 @@ Set these in `wrangler.jsonc` under `"vars"`, then `npm run deploy`. Secrets are
 | `LEADERBOARD_CLOSED` | vars | `"0"` | Set to `"1"` after the event. New scores are then saved on players' devices only; the board stays visible. |
 | `RATE_LIMIT` | vars | `30` | Max new games saved per minute from one network (one IPv4 address, or one IPv6 /64). Every finished game is saved, and booth or campus Wi-Fi shares one address, so keep it generous. |
 | `ADMIN_TOKEN` | secret, `npm run admin-token` | (off) | Turns on `/admin` and the admin API |
-| `IP_SALT` | secret, `npx wrangler secret put IP_SALT` | built-in | Extra salt for the hashed network id used by the rate limit |
+| `IP_SALT` | secret, `npx wrangler secret put IP_SALT` | derived from `ADMIN_TOKEN` | Secret key for the hashed network id used by the rate limits |
 
 ---
 
 ## The leaderboard and your data
 
-- **Every finished game is saved, anonymously, as soon as the statement opens:** score, floors reached, life stage, each Life Event choice (card plus wise, risky or missed), how the game ended and the time. As the player answers the quiz and picks a habit, the same record gets each quiz answer (which option, right or wrong) and the habit. The quiz shows right or wrong, with the reason, the moment an answer is tapped, and answers can't be changed after that. Nothing is ticked for the habit until the player picks one, so the pledge counts are real choices.
-- **Posting to the board** adds the nickname to that same record and shows it on the leaderboard. Players who don't post still count in the survey results, just not on the board.
+- **Every finished game is saved, anonymously, as soon as the statement opens:** score, floors reached, life stage, items placed, each Life Event choice (card plus wise, risky or missed), how the game ended, the time and how long it really took. As the player answers the quiz and picks a habit, the same record gets each quiz answer (which option, right or wrong) and the habit. The quiz shows right or wrong, with the reason, the moment an answer is tapped, and answers can't be changed after that. Nothing is ticked for the habit until the player picks one, so the pledge counts are real choices.
+- **Posting to the board** adds the nickname to that same record and shows it on the leaderboard. Players who don't post still count in the survey results, just not on the board. A game posted after its week is over goes on the current week's board, so a week's winners can't change once it has ended.
 - **Email (optional, private):** players can leave an email when they post, so you can contact weekly and monthly winners. It is never shown on the board, never returned by any public API, never stored on the player's device, and once saved it is never changed or cleared. Only `/admin` (behind `ADMIN_TOKEN`, and Cloudflare Access if you keep it on `/admin`) shows it.
-- **What is not saved:** real names (unless someone types one as a nickname) or IP addresses. For the rate limit, the API keeps a salted hash of the network address. The salt changes every week, so players can't be tracked over time.
-- **If a save fails** (no signal at the booth), the game keeps the survey part on the device, without nickname or email, and sends it on the next visit.
-- **Nickname filter:** nicknames with common English or Cantonese swear words become "Anonymous crab 匿名蟹". This includes spaced-out, full-width and l33t spellings, while names like Jason99 and Fukuda pass. Invisible-character names are blocked too. Use `/admin` to hide anything else.
+- **What is not saved:** real names (unless someone types one as a nickname) or IP addresses. For the rate limit, a new game briefly keeps a hash of the network address, keyed with a secret and the week. It is wiped about 5 minutes later, so players can't be tracked over time.
+- **If a save fails** (no signal at the booth), the game keeps the survey part on the device, without nickname or email, and sends it as soon as the board can be reached again, even if the page stays open. It counts in the week and month it was played.
+- **Nickname filter:** nicknames with common English or Cantonese swear words become "Anonymous crab 匿名蟹". This includes spaced-out, full-width and l33t spellings, while names like Jason99 and Fukuda pass. Invisible-character names are blocked too. For anything else, `/admin` has **Anonymise name**, which changes only the nickname to "Anonymous crab 匿名蟹" and keeps the game in the survey results, and **Hide**, which removes the game from the board and the analysis.
 - **Stats tab:** shows the share of wise choices, which of the 3 Falls players hit most, the most popular habit pledge and how many players got 2 or 3 quiz questions right. It uses the latest 1,000 games.
-- **Survey results in `/admin`:** pick all time, a week or a month. You get players, quiz takers and the share who scored 2/3 or better against the 70% target, how each quiz question was answered (and the most common wrong answer), habit pledges, every Life Event card sorted by how often players chose the risky option, the 3 Falls, life stages reached, and week-by-week and month-by-month trends. Hidden games are left out.
-- **Winners:** `/admin → Winners` lists the top scores of any week or month with their emails, with copy buttons, and flags a player who appears twice.
+- **Survey results in `/admin`:** pick all time, a week or a month. You get games played, quiz takers and the share who scored 2/3 or better against the 70% target, the same share for first tries only (a device's first finished quiz, counted for games saved from 14 October 2026; replays see the same 3 questions with the answers already shown), how each quiz question was answered (and the most common wrong answer), habit pledges, every Life Event card sorted by how often players chose the risky option, the 3 Falls, life stages reached, and week-by-week and month-by-month trends. Hidden games are left out.
+- **Winners:** `/admin → Winners` lists the top scores of any week or month with their emails, with copy buttons, and flags a player who appears twice. Each row also shows the items placed, seconds actually played and items dropped. A full 3-minute game that took more than 4½ minutes of real time is marked "slow motion: check": a slow or throttled device makes the game easier.
 - **Downloads for your report** (`/admin → Downloads`, Excel-ready CSV):
-  - `games.csv`: one row per game, with each quiz answer and each Life Event choice in its own column.
+  - `games.csv`: one row per game, with each quiz answer and each Life Event choice in its own column, then `items_placed`, `seconds_played` and `quizzes_before` (quizzes that device had finished before; 0 is a first try).
   - `quiz_answers.csv`: one row per quiz answer. Pivot it by question to see which questions and wrong answers trip players up.
   - `life_events.csv`: one row per Life Event decision. Pivot it by card, life stage or trap.
   - `Raw CSV`: every column exactly as stored.
-  Games saved before 9 October 2026 have the quiz total only, not each answer; the dashboard notes how many.
-- **Prizes:** scores are reported by the player's browser, so a determined player could fake one. Before handing out a weekly prize, ask the winner to show their end-of-game statement or phone. Hide anything suspicious in `/admin`.
+  Every file has a `hidden` column; keep the rows with 0 to match the dashboard. Games saved before 9 October 2026 have the quiz total only, not each answer; the dashboard notes how many. The last three `games.csv` columns are empty for games saved before 14 October 2026.
+- **Prizes:** scores are reported by the player's browser. The API turns away games the rules make impossible (more points than the items placed and floors reached allow, a life stage that doesn't match the floors, more than 7 Life Event cards), but a careful cheat could still fake a believable one. Before handing out a weekly prize, check the row in Winners and ask the winner to show their end-of-game statement or phone. Hide anything suspicious in `/admin`.
 - **Free-plan limits:** Workers gives 100,000 requests a day. D1 gives 5 million rows read and 100,000 rows written a day, enforced since 1 Sept 2026. One game is one score post, and the board refreshes only while it's on screen (every 45 s). A busy booth day is far below these limits.
 
 ### Updating the live game without losing scores
@@ -166,9 +171,9 @@ If you ever really want a brand-new board, run the build with `ALLOW_LEADERBOARD
 | `GET /api/scores` | This week's top 10 and the all-time top 10 |
 | `GET /api/scores?view=stats` | Anonymised totals for the Stats tab |
 | `POST /api/scores` | Save a finished game, then update it with quiz answers, habit, and the nickname and email when posting. Validated server-side; the score can't change after the first save |
-| `GET /api/admin/summary`, `/winners`, `/rows`, `/scores`, `/export`, `POST /api/admin/hide` | Admin: survey analysis (`?week=` or `?month=`), winners with emails, every game for the downloads, the games list, raw CSV, hide. Needs the `Authorization: Bearer <ADMIN_TOKEN>` header |
+| `GET /api/admin/summary`, `/winners`, `/rows`, `/scores`, `/export`, `POST /api/admin/hide`, `/rename` | Admin: survey analysis (`?week=` or `?month=`), winners with emails, every game for the downloads, the games list, raw CSV, hide, anonymise a nickname. Needs the `Authorization: Bearer <ADMIN_TOKEN>` header. After 20 wrong passwords from one network in 15 minutes, that network is locked out for up to 15 minutes |
 
-The database table is created automatically on first use. `migrations/0001_create_scores.sql` holds the same schema if you prefer `npm run db:migrate`.
+The API works over HTTPS only: plain HTTP is redirected (reads) or refused (saves), and every response tells browsers to stay on HTTPS. The database table is created automatically on first use. `migrations/0001_create_scores.sql` holds the same schema if you prefer `npm run db:migrate`.
 
 ---
 

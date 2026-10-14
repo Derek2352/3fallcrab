@@ -581,8 +581,9 @@ html.ingame{overscroll-behavior-y:none}   /* no pull-to-refresh (and a lost game
 /* ---------- the crab's speech bubble (by the crab at the harbour) ---------- */
 .talk{position:absolute;inset:10px;pointer-events:none;overflow:hidden;border-radius:20px}
 html.fs .talk{inset:6px}
-.bubble{position:absolute;left:0;top:0;max-width:250px;padding:7px 12px 8px;border-radius:16px;background:#FFFDF7;color:var(--ink);
-  font-size:13px;font-weight:800;line-height:1.25;will-change:transform;transform-origin:calc(100% + 10px) 50%;
+.bpos{position:absolute;left:0;top:0;will-change:transform}   /* placed by placeTalk(); the bubble inside pops from its tail */
+.bubble{position:relative;max-width:250px;padding:7px 12px 8px;border-radius:16px;background:#FFFDF7;color:var(--ink);
+  font-size:13px;font-weight:800;line-height:1.25;transform-origin:calc(100% + 10px) 50%;
   box-shadow:inset 2px 2px 1px #fff, inset -2px -3px 5px rgba(60,20,10,.12), 3px 4px 0 rgba(37,49,122,.28)}
 .bubble small{display:block;margin-top:1px;font-family:var(--f-zh);font-size:12.5px;font-weight:700;color:var(--ink-2)}
 .bubble::after{content:"";position:absolute;right:-9px;top:50%;margin-top:-7px;border-top:7px solid transparent;border-bottom:7px solid transparent;border-left:10px solid #FFFDF7;
@@ -664,3 +665,12 @@ button.ov-chip:active{transform:translateY(2px);box-shadow:inset 1px 1px 0 rgba(
 .ctime input:checked + span{background:var(--hot);color:#fff;box-shadow:inset 1px 1px 0 rgba(255,255,255,.45), inset -2px -2px 3px rgba(0,0,0,.18), 0 2px 0 var(--hot-d)}
 .ctime input:focus-visible + span{outline:3px solid var(--navy);outline-offset:2px}
 @media (max-width: 380px){ #startOv .ov-card{padding-inline:12px} .ov-chip{font-size:11px} .ov-card .ov-chip .zh{font-size:10.5px} .ov-chip svg{width:15px;height:15px} }   /* 360-wide phones: still one row */
+
+/* ---------- phones: hidden polish ---------- */
+@media (pointer: coarse){ .namerow .fld input{font-size:16px} }   /* under 16px, iPhones zoom in on the field and stay zoomed for the next game */
+button, .habit, #board, .pad{-webkit-tap-highlight-color:transparent}   /* each has its own pressed look; no grey flash over it */
+.pad, #board{-webkit-touch-callout:none}
+/* viewport-fit=cover: sideways on a notched iPhone, keep the page clear of the notch and the rounded corners */
+.set{padding-left:max(16px, env(safe-area-inset-left));padding-right:max(16px, env(safe-area-inset-right))}
+.modal, .turnov{padding-left:max(16px, env(safe-area-inset-left));padding-right:max(16px, env(safe-area-inset-right))}
+@media (max-width: 899px){ html.fs .set{padding-left:max(6px, env(safe-area-inset-left));padding-right:max(6px, env(safe-area-inset-right))} }
