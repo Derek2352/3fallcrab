@@ -44,8 +44,11 @@ const SHOCKS = [
 ];
 
 const DEFS = window.ITEM_DEFS || [];
-const POOLS = {wise: DEFS.filter(d => d.kind === "wise"), risky: DEFS.filter(d => d.kind === "risky"), scam: DEFS.filter(d => d.kind === "scam")};
+const POOLS = {wise: DEFS.filter(d => d.kind === "wise" && !d.jackpot), risky: DEFS.filter(d => d.kind === "risky"), scam: DEFS.filter(d => d.kind === "scam")};
 const DEBT = DEFS.find(d => d.kind === "debt") || DEFS.find(d => d.id === "debt");
+// The Jackpot crab (items/jackpot.js) is never in the pools: now and then it comes instead of a normal item. Its
+// claws cradle what lands on it; it pays like a wise item (the most any item pays, which the server's score check assumes).
+const JACKPOT = DEFS.find(d => d.jackpot), JACKPOT_RARE = 0.035;
 if (!POOLS.risky.length) POOLS.risky = POOLS.wise.slice();
 if (!POOLS.scam.length) POOLS.scam = POOLS.risky.slice();
 
@@ -148,6 +151,7 @@ function addItem(def, x, y, player){
 function genItem(){
   let pool;
   if (S.forced.n > 0){ S.forced.n--; pool = POOLS[S.forced.type]; }
+  else if (JACKPOT && S.lastId !== JACKPOT.id && Math.random() < JACKPOT_RARE){ S.lastId = JACKPOT.id; return JACKPOT; }
   else pool = Math.random() < 0.6 ? POOLS.wise : POOLS.risky;
   let it, guard = 0;
   do { it = pool[Math.floor(Math.random() * pool.length)]; } while (pool.length > 1 && it.id === S.lastId && guard++ < 10);
@@ -158,6 +162,7 @@ function refill(){ while (S.queue.length < 3) S.queue.push(genItem()); }
 function spawn(def){
   S.active = addItem(def, W/2, S.camTop + 85, true); S.targetAngle = 0; A.sfx("spawn");
   if (def.vine){ A.sfx("vineGet"); stamp("Vine-wrapped! It sticks where it lands", "藤蔓物件：掂到就黐住", "good"); }
+  if (def.jackpot){ A.sfx("vineGet"); stamp("Jackpot crab! Its claws hold what you drop on it", "大獎蟹！對鉗同對眼會接住跌落嚟嘅嘢", "gold"); quip("jackpot", 2); }
 }
 function nextPiece(){ refill(); const it = S.queue.shift(); refill(); spawn(it); S.canHold = true; drawPreviews(); prewarm(); }
 function prewarm(){   // pictures the next few seconds will need, made in spare time: the coming items upright
@@ -316,7 +321,7 @@ function physicsStep(){
 const VINE_RARE = 0.05, VINE_GRABS = 4, MAX_FUSED = 8;
 const vineDefs = new Map();
 function vineOf(def){
-  if (!def || def.vine || def.kind === "debt") return def;
+  if (!def || def.vine || def.jackpot || def.kind === "debt") return def;
   let v = vineDefs.get(def.id);
   if (!v){
     v = Object.create(def);
@@ -1111,19 +1116,23 @@ const inWindow = b => b.bounds.max.y + PAD >= PILE.w0 && b.bounds.min.y - PAD <=
 // drawn live, so an item may only be in them if no live item older than it reaches it. near: their pictures can touch.
 const near = (a, b) => a.bounds.min.x - PAD <= b.bounds.max.x + PAD && b.bounds.min.x - PAD <= a.bounds.max.x + PAD &&
                        a.bounds.min.y - PAD <= b.bounds.max.y + PAD && b.bounds.min.y - PAD <= a.bounds.max.y + PAD;
-function blocked(b){   // an older item that is drawn live reaches it, so it has to wait out of the pile
-  for (const o of engine.world.bodies){ if (o === b) return false; if (o.tff && !PILE.set.has(o) && near(o, b)) return true; }
+// Only items that are moving, or held out of the pile by this rule, count: one that is still but waiting for its
+// picture (say it is out of view) isn't a reason to keep the items on it out of the pile.
+const moving = o => !(o.isSleeping || o.tff.sn >= 24);
+const isLive = o => o.tff && !PILE.set.has(o) && (o.tff.held || moving(o));
+function blocked(b){   // an older live item reaches it, so it waits out of the pile (held)
+  for (const o of engine.world.bodies){ if (o === b) return false; if (isLive(o) && near(o, b)) return true; }
   return false;
 }
 function keepOrder(bands){   // items that just left the pile take out the newer items they reach, and those theirs
-  const rank = new Map(engine.world.bodies.map((b, i) => [b, i])), todo = engine.world.bodies.filter(b => b.tff && !PILE.set.has(b));
+  const rank = new Map(engine.world.bodies.map((b, i) => [b, i])), todo = engine.world.bodies.filter(isLive);
   while (todo.length){
     const o = todo.pop(), r = rank.get(o);
-    for (const b of PILE.list) if (PILE.set.has(b) && rank.get(b) > r && near(o, b)){ PILE.set.delete(b); bands.push([b.tff.cb.y0 - PAD, b.tff.cb.y1 + PAD]); todo.push(b); }
+    for (const b of PILE.list) if (PILE.set.has(b) && rank.get(b) > r && near(o, b)){ PILE.set.delete(b); b.tff.held = true; bands.push([b.tff.cb.y0 - PAD, b.tff.cb.y1 + PAD]); todo.push(b); }
   }
 }
 function join(b){
-  PILE.set.add(b); b.tff.cp = {x: b.position.x, y: b.position.y, a: b.angle}; b.tff.cb = {y0: b.bounds.min.y, y1: b.bounds.max.y};
+  PILE.set.add(b); b.tff.held = false; b.tff.cp = {x: b.position.x, y: b.position.y, a: b.angle}; b.tff.cb = {y0: b.bounds.min.y, y1: b.bounds.max.y};
   PILE.x0 = Math.min(PILE.x0, b.bounds.min.x - PAD); PILE.x1 = Math.max(PILE.x1, b.bounds.max.x + PAD);   // how wide the pile reaches
 }
 // Draw the settled items between world y0 and y1 (a band across the board), over what was there. A change in the
@@ -1144,8 +1153,10 @@ function renderPile(k, T){
   const w0 = S.camTop - H / 2, w1 = S.camTop + H * 1.5;   // the view and half a view either side
   Object.assign(PILE, {set: new Set(), list: [], k, at: drawN, w0, w1, h: 0, x0: Infinity, x1: -Infinity});
   let y0 = Infinity, y1 = -Infinity;
+  for (const b of engine.world.bodies) if (b.tff) b.tff.held = false;
   for (const b of engine.world.bodies){
-    if (!b.tff || b === S.active || !inWindow(b) || !settled(b) || blocked(b)) continue;
+    if (!b.tff || b === S.active || !inWindow(b) || !settled(b)) continue;
+    if (blocked(b)){ b.tff.held = true; continue; }
     join(b); y0 = Math.min(y0, b.bounds.min.y); y1 = Math.max(y1, b.bounds.max.y);
   }
   PILE.list = engine.world.bodies.filter(b => PILE.set.has(b));
@@ -1182,7 +1193,8 @@ function updatePile(k, T){
   if (bands.length) keepOrder(bands);
   if (bands.length > 8){ Object.assign(PILE, {set: new Set(), list: [], h: 0, at: drawN}); return; }   // a lot is moving: all live for now
   if (drawN - PILE.at >= 4) for (const b of engine.world.bodies){   // what has settled joins
-    if (!b.tff || b === S.active || PILE.set.has(b) || !inWindow(b) || !settled(b) || blocked(b)) continue;
+    if (!b.tff || b === S.active || PILE.set.has(b) || !inWindow(b) || !settled(b)) continue;
+    if (blocked(b)){ b.tff.held = true; continue; }
     if (b.bounds.min.y - PAD < PILE.top || b.bounds.max.y + PAD > PILE.top + PILE.h / k){ renderPile(k, T); return; }   // outside the picture
     join(b); bands.push([b.bounds.min.y - PAD, b.bounds.max.y + PAD]);
   }
@@ -1352,7 +1364,8 @@ function nameInto(el, def, empty){
   el.append(document.createTextNode(def.en));
   const z = document.createElement("small"); z.textContent = def.zh; el.appendChild(z);
   const chip = document.createElement("span"); chip.className = "kind " + def.kind;
-  chip.textContent = def.kind === "wise" ? "Stable 穩陣" : def.kind === "risky" ? "Risky 高危" : "Scam 騙局";
+  if (def.jackpot) chip.className = "kind jackpot";
+  chip.textContent = def.jackpot ? "Jackpot 大獎" : def.kind === "wise" ? "Stable 穩陣" : def.kind === "risky" ? "Risky 高危" : "Scam 騙局";
   el.appendChild(chip);
   if (def.vine){ const v = document.createElement("span"); v.className = "kind vine"; v.textContent = "Vine 藤蔓"; el.appendChild(v); }
 }

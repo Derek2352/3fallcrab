@@ -106,6 +106,7 @@ const HABITS = [
 const QUIPS = {
   start:     [["Let's build your future!", "一齊疊出你嘅未來！"], ["Flat things at the bottom. Trust me.", "扁嘅放最底，信我！"], ["Three minutes. No pressure!", "得三分鐘，唔使驚！"]],
   startPb:   [["Your best is {n}. Beat it!", "你最高分係{n}，今次破紀錄！"]],
+  jackpot:   [["My cousin! Drop things into his claws.", "我表哥嚟㗎！放啲嘢落佢對鉗度！"], ["Jackpot! He catches what you drop.", "中大獎！佢會幫你接住啲嘢。"]],
   steady:    [["Nice and steady!", "穩陣！"], ["Look at that stack!", "疊得好靚喎！"], ["Growing like compound interest!", "好似利疊利咁越疊越高！"]],
   floor:     [["Higher and higher!", "越疊越高！"], ["Up we go!", "再上一層！"], ["The view's getting better!", "風景越嚟越靚！"]],
   stage1:    [["First job! Save before you spend.", "第一份工！先儲後使！"]],

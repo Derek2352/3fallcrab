@@ -4,13 +4,13 @@
    are the ones Google Fonts served, so --f-* below and clay.js (canvas lettering) stay as they are. */
 @font-face{font-family:"Gluten";font-style:normal;font-weight:400 900;font-display:swap;src:url(/assets/gluten.842f8cce6e.woff2) format("woff2")}
 /* Noto Sans HK is one variable file. Four faces, not one 400 900 range, so a weight-800 label still uses the 900 face, as before. */
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/noto-sans-hk.cc29cca0d7.woff2) format("woff2")}
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:500;font-display:swap;src:url(/assets/noto-sans-hk.cc29cca0d7.woff2) format("woff2")}
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/noto-sans-hk.cc29cca0d7.woff2) format("woff2")}
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:900;font-display:swap;src:url(/assets/noto-sans-hk.cc29cca0d7.woff2) format("woff2")}
-@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/lxgw-wenkai-tc-regular.537b0e3be1.woff2) format("woff2")}
-@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/lxgw-wenkai-tc-bold.73f2c56ea9.woff2) format("woff2")}
-@font-face{font-family:"DotGothic16";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/dotgothic16.2e853f276a.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/noto-sans-hk.c38d087ab4.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:500;font-display:swap;src:url(/assets/noto-sans-hk.c38d087ab4.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/noto-sans-hk.c38d087ab4.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:900;font-display:swap;src:url(/assets/noto-sans-hk.c38d087ab4.woff2) format("woff2")}
+@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/lxgw-wenkai-tc-regular.d999362a12.woff2) format("woff2")}
+@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/lxgw-wenkai-tc-bold.9288960e50.woff2) format("woff2")}
+@font-face{font-family:"DotGothic16";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/dotgothic16.3b0269d76d.woff2) format("woff2")}
 
 /* Layout: a clay tabletop set — passbook + 3 Falls | the diorama board | tickets, building directory, leaderboard.
    One light (top-left) everywhere: CSS shadows fall down-right like the canvas clay. Single bright theme by design. */
@@ -194,6 +194,7 @@ button{font-family:inherit;color:inherit}
 .ticket .nm small{display:block;color:var(--ink-2);font-family:var(--f-zh);font-size:12px}
 .kind{display:inline-block;margin-top:3px;font-size:10.5px;font-weight:800;padding:1px 8px;border-radius:999px;color:#fff}
 .kind.wise{background:var(--green-d)} .kind.risky{background:var(--orange-d)} .kind.scam{background:var(--purple-d)} .kind.vine{background:#2B7A3D;margin-left:4px}
+.kind.jackpot{background:var(--set);color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--ink)}
 .then{grid-column:1/-1;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2);margin-top:-2px}
 .then canvas{width:38px;height:38px;border-radius:10px;background:#fff;flex:none;box-shadow:inset -2px -2px 4px rgba(60,20,10,.12)}
 
