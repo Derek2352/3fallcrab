@@ -46,9 +46,10 @@ const SHOCKS = [
 const DEFS = window.ITEM_DEFS || [];
 const POOLS = {wise: DEFS.filter(d => d.kind === "wise" && !d.jackpot), risky: DEFS.filter(d => d.kind === "risky"), scam: DEFS.filter(d => d.kind === "scam")};
 const DEBT = DEFS.find(d => d.kind === "debt") || DEFS.find(d => d.id === "debt");
-// The Jackpot crab (items/jackpot.js) is never in the pools: now and then it comes instead of a normal item. Its
-// claws cradle what lands on it; it pays like a wise item (the most any item pays, which the server's score check assumes).
-const JACKPOT = DEFS.find(d => d.jackpot), JACKPOT_RARE = 0.035;
+// The Jackpot crab (items/jackpot.js) is never in the pools: it is a rare drop, at most one a game, coming instead of a
+// normal item with a 0.5% chance each (a game brings 40-60 items: roughly one game in four or five has one). Its claws
+// cradle what lands on it; it pays like a wise item (the most any item pays, which the server's score check assumes).
+const JACKPOT = DEFS.find(d => d.jackpot), JACKPOT_RARE = 0.005;
 if (!POOLS.risky.length) POOLS.risky = POOLS.wise.slice();
 if (!POOLS.scam.length) POOLS.scam = POOLS.risky.slice();
 
@@ -108,7 +109,7 @@ const svgUse = (id, cls) => { const s = document.createElementNS("http://www.w3.
 // ---------- state ----------
 let S, engine, platform;
 function newState(){
-  return {active:null, targetAngle:0, queue:[], hold:null, canHold:true, scamLock:0, forced:{type:null, n:0}, lastId:null,
+  return {active:null, targetAngle:0, queue:[], hold:null, canHold:true, scamLock:0, forced:{type:null, n:0}, lastId:null, jackpot:false,
     score:0, rate:1, fund:0, falls:{spend:0, scam:0, delay:0}, drops:0, choices:[], wise:0, risky:0, missed:0,
     height:0, best:0, bestFloor:0, stage:0, play:0, acc:0, spawnAt:0, nextEvent:FIRST_CARD, shocks:[60000, 125000],
     speedUntil:0, fastOn:false, quakeUntil:0, pendingDebt:0, used:new Set(), mode:"idle", card:null, cardCount:0, over:null, posted:false,
@@ -151,7 +152,7 @@ function addItem(def, x, y, player){
 function genItem(){
   let pool;
   if (S.forced.n > 0){ S.forced.n--; pool = POOLS[S.forced.type]; }
-  else if (JACKPOT && S.lastId !== JACKPOT.id && Math.random() < JACKPOT_RARE){ S.lastId = JACKPOT.id; return JACKPOT; }
+  else if (JACKPOT && !S.jackpot && Math.random() < JACKPOT_RARE){ S.jackpot = true; S.lastId = JACKPOT.id; return JACKPOT; }
   else pool = Math.random() < 0.6 ? POOLS.wise : POOLS.risky;
   let it, guard = 0;
   do { it = pool[Math.floor(Math.random() * pool.length)]; } while (pool.length > 1 && it.id === S.lastId && guard++ < 10);
@@ -173,9 +174,9 @@ function prewarm(){   // pictures the next few seconds will need, made in spare 
 // made then, so pressing Start or Play again doesn't stutter.
 let firstQueue = null;
 function planFirst(){   // picked as a fresh game would: the last game's forced run (after a card) doesn't carry over
-  const keep = S.forced, keepId = S.lastId; S.forced = {type: null, n: 0}; S.lastId = null;
+  const keep = S.forced, keepId = S.lastId, keepJ = S.jackpot; S.forced = {type: null, n: 0}; S.lastId = null; S.jackpot = false;
   firstQueue = [genItem(), genItem(), genItem()];
-  S.forced = keep; S.lastId = keepId;
+  S.forced = keep; S.lastId = keepId; S.jackpot = keepJ;
   firstQueue.forEach(d => wantSprite(d, 0, 1));
 }
 function release(hard){
@@ -663,7 +664,7 @@ function startGame(){
   A.unlock();
   flushRecord(S);   // the last game's quiz answers or habit may still be waiting to be saved
   S = newState(); makeEngine(); S.mode = "playing";
-  if (firstQueue){ S.queue = firstQueue; S.lastId = firstQueue[2].id; firstQueue = null; }
+  if (firstQueue){ S.queue = firstQueue; S.lastId = firstQueue[2].id; S.jackpot = firstQueue.some(d => d.jackpot); firstQueue = null; }
   $("startOv").hidden = true; $("pauseOv").hidden = true; $("endModal").hidden = true; $("cardModal").hidden = true; $("seeOv").hidden = true; modalOpen(false);
   A.stage(0); A.mode("normal"); A.start();
   renderLedger(); nextPiece();
