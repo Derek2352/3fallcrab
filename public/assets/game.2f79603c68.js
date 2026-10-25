@@ -48,8 +48,11 @@ const POOLS = {wise: DEFS.filter(d => d.kind === "wise" && !d.jackpot), risky: D
 const DEBT = DEFS.find(d => d.kind === "debt") || DEFS.find(d => d.id === "debt");
 // The Jackpot crab (items/jackpot.js) is never in the pools: it is a rare drop, at most one a game, coming instead of a
 // normal item with a 0.5% chance each (a game brings 40-60 items: roughly one game in four or five has one). Its claws
-// cradle what lands on it; it pays like a wise item (the most any item pays, which the server's score check assumes).
+// cradle what lands on it, and it pays like a wise item when it settles. The moment it appears, money rains over the
+// screen, a HK$8,880 windfall (lucky eights) goes in, and for 20 s of play every item and floor pays double: "jackpot
+// time". The server's score check allows exactly this for a game that reports a jackpot (server/api.js).
 const JACKPOT = DEFS.find(d => d.jackpot), JACKPOT_RARE = 0.005;
+const JACKPOT_BONUS = 8880, FRENZY_MS = 20000, FRENZY_X = 2;
 if (!POOLS.risky.length) POOLS.risky = POOLS.wise.slice();
 if (!POOLS.scam.length) POOLS.scam = POOLS.risky.slice();
 
@@ -115,7 +118,8 @@ function newState(){
     speedUntil:0, fastOn:false, quakeUntil:0, pendingDebt:0, used:new Set(), mode:"idle", card:null, cardCount:0, over:null, posted:false,
     quiz:[null, null, null], camTop:-(H - 240), shake:0, splashes:[], dragX:null, steps:0, ledger:[], warned:false,
     mood:{type:"idle", until:0}, lastImpact:new Map(), grabs:[], leaves:[], habit:null, rec:null,
-    said:new Set(), streak:0, wiseRun:0, afterCard:null, overKey:null, pb:0, items:0, realMs:0, endAt:0, prior:0, quizDone:false};
+    said:new Set(), streak:0, wiseRun:0, afterCard:null, overKey:null, pb:0, items:0, realMs:0, endAt:0, prior:0, quizDone:false,
+    jpAt:-1, frenzyUntil:0, frenzySec:0, jpExtra:0, pops:[]};   // jackpot: when it appeared, end of double pay, extra it paid
 }
 function makeEngine(){
   engine = Engine.create({enableSleeping:true});
@@ -163,7 +167,7 @@ function refill(){ while (S.queue.length < 3) S.queue.push(genItem()); }
 function spawn(def){
   S.active = addItem(def, W/2, S.camTop + 85, true); S.targetAngle = 0; A.sfx("spawn");
   if (def.vine){ A.sfx("vineGet"); stamp("Vine-wrapped! It sticks where it lands", "藤蔓物件：掂到就黐住", "good"); }
-  if (def.jackpot){ A.sfx("vineGet"); stamp("Jackpot crab! Its claws hold what you drop on it", "大獎蟹！對鉗同對眼會接住跌落嚟嘅嘢", "gold"); quip("jackpot", 2); }
+  if (def.jackpot){ if (S.jpAt < 0) jackpotHit(); else stamp("Jackpot crab! Its claws hold what you drop on it", "大獎蟹！對鉗同對眼會接住跌落嚟嘅嘢", "gold"); }   // back from hold: no second windfall
 }
 function nextPiece(){ refill(); const it = S.queue.shift(); refill(); spawn(it); S.canHold = true; drawPreviews(); prewarm(); }
 function prewarm(){   // pictures the next few seconds will need, made in spare time: the coming items upright
@@ -286,7 +290,7 @@ function physicsStep(){
       if (!m.tff.player || m.tff.settled || !resting || S.play - m.tff.at <= 450) continue;
       m.tff.settled = true;
       const k = m.tff.def.kind, base = k === "wise" ? 500 : k === "risky" ? 300 : 0;
-      if (base){ const gain = Math.round(base * S.rate / 10) * 10; S.score += gain; S.items++; ledger(m.tff.def, gain); A.sfx("deposit", {amount: gain}); updateHUD(); }
+      if (base){ const [gain, x] = pay(base); S.score += gain; S.items++; ledger(m.tff.def, gain, x > 1 ? "×" + x : ""); A.sfx("deposit", {amount: gain, frenzy: x > 1}); if (x > 1) popMoney(m, gain); updateHUD(); }
       if (++S.streak % 4 === 0) quip("steady", 1);   // every 4 items landed in a row without a drop
     }
     if (resting && S.play - b.tff.at > 300) h = Math.max(h, -b.bounds.min.y);
@@ -297,10 +301,10 @@ function physicsStep(){
     const f = Math.floor(h / FLOOR);
     while (f > S.bestFloor){
       S.bestFloor++;
-      const gain = Math.round(2000 * S.rate / 10) * 10; S.score += gain;
-      ledger({zh: "第" + S.bestFloor + "層", en: "Floor " + S.bestFloor}, gain);
+      const [gain, x] = pay(2000); S.score += gain;
+      ledger({zh: "第" + S.bestFloor + "層", en: "Floor " + S.bestFloor}, gain, x > 1 ? "×" + x : "");
       A.sfx("floor", {floor: S.bestFloor}); mood("happy", 1200);
-      stamp("Floor " + S.bestFloor + " +" + fmt(gain), "第" + S.bestFloor + "層", "good"); quip("floor", 1);
+      stamp("Floor " + S.bestFloor + " +" + fmt(gain) + (x > 1 ? " ×" + x : ""), "第" + S.bestFloor + "層" + (x > 1 ? " · 雙倍" : ""), x > 1 ? "gold" : "good"); quip("floor", 1);
     }
     const ns = stageFor(S.best / FLOOR);
     if (ns > S.stage){
@@ -639,7 +643,7 @@ function closeCard(){
   $("cardModal").hidden = true; S.card = null; modalOpen(false);
   if (S.mode === "card"){
     S.mode = "playing"; S.nextEvent = S.play + CARD_GAP;
-    S.fastOn = S.play < S.speedUntil; A.mode(S.fastOn ? "fast" : "normal");
+    S.fastOn = S.play < S.speedUntil; A.mode(musicMode());
     while (S.pendingDebt > 0){ S.pendingDebt--; dropDebt(); }
     if (S.afterCard){ quip(S.afterCard, 2); S.afterCard = null; }
     if (S.falls.delay && S.fastOn) stamp("Time flies!", "時間加速", "info");
@@ -659,22 +663,200 @@ function shock(){
   updateHUD();
 }
 
+// ---------- jackpot ----------
+// The Jackpot crab's moment: money rains over the whole screen (a canvas laid over the page), a banner pops up on the
+// board, the windfall goes in, and jackpot time starts: every item and floor pays double for FRENZY_MS of play (a card
+// or the pause stops its clock too), with a badge counting down, a gold glow round the board (CSS, so it costs the
+// game's frame nothing) and each item's pay floating up from it. With reduced motion the rain is a gold flash, and
+// nothing shakes or pulses.
+const frenzyOn = () => !!S && S.play < S.frenzyUntil;
+const musicMode = () => frenzyOn() ? "frenzy" : S.play < S.speedUntil ? "fast" : "normal";
+function pay(base){   // what an item (500 / 300) or a floor (2000) pays right now, and the multiplier
+  const one = Math.round(base * S.rate / 10) * 10;
+  if (!frenzyOn()) return [one, 1];
+  const gain = Math.round(base * S.rate * FRENZY_X / 10) * 10; S.jpExtra += gain - one;
+  return [gain, FRENZY_X];
+}
+function jackpotHit(){
+  S.jpAt = S.play; S.frenzyUntil = S.play + FRENZY_MS; S.frenzySec = 0;
+  S.score += JACKPOT_BONUS; ledger({zh: "大獎", en: "Jackpot windfall"}, JACKPOT_BONUS);
+  A.sfx("jackpot"); A.mode(musicMode());
+  try { if (!A.muted() && navigator.vibrate) navigator.vibrate([70, 50, 70, 50, 180]); } catch(e){}
+  if (!reduceMotion){ const bw = $("boardWrap"); bw.classList.remove("jpshake"); void bw.offsetWidth; bw.classList.add("jpshake"); }   // moved as a whole: the tower stays cached
+  mood("happy", 3500); quip("jackpot", 3);
+  crab("Jackpot! A HK$8,880 windfall, and everything pays double for 20 seconds. Windfalls are rare: save this one.",
+       "中大獎！意外之財 HK$8,880，之後20秒存入雙倍。橫財唔常有，記得儲起佢！");
+  moneyRain(); jackpotBanner(); frenzyUI(); updateHUD();
+  const st = S;   // once the banner has gone: what the crab itself does
+  setTimeout(() => { if (S === st && S.mode === "playing") stamp("Its claws hold what you drop on it", "佢對鉗同對眼會接住跌落嚟嘅嘢", "gold"); }, 3100);
+}
+function frenzyTick(){
+  const left = S.frenzyUntil - S.play;
+  if (left <= 0){ frenzyEnd(); return; }
+  const sec = Math.ceil(left / 1000);
+  if (sec !== S.frenzySec){ S.frenzySec = sec; if (sec <= 3) A.sfx("frenzyTick", {n: sec}); }
+  frenzyUI();
+}
+function frenzyEnd(){
+  S.frenzyUntil = 0; frenzyUI(); A.sfx("frenzyEnd"); A.mode(musicMode());
+  stamp("Jackpot time is over", "大獎時間完", "info"); quip("frenzyEnd", 2, fmt(JACKPOT_BONUS + S.jpExtra));
+}
+const FZ = {el: $("frenzy"), sec: $("frenzySec"), bar: $("frenzyBar"), shown: false, s: -1};
+function frenzyUI(){   // the countdown badge on the board and the glowing balance
+  const on = frenzyOn() && S.mode !== "over";
+  if (on !== FZ.shown){ FZ.shown = on; FZ.el.hidden = !on; document.documentElement.classList.toggle("jp", on); document.documentElement.classList.remove("jp-end"); FZ.s = -1; }
+  if (!on) return;
+  const left = S.frenzyUntil - S.play, sec = Math.ceil(left / 1000);
+  if (sec !== FZ.s){ FZ.s = sec; FZ.sec.textContent = sec; FZ.el.classList.toggle("ending", sec <= 3); document.documentElement.classList.toggle("jp-end", sec <= 3); }
+  FZ.bar.style.transform = "scaleX(" + clamp(left / FRENZY_MS, 0, 1).toFixed(3) + ")";
+}
+let banT = 0;
+function jackpotBanner(){
+  const b = $("jpBan"); $("jpAmt").textContent = "+" + fmt(JACKPOT_BONUS);
+  b.hidden = false; b.classList.remove("show"); void b.offsetWidth; b.classList.add("show");
+  clearTimeout(banT); banT = setTimeout(() => { b.hidden = true; b.classList.remove("show"); }, 3000);
+}
+// each item's pay floats up from it in jackpot time (world units, drawn with the tower)
+function popMoney(m, gain){
+  const p = poseOf(m);
+  S.pops.push({x: clamp(p.x, 50, W - 50), y: hostOf(m).bounds.min.y - 8, t: 0, txt: "+" + fmt(gain)});
+  if (S.pops.length > 8) S.pops.shift();
+}
+function drawPops(c, f){
+  c.save(); c.textAlign = "center"; c.textBaseline = "middle"; c.lineJoin = "round";
+  for (const q of S.pops){
+    q.t += f; const k = q.t / 75, s = reduceMotion ? 1 : Math.min(1, 0.55 + q.t / 9);
+    const y = q.y - (reduceMotion ? 0 : 30 * (1 - Math.pow(1 - Math.min(1, k), 2)));
+    c.globalAlpha = k < 0.7 ? 1 : Math.max(0, 1 - (k - 0.7) / 0.3);
+    c.font = "900 " + (16 * s).toFixed(1) + "px " + K.FONTS.display;
+    const tw = c.measureText(q.txt).width, x = q.x - 11 * s;
+    c.lineWidth = 4.5 * s; c.strokeStyle = "rgba(96,52,0,0.9)"; c.strokeText(q.txt, x, y);
+    c.fillStyle = "#FFE45C"; c.fillText(q.txt, x, y);
+    const bx = x + tw / 2 + 4 * s, bw = 22 * s, bh = 15 * s;   // the ×2 tag
+    c.fillStyle = "#FF7B35"; roundRect(c, bx, y - bh / 2, bw, bh, bh / 2); c.fill();
+    c.fillStyle = "#fff"; c.font = "900 " + (11 * s).toFixed(1) + "px " + K.FONTS.display; c.fillText("×" + FRENZY_X, bx + bw / 2, y + 0.5);
+  }
+  c.restore();
+  S.pops = S.pops.filter(q => q.t < 75); needDraw = true;
+}
+function twinkle(c, x, y, r, a){
+  if (r < 0.6) return;
+  c.globalAlpha = a; c.fillStyle = "#FFF7C9"; c.beginPath(); c.moveTo(x, y - r);
+  c.quadraticCurveTo(x, y, x + r, y); c.quadraticCurveTo(x, y, x, y + r); c.quadraticCurveTo(x, y, x - r, y); c.quadraticCurveTo(x, y, x, y - r);
+  c.fill(); c.globalAlpha = 1;
+}
+// The rain fills the whole window, over the page: banknotes (HK$20 blue, 100 red, 500 brown, 1000 gold) flutter and
+// flip as they fall, coins spin, and a burst of coins first leaps up from the board. Each picture is made once per
+// size, so a frame draws ~200 small images; it stops itself (and hides its canvas) once the last one has fallen.
+const RAIN = {cv: null, g: null, parts: [], sparks: [], t0: 0, last: 0, raf: 0, w: 0, h: 0, dpr: 1, spr: null, sprKey: ""};
+const NOTES = [["#3B7FD4", "20"], ["#D9433B", "100"], ["#9A5A2C", "500"], ["#E19A26", "1000"]];
+function rainSprites(u, dpr){
+  const key = u + "|" + dpr; if (RAIN.sprKey === key) return RAIN.spr;
+  const mk = (w, h, fn) => { const c = document.createElement("canvas"); c.width = Math.ceil(w * dpr); c.height = Math.ceil(h * dpr); const g = c.getContext("2d"); g.scale(dpr, dpr); fn(g); return c; };
+  const nw = u, nh = Math.round(u * 0.5), cr = Math.round(u * 0.22);
+  const notes = NOTES.map(([col, val]) => [false, true].map(back => mk(nw, nh, g => {
+    roundRect(g, 0.5, 0.5, nw - 1, nh - 1, nh * 0.12); g.fillStyle = col; g.fill();
+    const sh = g.createLinearGradient(0, 0, nw, nh); sh.addColorStop(0, "rgba(255,255,255,0.3)"); sh.addColorStop(0.5, "rgba(255,255,255,0.04)"); sh.addColorStop(1, "rgba(0,0,0,0.2)");
+    g.fillStyle = sh; g.fill();
+    g.strokeStyle = "rgba(255,255,255,0.6)"; g.lineWidth = Math.max(1, u / 45); roundRect(g, nh * 0.12, nh * 0.12, nw - nh * 0.24, nh * 0.76, nh * 0.08); g.stroke();
+    g.fillStyle = "rgba(255,255,255,0.3)"; g.beginPath(); g.ellipse(back ? nw * 0.7 : nw * 0.3, nh / 2, nh * 0.25, nh * 0.29, 0, 0, 7); g.fill();   // the watermark window
+    g.fillStyle = "#fff"; g.textBaseline = "middle"; g.textAlign = "center";
+    g.font = "900 " + (nh * 0.38).toFixed(1) + "px " + K.FONTS.display;
+    if (back){ g.fillText(val, nw * 0.7, nh * 0.54); return; }
+    g.fillText("$", nw * 0.3, nh * 0.54);
+    g.textAlign = "right"; g.font = "900 " + (nh * 0.3).toFixed(1) + "px " + K.FONTS.display; g.fillText(val, nw - nh * 0.24, nh * 0.38);
+    g.font = "800 " + (nh * 0.17).toFixed(1) + "px " + K.FONTS.display; g.fillText("HK$", nw - nh * 0.24, nh * 0.7);
+  })));
+  const coin = mk(cr * 2 + 2, cr * 2 + 2, g => {
+    const x = cr + 1, y = cr + 1, gr = g.createRadialGradient(x - cr * 0.35, y - cr * 0.4, cr * 0.1, x, y, cr);
+    gr.addColorStop(0, "#FFF6C2"); gr.addColorStop(0.45, "#FFD23F"); gr.addColorStop(1, "#C98A0E");
+    g.fillStyle = gr; g.beginPath(); g.arc(x, y, cr, 0, 7); g.fill();
+    g.strokeStyle = "#A86A08"; g.lineWidth = Math.max(1, cr * 0.12); g.stroke();
+    g.strokeStyle = "rgba(168,106,8,0.55)"; g.lineWidth = Math.max(0.8, cr * 0.07); g.beginPath(); g.arc(x, y, cr * 0.72, 0, 7); g.stroke();
+    g.fillStyle = "#A86A08"; g.textAlign = "center"; g.textBaseline = "middle"; g.font = "900 " + (cr * 1.05).toFixed(1) + "px " + K.FONTS.display; g.fillText("$", x, y + cr * 0.06);
+  });
+  RAIN.spr = {notes, coin, nw, nh, cr}; RAIN.sprKey = key; return RAIN.spr;
+}
+function moneyRain(){
+  if (!RAIN.cv){ const c = RAIN.cv = document.createElement("canvas"); c.className = "rain"; c.setAttribute("aria-hidden", "true"); document.body.appendChild(c); RAIN.g = c.getContext("2d"); }
+  const c = RAIN.cv; c.hidden = false;
+  const w = c.clientWidth || window.innerWidth, h = c.clientHeight || window.innerHeight, dpr = Math.min(1.5, window.devicePixelRatio || 1);   // all in motion: no need for more
+  if (c.width !== Math.round(w * dpr) || c.height !== Math.round(h * dpr)){ c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); }
+  Object.assign(RAIN, {w, h, dpr, parts: [], sparks: [], t0: performance.now(), last: 0});
+  if (!reduceMotion){
+    const u = clamp(Math.round(Math.min(w, h) / 9), 36, 84), spr = rainSprites(u, dpr), n = Math.round(clamp(w * h / 6500, 60, 180));
+    for (let i = 0; i < n; i++){
+      const note = Math.random() < 0.68;
+      RAIN.parts.push({note, imgs: note ? spr.notes[Math.floor(Math.random() * spr.notes.length)] : null, x: Math.random() * w, y: -u - Math.random() * h * 0.2,
+        vx: (Math.random() - 0.5) * 50, vy: (note ? 0.15 : 0.35) * h + Math.random() * 0.2 * h, delay: Math.random() * 1700 * (0.25 + i / n),
+        a: (Math.random() - 0.5) * 1.2, va: (Math.random() - 0.5) * (note ? 2.4 : 1), flip: Math.random() * 6.28, vf: (note ? 3 : 9) + Math.random() * 5,
+        sway: note ? 25 + Math.random() * 45 : 0, sp: Math.random() * 6.28, s: 0.7 + Math.random() * 0.55, term: (0.28 + Math.random() * 0.16) * h});
+    }
+    const r = cv.getBoundingClientRect(), bx = r.left + r.width / 2, by = r.top + r.height * 0.42;   // a burst of coins from the board
+    for (let i = 0; i < 28; i++){
+      const ang = -Math.PI / 2 + (Math.random() - 0.5) * 2.3, v = (0.55 + Math.random() * 0.75) * h;
+      RAIN.parts.push({note: false, x: bx, y: by, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v, delay: Math.random() * 120, a: 0, va: 0,
+        flip: Math.random() * 6.28, vf: 10 + Math.random() * 8, sway: 0, sp: 0, s: 0.8 + Math.random() * 0.5, term: 0});
+    }
+    for (let i = 0; i < 30; i++) RAIN.sparks.push({x: Math.random() * w, y: Math.random() * h, delay: Math.random() * 2600, life: 380 + Math.random() * 320, r: 7 + Math.random() * 11});
+  }
+  if (!RAIN.raf) RAIN.raf = requestAnimationFrame(rainFrame);
+}
+function rainFrame(now){
+  const R = RAIN, g = R.g, el = now - R.t0, dt = R.last ? Math.min(0.05, (now - R.last) / 1000) : 0.016; R.last = now;
+  g.setTransform(R.dpr, 0, 0, R.dpr, 0, 0); g.clearRect(0, 0, R.w, R.h);
+  const fl = reduceMotion ? (el < 300 ? el / 300 : Math.max(0, 1 - (el - 300) / 1400)) * 0.45 : Math.max(0, 1 - el / 480) * 0.55;
+  if (fl > 0){   // the flash: the whole effect when motion is reduced
+    const gr = g.createRadialGradient(R.w / 2, R.h / 2, 0, R.w / 2, R.h / 2, Math.hypot(R.w, R.h) / 2);
+    gr.addColorStop(0, "rgba(255,246,190," + fl.toFixed(3) + ")"); gr.addColorStop(1, "rgba(255,186,40," + (fl * 0.85).toFixed(3) + ")");
+    g.fillStyle = gr; g.fillRect(0, 0, R.w, R.h);
+  }
+  const spr = R.spr, grav = R.h * 1.7; let left = el < (reduceMotion ? 1700 : 480);   // the flash still to come
+  for (const p of R.parts){
+    if (p.done) continue; left = true;
+    if (el < p.delay) continue;
+    if (p.note){ p.vy += (p.term - p.vy) * Math.min(1, dt * 2.2); p.a += Math.sin(el / 420 + p.sp) * p.va * dt; }   // paper: drifts to its slow fall, rocking
+    else p.vy += grav * dt;
+    p.x += (p.vx + (p.sway ? Math.cos(el / 330 + p.sp) * p.sway : 0)) * dt; p.y += p.vy * dt; p.flip += p.vf * dt;
+    if (p.y > R.h + 80 || p.x < -120 || p.x > R.w + 120){ p.done = true; continue; }
+    const fc = Math.cos(p.flip), D = R.dpr;   // one transform per piece: place, turn, and squash for the flip or spin
+    if (p.note){
+      const fy = Math.max(0.08, Math.abs(fc)), ca = Math.cos(p.a), sa = Math.sin(p.a), w = spr.nw * p.s, h = spr.nh * p.s;
+      g.setTransform(D * ca, D * sa, -D * sa * fy, D * ca * fy, D * p.x, D * p.y);
+      g.drawImage(p.imgs[fc < 0 ? 1 : 0], -w / 2, -h / 2, w, h);
+    } else {
+      const d = (spr.cr * 2 + 2) * p.s;
+      g.setTransform(D * Math.max(0.12, Math.abs(fc)), 0, 0, D, D * p.x, D * p.y);
+      g.drawImage(spr.coin, -d / 2, -d / 2, d, d);
+    }
+  }
+  g.setTransform(R.dpr, 0, 0, R.dpr, 0, 0);
+  for (const s of R.sparks){
+    const t = el - s.delay; if (t > s.life) continue; left = true; if (t < 0) continue;
+    const k = Math.sin(t / s.life * Math.PI); twinkle(g, s.x, s.y, s.r * k, k);
+  }
+  if (left && el < 8000){ R.raf = requestAnimationFrame(rainFrame); return; }
+  g.clearRect(0, 0, R.w, R.h); R.cv.hidden = true; R.raf = 0; R.parts = []; R.sparks = [];
+}
+
 // ---------- flow ----------
 function startGame(){
   A.unlock();
   flushRecord(S);   // the last game's quiz answers or habit may still be waiting to be saved
-  S = newState(); makeEngine(); S.mode = "playing";
+  S = newState(); makeEngine(); S.mode = "playing"; frenzyUI(); $("jpBan").hidden = true;
   if (firstQueue){ S.queue = firstQueue; S.lastId = firstQueue[2].id; S.jackpot = firstQueue.some(d => d.jackpot); firstQueue = null; }
   $("startOv").hidden = true; $("pauseOv").hidden = true; $("endModal").hidden = true; $("cardModal").hidden = true; $("seeOv").hidden = true; modalOpen(false);
   A.stage(0); A.mode("normal"); A.start();
-  renderLedger(); nextPiece();
+  renderLedger();
   crab("Steer each item into place, then let go. Flat things stack; round things roll.", "搵好位置先放手。扁嘅易疊，圓嘅會碌。");
   hush(); S.pb = lsGet("tff_pb", 0); quip(S.pb > 0 ? "startPb" : "start", 2, fmt(S.pb));
+  nextPiece();   // last: a Jackpot crab as the very first item gets its own words in
   updateHUD(); setPauseUI(); $("board").focus({preventScroll:true});
 }
 function endGame(reason){
   if (S.mode === "over") return;
   S.mode = "over"; S.over = reason; S.endAt = Date.now();
+  if (S.frenzyUntil){ S.frenzyUntil = 0; frenzyUI(); }   // jackpot time ends with the game
   if (S.active){ S.active.tff.released = true; S.active = null; }
   $("cardModal").hidden = true; S.card = null;
   A.mode("over"); setPauseUI();
@@ -689,7 +871,7 @@ function modalOpen(on){ const set = document.querySelector(".set"); if (set) set
 function setPauseUI(){ const pb = $("pauseBtn"); const live = S && (S.mode === "playing" || S.mode === "paused"); pb.disabled = !live; document.documentElement.classList.toggle("ingame", !!live); const p = !!(S && S.mode === "paused"); pb.setAttribute("aria-pressed", String(p)); }   // the label stays "Pause game": pressed = paused
 function togglePause(){
   if (S.mode === "playing"){ S.mode = "paused"; $("pauseOv").hidden = false; A.mode("paused"); $("resumeBtn").focus({preventScroll:true}); }
-  else if (S.mode === "paused"){ S.mode = "playing"; $("pauseOv").hidden = true; A.resume(); A.mode(S.play < S.speedUntil ? "fast" : "normal"); $("board").focus({preventScroll:true}); }
+  else if (S.mode === "paused"){ S.mode = "playing"; $("pauseOv").hidden = true; A.resume(); A.mode(musicMode()); $("board").focus({preventScroll:true}); }
   setPauseUI();
 }
 
@@ -1259,6 +1441,7 @@ function draw(dt){
   for (const b of live) if (b !== a){ for (const m of membersOf(b)) drawBody(c, m, false); if (b.tff.members) drawMarks(c, b, T); }
   if (a) drawBody(c, a, false);
   drawLeaves(c, f);
+  if (S.pops.length) drawPops(c, f);
   drawLabels(c);
   // harbour in front (anything below the surface sinks behind it)
   const off = (T * 0.35) % 60;
@@ -1470,7 +1653,7 @@ function stamp(en, zh, kind){
   const slot = stampN++ % 2, a = S && S.active;
   const highItem = a && (a.position.y - S.camTop) < H * 0.45;
   if (highItem) d.style.bottom = "calc(max(" + (WATER_Y - S.camTop > H ? 8 : Math.round((H - (WATER_Y - S.camTop)) / H * 100) + 4) + "%, " + Math.round(talkBand()) + "px) + " + (slot * 50) + "px)";   // above the crab's bubble
-  else d.style.top = "calc(10px + " + (slot * 50) + "px)";
+  else d.style.top = "calc(" + (frenzyOn() ? 64 : 10) + "px + " + (slot * 50) + "px)";   // under the jackpot-time badge
   d.style.setProperty("--r", ((stampN % 2 ? -1 : 1) * (2 + (stampN % 3) * 1.5)) + "deg");
   d.textContent = en; const z = document.createElement("small"); z.textContent = zh; d.appendChild(z);
   box.appendChild(d); A.sfx("stamp"); setTimeout(() => d.remove(), 1800);
@@ -1611,7 +1794,8 @@ function frameBody(now){
 function tick(dt){
   S.play += dt; updateTime();
   if (S.play >= GAME_MS){ endGame("time"); return; }
-  if (S.fastOn && S.play >= S.speedUntil){ S.fastOn = false; A.mode("normal"); }
+  if (S.fastOn && S.play >= S.speedUntil){ S.fastOn = false; A.mode(musicMode()); }
+  if (S.frenzyUntil) frenzyTick();
   if (S.active && S.play >= S.nextEvent){ openCard(); return; }
   if (!S.plan && S.play >= S.nextEvent - 4000) S.plan = planCard();
   if (S.active && S.shocks.length && S.play >= S.shocks[0]){ S.shocks.shift(); shock(); }
@@ -1635,6 +1819,8 @@ function showEnd(){
   $("rNw").textContent = fmt(S.score);
   $("rHeight").textContent = (S.best / FLOOR).toFixed(1) + "F";
   $("rWise").textContent = S.wise + "/" + (S.wise + S.risky + S.missed);
+  $("rJpRow").hidden = S.jpAt < 0;   // the windfall plus what double pay added
+  if (S.jpAt >= 0){ $("rJp").textContent = "+" + fmt(JACKPOT_BONUS + S.jpExtra); $("rJpRow").title = "HK$8,880 windfall + " + fmt(S.jpExtra) + " from double pay · 意外之財加雙倍收入"; }
   const fr = $("fallRep"); fr.replaceChildren();
   const row = (icon, bg, title, sub, count) => {
     const li = document.createElement("li"); const ic = svgUse(icon); ic.style.background = bg; ic.style.borderRadius = "8px"; ic.style.padding = "2px";
@@ -1775,7 +1961,8 @@ function recordBody(st){
     score: Math.round(st.score), stage: st.stage, height: +(st.best / FLOOR).toFixed(1), drops: st.drops,
     wise: st.wise, risky: st.risky, missed: st.missed, falls: {...st.falls}, choices: st.choices.slice(0, 20), ended: st.over,
     answers: answersOf(st), habit: st.habit || null,
-    items: st.items, real_ms: Math.round(st.realMs), at: st.endAt || undefined, prior: st.prior};   // checked by the server; at buckets a late retry
+    items: st.items, real_ms: Math.round(st.realMs), at: st.endAt || undefined, prior: st.prior,   // checked by the server; at buckets a late retry
+    jackpot: st.jpAt >= 0 ? 1 : 0};   // its windfall and double pay raise the server's score limit
 }
 // Saves go out one at a time; each sends the latest state, and only if it changed since the last one.
 function saveRecord(st, opts = {}){

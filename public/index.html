@@ -25,8 +25,8 @@
 <meta property="og:image:alt" content="3 Fall Fun: a clay tower of everyday items on a Hong Kong harbour pier">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preload" href="/assets/gluten.842f8cce6e.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="/assets/noto-sans-hk.c38d087ab4.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/assets/style.472c24e693.css">
+<link rel="preload" href="/assets/noto-sans-hk.3bfaed57cb.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/style.4df920b2b7.css">
 </head>
 <body>
 <noscript><p style="margin:0;padding:16px;background:#2E2838;color:#fff;font:16px/1.5 system-ui,sans-serif;text-align:center">3 Fall Fun needs JavaScript to run. 請開啟 JavaScript 先玩到。</p></noscript>
@@ -106,6 +106,9 @@
         <canvas id="board" aria-label="Game board: a clay tower of everyday items on a platform over Victoria Harbour" role="img"></canvas>
         <div class="talk" aria-hidden="true"><div class="bpos" id="bpos"><div class="bubble" id="bubble" hidden><canvas class="face" width="64" height="52"></canvas><span class="say" id="bubbleSay"></span></div></div></div>
         <div class="stamps" id="stamps" aria-live="polite"></div>
+        <div class="fzglow" aria-hidden="true"></div>
+        <div class="frenzy" id="frenzy" hidden><b>×2</b><span>Jackpot time<small>大獎時間</small></span><i id="frenzySec">20</i><u aria-hidden="true"><s id="frenzyBar"></s></u></div>
+        <div class="jpban" id="jpBan" hidden aria-live="polite"><b>JACKPOT!</b><span class="zh">大獎！</span><em id="jpAmt">+HK$8,880</em><small>Everything pays ×2 for 20 s · 20秒內存入雙倍</small></div>
         <div class="overlay" id="startOv">
           <div class="ov-card">
             <h2>Stack your life</h2>
@@ -246,6 +249,7 @@
         <li><span class="lab">Life stage<small>人生階段</small></span><span class="dots"></span><span class="val" id="rStage"></span></li>
         <li><span class="lab">Best height<small>最高樓層</small></span><span class="dots"></span><span class="val" id="rHeight"></span></li>
         <li><span class="lab">Wise picks<small>明智選擇</small></span><span class="dots"></span><span class="val" id="rWise"></span></li>
+        <li class="jp" id="rJpRow" hidden><span class="lab">Jackpot<small>大獎蟹</small></span><span class="dots"></span><span class="val" id="rJp"></span></li>
       </ul>
       <div class="esec"><h4>Your 3 Falls<span class="zh" lang="zh-HK">你中過嘅陷阱</span></h4><ul class="fallrep" id="fallRep"></ul></div>
       <div class="esec"><h4>Quick quiz<span class="zh" lang="zh-HK">小測驗 · <span id="quizScore">0/3</span></span></h4>
@@ -275,13 +279,13 @@
 
 <script src="/assets/matter-0.19.0.min.bdf68e297d.js"></script>
 <script src="/assets/clay.92cc086dc1.js"></script>
-<script src="/assets/audio.f1a91212ee.js"></script>
+<script src="/assets/audio.c31319bdb9.js"></script>
 <script src="/assets/wise.483e521ff6.js"></script>
 <script src="/assets/risky-a.5a67e884e5.js"></script>
 <script src="/assets/risky-b.5057bd2b53.js"></script>
 <script src="/assets/scam.05ff1a07ff.js"></script>
 <script src="/assets/jackpot.993fa050bf.js"></script>
-<script src="/assets/content.402ea9a992.js"></script>
-<script src="/assets/game.4aef101489.js"></script>
+<script src="/assets/content.e8607db614.js"></script>
+<script src="/assets/game.2f79603c68.js"></script>
 </body>
 </html>

@@ -249,7 +249,7 @@
         const floors = Number(r.height).toFixed(1), saved = when(r.created_at); // on a phone these two sit under the nickname
         // evidence for checking a prize score: items placed and real playing time (newer game pages send them); a
         // full-length game that took far longer than 3 minutes was played in slow motion
-        const slow = r.ended === "time" && r.real_ms > 270000, check = [r.items != null && `${r.items} items`, r.real_ms != null && `${Math.round(r.real_ms / 1000)} s played`, `${r.drops} dropped`].filter(Boolean).join(" · ");
+        const slow = r.ended === "time" && r.real_ms > 270000, check = [r.jackpot === 1 && "jackpot game", r.items != null && `${r.items} items`, r.real_ms != null && `${Math.round(r.real_ms / 1000)} s played`, `${r.drops} dropped`].filter(Boolean).join(" · ");
         return el("tr", "", el("td", "num", i + 1), el("td", "n", r.name, n > 1 && el("span", "pill rep", `repeat ×${n}`), slow && el("span", "pill rep", "slow motion: check"),
           el("span", "meta", `${floors} floors · ${saved}`), el("span", "meta", check)),
           el("td", "num", fmt(r.score)), el("td", "num hide-sm", floors), el("td", "sv hide-sm", saved), el("td", "mail", mail ? [mail + " ", b] : "—"));
@@ -280,7 +280,7 @@
     const pass = Math.ceil((QN * 2) / 3); // same rule as the server: 2 of 3
     const head = ["game_id", "saved_hkt", "week", "month", "on_board", "hidden", "nickname", "email", "score", "floors", "life_stage", "ended", "items_dropped",
       "wise_picks", "risky_picks", "missed_picks", "fall_overspending", "fall_scams", "fall_putting_off_saving", "habit_id", "habit", "quiz_answered", "quiz_correct", "quiz_2plus",
-      ...C.QUIZ.flatMap((q) => ["q_" + q.id, "q_" + q.id + "_correct"]), ...C.CARDS.map((c) => "card_" + c.id), "items_placed", "seconds_played", "quizzes_before"];
+      ...C.QUIZ.flatMap((q) => ["q_" + q.id, "q_" + q.id + "_correct"]), ...C.CARDS.map((c) => "card_" + c.id), "items_placed", "seconds_played", "quizzes_before", "jackpot"];
     return csv(head, rows.map((r) => {
       const answers = new Map(list(r.quiz_answers).map((a) => [a.q, a])), picks = new Map();
       for (const c of list(r.choices)) if (!picks.has(c.card)) picks.set(c.card, choice(c));
@@ -289,7 +289,7 @@
         r.wise, r.risky, r.missed, r.fall_spend, r.fall_scam, r.fall_delay, r.habit, (C.HABITS.find((h) => h.id === r.habit) || {}).en,
         r.quiz_answered, r.quiz, done ? (r.quiz >= pass ? 1 : 0) : "",
         ...C.QUIZ.flatMap((q) => { const a = answers.get(q.id); return a ? [(q.o[a.pick] || [])[0], (a.ok ?? a.pick === q.a) ? 1 : 0] : ["", ""]; }),
-        ...C.CARDS.map((c) => picks.get(c.id)), r.items, r.real_ms == null ? "" : Math.round(r.real_ms / 1000), r.quiz_prior];
+        ...C.CARDS.map((c) => picks.get(c.id)), r.items, r.real_ms == null ? "" : Math.round(r.real_ms / 1000), r.quiz_prior, r.jackpot ?? ""];
     }));
   }
   function answersCsv(rows) {

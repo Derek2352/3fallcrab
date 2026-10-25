@@ -10,7 +10,7 @@
   var STORE_KEY = "tff_muted";
   var MUSIC_BASE = 0.12;       // music bus level at setMusicVolume(1) (calibrated: music RMS ~ -20 dBFS, well under SFX)
   var SFX_BASE = 0.8;          // sfx bus level at setSfxVolume(1)
-  var BPM = 116, FAST_MUL = 1.35;
+  var BPM = 116, FAST_MUL = 1.35, FRENZY_MUL = 1.18;   // FRENZY: jackpot time, a little faster with coins in the arp
   var LOOKAHEAD = 0.12, TICK_MS = 25;
 
   // ------------------------------------------------------------------ utils
@@ -324,6 +324,7 @@
       coinTing(v, t + 0.055, mtof(K(v.r, 93)), cents, 0.2, 0.55);  // A6
       if (n >= 2) coinTing(v, t + 0.11, mtof(K(v.r, 98)), cents, 0.18, 0.4);
       if (n >= 3) coinTing(v, t + 0.165, mtof(K(v.r, 100)), cents, 0.16, 0.35);
+      if (o.frenzy) { bell(v, t + 0.2, mtof(K(v.r, 98)), 0.2, 0.4); coinTing(v, t + 0.25, mtof(K(v.r, 102)), cents, 0.16, 0.34); }   // jackpot time: paid double
     },
     floor: function (v, t, o) {
       var fl = clamp(Math.round(+o.floor || 1), 1, 20), P = [74, 76, 78, 81, 83, 86, 88, 90, 93, 95, 98];
@@ -513,6 +514,31 @@
       });
       bell(v, t + 0.34, mtof(K(r, 98)), 0.18, 0.5);
     },
+    jackpot: function (v, t) {                             // slot-machine jackpot: reels spin up, a brass hit, payout bells, coins pour out
+      var r = v.r, P = [88, 90, 93, 95, 98, 100, 102];
+      var w = noiseHit(v, t, 0.42, 0.16, 0.12, "bandpass", 500, 1.4); w.f.frequency.exponentialRampToValueAtTime(5200, t + 0.5);   // whoosh under the reels
+      for (var i = 0; i < 14; i++) tone(v, "pulse25", mtof(K(r, PENT[6 + i])), t + i * 0.034, 0.002, 0.13 + i * 0.008, 0.05);   // reels: two octaves up
+      var t2 = t + 0.5;
+      [[86, 0.3], [81, 0.22], [78, 0.2], [74, 0.2], [62, 0.26]].forEach(function (n) { brass(v, K(r, n[0]), t2, 0.75, n[1]); });
+      var k = tone(v, "sine", 150, t2, 0.002, 0.9, 0.28); k.o.frequency.exponentialRampToValueAtTime(45, t2 + 0.14);
+      noiseHit(v, t2, 0.002, 0.28, 1.2, "highpass", 6000, 0.7);                          // cymbal
+      [0, 0.17, 0.34].forEach(function (d, i) { bell(v, t2 + 0.06 + d, mtof(K(r, [98, 100, 105][i])), 0.24, 0.7); });   // ding ding ding
+      for (var j = 0; j < 30; j++) {                                                     // coins pouring into the tray, thinning out
+        var tt = t2 + 0.12 + Math.pow(j / 30, 1.4) * 1.9 + r.rand() * 0.03;
+        coinTing(v, tt, mtof(K(r, P[Math.floor(r.rand() * P.length)])), (r.rand() - 0.5) * 40, 0.1 + r.rand() * 0.08, 0.22 * (1 - j / 42));
+        if (j % 3 === 0) noiseHit(v, tt + 0.01, 0.001, 0.1, 0.03, "bandpass", 4500 + r.rand() * 2500, 4);
+      }
+    },
+    frenzyTick: function (v, t, o) {                       // jackpot time: the last 3 seconds
+      var n = clamp(Math.round(+o.n || 3), 1, 3);
+      coinTing(v, t, mtof(K(v.r, [100, 98, 93][n - 1])), 0, 0.09, 0.5);
+      tone(v, "triangle", mtof(K(v.r, [88, 86, 81][n - 1])), t, 0.002, 0.18, 0.06);
+    },
+    frenzyEnd: function (v, t) {                           // jackpot time is over: a falling chime and a soft power-down
+      var r = v.r;
+      [98, 93, 86].forEach(function (m, k) { bell(v, t + k * 0.12, mtof(K(r, m)), 0.2, 0.45); });
+      var x = tone(v, "triangle", 880, t + 0.05, 0.01, 0.22, 0.5); x.o.frequency.exponentialRampToValueAtTime(220, t + 0.55);
+    },
     post: function (v, t) {                                // passbook dot-matrix printer + ding
       var bp = v.filter("bandpass", 2400, 1.2, v.out);
       for (var b = 0; b < 3; b++) {
@@ -532,10 +558,11 @@
     click: 0.7, spawn: 0.7, move: 1.35, rotate: 0.7, hold: 0.75, release: 0.7, harddrop: 0.85, deposit: 0.7,
     floor: 0.8, stage: 0.95, splash: 0.85, cardOpen: 0.8, cardTick: 0.75, wise: 0.9, risky: 0.85, stamp: 0.9,
     debt: 0.95, scam: 0.75, quake: 1.0, shield: 0.9, timeWarn: 0.75, timeUp: 0.9, gameOver: 0.9, win: 1.0, post: 0.85,
-    vine: 0.85, vineGet: 0.8
+    vine: 0.85, vineGet: 0.8, jackpot: 1.0, frenzyTick: 0.7, frenzyEnd: 0.8
   };
   var THROTTLE = { move: 0.055, rotate: 0.05, click: 0.035, deposit: 0.045, spawn: 0.08, cardTick: 0.15, splash: 0.08,
-                   hold: 0.06, release: 0.05, harddrop: 0.08, stamp: 0.08, cardOpen: 0.1, vine: 0.06, vineGet: 0.3 };
+                   hold: 0.06, release: 0.05, harddrop: 0.08, stamp: 0.08, cardOpen: 0.1, vine: 0.06, vineGet: 0.3,
+                   jackpot: 1.5, frenzyTick: 0.3, frenzyEnd: 0.5 };
   var LOW_PRIORITY = { move: 1, click: 1, spawn: 1, rotate: 1, hold: 1, release: 1, deposit: 1, cardTick: 1 };
 
   // ------------------------------------------------------------------ impacts
@@ -624,7 +651,7 @@
       this.arpR = N(c.createStereoPanner()); this.arpR.pan.value = 0.4; this.arpR.connect(this.arpF);
     } else { this.arpL = this.arpR = this.arpF; }
     this.ctrF = filt("lowpass", 2400, 0, this.bus);
-    this.pos = 0; this.next = 0; this.stage = 0; this.pend = null; this.key = 0; this.mul = 1; this.solo = null;
+    this.pos = 0; this.next = 0; this.stage = 0; this.pend = null; this.key = 0; this.mul = 1; this.solo = null; this.frenzy = false;
     this.halted = false; this.dead = false;
   }
   var EP = Engine.prototype;
@@ -680,6 +707,7 @@
     }
     var ce = SONG.ctr[bar][s];
     if (st >= 2 && ce && this.on("counter")) this.counter(t, ce.m + k, ce.len * sd);
+    if (this.frenzy && this.on("arp") && s % 2 === 1) this.ping(t, ch.arp[COIN_SEQ[(s >> 1) % 8]] + 12 + k, s % 4 === 1 ? 1 : 0.65);   // jackpot time: coins on the off-beats
   };
   EP.kick = function (t, vel) {
     var x = this.voice(this.drums), g = x.gain(0, x.out);
@@ -723,6 +751,12 @@
     var x = this.voice(side ? this.arpR : this.arpL), g = x.gain(0, x.out);
     var e = envAD(g.gain, t, 0.002, 0.2 * vel, 0.15);
     x.osc("pulse12", mtof(m), t, e + 0.002, g);
+  };
+  var COIN_SEQ = [3, 2, 1, 2, 3, 1, 2, 0];
+  EP.ping = function (t, m, vel) {                         // a coin-like ping: bright pulse plus its octave, very short
+    var x = this.voice(this.arpF), f = mtof(m), g = x.gain(0, x.out), g2 = x.gain(0, x.out);
+    var e = envAD(g.gain, t, 0.002, 0.11 * vel, 0.09); envAD(g2.gain, t, 0.002, 0.06 * vel, 0.07);
+    x.osc("pulse25", f, t, e + 0.002, g); x.osc("sine", f * 2, t, e + 0.002, g2);
   };
   EP.counter = function (t, m, dur) {
     var x = this.voice(this.ctrF), g = x.gain(0, x.out), d = dur * 0.95;
@@ -768,8 +802,9 @@
     else if (mode === "paused") { rampTo(mi, 0, 0.25); rampTo(lp, 700, 0.2); pauseAt = now() + 1.0; }
     else if (mode !== "over") { rampTo(mi, 1, 0.12); rampTo(lp, 18000, 0.1); }
     if (engine) {
-      if (mode === "fast") engine.setMul(FAST_MUL, now());
-      else if (mode === "normal") engine.setMul(1, now());
+      if (mode === "fast" || mode === "normal" || mode === "frenzy") {
+        engine.setMul(mode === "fast" ? FAST_MUL : mode === "frenzy" ? FRENZY_MUL : 1, now()); engine.frenzy = mode === "frenzy";
+      }
       if (mode !== "paused" && engine.halted) { engine.halted = false; engine.next = now() + 0.05; }
     }
   }
@@ -791,7 +826,7 @@
     if (mMode === "over" || mMode === "paused") mMode = "normal";
     engine = new Engine(rig);
     engine.setStage(mStage, now());
-    engine.setMul(mMode === "fast" ? FAST_MUL : 1, now());
+    engine.setMul(mMode === "fast" ? FAST_MUL : mMode === "frenzy" ? FRENZY_MUL : 1, now()); engine.frenzy = mMode === "frenzy";
     engine.next = now() + 0.06;
     applyMode(mMode);
     if (!timer) timer = W.setInterval(tick, TICK_MS);
@@ -808,7 +843,7 @@
   function onVisibility() { hidden = !!document.hidden; applyRun(); }
 
   // ------------------------------------------------------------------ offline rendering (tests)
-  var SFX_OPT_KEY = { floor: "floor", stage: "stage", deposit: "amount", cardTick: "n", debt: "part" };
+  var SFX_OPT_KEY = { floor: "floor", stage: "stage", deposit: "amount", cardTick: "n", debt: "part", frenzyTick: "n" };
   function renderOffline(kind, name, seconds, opts) {
     return new Promise(function (resolve, reject) {
       try {
@@ -828,11 +863,11 @@
           var E = new Engine(r), stg = 0, mode = "normal";
           String(name || "").split(/[:,\s]+/).forEach(function (tok) {
             if (/^[0-3]$/.test(tok)) stg = +tok;
-            else if (/^(normal|fast|card|paused)$/.test(tok)) mode = tok;
+            else if (/^(normal|fast|frenzy|card|paused)$/.test(tok)) mode = tok;
             else if (/^bar=\d+$/.test(tok)) E.pos = (+tok.slice(4) % BARS) * 16;
             else if (/^solo=\w+$/.test(tok)) E.solo = tok.slice(5);
           });
-          E.setStage(stg, 0); E.setMul(mode === "fast" ? FAST_MUL : 1, 0);
+          E.setStage(stg, 0); E.setMul(mode === "fast" ? FAST_MUL : mode === "frenzy" ? FRENZY_MUL : 1, 0); E.frenzy = mode === "frenzy";
           if (mode === "card") { r.musicIn.gain.value = 0.3; r.musicLP.frequency.value = 900; }
           E.next = 0.05;
           while (E.next < seconds) E.step(E.next, false);
@@ -919,7 +954,7 @@
       },
       setMode: function (mode) {
         try {
-          if (!/^(normal|fast|card|paused|over)$/.test(mode)) return;
+          if (!/^(normal|fast|frenzy|card|paused|over)$/.test(mode)) return;
           mMode = mode;
           if (mode === "over") { stopMusic(0.5); applyMode("normal"); return; }
           applyMode(mode);
