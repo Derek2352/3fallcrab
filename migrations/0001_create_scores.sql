@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS scores (
   items INTEGER,                       -- items that landed and paid out (newer game pages)
   real_ms INTEGER,                     -- real time spent playing, in ms (newer game pages)
   quiz_prior INTEGER,                  -- quizzes this device had finished before this game: 0 = a first attempt
-  jackpot INTEGER                      -- 1 = the Jackpot crab came up, with its windfall and double pay (newer game pages)
+  jackpot INTEGER                      -- 1 = the Jackpot crab came up, with its windfall and jackpot time (newer game pages)
 );
 CREATE INDEX IF NOT EXISTS idx_scores_week ON scores (week, hidden, score DESC, id);
 CREATE INDEX IF NOT EXISTS idx_scores_all ON scores (hidden, score DESC, id);

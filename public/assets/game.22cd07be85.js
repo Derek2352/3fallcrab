@@ -49,10 +49,12 @@ const DEBT = DEFS.find(d => d.kind === "debt") || DEFS.find(d => d.id === "debt"
 // The Jackpot crab (items/jackpot.js) is never in the pools: it is a rare drop, at most one a game, coming instead of a
 // normal item with a 0.5% chance each (a game brings 40-60 items: roughly one game in four or five has one). Its claws
 // cradle what lands on it, and it pays like a wise item when it settles. The moment it appears, money rains over the
-// screen, a HK$8,880 windfall (lucky eights) goes in, and for 20 s of play every item and floor pays double: "jackpot
-// time". The server's score check allows exactly this for a game that reports a jackpot (server/api.js).
+// screen, a windfall goes in, and for a short while every item and floor pays more: "jackpot time". Kept modest on
+// purpose, it's a money-skills game: the windfall is one floor's pay and less than a scam takes, and jackpot time
+// usually adds less than one wise Life Event choice (+0.2 savings boost on everything after it) does. Luck pays once;
+// habits keep paying. The server's score check allows this for a game that reports a jackpot (server/api.js).
 const JACKPOT = DEFS.find(d => d.jackpot), JACKPOT_RARE = 0.005;
-const JACKPOT_BONUS = 8880, FRENZY_MS = 20000, FRENZY_X = 2;
+const JACKPOT_BONUS = 2000, FRENZY_MS = 15000, FRENZY_X = 1.5;
 if (!POOLS.risky.length) POOLS.risky = POOLS.wise.slice();
 if (!POOLS.scam.length) POOLS.scam = POOLS.risky.slice();
 
@@ -119,7 +121,7 @@ function newState(){
     quiz:[null, null, null], camTop:-(H - 240), shake:0, splashes:[], dragX:null, steps:0, ledger:[], warned:false,
     mood:{type:"idle", until:0}, lastImpact:new Map(), grabs:[], leaves:[], habit:null, rec:null,
     said:new Set(), streak:0, wiseRun:0, afterCard:null, overKey:null, pb:0, items:0, realMs:0, endAt:0, prior:0, quizDone:false,
-    jpAt:-1, frenzyUntil:0, frenzySec:0, jpExtra:0, pops:[]};   // jackpot: when it appeared, end of double pay, extra it paid
+    jpAt:-1, frenzyUntil:0, frenzySec:0, jpExtra:0, pops:[]};   // jackpot: when it appeared, end of jackpot time, extra it paid
 }
 function makeEngine(){
   engine = Engine.create({enableSleeping:true});
@@ -304,7 +306,7 @@ function physicsStep(){
       const [gain, x] = pay(2000); S.score += gain;
       ledger({zh: "第" + S.bestFloor + "層", en: "Floor " + S.bestFloor}, gain, x > 1 ? "×" + x : "");
       A.sfx("floor", {floor: S.bestFloor}); mood("happy", 1200);
-      stamp("Floor " + S.bestFloor + " +" + fmt(gain) + (x > 1 ? " ×" + x : ""), "第" + S.bestFloor + "層" + (x > 1 ? " · 雙倍" : ""), x > 1 ? "gold" : "good"); quip("floor", 1);
+      stamp("Floor " + S.bestFloor + " +" + fmt(gain) + (x > 1 ? " ×" + x : ""), "第" + S.bestFloor + "層" + (x > 1 ? " · " + x + "倍" : ""), x > 1 ? "gold" : "good"); quip("floor", 1);
     }
     const ns = stageFor(S.best / FLOOR);
     if (ns > S.stage){
@@ -665,7 +667,7 @@ function shock(){
 
 // ---------- jackpot ----------
 // The Jackpot crab's moment: money rains over the whole screen (a canvas laid over the page), a banner pops up on the
-// board, the windfall goes in, and jackpot time starts: every item and floor pays double for FRENZY_MS of play (a card
+// board, the windfall goes in, and jackpot time starts: every item and floor pays FRENZY_X for FRENZY_MS of play (a card
 // or the pause stops its clock too), with a badge counting down, a gold glow round the board (CSS, so it costs the
 // game's frame nothing) and each item's pay floating up from it. With reduced motion the rain is a gold flash, and
 // nothing shakes or pulses.
@@ -684,8 +686,9 @@ function jackpotHit(){
   try { if (!A.muted() && navigator.vibrate) navigator.vibrate([70, 50, 70, 50, 180]); } catch(e){}
   if (!reduceMotion){ const bw = $("boardWrap"); bw.classList.remove("jpshake"); void bw.offsetWidth; bw.classList.add("jpshake"); }   // moved as a whole: the tower stays cached
   mood("happy", 3500); quip("jackpot", 3);
-  crab("Jackpot! A HK$8,880 windfall, and everything pays double for 20 seconds. Windfalls are rare: save this one.",
-       "中大獎！意外之財 HK$8,880，之後20秒存入雙倍。橫財唔常有，記得儲起佢！");
+  const sec = FRENZY_MS / 1000;
+  crab("Jackpot! A " + fmt(JACKPOT_BONUS) + " windfall, and everything pays ×" + FRENZY_X + " for " + sec + " seconds. Luck pays once; good habits keep paying, so save it.",
+       "中大獎！意外之財 " + fmt(JACKPOT_BONUS) + "，之後" + sec + "秒存入" + FRENZY_X + "倍。好運只係一次，好習慣先會一直有回報，記得儲起佢！");
   moneyRain(); jackpotBanner(); frenzyUI(); updateHUD();
   const st = S;   // once the banner has gone: what the crab itself does
   setTimeout(() => { if (S === st && S.mode === "playing") stamp("Its claws hold what you drop on it", "佢對鉗同對眼會接住跌落嚟嘅嘢", "gold"); }, 3100);
@@ -702,6 +705,7 @@ function frenzyEnd(){
   stamp("Jackpot time is over", "大獎時間完", "info"); quip("frenzyEnd", 2, fmt(JACKPOT_BONUS + S.jpExtra));
 }
 const FZ = {el: $("frenzy"), sec: $("frenzySec"), bar: $("frenzyBar"), shown: false, s: -1};
+$("frenzyX").textContent = "×" + FRENZY_X;
 function frenzyUI(){   // the countdown badge on the board and the glowing balance
   const on = frenzyOn() && S.mode !== "over";
   if (on !== FZ.shown){ FZ.shown = on; FZ.el.hidden = !on; document.documentElement.classList.toggle("jp", on); document.documentElement.classList.remove("jp-end"); FZ.s = -1; }
@@ -712,7 +716,8 @@ function frenzyUI(){   // the countdown badge on the board and the glowing balan
 }
 let banT = 0;
 function jackpotBanner(){
-  const b = $("jpBan"); $("jpAmt").textContent = "+" + fmt(JACKPOT_BONUS);
+  const b = $("jpBan"), sec = FRENZY_MS / 1000; $("jpAmt").textContent = "+" + fmt(JACKPOT_BONUS);
+  $("jpNote").textContent = "Everything pays ×" + FRENZY_X + " for " + sec + " s · " + sec + "秒內存入" + FRENZY_X + "倍";
   b.hidden = false; b.classList.remove("show"); void b.offsetWidth; b.classList.add("show");
   clearTimeout(banT); banT = setTimeout(() => { b.hidden = true; b.classList.remove("show"); }, 3000);
 }
@@ -729,12 +734,13 @@ function drawPops(c, f){
     const y = q.y - (reduceMotion ? 0 : 30 * (1 - Math.pow(1 - Math.min(1, k), 2)));
     c.globalAlpha = k < 0.7 ? 1 : Math.max(0, 1 - (k - 0.7) / 0.3);
     c.font = "900 " + (16 * s).toFixed(1) + "px " + K.FONTS.display;
-    const tw = c.measureText(q.txt).width, x = q.x - 11 * s;
+    const tw = c.measureText(q.txt).width, x = q.x - 14 * s;
     c.lineWidth = 4.5 * s; c.strokeStyle = "rgba(96,52,0,0.9)"; c.strokeText(q.txt, x, y);
     c.fillStyle = "#FFE45C"; c.fillText(q.txt, x, y);
-    const bx = x + tw / 2 + 4 * s, bw = 22 * s, bh = 15 * s;   // the ×2 tag
+    c.font = "900 " + (11 * s).toFixed(1) + "px " + K.FONTS.display;   // the ×1.5 tag
+    const tag = "×" + FRENZY_X, bx = x + tw / 2 + 4 * s, bw = c.measureText(tag).width + 10 * s, bh = 15 * s;
     c.fillStyle = "#FF7B35"; roundRect(c, bx, y - bh / 2, bw, bh, bh / 2); c.fill();
-    c.fillStyle = "#fff"; c.font = "900 " + (11 * s).toFixed(1) + "px " + K.FONTS.display; c.fillText("×" + FRENZY_X, bx + bw / 2, y + 0.5);
+    c.fillStyle = "#fff"; c.fillText(tag, bx + bw / 2, y + 0.5);
   }
   c.restore();
   S.pops = S.pops.filter(q => q.t < 75); needDraw = true;
@@ -1819,8 +1825,8 @@ function showEnd(){
   $("rNw").textContent = fmt(S.score);
   $("rHeight").textContent = (S.best / FLOOR).toFixed(1) + "F";
   $("rWise").textContent = S.wise + "/" + (S.wise + S.risky + S.missed);
-  $("rJpRow").hidden = S.jpAt < 0;   // the windfall plus what double pay added
-  if (S.jpAt >= 0){ $("rJp").textContent = "+" + fmt(JACKPOT_BONUS + S.jpExtra); $("rJpRow").title = "HK$8,880 windfall + " + fmt(S.jpExtra) + " from double pay · 意外之財加雙倍收入"; }
+  $("rJpRow").hidden = S.jpAt < 0;   // the windfall plus what jackpot time added
+  if (S.jpAt >= 0){ $("rJp").textContent = "+" + fmt(JACKPOT_BONUS + S.jpExtra); $("rJpRow").title = fmt(JACKPOT_BONUS) + " windfall + " + fmt(S.jpExtra) + " from jackpot time · 意外之財加大獎時間收入"; }
   const fr = $("fallRep"); fr.replaceChildren();
   const row = (icon, bg, title, sub, count) => {
     const li = document.createElement("li"); const ic = svgUse(icon); ic.style.background = bg; ic.style.borderRadius = "8px"; ic.style.padding = "2px";
@@ -1962,7 +1968,7 @@ function recordBody(st){
     wise: st.wise, risky: st.risky, missed: st.missed, falls: {...st.falls}, choices: st.choices.slice(0, 20), ended: st.over,
     answers: answersOf(st), habit: st.habit || null,
     items: st.items, real_ms: Math.round(st.realMs), at: st.endAt || undefined, prior: st.prior,   // checked by the server; at buckets a late retry
-    jackpot: st.jpAt >= 0 ? 1 : 0};   // its windfall and double pay raise the server's score limit
+    jackpot: st.jpAt >= 0 ? 1 : 0};   // its windfall and jackpot time raise the server's score limit
 }
 // Saves go out one at a time; each sends the latest state, and only if it changed since the last one.
 function saveRecord(st, opts = {}){

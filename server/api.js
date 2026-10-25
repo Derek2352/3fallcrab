@@ -42,8 +42,10 @@ const TRAP_OF = new Map(CARDS.map((c) => [c.id, c.trap]));
 // Limits that no real game can pass, from the game's rules (src/game.js):
 const MAX_CARDS = 7;   // cards open at 15 s of play, then 24 s after each one closes (play stops while a card is open): an 8th would need 183 s of a 180 s game
 const MAX_ITEMS = 430; // the next item arrives 420 ms after one is let go: at most 180 s / 420 ms + 1 items can be placed
-// The Jackpot crab (at most one a game) pays a windfall when it appears, then every item and floor pays double for 20 s
-// of play: 20 s / 420 ms + 1 = 48 items placed in that time, plus the few already falling when it started.
+// The Jackpot crab (at most one a game) pays a windfall when it appears, then every item and floor pays more for a short
+// while ("jackpot time"). The limit covers the most any released page has paid, so a page still open from then keeps
+// working: the first release paid HK$8,880 and x2 for 20 s of play (20 s / 420 ms + 1 = 48 items placed in that time,
+// plus the few already falling when it started); the current page pays HK$2,000 and x1.5 for 15 s.
 const JACKPOT_BONUS = 8880, FRENZY_X = 2, FRENZY_ITEMS = 60;
 const ADMIN_FAILS = 20, ADMIN_FAIL_MIN = 15; // wrong admin passwords allowed from one network per 15 minutes
 const ENDS = ["time", "drops"];
@@ -101,7 +103,7 @@ export const ADDED = [
   ["items", "INTEGER"], // items that landed and paid out (newer game pages): lets staff check a top score
   ["real_ms", "INTEGER"], // real time spent playing, in ms (newer game pages): far above 180000 = a slowed-down game
   ["quiz_prior", "INTEGER"], // quizzes this device had finished before this game (newer game pages): 0 = a first attempt
-  ["jackpot", "INTEGER"], // 1 = the Jackpot crab came up, with its windfall and double pay (newer game pages)
+  ["jackpot", "INTEGER"], // 1 = the Jackpot crab came up, with its windfall and jackpot time (newer game pages)
 ];
 const SCHEMA_2 = [
   `CREATE UNIQUE INDEX IF NOT EXISTS idx_scores_gid ON scores (gid)`,
@@ -238,7 +240,7 @@ function tally(choices) {
 const stageOf = (floors) => STAGES.reduce((s, st, i) => (floors >= st.at ? i : s), 0);
 // A game the rules make impossible is refused, so an edited request can't top the board. Every rule holds for every
 // version of the game page released so far:
-// - every gain (Math.round(x * rate / 10) * 10, doubled in jackpot time) and loss (all or 1000 / 5000 of it) and the
+// - every gain (Math.round(x * rate / 10) * 10, x1.5 or x2 in jackpot time) and loss (all or 1000 / 5000 of it) and the
 //   jackpot windfall are multiples of 10;
 // - points need an item resting on the platform, which sets the height (height is rounded to 0.1 floor), except the
 //   jackpot windfall, which comes the moment the crab appears;
@@ -246,7 +248,7 @@ const stageOf = (floors) => STAGES.reduce((s, st, i) => (floors >= st.at ? i : s
 // - an item pays at most 500 x the savings boost, a new floor 2000 x the boost, and the boost starts at x1, grows
 //   only with wise answers (+0.2 each) and stops at x2; with no item count, the most items a game can place is used;
 // - a game with the Jackpot crab (the page says so) also has its windfall, and up to FRENZY_ITEMS items and every floor
-//   paid a second time (double pay). Older pages never send it: their limit is unchanged.
+//   paid a second time (the most jackpot time has ever paid). Older pages never send it: their limit is unchanged.
 function implausible(v, wise, items) {
   if (v.score % 10 !== 0) return "score_step";
   if (v.score > 0 && v.height <= 0 && !(v.jackpot === 1 && v.score <= JACKPOT_BONUS)) return "no_height";   // the windfall needs no tower
