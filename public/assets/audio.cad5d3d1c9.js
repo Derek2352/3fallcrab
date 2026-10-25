@@ -531,8 +531,8 @@
     },
     frenzyTick: function (v, t, o) {                       // jackpot time: the last 3 seconds
       var n = clamp(Math.round(+o.n || 3), 1, 3);
-      coinTing(v, t, mtof(K(v.r, [100, 98, 93][n - 1])), 0, 0.09, 0.5);
-      tone(v, "triangle", mtof(K(v.r, [88, 86, 81][n - 1])), t, 0.002, 0.18, 0.06);
+      coinTing(v, t, mtof(K(v.r, [100, 98, 93][n - 1])), 0, 0.1, 0.9);
+      tone(v, "triangle", mtof(K(v.r, [88, 86, 81][n - 1])), t, 0.002, 0.4, 0.07);
     },
     frenzyEnd: function (v, t) {                           // jackpot time is over: a falling chime and a soft power-down
       var r = v.r;
@@ -556,9 +556,9 @@
   // per-sound output trim (calibrated by out/audiotest.js measurements)
   var LEVEL = {
     click: 0.7, spawn: 0.7, move: 1.35, rotate: 0.7, hold: 0.75, release: 0.7, harddrop: 0.85, deposit: 0.7,
-    floor: 0.8, stage: 0.95, splash: 0.85, cardOpen: 0.8, cardTick: 0.75, wise: 0.9, risky: 0.85, stamp: 0.9,
-    debt: 0.95, scam: 0.75, quake: 1.0, shield: 0.9, timeWarn: 0.75, timeUp: 0.9, gameOver: 0.9, win: 1.0, post: 0.85,
-    vine: 0.85, vineGet: 0.8, jackpot: 1.0, frenzyTick: 0.7, frenzyEnd: 0.8
+    floor: 0.8, stage: 0.95, splash: 0.85, cardOpen: 0.8, cardTick: 0.75, wise: 0.9, risky: 0.5, stamp: 0.9,
+    debt: 0.8, scam: 0.45, quake: 1.0, shield: 0.9, timeWarn: 0.75, timeUp: 0.9, gameOver: 0.52, win: 1.0, post: 0.85,
+    vine: 0.85, vineGet: 0.8, jackpot: 1.0, frenzyTick: 1.0, frenzyEnd: 0.8
   };
   var THROTTLE = { move: 0.055, rotate: 0.05, click: 0.035, deposit: 0.045, spawn: 0.08, cardTick: 0.15, splash: 0.08,
                    hold: 0.06, release: 0.05, harddrop: 0.08, stamp: 0.08, cardOpen: 0.1, vine: 0.06, vineGet: 0.3,
