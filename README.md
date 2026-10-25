@@ -191,9 +191,9 @@ All game source lives in `src/`. After any change, run `npm run build`, which fi
 | `src/clay.js` | Clay rendering kit (palette, lighting, materials) |
 | `src/audio.js` | Synthesised music and sound effects, with no audio files |
 | `src/style.css`, `src/index.html` | Page layout |
-| `src/fonts/` | The fonts, cut down to the characters the game uses. After adding Chinese text anywhere in `src/`, run `npm run fonts` (needs Python 3 and, once, `pip install fonttools brotli`) and commit `src/fonts/`. Until then `npm run build` warns, and the new characters show in the visitor's system Chinese font. |
+| `src/fonts/` | The fonts, cut down to the characters the game uses. After adding Chinese text anywhere in `src/`, run `npm run fonts` (needs Python 3 and, once, `pip install fonttools brotli`) and commit `src/fonts/`. Until then `npm run build` warns, and the new characters show in the visitor's system Chinese font. `source-sans-punct-*.woff2` are separate, fixed 1 KB files: curly quotes, ×, and · from Source Sans 3, so English text isn't spaced by Noto Sans HK's full-width versions of them. |
 | `src/static/` | Copied as-is: icons (`og.jpg` is the link-preview picture), 404, admin, poster, `_headers` (security and cache headers) |
 | `server/api.js` | Leaderboard API (validation, rate limit, admin) |
 | `server/worker.js` | Worker entry point: `/api/*` goes to the API, everything else is static |
 
-Matter.js 0.19.0 (MIT) and qrcode-generator 1.4.4 (MIT) are bundled locally. The fonts are self-hosted: Gluten, Noto Sans HK, LXGW WenKai TC and DotGothic16, under the SIL Open Font License 1.1 (`src/fonts/OFL.txt`, published with them).
+Matter.js 0.19.0 (MIT) and qrcode-generator 1.4.4 (MIT) are bundled locally. The fonts are self-hosted: Gluten, Noto Sans HK, LXGW WenKai TC, DotGothic16 and (for six punctuation marks) Source Sans 3, under the SIL Open Font License 1.1 (`src/fonts/OFL.txt`, published with them).

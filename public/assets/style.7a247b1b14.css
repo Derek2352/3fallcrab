@@ -4,13 +4,20 @@
    are the ones Google Fonts served, so --f-* below and clay.js (canvas lettering) stay as they are. */
 @font-face{font-family:"Gluten";font-style:normal;font-weight:400 900;font-display:swap;src:url(/assets/gluten.842f8cce6e.woff2) format("woff2")}
 /* Noto Sans HK is one variable file. Four faces, not one 400 900 range, so a weight-800 label still uses the 900 face, as before. */
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/noto-sans-hk.a548db70b6.woff2) format("woff2")}
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:500;font-display:swap;src:url(/assets/noto-sans-hk.a548db70b6.woff2) format("woff2")}
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/noto-sans-hk.a548db70b6.woff2) format("woff2")}
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:900;font-display:swap;src:url(/assets/noto-sans-hk.a548db70b6.woff2) format("woff2")}
-@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/lxgw-wenkai-tc-regular.40b1663943.woff2) format("woff2")}
-@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/lxgw-wenkai-tc-bold.c9bb5d443d.woff2) format("woff2")}
-@font-face{font-family:"DotGothic16";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/dotgothic16.65135c58ed.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/noto-sans-hk.53be2a7426.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:500;font-display:swap;src:url(/assets/noto-sans-hk.53be2a7426.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/noto-sans-hk.53be2a7426.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:900;font-display:swap;src:url(/assets/noto-sans-hk.53be2a7426.woff2) format("woff2")}
+/* WenKai draws only Chinese (and the digits inside Chinese lines): its Latin is a thin handwriting, so English in a
+   Chinese-font line falls through to Noto Sans HK and reads the same as everywhere else */
+@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/lxgw-wenkai-tc-regular.f03f81714f.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
+@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/lxgw-wenkai-tc-bold.00c808f0e1.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
+/* Curly quotes, ‘ ’, × and · in Latin widths: Noto Sans HK draws them a whole Chinese character wide, which left holes
+   in English ("to   “rent”", "pays ×1.5"). Source Sans 3 (the Latin Noto Sans HK is based on), 1 KB a weight. */
+@font-face{font-family:"TFF Punct";font-style:normal;font-weight:400 650;font-display:swap;src:url(/assets/source-sans-punct-400.f1e8c6c73b.woff2) format("woff2");unicode-range:U+00B7,U+00D7,U+2018-201D}
+@font-face{font-family:"TFF Punct";font-style:normal;font-weight:651 850;font-display:swap;src:url(/assets/source-sans-punct-700.54c4ee4dfe.woff2) format("woff2");unicode-range:U+00B7,U+00D7,U+2018-201D}
+@font-face{font-family:"TFF Punct";font-style:normal;font-weight:851 900;font-display:swap;src:url(/assets/source-sans-punct-900.622c4a765b.woff2) format("woff2");unicode-range:U+00B7,U+00D7,U+2018-201D}
+@font-face{font-family:"DotGothic16";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/dotgothic16.d1069111ac.woff2) format("woff2")}
 
 /* Layout: a clay tabletop set — passbook + 3 Falls | the diorama board | tickets, building directory, leaderboard.
    One light (top-left) everywhere: CSS shadows fall down-right like the canvas clay. Single bright theme by design. */
@@ -32,8 +39,8 @@
   --lamp:#FFE45C;
   --drop:rgba(120,62,12,.24);
   --f-display:"Gluten","Arial Rounded MT Bold","Trebuchet MS",sans-serif;
-  --f-zh:"LXGW WenKai TC","Noto Sans HK","PingFang HK","Microsoft JhengHei",sans-serif;
-  --f-body:"Noto Sans HK","PingFang HK","Microsoft JhengHei",system-ui,sans-serif;
+  --f-zh:"LXGW WenKai TC","TFF Punct","Noto Sans HK","PingFang HK","Microsoft JhengHei",sans-serif;
+  --f-body:"TFF Punct","Noto Sans HK","PingFang HK","Microsoft JhengHei",system-ui,sans-serif;
   --f-dot:"DotGothic16","Courier New",monospace;
   color-scheme:light;
 }
@@ -757,3 +764,120 @@ html.jp-end .fzglow{animation-duration:.35s}
   @keyframes jpfade{0%{opacity:0}8%,86%{opacity:1}100%{opacity:0}}
   .frenzy::before, html.jp .fzglow{animation:none;opacity:.7} .board-wrap.jpshake{animation:none}
 }
+
+/* ---------- picky pass: type, rhythm, states (from the aesthetics review) ---------- */
+/* Numbers: proportional figures (Gluten's tabular "1" left a gap: "HK$1 4,600"), and the rounded face instead of the
+   dot-matrix one outside the passbook (DotGothic gives , . : a whole cell: "6. 3F", "201, 500") */
+.bal .v, .pbs .v, .hud .hs .v, .frenzy i, .chip .n, .rows li.big .val, .jpban em{font-variant-numeric:proportional-nums}
+.height b{font-family:var(--f-display);font-weight:800;font-size:20px}
+.rows li .val{font-family:var(--f-display);font-weight:800;font-size:17px}
+#rStage{font-family:var(--f-display);font-weight:800}
+#rStage .zh{font-family:var(--f-zh);font-weight:700;margin-right:.3em}
+.rows li.jp .val{color:#9A5B00}   /* 5:1 on the cream */
+.lb .s{font-family:var(--f-display);font-weight:800;font-size:13px}
+.lb .fl{font-family:var(--f-display);font-weight:800;font-size:11.5px}
+.bar2 b{font-family:var(--f-display);font-weight:800}
+.ledger .dp{margin-right:-.22em}   /* the passbook keeps its dot matrix, punctuation pulled in */
+.ledger th:first-child, .ledger td:first-child{text-align:left}
+/* phone HUD: four stats at their own width, the item slots at the end (Net worth was cut to "HK$28.…") */
+.hud{grid-template-columns:repeat(4,auto) minmax(0,1fr);column-gap:10px}
+.hud .mini{justify-self:end}
+@media (max-width: 420px) and (min-width: 381px){ .hud .hs .v{font-size:16px} .hud canvas{width:40px;height:40px} }
+.hud .dr .v{color:var(--ink)} .hud .dr .v.hit{color:var(--red-d)}
+/* stamps: a stadium the text sits inside, wrapping only when it must */
+.stamp{border-radius:999px;padding:8px 24px 9px;white-space:normal;width:max-content;max-width:86%;text-wrap:balance}
+/* Chinese wraps at punctuation, not inside words ("銀/行", "14/年"); English keeps its words */
+.lifecard .zh, .oc-tip small, .oc-effect small, .qfb small, .crabcard p small, .bubble small, .lb-empty, .esec-note, .turnov p, .then,
+.ticket .nm small, .fallrep small, .qz legend small, .ov-card .desc .zh, .zl{word-break:keep-all;overflow-wrap:anywhere;text-wrap:pretty}
+.zl{display:block;margin-top:1px;font-family:var(--f-zh);color:var(--ink-2)}   /* a Cantonese line under its English */
+.then .nw{white-space:nowrap}
+.bubble{text-wrap:pretty}
+.choice b{text-wrap:balance}
+@media (max-width: 520px){ .qopt small, .habit small{display:block;margin:1px 0 0} }
+/* life card: the corner number clear of choice 2 and Continue; the card result's effects as chips */
+.lc-body{padding-bottom:34px} .oc-actions{margin-bottom:0} .lc-body::after{opacity:.4}
+.oc-effect{display:flex;flex-wrap:wrap;gap:6px}
+.oc-effect .fx{display:block;padding:5px 11px 6px;border-radius:12px;background:#fff;line-height:1.25;text-wrap:balance;
+  box-shadow:inset 1px 1px 0 #fff, inset -2px -2px 4px rgba(60,20,10,.1), 0 2px 0 var(--cream-d)}
+.oc-effect .fx small{display:block;margin-top:1px;font-size:12px;font-weight:700}
+.lc-band{background:var(--hot);color:#fff} .lc-band .stg{background:var(--hot-d);color:#fff}   /* one pink with its button; the stage pill a shade deeper (AA) */
+/* disabled Pause: pressed in, not a see-through ghost */
+.mast-right .iconbtn:disabled{opacity:1;background:#F7E6C4;box-shadow:inset 2px 3px 5px rgba(60,20,10,.14)}
+.mast-right .iconbtn:disabled svg{opacity:.32}
+/* hover: everything clickable lifts a little (mouse only; :not(:active) keeps the pressed look) */
+@media (hover: hover){
+  .btn:hover:not(:active):not(:disabled), .iconbtn:hover:not(:active):not(:disabled), button.ov-chip:hover:not(:active), .choice:hover:not(:active){transform:translateY(-1px)}
+  .btn:hover:not(:disabled){filter:brightness(1.07) saturate(1.05)}
+  .iconbtn:hover:not(:disabled){background:#FFFBF2}
+  .tab[aria-pressed="false"]:hover{background:#B5EEE8}
+  .qopt:not(:disabled):hover, .habit:hover{box-shadow:inset 0 0 0 2px var(--cream-d), 0 3px 0 var(--cream-d)}
+  .choice:hover{background:#FFF7E8}
+}
+#board:focus-visible{outline:3px solid rgba(255,253,247,.9);outline-offset:-3px}   /* a cream rim, not a navy frame, all game */
+/* backdrops in the page's warm brown (navy over the yellow turned khaki); pause dims the board too */
+.modal{background:rgba(92,38,24,.32)}
+.turnov{background:rgba(92,38,24,.5)}
+#pauseOv{background:rgba(92,38,24,.18);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
+.overlay .ov-card{box-shadow:inset 3px 3px 2px rgba(255,255,255,.7), inset -5px -7px 12px rgba(60,20,10,.15), 5px 8px 0 rgba(37,49,122,.22)}   /* shadow on the sky */
+/* desktop: the side columns reach the bottom of the board, and the crab's card no longer jumps with each message */
+@media (min-width: 900px){
+  .game{align-items:stretch}
+  .crabcard{flex:1 1 auto;contain:size;min-height:120px;overflow-y:auto}
+  .directory{display:flex;flex-direction:column;flex:1 1 auto}
+  .dir{flex:1 1 auto;justify-content:space-evenly}
+  .height{margin-top:auto;padding-top:10px}
+  .lb-panel{min-height:300px}
+  #startOv{padding-top:5%}
+}
+/* the 3 Falls: bright fills with ink, labels in the same two-line shape */
+.chip.scam, .tag.scam{background:#A58BFF;color:var(--ink)}
+.chip.scam svg, .tag.scam svg{filter:drop-shadow(0 1px 0 rgba(0,0,0,.25))}
+.chip small span{display:block} .chip small span + span{font-family:var(--f-zh);font-weight:700}
+.info{align-items:stretch}
+.info .tag .eff{font-size:11.5px;line-height:1.4}
+.info .tag .eff .zl{color:inherit}   /* full ink: AA on the bright fills */
+/* habit pledge: a clay radio */
+.habit input{appearance:none;-webkit-appearance:none;flex:none;width:18px;height:18px;margin:0;border-radius:50%;background:#fff;display:grid;place-items:center;cursor:pointer;
+  box-shadow:inset 1px 2px 3px rgba(60,20,10,.22), 0 0 0 2px var(--cream-d)}
+.habit input:checked{background:var(--hot);box-shadow:inset 1px 1px 0 rgba(255,255,255,.45), inset -2px -2px 3px rgba(0,0,0,.2), 0 0 0 2px var(--hot-d)}
+.habit input:checked::after{content:"";width:6px;height:6px;border-radius:50%;background:#fff}
+.habit:has(input:checked){box-shadow:inset 0 0 0 2px var(--hot), 0 3px 0 var(--cream-d)}
+@media (forced-colors: active){ .habit input{border:2px solid CanvasText} .habit input:checked{background:Highlight} }
+/* posting: the button under the fields; posted reads as done, not greyed out */
+.namerow #postBtn{flex:1 1 100%}
+.btn.teal:disabled{opacity:1;background:#5FB8AE;box-shadow:inset 2px 3px 5px rgba(0,0,0,.15)}
+.statement .btn.alt, .seeov .btn.alt{background:#fff}
+/* quiz marks: the same round icons as the card result */
+.qfb b.qh{display:flex;align-items:center;gap:6px;margin-bottom:0}
+.qfb b.qh svg{width:18px;height:18px;flex:none}
+.qfb .qhz{margin:0 0 4px 24px;font-weight:700}
+.qopt{position:relative;padding-right:36px}   /* room for the mark, so marking an answer moves nothing */
+.qopt.is-right::after, .qopt.is-wrong::after{content:"";position:absolute;right:10px;top:50%;width:18px;height:18px;margin:-9px 0 0;float:none;background:no-repeat center/contain}
+.qopt.is-right::after{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 34'%3E%3Ccircle cx='17' cy='17' r='15' fill='%234CC36A'/%3E%3Cpath d='M10 17.5l5 5 9-11' fill='none' stroke='%23fff' stroke-width='3.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}
+.qopt.is-wrong::after{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 34'%3E%3Ccircle cx='17' cy='17' r='15' fill='%23E71910'/%3E%3Cpath d='M11.5 11.5l11 11M22.5 11.5l-11 11' fill='none' stroke='%23fff' stroke-width='3.6' stroke-linecap='round'/%3E%3C/svg%3E")}
+/* bilingual button labels: the Chinese a half-step heavier, so it reads as half of the label */
+.btn .zh, .ov-card .btn .zh, .lifecard .btn .zh, .statement .btn .zh{font-size:.9em;-webkit-text-stroke:.35px currentColor}
+/* tickets: the notch sits on the perforation */
+.ticket::before, .ticket::after{display:none}
+.ticket .perf{position:relative}
+.ticket .perf::before{content:"";position:absolute;top:-6px;width:14px;height:14px;border-radius:50%;background:var(--set);box-shadow:inset 2px 2px 3px rgba(120,62,12,.25)}
+.ticket.next .perf::before{left:-15px} .ticket.hold .perf::before{right:-15px}
+.kind{margin-right:4px} .kind.vine{margin-left:0;background:#B5E04A;color:var(--ink)}
+/* See tower: the Results pill on the right (the floor ruler is on the left) */
+.seeov #resultsBtn{left:auto;right:12px}
+/* start card: a light veil so the scene behind reads as background */
+#startOv{background:rgba(255,253,247,.18)}
+.ov-opts{gap:8px}
+/* touch pad: Title case, with the Cantonese under it */
+.pad button small i{display:block;font-style:normal;font-family:var(--f-zh);font-size:9px;font-weight:700;line-height:1.1;margin-top:1px}
+.pad .drop small i{color:#fff}
+.lb li.you .r{font-size:13px}
+/* the speech bubble's tail: bigger, with the bubble's own shadow */
+.bubble::after{border-top:9px solid transparent;border-bottom:9px solid transparent;border-left:13px solid #FFFDF7;right:-12px;margin-top:-9px;filter:drop-shadow(3px 4px 0 rgba(37,49,122,.28))}
+/* jackpot banner: lower (clear of the crab coming in) and shorter */
+.jpban{top:40%}
+.jpban.show{animation:jpin2 2.4s cubic-bezier(.2,.9,.3,1.25) forwards}
+@keyframes jpin2{0%{opacity:0;transform:translate(-50%,-50%) scale(.2) rotate(-12deg)}17%{opacity:1;transform:translate(-50%,-50%) scale(1.14) rotate(3deg)}
+  28%{transform:translate(-50%,-50%) scale(.95) rotate(-1deg)}38%{transform:translate(-50%,-50%) scale(1) rotate(0)}
+  75%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-80%) scale(.9)}}
+@media (prefers-reduced-motion: reduce){ .jpban.show{animation:jpfade 2.4s ease-out forwards} .btn:hover, .iconbtn:hover, button.ov-chip:hover, .choice:hover{transform:none} }

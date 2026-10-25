@@ -168,8 +168,8 @@ function genItem(){
 function refill(){ while (S.queue.length < 3) S.queue.push(genItem()); }
 function spawn(def){
   S.active = addItem(def, W/2, S.camTop + 85, true); S.targetAngle = 0; A.sfx("spawn");
-  if (def.vine){ A.sfx("vineGet"); stamp("Vine-wrapped! It sticks where it lands", "藤蔓物件：掂到就黐住", "good"); }
-  if (def.jackpot){ if (S.jpAt < 0) jackpotHit(); else stamp("Jackpot crab! Its claws hold what you drop on it", "大獎蟹！對鉗同對眼會接住跌落嚟嘅嘢", "gold"); }   // back from hold: no second windfall
+  if (def.vine){ A.sfx("vineGet"); stamp("Vine-wrapped: it sticks!", "藤蔓：一掂就黐", "good"); }
+  if (def.jackpot){ if (S.jpAt < 0) jackpotHit(); else stamp("Its claws catch what lands", "對鉗接住跌落嚟嘅嘢", "gold"); }   // back from hold: no second windfall
 }
 function nextPiece(){ refill(); const it = S.queue.shift(); refill(); spawn(it); S.canHold = true; drawPreviews(); prewarm(); }
 function prewarm(){   // pictures the next few seconds will need, made in spare time: the coming items upright
@@ -275,7 +275,7 @@ function physicsStep(){
       for (const m of membersOf(b)){
         if (!m.tff.player) continue;
         S.drops++; const loss = Math.min(S.score, 1000); S.score -= loss;
-        ledger(m.tff.def, -loss, "跌落海");
+        ledger(m.tff.def, -loss, "落海");
         mood("cover", 1600);
         stamp(m.tff.def.en + " fell in!", "跌咗落海 " + S.drops + "/" + MAX_DROPS, "bad");
         S.streak = 0; if (S.drops === MAX_DROPS - 1) quip("lastDrop", 3); else if (S.drops < MAX_DROPS) quip("drop", 2);
@@ -558,7 +558,9 @@ function pickCard(){
 // pictures are made in spare time and the card deals in smoothly.
 function planCard(){
   const c = pickCard(), order = Math.random() < 0.5 ? ["w","r"] : ["r","w"];
-  const thumbs = order.map(k => { const pool = k === "w" ? POOLS.wise : (c.trap === "scam" ? POOLS.scam : POOLS.risky); return pool[Math.floor(Math.random() * pool.length)]; });
+  const thumbs = order.map(k => {
+    const named = c.thumb && c.thumb[k] && DEFS.find(d => d.id === c.thumb[k]); if (named) return named;   // the phone for "Buy the latest phone"
+    const pool = k === "w" ? POOLS.wise : (c.trap === "scam" ? POOLS.scam : POOLS.risky); return pool[Math.floor(Math.random() * pool.length)]; });
   thumbs.forEach(d => wantSprite(d, 0, 1));
   return {c, order, thumbs, stage: S.stage};
 }
@@ -628,8 +630,13 @@ function choose(kind){
     else { S.speedUntil = S.play + 20000; S.rate = 1; S.forced = {type: "risky", n: 2}; }
   }
   head.appendChild(txt);
-  const ez = document.createElement("small"); ez.lang = "zh-HK"; ez.textContent = zh.replace("{loss}", fmt(-loss));
-  $("ocEffect").replaceChildren(document.createTextNode(en.replace("{loss}", fmt(-loss))), ez);
+  const fxEn = en.replace("{loss}", fmt(-loss)).split(" · "), fxZh = zh.replace("{loss}", fmt(-loss)).split("·"), eff = $("ocEffect");
+  eff.replaceChildren();
+  if (fxEn.length === fxZh.length) fxEn.forEach((e, i) => {   // one chip per effect
+    const fx = document.createElement("span"); fx.className = "fx"; fx.textContent = e[0].toUpperCase() + e.slice(1);   // a chip starts with a capital
+    const z = document.createElement("small"); z.lang = "zh-HK"; z.textContent = fxZh[i]; fx.appendChild(z); eff.appendChild(fx);
+  });
+  else { const z = document.createElement("small"); z.lang = "zh-HK"; z.textContent = fxZh.join(" · "); eff.append(fxEn.join(" · "), z); }
   $("cardSheet").classList.add("done");
   const tip = $("ocTip"); tip.replaceChildren(document.createTextNode(c.tip[0]));
   const tz = document.createElement("small"); tz.textContent = c.tip[1]; tip.appendChild(tz);
@@ -687,11 +694,11 @@ function jackpotHit(){
   if (!reduceMotion){ const bw = $("boardWrap"); bw.classList.remove("jpshake"); void bw.offsetWidth; bw.classList.add("jpshake"); }   // moved as a whole: the tower stays cached
   mood("happy", 3500); quip("jackpot", 3);
   const sec = FRENZY_MS / 1000;
-  crab("Jackpot! A " + fmt(JACKPOT_BONUS) + " windfall, and everything pays ×" + FRENZY_X + " for " + sec + " seconds. Luck pays once; good habits keep paying, so save it.",
-       "中大獎！意外之財 " + fmt(JACKPOT_BONUS) + "，之後" + sec + "秒存入" + FRENZY_X + "倍。好運只係一次，好習慣先會一直有回報，記得儲起佢！");
+  crab("A " + fmt(JACKPOT_BONUS) + " windfall, and ×" + FRENZY_X + " pay for " + sec + " seconds. Luck pays once; good habits keep paying.",
+       "意外之財 " + fmt(JACKPOT_BONUS) + "，加" + sec + "秒" + FRENZY_X + "倍收入。好運只係一次，好習慣先會一直有回報。");
   moneyRain(); jackpotBanner(); frenzyUI(); updateHUD();
   const st = S;   // once the banner has gone: what the crab itself does
-  setTimeout(() => { if (S === st && S.mode === "playing") stamp("Its claws hold what you drop on it", "佢對鉗同對眼會接住跌落嚟嘅嘢", "gold"); }, 3100);
+  setTimeout(() => { if (S === st && S.mode === "playing") stamp("Its claws catch what lands", "對鉗接住跌落嚟嘅嘢", "gold"); }, 3100);
 }
 function frenzyTick(){
   const left = S.frenzyUntil - S.play;
@@ -719,7 +726,7 @@ function jackpotBanner(){
   const b = $("jpBan"), sec = FRENZY_MS / 1000; $("jpAmt").textContent = "+" + fmt(JACKPOT_BONUS);
   $("jpNote").textContent = "Everything pays ×" + FRENZY_X + " for " + sec + " s · " + sec + "秒內存入" + FRENZY_X + "倍";
   b.hidden = false; b.classList.remove("show"); void b.offsetWidth; b.classList.add("show");
-  clearTimeout(banT); banT = setTimeout(() => { b.hidden = true; b.classList.remove("show"); }, 3000);
+  clearTimeout(banT); banT = setTimeout(() => { b.hidden = true; b.classList.remove("show"); }, 2400);
 }
 // each item's pay floats up from it in jackpot time (world units, drawn with the tower)
 function popMoney(m, gain){
@@ -762,6 +769,9 @@ function rainSprites(u, dpr){
   const nw = u, nh = Math.round(u * 0.5), cr = Math.round(u * 0.22);
   const notes = NOTES.map(([col, val]) => [false, true].map(back => mk(nw, nh, g => {
     roundRect(g, 0.5, 0.5, nw - 1, nh - 1, nh * 0.12); g.fillStyle = col; g.fill();
+    g.save(); g.clip(); g.lineWidth = Math.max(1.5, u / 28);   // clay rim, as everything else
+    g.strokeStyle = "rgba(255,255,255,0.55)"; roundRect(g, 1.5, 1.5, nw - 1, nh - 1, nh * 0.12); g.stroke();
+    g.strokeStyle = "rgba(0,0,0,0.18)"; roundRect(g, -0.5, -0.5, nw - 1, nh - 1, nh * 0.12); g.stroke(); g.restore();
     const sh = g.createLinearGradient(0, 0, nw, nh); sh.addColorStop(0, "rgba(255,255,255,0.3)"); sh.addColorStop(0.5, "rgba(255,255,255,0.04)"); sh.addColorStop(1, "rgba(0,0,0,0.2)");
     g.fillStyle = sh; g.fill();
     g.strokeStyle = "rgba(255,255,255,0.6)"; g.lineWidth = Math.max(1, u / 45); roundRect(g, nh * 0.12, nh * 0.12, nw - nh * 0.24, nh * 0.76, nh * 0.08); g.stroke();
@@ -788,9 +798,9 @@ function moneyRain(){
   const c = RAIN.cv; c.hidden = false;
   const w = c.clientWidth || window.innerWidth, h = c.clientHeight || window.innerHeight, dpr = Math.min(1.5, window.devicePixelRatio || 1);   // all in motion: no need for more
   if (c.width !== Math.round(w * dpr) || c.height !== Math.round(h * dpr)){ c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); }
-  Object.assign(RAIN, {w, h, dpr, parts: [], sparks: [], t0: performance.now(), last: 0});
+  Object.assign(RAIN, {w, h, dpr, parts: [], sparks: [], t0: performance.now(), last: 0, box: cv.getBoundingClientRect()});
   if (!reduceMotion){
-    const u = clamp(Math.round(Math.min(w, h) / 9), 36, 84), spr = rainSprites(u, dpr), n = Math.round(clamp(w * h / 6500, 60, 180));
+    const u = clamp(Math.round(Math.min(w, h) / 9), 36, 84), spr = rainSprites(u, Math.min(2, window.devicePixelRatio || 1)), n = Math.round(clamp(w * h / 6500, 60, 180));
     for (let i = 0; i < n; i++){
       const note = Math.random() < 0.68;
       RAIN.parts.push({note, imgs: note ? spr.notes[Math.floor(Math.random() * spr.notes.length)] : null, x: Math.random() * w, y: -u - Math.random() * h * 0.2,
@@ -811,11 +821,12 @@ function moneyRain(){
 function rainFrame(now){
   const R = RAIN, g = R.g, el = now - R.t0, dt = R.last ? Math.min(0.05, (now - R.last) / 1000) : 0.016; R.last = now;
   g.setTransform(R.dpr, 0, 0, R.dpr, 0, 0); g.clearRect(0, 0, R.w, R.h);
-  const fl = reduceMotion ? (el < 300 ? el / 300 : Math.max(0, 1 - (el - 300) / 1400)) * 0.45 : Math.max(0, 1 - el / 480) * 0.55;
+  const fl = reduceMotion ? (el < 300 ? el / 300 : Math.max(0, 1 - (el - 300) / 1400)) * 0.22 : Math.max(0, 1 - el / 480) * 0.55;
   if (fl > 0){   // the flash: the whole effect when motion is reduced
-    const gr = g.createRadialGradient(R.w / 2, R.h / 2, 0, R.w / 2, R.h / 2, Math.hypot(R.w, R.h) / 2);
+    const B = reduceMotion ? R.box : {left: 0, top: 0, width: R.w, height: R.h}, cx = B.left + B.width / 2, cy = B.top + B.height / 2;
+    const gr = g.createRadialGradient(cx, cy, 0, cx, cy, Math.hypot(B.width, B.height) / 2);
     gr.addColorStop(0, "rgba(255,246,190," + fl.toFixed(3) + ")"); gr.addColorStop(1, "rgba(255,186,40," + (fl * 0.85).toFixed(3) + ")");
-    g.fillStyle = gr; g.fillRect(0, 0, R.w, R.h);
+    g.fillStyle = gr; g.fillRect(B.left, B.top, B.width, B.height);
   }
   const spr = R.spr, grav = R.h * 1.7; let left = el < (reduceMotion ? 1700 : 480);   // the flash still to come
   for (const p of R.parts){
@@ -1163,6 +1174,7 @@ function buildLayers(soft, only){
     K.press(g, K.ball(94, 99, 3.5, 2.2, {lump:0.05}), "#FF9DBF", {sheen:false, texture:0}); K.press(g, K.ball(126, 99, 3.5, 2.2, {lump:0.05}), "#FF9DBF", {sheen:false, texture:0});
     const cloud = (cx, cy, s, seed) => K.blob(g, K.merge(K.ball(cx, cy, 24*s, 14*s, {lump:0.6, seed}), K.ball(cx + 22*s, cy - 6*s, 18*s, 15*s, {lump:0.6, seed:seed + 1}), K.ball(cx - 22*s, cy + 2*s, 15*s, 11*s, {lump:0.6, seed:seed + 2})), "white", {depth:3, soft:5});
     cloud(300, 78, 1, 11); cloud(215, 180, 0.72, 21); cloud(92, 228, 0.55, 31);
+    duskTint(g, W, 260, "255,160,175", 0.3);   // sunset-pink clouds and sun at dusk
   });
   // skyline: colourful clay towers (parallax)
   make.city = () => layer(W + 60, 260, g => {
@@ -1184,7 +1196,7 @@ function buildLayers(soft, only){
       x += w + 4 + r() * 6;
     }
     // atmospheric haze so the tower of items always reads in front of the city
-    g.save(); g.globalCompositeOperation = "source-atop"; g.fillStyle = "rgba(160,220,255,0.42)"; g.fillRect(0, 0, W + 60, 260); g.restore();
+    g.save(); g.globalCompositeOperation = "source-atop"; g.fillStyle = "rgba(" + mixHex("#A0DCFF", "#FFB38A", duskStep).slice(4, -1) + ",0.42)"; g.fillRect(0, 0, W + 60, 260); g.restore();
   });
   // harbour (world units, wide so it can scroll)
   make.sea = () => layer(W + 120, 220, g => {
@@ -1194,6 +1206,7 @@ function buildLayers(soft, only){
       const pts = []; for (let x = -10; x <= W + 130; x += 12) pts.push([x, 10 + row*26 + Math.sin(x / 22 + row) * 3.5]);
       K.blob(g, K.tube(pts, 6 - row*0.6), row % 2 ? "#5DB3F5" : "sky", {depth:1.6, soft:2.4, sheen:false, rim:0.5, texture:0.06});
     }
+    duskTint(g, W + 120, 220, "255,150,120", 0.24);   // the harbour reflects the sunset
   });
   // platform + pillar
   make.plat = () => layer(PW + 40, 200, g => {
@@ -1263,7 +1276,11 @@ function resize(){
 let rzT = 0; window.addEventListener("resize", () => { clearTimeout(rzT); rzT = setTimeout(resize, 220); });
 
 const camTarget = () => Math.min(-(H - 240), -S.height - 330);
-let skyDusk = -1, skyFill = null;
+let skyDusk = -1, skyFill = null, duskStep = 0;
+const SKY = [["#3FB4FF", "#8EDBFF", "#C8F0FF"],   // day: top, 65%, horizon
+             ["#6A8CF0", "#C9A8F0", "#FFD6E0"],   // golden hour (dusk .5)
+             ["#8C6FE0", "#FF9E7A", "#FFD59A"]];  // twilight (dusk 1): violet, clear of the orange board frame
+const duskTint = (g, w, h, rgb, a) => { if (!duskStep) return; g.save(); g.globalCompositeOperation = "source-atop"; g.fillStyle = "rgba(" + rgb + "," + (a * duskStep).toFixed(3) + ")"; g.fillRect(0, 0, w, h); g.restore(); };
 // ---------- what stays still is drawn once ----------
 // A frame used to draw every item twice (shadow, then item) and every vine stroke, so a long game's pile made each
 // frame slower. Now the sky and the city are drawn once while the camera holds still (BACK), and items that have
@@ -1413,7 +1430,10 @@ function draw(dt){
   const dusk = Math.round(clamp((S.best / FLOOR - 5) / 6, 0, 1) * 200) / 200;
   if (dusk !== skyDusk){
     skyDusk = dusk; skyFill = c.createLinearGradient(0, 0, 0, H);
-    skyFill.addColorStop(0, mixHex("#3FB4FF", "#FF8E5A", dusk)); skyFill.addColorStop(0.65, mixHex("#8EDBFF", "#FFC36E", dusk)); skyFill.addColorStop(1, mixHex("#C8F0FF", "#FFE7A8", dusk));
+    const seg = dusk < .5 ? 0 : 1, t = seg ? dusk * 2 - 1 : dusk * 2;   // day -> golden hour -> twilight, never through grey
+    [0, .65, 1].forEach((at, i) => skyFill.addColorStop(at, mixHex(SKY[seg][i], SKY[seg + 1][i], t)));
+    const ds = Math.round(dusk * 2) / 2;
+    if (ds !== duskStep){ duskStep = ds; for (const n of ["sky", "city", "sea"]) buildLayers(true, n); }
   }
   backdrop(c, k, Math.min(40, rise * 0.05) - 10, Math.min(H - 110, (WATER_Y - S.camTop) - 250 + rise * 0.85));
   // world
@@ -1483,15 +1503,15 @@ function drawRuler(c){
     const st = STAGES.find(s => s.at === f);
     if (st){
       c.strokeStyle = "rgba(255,255,255,0.85)"; c.lineWidth = 2; c.setLineDash([8, 7]);
-      c.beginPath(); c.moveTo(40, y); c.lineTo(W, y); c.stroke(); c.setLineDash([]);
+      c.beginPath(); c.moveTo(44, y); c.lineTo(W, y); c.stroke(); c.setLineDash([]);
     }
-    c.fillStyle = st ? "#FFE45C" : "rgba(37,49,122,0.55)";
-    roundRect(c, 4, y - 10, 34, 20, 8); c.fill();
-    c.fillStyle = st ? "#25317A" : "#FFFFFF"; c.textAlign = "center"; c.fillText(f + "F", 21, y + 1);
+    c.fillStyle = st ? "#FFE45C" : skyDusk >= .5 ? "rgba(37,49,122,0.8)" : "rgba(37,49,122,0.55)";
+    roundRect(c, 8, y - 10, 34, 20, 8); c.fill();
+    c.fillStyle = st ? "#25317A" : "#FFFFFF"; c.textAlign = "center"; c.fillText(f + "F", 25, y + 1);
   }
   if (S.best > 8 && S.mode !== "idle"){
     const y = -S.best; c.strokeStyle = "rgba(255,95,162,0.9)"; c.lineWidth = 2; c.setLineDash([3, 5]);
-    c.beginPath(); c.moveTo(40, y); c.lineTo(W - 8, y); c.stroke(); c.setLineDash([]);
+    c.beginPath(); c.moveTo(44, y); c.lineTo(W - 8, y); c.stroke(); c.setLineDash([]);
   }
   c.restore();
 }
@@ -1500,17 +1520,18 @@ function drawLabels(c){
   for (const st of STAGES){
     if (!st.at) continue; const y = -st.at * FLOOR; if (y < S.camTop - 30 || y > S.camTop + H + 30) continue;
     const label = st.zh + "  " + st.en;
-    c.font = "700 13px " + K.FONTS.zh; const tw = c.measureText(label).width;
-    c.fillStyle = "rgba(37,49,122,0.92)"; roundRect(c, W - tw - 22, y - 26, tw + 16, 21, 9); c.fill();
-    c.fillStyle = "#FFE45C"; c.textAlign = "left"; c.fillText(label, W - tw - 14, y - 15.5);
+    c.font = "700 13px " + K.FONTS.zh; const tw = c.measureText(label).width, ly = Math.max(y - 26, S.camTop + 6);   // never cut by the top edge
+    c.fillStyle = "rgba(37,49,122,0.92)"; roundRect(c, W - tw - 22, ly, tw + 16, 21, 9); c.fill();
+    c.fillStyle = "#FFE45C"; c.textAlign = "left"; c.fillText(label, W - tw - 14, ly + 10.5);
   }
   if (S.best > 8 && S.mode !== "idle"){
     const y = -S.best, txt = "BEST " + (S.best / FLOOR).toFixed(1) + "F";
-    c.font = "12px " + K.FONTS.dot; const tw = c.measureText(txt).width;
-    c.fillStyle = "#FF5FA2"; c.beginPath(); c.moveTo(42, y - 22); c.lineTo(42, y + 2); c.lineTo(38, y + 2); c.lineTo(38, y - 22); c.fill();
-    c.beginPath(); c.moveTo(42, y - 22); c.lineTo(58, y - 17); c.lineTo(42, y - 12); c.fill();
-    c.fillStyle = "rgba(255,255,255,0.95)"; roundRect(c, 62, y - 24, tw + 14, 18, 9); c.fill();
-    c.fillStyle = "#25317A"; c.textAlign = "left"; c.fillText(txt, 69, y - 14.5);
+    const dn = STAGES.some(st => st.at && y - -st.at * FLOOR > 0 && y - -st.at * FLOOR < 34) ? 26 : 0;   // a stage line just above: flag hangs below
+    c.font = "800 12px " + K.FONTS.display; const tw = c.measureText(txt).width;
+    c.fillStyle = "#FF5FA2"; c.beginPath(); c.moveTo(48, y - 22 + dn); c.lineTo(48, y + 2 + dn * 0.1); c.lineTo(44, y + 2 + dn * 0.1); c.lineTo(44, y - 22 + dn); c.fill();
+    c.beginPath(); c.moveTo(48, y - 22 + dn); c.lineTo(64, y - 17 + dn); c.lineTo(48, y - 12 + dn); c.fill();
+    c.fillStyle = "rgba(255,255,255,0.95)"; roundRect(c, 68, y - 24 + dn, tw + 14, 18, 9); c.fill();
+    c.fillStyle = "#25317A"; c.textAlign = "left"; c.fillText(txt, 75, y - 14.5 + dn);
   }
   c.restore();
 }
@@ -1532,7 +1553,9 @@ function previewInto(canvas, def){
   if (!def){
     if (canvas.dataset.slot){ const m = Math.min(w, h) * 0.18; g.strokeStyle = "rgba(91,81,108,0.45)"; g.lineWidth = Math.max(1.5, w * 0.025); g.setLineDash([w * 0.06, w * 0.05]);
       roundRect(g, m, m, w - 2*m, h - 2*m, w * 0.12); g.stroke(); g.setLineDash([]);
-      g.fillStyle = "rgba(91,81,108,0.7)"; g.font = "800 " + Math.round(h * 0.2) + "px " + K.FONTS.display; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(canvas.dataset.slot, w/2, h/2 + h*0.02); }
+      const slot = canvas.dataset.slot;
+      if (slot === "+"){ const r = h * 0.18; g.strokeStyle = "rgba(91,81,108,0.7)"; g.lineWidth = Math.max(2, w * 0.045); g.lineCap = "round"; g.beginPath(); g.moveTo(w/2 - r, h/2); g.lineTo(w/2 + r, h/2); g.moveTo(w/2, h/2 - r); g.lineTo(w/2, h/2 + r); g.stroke(); }
+      else { g.fillStyle = "rgba(91,81,108,0.7)"; g.font = "800 " + Math.round(h * (slot.length > 1 ? 0.13 : 0.2)) + "px " + K.FONTS.display; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(slot, w/2, h/2 + h*0.02); } }
     return;
   }
   let b = previewCache.get(def.id); if (!b){ b = def.make(0, 0); previewCache.set(def.id, b); }
@@ -1570,7 +1593,8 @@ function drawPreviews(force){
   nameInto($("nextName"), n0, "");
   nameInto($("holdName"), S.hold, S.scamLock > 0 ? "Locked by a scam 被呃咗，暫存鎖住" : "Press C to keep one for later 按C暫存");
   if (S.hold && S.scamLock > 0){ const lk = document.createElement("small"); lk.className = "locked"; lk.textContent = "Locked by a scam 被呃咗，暫存鎖住"; $("holdName").appendChild(lk); }
-  $("next2Name").textContent = n1 ? "Then 跟住：" + n1.en + " " + n1.zh : "";
+  const t2 = $("next2Name"); t2.replaceChildren();
+  if (n1){ const z = document.createElement("span"); z.className = "nw"; z.textContent = n1.zh; t2.append("Then 跟住：" + n1.en + " ", z); }
 }
 
 // ---------- HUD, passbook, stamps ----------
@@ -1587,16 +1611,17 @@ function buildStatic(){
   });
   const fl = $("fallsList"); fl.replaceChildren();
   const ch = $("fallsChips"); ch.replaceChildren();
-  const SHORT = {spend:"Overspend 過度消費", scam:"Scams 騙局", delay:"Put off 拖延"};
+  const SHORT = {spend:["Overspend", "過度消費"], scam:["Scams", "騙局"], delay:["Put off", "拖延"]};
   Object.entries(TRAPS).forEach(([k, t]) => {
     const li = document.createElement("li"); li.className = "tag " + k;
     const tx = document.createElement("span"); const b = document.createElement("b"); b.textContent = t.en + " " + t.zh;
     const sm = document.createElement("small"); sm.textContent = t.d;
-    const ef = document.createElement("em"); ef.className = "eff"; ef.textContent = "In the game: " + t.eff;
+    const ef = document.createElement("em"); ef.className = "eff"; const cut = t.eff.search(/\p{Script=Han}/u);   // the Cantonese on its own line
+    if (cut > 0) bi(ef, "In the game: " + t.eff.slice(0, cut).trim(), t.eff.slice(cut)); else ef.textContent = "In the game: " + t.eff;
     tx.append(b, sm, ef); li.append(svgUse(ICON[k]), tx); fl.appendChild(li);
     const c = document.createElement("li"); c.className = "chip " + k; c.title = t.en + " " + t.zh;
     const n = document.createElement("span"); n.className = "n"; n.id = "fall_" + k; n.textContent = "0";
-    const lab = document.createElement("small"); lab.textContent = SHORT[k];
+    const lab = document.createElement("small"); for (const t of SHORT[k]){ const sp = document.createElement("span"); sp.textContent = t; lab.appendChild(sp); }
     c.append(svgUse(ICON[k]), n, lab); ch.appendChild(c);
   });
 }
@@ -1606,17 +1631,22 @@ function ledger(def, amount, note){
   if (S.ledger.length > 40) S.ledger.shift();
   renderLedger();
 }
+function dotText(el, s){   // dot-matrix figures: the , . : pulled in to the digit before them ("8,880", not "8, 880")
+  let run = "";
+  for (const ch of s){ if (",.:".includes(ch)){ if (run) el.append(run); run = ""; const d = document.createElement("span"); d.className = "dp"; d.textContent = ch; el.appendChild(d); } else run += ch; }
+  if (run) el.append(run);
+}
 function renderLedger(){
   const tb = $("ledgerBody"); tb.replaceChildren();
   const rows = S ? S.ledger.slice(-6) : [];
   if (!rows.length){
     const tr = document.createElement("tr"); tr.className = "ledger-empty"; const td = document.createElement("td"); td.colSpan = 5;
-    td.textContent = "Entries print here as items settle, floors are reached and money is lost. 每筆存入同支出都會印喺度。"; tr.appendChild(td); tb.appendChild(tr); return;
+    bi(td, "Entries print here as items settle, floors are reached and money is lost.", "每筆存入同支出都會印喺度。"); tr.appendChild(td); tb.appendChild(tr); return;
   }
   for (const r of rows){
     const tr = document.createElement("tr"); if (r.fresh){ tr.className = "new"; r.fresh = false; }
     const cells = [mmss(r.t), r.zh || r.en, r.amt > 0 ? fmtShort(r.amt) : "", r.amt < 0 ? fmtShort(r.amt) : "", fmtShort(r.bal)];
-    cells.forEach((v, i) => { const td = document.createElement("td"); td.textContent = v; if (i === 1) td.title = r.en; if (i === 2) td.className = "in"; if (i === 3) td.className = "out"; tr.appendChild(td); });
+    cells.forEach((v, i) => { const td = document.createElement("td"); if (i === 1){ td.textContent = v; td.title = r.en; } else dotText(td, v); if (i === 2) td.className = "in"; if (i === 3) td.className = "out"; tr.appendChild(td); });
     tb.appendChild(tr);
   }
 }
@@ -1633,11 +1663,11 @@ function updateTime(){
 function updateHUD(){
   if (!S) return;
   $("nwVal").textContent = fmt(S.score);
-  $("hudNw").textContent = (window.innerWidth < 400 && S.score >= 10000) ? "HK$" + (S.score / 1000).toFixed(S.score >= 100000 ? 0 : 1) + "K" : fmt(S.score);
+  $("hudNw").textContent = (window.innerWidth < 430 && S.score >= 10000) ? "HK$" + (S.score / 1000).toFixed(S.score >= 100000 ? 0 : 1) + "K" : fmt(S.score);
   $("rateVal").textContent = "×" + S.rate.toFixed(1);
   const fl = S.best / FLOOR;
   $("heightVal").textContent = fl.toFixed(1) + "F"; $("hudH").textContent = fl.toFixed(1) + "F";
-  $("hudDrops").textContent = S.drops + "/" + MAX_DROPS;
+  $("hudDrops").textContent = S.drops + "/" + MAX_DROPS; $("hudDrops").classList.toggle("hit", S.drops > 0);
   [...$("fundCoins").children].forEach((p, i) => p.classList.toggle("on", i < S.fund));
   [...$("dropCoins").children].forEach((p, i) => p.classList.toggle("hit", i < S.drops));
   $("fundCoins").setAttribute("aria-label", S.fund + " of 3"); $("dropCoins").setAttribute("aria-label", S.drops + " of " + MAX_DROPS);
@@ -1658,9 +1688,10 @@ function stamp(en, zh, kind){
   const d = document.createElement("div"); d.className = "stamp " + (kind || "info");
   const slot = stampN++ % 2, a = S && S.active;
   const highItem = a && (a.position.y - S.camTop) < H * 0.45;
-  if (highItem) d.style.bottom = "calc(max(" + (WATER_Y - S.camTop > H ? 8 : Math.round((H - (WATER_Y - S.camTop)) / H * 100) + 4) + "%, " + Math.round(talkBand()) + "px) + " + (slot * 50) + "px)";   // above the crab's bubble
-  else d.style.top = "calc(" + (frenzyOn() ? 64 : 10) + "px + " + (slot * 50) + "px)";   // under the jackpot-time badge
-  d.style.setProperty("--r", ((stampN % 2 ? -1 : 1) * (2 + (stampN % 3) * 1.5)) + "deg");
+  // two at once sit 66 px apart: a two-line stamp, tilted, is about 75 px tall, so 50 px let them overlap
+  if (highItem) d.style.bottom = "calc(max(" + (WATER_Y - S.camTop > H ? 8 : Math.round((H - (WATER_Y - S.camTop)) / H * 100) + 4) + "%, " + Math.round(talkBand()) + "px) + " + (slot * 66) + "px)";   // above the crab's bubble
+  else d.style.top = "calc(" + (frenzyOn() ? 64 : 10) + "px + " + (slot * 66) + "px)";   // under the jackpot-time badge
+  d.style.setProperty("--r", ((stampN % 2 ? -1 : 1) * (1.5 + (stampN % 3) * 0.75)) + "deg");
   d.textContent = en; const z = document.createElement("small"); z.textContent = zh; d.appendChild(z);
   box.appendChild(d); A.sfx("stamp"); setTimeout(() => d.remove(), 1800);
 }
@@ -1687,6 +1718,7 @@ function quip(key, pri, n){
   b.hidden = false; b.classList.remove("pop"); void b.offsetWidth; b.classList.add("pop");
   talk.w = b.offsetWidth; talk.h = talk.hu = b.offsetHeight; talk.x = talk.y = NaN;   // hu: its height beside the crab
   talk.on = true; talk.pri = pri; talk.last = now; talk.until = now + Math.min(5200, 2400 + en.length * 45) * (slowRead ? 1.6 : 1);
+  talk.realUntil = performance.now() + (talk.until - now);   // the game clock stands still on the tower view
   needDraw = true;
 }
 function hush(){ talk.on = false; talk.pri = 0; talk.until = 0; talk.last = -1e9; talk.next = null; talk.el.hidden = true; }
@@ -1698,6 +1730,7 @@ function syncTalk(){
     const q = talk.next; talk.next = null;
     if (q && S.play - q.at < 6000) quip(q.key, q.pri, q.n);
   }
+  if (S.mode === "idle" && S.viewing && talk.on && performance.now() >= talk.realUntil) talk.on = false;
   const show = talk.on && !sideways && (S.mode === "playing" || S.mode === "over" || (S.mode === "idle" && S.viewing));
   if (talk.el.hidden === show){ talk.el.hidden = !show; if (show){ talk.x = NaN; needDraw = true; } }
 }
@@ -1821,10 +1854,10 @@ function showEnd(){
   const etz = document.createElement("span"); etz.className = "zh"; etz.textContent = top ? "成功退休！" : "去到「" + st.zh + "」"; $("endTitle").appendChild(etz);
   const ft = S.falls.spend + S.falls.scam + S.falls.delay;
   $("endSub").textContent = ft === 0 ? "No money traps at all! 一次都冇中伏！" : "You fell into " + ft + " money trap" + (ft > 1 ? "s" : "") + ". 中咗" + ft + "次伏。";
-  $("rStage").textContent = st.zh + " " + st.en;
+  const rz = document.createElement("span"); rz.className = "zh"; rz.lang = "zh-HK"; rz.textContent = st.zh; $("rStage").replaceChildren(rz, st.en);
   $("rNw").textContent = fmt(S.score);
   $("rHeight").textContent = (S.best / FLOOR).toFixed(1) + "F";
-  $("rWise").textContent = S.wise + "/" + (S.wise + S.risky + S.missed);
+  const picks = S.wise + S.risky + S.missed; $("rWise").textContent = picks ? S.wise + "/" + picks : "—";
   $("rJpRow").hidden = S.jpAt < 0;   // the windfall plus what jackpot time added
   if (S.jpAt >= 0){ $("rJp").textContent = "+" + fmt(JACKPOT_BONUS + S.jpExtra); $("rJpRow").title = fmt(JACKPOT_BONUS) + " windfall + " + fmt(S.jpExtra) + " from jackpot time · 意外之財加大獎時間收入"; }
   const fr = $("fallRep"); fr.replaceChildren();
@@ -1864,11 +1897,12 @@ function showEnd(){
         const ok = oi === q.a; S.quiz[qi] = {pick: oi, ok}; A.sfx(ok ? "deposit" : "risky");
         [...box.children].forEach((bb, j) => { bb.disabled = true; bb.classList.add(j === q.a ? "is-right" : j === oi ? "is-wrong" : "is-dim"); });
         b.setAttribute("aria-pressed", "true");
-        const head = document.createElement("b");
-        head.textContent = ok ? "✓ Correct! 答啱咗！" : "✗ Not quite. It's “" + q.o[q.a][0] + "”. 答錯咗，答案係「" + q.o[q.a][1] + "」。";
+        const head = document.createElement("b"); head.className = "qh";
+        head.append(svgUse(ok ? "i-good" : "i-bad"), ok ? "Correct!" : "Not quite. The answer is “" + q.o[q.a][0] + "”");
+        const hz = document.createElement("small"); hz.className = "qhz"; hz.textContent = ok ? "答啱咗！" : "答錯咗，答案係「" + q.o[q.a][1] + "」";
         const why = document.createElement("span"); why.textContent = q.why[0];
         const wz = document.createElement("small"); wz.textContent = q.why[1];
-        fb.className = "qfb " + (ok ? "ok" : "no"); fb.replaceChildren(head, why, wz);
+        fb.className = "qfb " + (ok ? "ok" : "no"); fb.replaceChildren(head, hz, why, wz);
         if (!S.quizDone && S.quiz.every(Boolean)){ S.quizDone = true; lsSet("tff_quiz_n", (+lsGet("tff_quiz_n", 0) || 0) + 1); }
         quizScore(); saveSoon();
       });
@@ -1888,7 +1922,7 @@ function showEnd(){
   $("nickname").value = lsGet("tff_name", "");
   const live = apiAllowed && !apiGone && dbWritable;
   $("email").value = ""; emailError(false); $("email").closest(".fld").hidden = $("emailNote").closest(".email-note").hidden = !live;   // never kept on the device
-  $("postBtn").disabled = false; $("postBtn").firstChild.textContent = "Post score";
+  $("postBtn").disabled = false; postLabel("Post score", "上榜");
   const ps = $("postStatus"); ps.className = "post-status";
   ps.textContent = live ? "Only your nickname and score go on the board. 排行榜只顯示暱稱同分數。" : "Your score will be saved on this device. 分數會存喺呢部機。";
   $("endModal").hidden = false; $("stScroll").scrollTop = 0; endScroll = 0;
@@ -1911,6 +1945,7 @@ const localList = () => { const wk = localWeek(); return localScores().filter(e 
 const myIds = new Set(lsGet("tff_my_ids", []));
 let myPost = lsGet("tff_my_post", null);   // last live post {id, rank, week, name, score, height}: shown under the top 10 when it is not in it
 const ANON = "Anonymous crab 匿名蟹";
+function bi(el, en, zh){ const z = document.createElement("span"); z.className = "zl"; z.lang = "zh-HK"; z.textContent = zh; el.replaceChildren(en, z); return el; }
 function sanitizeName(n){ const v = String(n || "").replace(/[\u0000-\u001f<>]/g, "").trim(); return !v || v === ANON ? ANON : Array.from(v).slice(0, 16).join(""); }
 async function api(url, opts = {}){
   const ctl = typeof AbortController === "function" ? new AbortController() : null;
@@ -2020,6 +2055,7 @@ async function flushOutbox(){
 let flushing = null;
 function flushOutboxSoon(){ if (!flushing) flushing = flushOutbox().catch(() => {}).finally(() => { flushing = null; }); }
 
+function postLabel(en, zh){ const b = $("postBtn"); b.firstChild.textContent = en; b.querySelector(".zh").textContent = zh; }
 const EMAIL_OK = /^[^\s@<>()[\]\\,;:"]{1,64}@[^\s@<>()[\]\\,;:"]+\.[^\s@<>()[\]\\,;:".]{2,}$/;
 function emailError(on){   // red outline plus aria-invalid, and the message under the button is read out with the field
   const em = $("email"), notes = ["emailNote", "privacyNote"].filter(id => $(id)).join(" ");
@@ -2047,7 +2083,7 @@ $("postBtn").addEventListener("click", async () => {
   const entry = {name, score: Math.round(st.score), stage: st.stage, height: +(st.best / FLOOR).toFixed(1), drops: st.drops,
     wise: st.wise, risky: st.risky, missed: st.missed, falls: {...st.falls}, choices: st.choices.slice(0, 20), habit: st.habit || null,
     answers, quiz: answers.length ? right : null, ended: st.over, at: new Date().toISOString(), week: localWeek()};   // the device copy never holds the email
-  btn.disabled = true; btn.firstChild.textContent = "Posting…"; ps.className = "post-status";
+  btn.disabled = true; postLabel("Posting…", "上載中"); ps.className = "post-status";
   if (!db && apiAllowed && !apiGone) await refreshLB();
   const saveLocal = () => { const arr = localScores(); arr.push(entry); lsSet("tff_scores_v3", arr.slice(-100)); };
   if (db && dbWritable){
@@ -2060,8 +2096,8 @@ $("postBtn").addEventListener("click", async () => {
       if (st === S){
         A.sfx("post"); ps.className = "post-status ok";
         ps.textContent = (j.rank ? "You're #" + j.rank + " this week! 今個星期排第" + j.rank + "！ " : "On the live board! 已上榜！ ") +
-          (email ? "We'll email you if you win a prize. 如果你得獎，我哋會電郵通知你。" : "Top scorers each week and month win prizes. 每週同每月最高分都有獎！");
-        btn.firstChild.textContent = "Posted ✓"; showStatus();
+          (email ? "We'll email you if you win a prize. 如果你得獎，我哋會電郵通知你。" : "");
+        postLabel("Posted ✓", "已上榜"); showStatus();
       }
       lbSig = ""; refreshLB(true);
       return;
@@ -2069,7 +2105,7 @@ $("postBtn").addEventListener("click", async () => {
       r.board = false; r.name = ""; r.email = "";   // posting happens only on a tap, so a later survey save mustn't post it
       if (e.code === "bad_email"){
         st.posting = false;
-        if (st === S){ btn.disabled = false; btn.firstChild.textContent = "Post score"; emailError(true); em.focus(); ps.className = "post-status bad";
+        if (st === S){ btn.disabled = false; postLabel("Post score", "上榜"); emailError(true); em.focus(); ps.className = "post-status bad";
           ps.textContent = "That email doesn't look right. Check it, or leave it blank. 電郵地址好似唔啱，請再檢查，或者留空。"; }
         return;
       }
@@ -2077,7 +2113,7 @@ $("postBtn").addEventListener("click", async () => {
         // Busy or offline: keep the button so they can try again.
         st.posting = false;
         if (st === S){
-          btn.disabled = false; btn.firstChild.textContent = "Try again";
+          btn.disabled = false; postLabel("Try again", "再試");
           ps.textContent = e.status === 429 ? "Lots of crabs posting at once. Wait a moment, then try again. 太多人同時上榜，等陣再試吓。"
                                             : "Couldn't reach the live board. Check your connection, then try again. 連唔到排行榜，檢查吓網絡再試。";
           showStatus();
@@ -2090,7 +2126,7 @@ $("postBtn").addEventListener("click", async () => {
     }
   } else ps.textContent = "Saved on this device. 已經存咗喺呢部機。";
   saveLocal(); myLocalAt = entry.at; st.posted = true; st.posting = false;
-  if (st === S){ A.sfx("post"); ps.className = "post-status ok"; btn.firstChild.textContent = "Saved ✓"; showStatus(); }
+  if (st === S){ A.sfx("post"); ps.className = "post-status ok"; postLabel("Saved ✓", "已儲存"); showStatus(); }
   lbSig = ""; renderLB();
 });
 document.querySelectorAll(".tab").forEach(b => b.addEventListener("click", () => {
@@ -2107,7 +2143,7 @@ function lbRow(e, rank, mine){
 }
 function lbRows(list, extra){
   const body = $("lbBody"); body.replaceChildren();
-  if (!list.length){ const p = document.createElement("p"); p.className = "lb-empty"; p.textContent = "No scores yet. Be the first crab on the board. 仲未有人上榜，做第一隻蟹！"; body.appendChild(p); return; }
+  if (!list.length){ const p = document.createElement("p"); p.className = "lb-empty"; bi(p, "No scores yet. Be the first crab on the board.", "仲未有人上榜，做第一隻蟹！"); body.appendChild(p); return; }
   const ol = document.createElement("ol"); ol.className = "lb";
   list.slice(0, 10).forEach((e, i) => {
     ol.appendChild(lbRow(e, i + 1, (e._id != null && (e._id === myLastId || myIds.has(e._id))) || (e._id == null && e.at && e.at === myLocalAt)));
@@ -2168,12 +2204,12 @@ async function renderInsights(){
   if (db){
     try { const j = await api(API + "?view=stats"); agg = addAgg(aggregate([]), j.stats); agg.sample = !!j.stats.sample; } catch(e){ agg = aggregate([]); }
     if (!dbWritable) agg = addAgg(agg, aggregate(localScores()));
-    label = (agg.sample ? "From the latest " : "From ") + agg.games + " game" + (agg.games === 1 ? "" : "s") + ", anonymised 匿名數據";
+    label = agg.games ? (agg.sample ? "From the latest " : "From ") + agg.games + " game" + (agg.games === 1 ? "" : "s") + ", anonymised 匿名數據" : "";
   } else { agg = aggregate(localScores()); label = "From games saved on this device 本機數據"; }
   if (tab !== "insights") return;
   note.textContent = label;
   body.replaceChildren();
-  if (!agg.games){ const q = document.createElement("p"); q.className = "lb-empty"; q.textContent = "Insights appear once players post scores. 有人上榜後就會見到數據。"; body.appendChild(q); return; }
+  if (!agg.games){ const q = document.createElement("p"); q.className = "lb-empty"; bi(q, "Insights appear once players post scores.", "有人上榜後就會見到數據。"); body.appendChild(q); return; }
   const falls = agg.falls, total = agg.wise + agg.risky + agg.missed;
   const wrap = document.createElement("div"); wrap.className = "insight";
   wrap.appendChild(bar("Wise choices 明智選擇", (total ? Math.round(100 * agg.wise / total) : 0) + "%", 100));
@@ -2181,14 +2217,14 @@ async function renderInsights(){
   for (const kk in falls) wrap.appendChild(bar(TRAPS[kk].en + " " + TRAPS[kk].zh, String(falls[kk]), fmax, "t-" + kk));
   const topFall = Object.entries(falls).sort((a, b) => b[1] - a[1])[0];
   const hl = document.createElement("p"); hl.style.margin = "2px 0 0";
-  hl.textContent = topFall[1] ? "Most common fall: " + TRAPS[topFall[0]].en + " · 最多人中嘅陷阱：" + TRAPS[topFall[0]].zh : "No falls recorded yet. 暫時冇人中伏。";
+  if (topFall[1]) bi(hl, "Most common fall: " + TRAPS[topFall[0]].en, "最多人中嘅陷阱：" + TRAPS[topFall[0]].zh); else bi(hl, "No falls recorded yet.", "暫時冇人中伏。");
   wrap.appendChild(hl);
   const topHabit = Object.entries(agg.habits).sort((a, b) => b[1] - a[1])[0];
-  if (topHabit){ const h = HABITS.find(x => x.id === topHabit[0]); const hp = document.createElement("p"); hp.style.margin = "0"; hp.textContent = "Top habit pledged: " + (h ? h.en : topHabit[0]) + " (" + topHabit[1] + ")" + (h ? " · 最多人揀嘅習慣：" + h.zh : ""); wrap.appendChild(hp); }
+  if (topHabit){ const h = HABITS.find(x => x.id === topHabit[0]); const hp = document.createElement("p"); hp.style.margin = "0"; bi(hp, "Top habit pledged: " + (h ? h.en : topHabit[0]) + " (" + topHabit[1] + ")", h ? "最多人揀嘅習慣：" + h.zh : ""); wrap.appendChild(hp); }
   if (agg.quizN){
     const qp = document.createElement("p"); qp.style.margin = "0"; const pass = Math.round(100 * agg.quizPass / agg.quizN);
-    qp.textContent = "Quiz: " + pass + "% got 2 or 3 right · average " + (agg.quizSum / agg.quizN).toFixed(1) + "/3 · " + agg.quizN + " player" + (agg.quizN === 1 ? "" : "s") +
-      " · 測驗：有" + pass + "%人答啱2題或以上，平均" + (agg.quizSum / agg.quizN).toFixed(1) + "/3，共" + agg.quizN + "人";
+    bi(qp, "Quiz: " + pass + "% got 2 or 3 right · average " + (agg.quizSum / agg.quizN).toFixed(1) + "/3 · " + agg.quizN + " player" + (agg.quizN === 1 ? "" : "s"),
+      "測驗：有" + pass + "%人答啱2題或以上，平均" + (agg.quizSum / agg.quizN).toFixed(1) + "/3，共" + agg.quizN + "人");
     wrap.appendChild(qp);
   }
   body.appendChild(wrap);
