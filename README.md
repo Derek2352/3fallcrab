@@ -107,7 +107,7 @@ The game aims for WCAG 2.2 AA. An automated check (axe-core) finds no problems o
 - **Contrast:** text meets AA contrast. Bright backgrounds stay; text on them is ink or the colour behind white text is a little deeper. In Windows High Contrast mode the chosen card timer, the coins, the countdown bars and the selected tab show in the system's highlight colours.
 - **Forms:** nickname and email have visible labels; a mistyped email is announced and marked invalid; quiz feedback is announced.
 - **Screen readers:** a Life Event's outcome is read with the Continue button, the coin meters read as "2 of 3", and the ⛶, pause and mute buttons keep their names and report on or off.
-- **Full screen:** the ⛶ button in the header, Full screen on the start card, or F plays with just the game on screen and the board as big as it fits. The browser goes full screen where it allows it (phones also stay upright); on iPhone the page still drops everything but the game, and Add to Home Screen opens it as a full-screen app.
+- **Full screen:** the ⛶ button in the header, Full screen on the start card, or F plays with just the game on screen and the board as big as it fits. The browser goes full screen where it allows it (phones also stay upright); on iPhone the page still drops everything but the game, and Add to Home Screen opens it as a full-screen app. On a laptop or monitor the board runs the full height of the screen, with the title and buttons over the side columns, which scale up to fill the width beside it.
 - **Motion and sound:** "Reduce motion" turns off the shake, bobbing and card animations; sound has a mute button and starts only after Start.
 - Controls are at least 24 × 24 px, and the pages fit a 320 px wide screen without sideways scrolling.
 

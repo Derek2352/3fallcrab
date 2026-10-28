@@ -881,3 +881,26 @@ html.jp-end .fzglow{animation-duration:.35s}
   28%{transform:translate(-50%,-50%) scale(.95) rotate(-1deg)}38%{transform:translate(-50%,-50%) scale(1) rotate(0)}
   75%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-80%) scale(.9)}}
 @media (prefers-reduced-motion: reduce){ .jpban.show{animation:jpfade 2.4s ease-out forwards} .btn:hover, .iconbtn:hover, button.ov-chip:hover, .choice:hover{transform:none} }
+
+/* ---------- full screen play on a wide screen (laptops, monitors) ----------
+   The board is as tall as the screen; the title and the buttons sit over the side columns, which are zoomed (by
+   resize() in game.js: --side-zoom, --side-w) to fill the height beside the board. Nothing scrolls. */
+html.fs.wide, html.fs.wide body{height:100%;overflow:hidden;overscroll-behavior:none}
+html.fs.wide .set{max-width:none;height:100vh;height:100dvh;margin:0;padding:10px 14px;display:grid;
+  grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);gap:12px 20px}
+html.fs.wide .mast, html.fs.wide .game{display:contents}
+html.fs.wide .logo, html.fs.wide .mast-right, html.fs.wide .col{zoom:var(--side-zoom,1);width:var(--side-w,280px)}
+html.fs.wide .logo{grid-area:1 / 1;justify-self:end}
+html.fs.wide .mast-right{grid-area:1 / 3;justify-self:start;justify-content:flex-end}
+html.fs.wide .center{grid-area:1 / 2 / 3 / 3;align-self:center}
+html.fs.wide .col.left{grid-area:2 / 1;justify-self:end;min-height:0}
+html.fs.wide .col.right{grid-area:2 / 3;justify-self:start;min-height:0}
+html.fs.wide .zh-title{display:none}
+html.fs.wide .word{font-size:36px}
+html.fs.wide #crabLogo{width:54px;height:43px}
+html.fs.wide .pb-page{min-height:216px}   /* room for all six entries: the passbook doesn't grow mid-game */
+html.fs.wide .ticket canvas{aspect-ratio:auto;height:124px}   /* a wider column is not a taller one */
+/* on a big board the cards and banners on it grow with it (--board-zoom, from resize()) */
+html.fs.wide .overlay .ov-card, html.fs.wide .seeov .btn, html.fs.wide .jpban, html.fs.wide .frenzy{zoom:var(--board-zoom,1)}
+/* measuring the columns' least height (fitSides) */
+html.fsm .col{align-self:start} html.fsm .crabcard, html.fsm .directory{flex:none} html.fsm .dir{flex:none}
