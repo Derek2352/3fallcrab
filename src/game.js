@@ -122,7 +122,7 @@ function newState(){
     mood:{type:"idle", until:0}, lastImpact:new Map(), grabs:[], leaves:[], habit:null, rec:null,
     said:new Set(), streak:0, wiseRun:0, afterCard:null, overKey:null, pb:0, items:0, realMs:0, endAt:0, prior:0, quizDone:false,
     jpAt:-1, frenzyUntil:0, frenzySec:0, jpExtra:0, pops:[],
-    troll:{investAt:0, ticketAt:0, invest:0, tickets:0, ticketSeen:0, revive:0, reviveSeen:0, scamSaid:0}, offer:null, pf:null, revive:null};   // jackpot: when it appeared, end of jackpot time, extra it paid
+    troll:{investAt:0, ticketAt:0, invest:0, tickets:0, ticketSeen:0, revive:0, reviveSeen:0, scamSaid:0}, offer:null, pf:null, revive:null, lost:[]};   // jackpot: when it appeared, end of jackpot time, extra it paid
 }
 function makeEngine(){
   engine = Engine.create({enableSleeping:true});
@@ -275,7 +275,7 @@ function physicsStep(){
       if (b === S.active){ S.active = null; S.spawnAt = S.play + 300; }
       for (const m of membersOf(b)){
         if (!m.tff.player) continue;
-        S.drops++; const loss = Math.min(S.score, 1000); S.score -= loss;
+        S.drops++; S.lost.push(m.tff.def); const loss = Math.min(S.score, 1000); S.score -= loss;
         ledger(m.tff.def, -loss, "落海");
         mood("cover", 1600);
         stamp(m.tff.def.en + " fell in!", "跌咗落海 " + S.drops + "/" + MAX_DROPS, "bad");
@@ -704,7 +704,8 @@ function trollTick(){
 }
 function portfolioTick(){   // +0 to +60% over 15 s of play, in steps of HK$300; then the "withdraw" pop-up
   const p = S.pf, k = clamp((S.play - p.at) / PF_MS, 0, 1), gain = Math.floor(INVEST * 0.6 * k / 300) * 300;
-  if (gain !== p.gain){ p.gain = gain; $("pfVal").textContent = "+" + fmt(gain); $("pfPct").textContent = "▲" + Math.round(gain / INVEST * 100) + "%"; if (gain) A.sfx("profitTick"); }
+  if (gain !== p.gain){ p.gain = gain; $("pfVal").textContent = "+" + fmt(gain); $("pfPct").textContent = "▲" + Math.round(gain / INVEST * 100) + "%"; if (gain) A.sfx("profitTick");
+    p.pts = (p.pts || "0,18") + " " + Math.round(4 + k * 54) + "," + Math.max(2, Math.round(18 - k * 15 + (gain / 300 % 2 ? 2 : 0))); $("pfLine").setAttribute("points", p.pts); }
   $("pfChip").style.top = frenzyOn() ? "64px" : "";
   if (k >= 1 && S.nextEvent - S.play > 3000 && !p.asked){ p.asked = true; openOffer("fee"); return true; }
   return false;
@@ -730,6 +731,7 @@ function offerStep(step){
   $("offerTag").replaceChildren(); bi($("offerTag"), ...(o.kind === "ticket" ? L.tag : I.tag));
   $("offerClock").hidden = !o.limit; $("offerNote").textContent = ""; $("scratch").hidden = o.kind !== "ticket" || step === "pitch" || step === "lesson";
   $("offerSheet").classList.toggle("bust", step === "gone" || step === "lesson");
+  offerArt(o.kind === "ticket" ? "" : step === "pitch" ? "rise" : step === "fee" ? "peak" : step === "wait" ? "crash" : "crash gone");
   if (o.kind === "invest"){ set(I.title, I.pitch); btns(I.yes, I.no); }
   else if (o.kind === "fee"){
     const worth = fmt(INVEST + S.pf.gain), sub = s => s.replace("{n}", worth);
@@ -739,12 +741,13 @@ function offerStep(step){
       set(I.goneTitle, I.gone); btns(I.ok, null); $("offerNote").textContent = I.lesson[0] + " " + I.lesson[1];
       S.falls.scam++; T.scamSaid = 1; updateHUD(); A.sfx("scam");
       $("pfChip").classList.add("gone"); $("pfVal").textContent = "−" + fmt(INVEST + (T.invest === 3 ? FEE : 0)); $("pfPct").textContent = "▼100%";
+      $("pfLine").setAttribute("points", (S.pf.pts || "0,18") + " 60,20");
     }
   } else {
     if (step === "pitch"){ set(L.title, L.pitch); btns(L.yes, L.no); }
     else if (step === "scratch"){
       set(L.title, null); btns(null, null); $("offerNote").textContent = L.scratching.join(" ");
-      for (const c of $("scratch").children){ c.textContent = ""; c.className = "sc"; }
+      buildScratch();
     } else if (step === "again"){
       set(L.close, L.closeSub); btns(L.again, L.stop);
       if (T.tickets >= MAX_TICKETS || S.score < TICKET){ $("offerYes").hidden = true; $("offerNote").textContent = T.tickets >= MAX_TICKETS ? L.shut.join(" ") : ""; o.limit = 0; $("offerClock").hidden = true; }
@@ -763,7 +766,7 @@ function offerAnswer(yes, force){
   const T = S.troll, I = TR.invest, L = TR.ticket, step = o.kind + ":" + o.step;
   if (step === "invest:pitch"){
     if (yes){ charge(INVEST, "投資", "Investment"); T.invest = 2; S.pf = {at: S.play, gain: -1, asked: false};
-      $("pfChip").classList.remove("gone"); $("pfChip").hidden = false; portfolioTick(); quip("invested", 2); }
+      $("pfChip").classList.remove("gone"); $("pfLine").setAttribute("points", "0,18"); $("pfChip").hidden = false; portfolioTick(); quip("invested", 2); }
     else { stamp(I.dodged[0], I.dodged[1], "good"); quip("investDodged", 2); }
     closeOffer();
   } else if (step === "fee:fee"){
@@ -782,8 +785,7 @@ function closeOffer(){
   $("board").focus({preventScroll: true});
 }
 // each frame while an offer is up: its countdown (the last 3 seconds tick), the pause before the scam is revealed, the
-// scratch card: two bags of money, then the third panel spins past one and stops on the crab. Always.
-const SC_SYM = ["💎", "🍀", "🦀", "💰"];
+// scratch card's panels. The third always stops on the crab.
 function offerFrame(){
   const o = S.offer, el = o.t - o.stepAt;
   if (o.limit){
@@ -793,14 +795,54 @@ function offerFrame(){
     if (sec !== o.sec){ o.sec = sec; $("offerSec").textContent = sec; if (sec <= 3 && sec > 0) A.sfx("cardTick", {n: sec}); }
     if (left <= 0) offerAnswer(false, true);
   } else if (o.step === "wait" && el >= 1400) offerStep("gone");
-  else if (o.step === "scratch"){
-    const c = $("scratch").children, show = (i, sym) => { c[i].textContent = sym; c[i].classList.add("on"); };
-    if (o.sc === 0 && el >= 250){ o.sc = 1; show(0, "💰"); A.sfx("scratch"); }
-    else if (o.sc === 1 && el >= 650){ o.sc = 2; show(1, "💰"); A.sfx("scratch"); }
-    else if (o.sc === 2 && el >= 750 && el < 1750){ if (!reduceMotion){ const i = Math.floor(el / 80); if (i !== o.spin){ o.spin = i; c[2].textContent = el > 1600 ? "💰" : SC_SYM[i % SC_SYM.length]; c[2].classList.add("spin"); } } }
-    else if (o.sc === 2 && el >= 1750){ o.sc = 3; c[2].classList.remove("spin"); show(2, "🦀"); c[2].classList.add("miss"); A.sfx("nearMiss"); $("offerNote").textContent = TR.ticket.close.join(" "); }
-    else if (o.sc === 3 && el >= 2300) offerStep("again");
+  else if (o.step === "scratch"){   // a coin scratches the foil off each panel; the third reel spins, slows past the money and stops on the crab
+    const c = $("scratch").children, rm = reduceMotion, at = rm ? [100, 250, 300, 500, 550, 800, 1300] : [100, 600, 700, 1200, 1300, 2750, 3600];
+    const reveal = (i, sym) => { c[i].dataset.sym = sym; c[i].querySelector(".sym").textContent = sym; c[i].classList.add("on"); };
+    if (o.sc < at.length && el >= at[o.sc]){
+      switch (o.sc++){
+        case 0: c[0].classList.add("scratching"); A.sfx("scratch"); break;
+        case 1: reveal(0, "💰"); break;
+        case 2: c[1].classList.add("scratching"); A.sfx("scratch"); break;
+        case 3: reveal(1, "💰"); break;
+        case 4: c[2].classList.add("scratching", "rolling"); A.sfx("scratch"); break;
+        case 5: c[2].classList.remove("rolling"); reveal(2, "🦀"); c[2].classList.add("miss"); A.sfx("nearMiss"); $("offerNote").textContent = TR.ticket.close.join(" "); if (!rm) fizzle(); break;
+        case 6: offerStep("again"); break;
+      }
+    }
   }
+}
+// the scratch card's three panels under silver foil; the third holds a reel that ends on the crab, the money just before it
+const REEL = ["💎", "🍀", "🦀", "💰", "💎", "🍀", "💰", "🦀", "💎", "💰", "🍀", "💰", "🦀"];
+function buildScratch(){
+  [...$("scratch").children].forEach((c, i) => {
+    c.className = "sc"; c.dataset.sym = "";
+    const el = cls => { const e = document.createElement("span"); e.className = cls; return e; }, parts = [];
+    if (i === 2){ const r = el("reel"); r.style.setProperty("--n", REEL.length - 1); for (const x of REEL){ const e = document.createElement("em"); e.textContent = x; r.appendChild(e); } parts.push(r); }
+    const coin = el("coin"); coin.textContent = "🪙";
+    c.replaceChildren(...parts, el("sym"), el("foil"), coin);
+    for (let d = 0; d < 6; d++){ const g = document.createElement("i"); g.className = "dust"; g.style.cssText = "--dx:" + Math.round(Math.random() * 60 - 30) + "px;--dy:" + Math.round(-10 - Math.random() * 30) + "px;--d:" + (d * 60) + "ms;--x:" + (10 + d * 15) + "%"; c.appendChild(g); }
+  });
+  const old = $("scratch").querySelector(".confetti"); if (old) old.remove();
+}
+function fizzle(){   // a party that doesn't happen: confetti bursts, then droops and falls flat
+  const box = document.createElement("span"); box.className = "confetti";
+  const cols = ["#FFE45C", "#FF5FA2", "#20C1B3", "#3A9BF0", "#FF7B35"];
+  for (let i = 0; i < 22; i++){ const e = document.createElement("i"); e.style.cssText = "--dx:" + Math.round(Math.random() * 260 - 130) + "px;--dy:" + Math.round(-40 - Math.random() * 70) + "px;--r:" + Math.round(Math.random() * 720 - 360) + "deg;--c:" + cols[i % cols.length] + ";--d:" + Math.round(Math.random() * 120) + "ms"; box.appendChild(e); }
+  $("scratch").appendChild(box);
+}
+// the ad's chart: it rises with a rocket (the pitch), sits at the top (the fee), then crashes, is stamped SUSPENDED and
+// the money flies off (the platform vanishing)
+function offerArt(state){
+  const a = $("offerArt"); a.hidden = !state; if (!state) return;
+  if (!a.firstChild){
+    a.innerHTML = '<svg viewBox="0 0 300 100" preserveAspectRatio="none"><path class="grid" d="M0 25H300M0 50H300M0 75H300"/>' +
+      '<path class="up" pathLength="1" d="M0 92L25 88L45 90L70 78L95 80L120 66L140 70L165 52L190 56L215 38L240 40L265 20L290 8"/>' +
+      '<path class="down" pathLength="1" d="M290 8L294 40L297 30L300 104"/></svg>' +
+      '<span class="tag t1">+30%</span><span class="tag t2">+60%</span><span class="rocket">🚀</span>' +
+      '<span class="susp">SUSPENDED<small>凍結</small></span>' +
+      Array.from({length: 7}, (_, i) => '<i class="cash" style="--dx:' + Math.round(Math.random() * 240 - 120) + 'px;--dy:' + Math.round(-30 - Math.random() * 45) + 'px;--r:' + Math.round(Math.random() * 90 - 45) + 'deg;--d:' + (i * 70) + 'ms">💸</i>').join("");
+  }
+  a.className = "of-art"; void a.offsetWidth; a.className = "of-art " + state;
 }
 // The revive: a 10 s CONTINUE? screen after the third drop. Pressing it fills a bar to 99%, then it glitches: there is
 // no take two. Then the statement, as always.
@@ -826,11 +868,12 @@ function reviveFrame(dt){
     const k = Math.min(0.99, (r.t - r.at) / 2500);
     $("rvBar").style.transform = "scaleX(" + k.toFixed(3) + ")"; $("rvMsg").textContent = TR.revive.busy[0] + " " + Math.round(k * 100) + "% " + TR.revive.busy[1];
     if (r.t - r.at >= 2900){
-      r.phase = "fail"; r.at = r.t; $("rvSheet").classList.add("glitch", "dead"); if (!reduceMotion) $("boardWrap").classList.add("glitch");
+      r.phase = "fail"; r.at = r.t; $("rvSheet").classList.add("glitch", "dead"); if (!reduceMotion) $("boardWrap").classList.add("static");
       $("rvMsg").textContent = TR.revive.fail.join(" "); A.sfx("reviveFail"); mood("cover", 4000);
     }
-  } else if (r.phase === "fail" && r.t - r.at >= 1200){
-    r.phase = "lesson"; $("boardWrap").classList.remove("glitch"); $("rvSheet").classList.remove("glitch");
+  } else if (r.phase === "fail" && r.t - r.at >= 1150 && !r.crt && !reduceMotion){ r.crt = true; $("boardWrap").classList.add("crt"); }   // the screen switches off
+  else if (r.phase === "fail" && r.t - r.at >= (reduceMotion ? 1200 : 2000)){
+    r.phase = "lesson"; $("boardWrap").classList.remove("static", "crt"); $("rvSheet").classList.remove("glitch"); $("reviveModal").classList.remove("watch");
     $("rvLessonText").replaceChildren(); bi($("rvLessonText"), TR.revive.lesson[0], TR.revive.lesson[1]);
     $("rvLesson").hidden = false; $("rvGo").focus({preventScroll: true});
   }
@@ -838,11 +881,41 @@ function reviveFrame(dt){
 function reviveAnswer(yes, force){
   const r = S.revive; if (!r || r.phase !== "ask" || (!force && r.t < 600)) return;   // a key mashed as the third item fell
   if (!yes){ closeRevive(); if (!force) quip("reviveGiveUp", 3); showEnd(); return; }
-  S.troll.revive = 1; r.phase = "busy"; r.at = r.t;
+  S.troll.revive = 1; r.phase = "busy"; r.at = r.t; r.splashed = [];
   $("rvActions").hidden = true; $("rvCount").hidden = true; $("rvSub").hidden = true; $("rvBarBox").hidden = false;
+  $("reviveModal").classList.add("watch");   // out of the way: the items rising from the harbour are the show
   mood("happy", 3000); A.sfx("vineGet"); $("rvSheet").focus({preventScroll: true});
 }
-function closeRevive(){ $("reviveModal").hidden = true; S.revive = null; $("boardWrap").classList.remove("glitch"); }
+function closeRevive(){ $("reviveModal").hidden = true; $("reviveModal").classList.remove("watch"); S.revive = null; $("boardWrap").classList.remove("static", "crt"); }
+// the revive on the board: the items that fell rise out of the harbour, glowing, up to the top of the tower; at 99%
+// they hang there flickering, then drop back in with a splash
+function drawGhosts(c, k){
+  const r = S.revive; if (!S.lost.length || (r.phase !== "busy" && r.phase !== "fail")) return;
+  const items = S.lost.slice(-3), n = items.length, top = -S.height, y0 = WATER_Y + 80;
+  c.save();
+  items.forEach((def, i) => {
+    const x = W / 2 + (i - (n - 1) / 2) * 92, ty = top - 130 - (i % 2) * 34;
+    let y, a = 0.72;
+    if (r.phase === "busy"){
+      const p = clamp((r.t - r.at - i * 250) / 2200, 0, 1), e = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(2 - 2 * p, 3) / 2;   // ease in and out
+      y = y0 + (ty - y0) * e + (reduceMotion ? 0 : Math.sin((r.t + i * 300) / 260) * 3 * e);
+      const g = c.createLinearGradient(0, y, 0, WATER_Y);   // a beam of light from the harbour up to it
+      g.addColorStop(0, "rgba(255,250,210,0.5)"); g.addColorStop(1, "rgba(255,250,210,0)");
+      c.globalAlpha = 1; c.shadowBlur = 0; c.fillStyle = g; c.fillRect(x - 24, y, 48, Math.max(0, WATER_Y - y));
+    } else {
+      const ft = r.t - r.at, fall = reduceMotion ? 0 : Math.max(0, ft - 350 - i * 120);
+      y = ty + 0.0016 * fall * fall; a = reduceMotion ? Math.max(0, 0.72 - ft / 600) : ft < 700 && Math.floor(ft / 60) % 2 ? 0.25 : 0.72;
+      if (!r.splashed[i] && y > WATER_Y){ r.splashed[i] = true; S.splashes.push({x, t: 0, big: true}); A.sfx("splash"); }
+      if (y > WATER_Y + 90 || a <= 0) return;
+    }
+    const s = spriteNear(def, 0, true); if (!s) return;
+    c.globalAlpha = a; c.shadowColor = "rgba(255,244,190,1)"; c.shadowBlur = 26 * k;
+    c.save(); c.translate(x, y); c.drawImage(s.img, s.x0, s.y0, s.w, s.h); c.restore();
+    if (r.phase === "busy" && !reduceMotion){ c.shadowBlur = 0;
+      for (let j = 0; j < 3; j++) twinkle(c, x + Math.sin(r.t / 170 + i + j * 2.1) * 30, y - 10 + Math.cos(r.t / 210 + j) * 24, 3.5 + Math.sin(r.t / 90 + i * 2 + j) * 2, 0.85); }
+  });
+  c.restore();
+}
 $("offerYes").addEventListener("click", () => offerAnswer(true));
 $("offerNo").addEventListener("click", () => offerAnswer(false));
 $("rvYes").addEventListener("click", () => reviveAnswer(true));
@@ -1798,6 +1871,7 @@ function draw(dt){
   drawLeaves(c, f);
   if (S.pops.length) drawPops(c, f);
   drawLabels(c);
+  if (S.revive) drawGhosts(c, k);   // drawn before the harbour: they rise out of it
   // harbour in front (anything below the surface sinks behind it)
   const off = (T * 0.35) % 60;
   c.drawImage(L.sea, -60 - XV - off, WATER_Y - 6, W + 120 + 2 * XV, 220);
