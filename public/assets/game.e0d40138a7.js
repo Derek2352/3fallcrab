@@ -1243,24 +1243,9 @@ function drawCrabs(){   // logo + panel crabs, at the size they show (full scree
     const s = c.width / 80; g.setTransform(s, 0, 0, s, 40*s, 32*s); crabArt(g, m);
   }
 }
-// Full screen play on a wide screen (a laptop): the board is as tall as the screen, the title and buttons sit over the
-// side columns, and the columns are zoomed to fill the height beside it (wider, not taller, when there's room to spare).
-const SIDE_MIN = 250, SIDE_MAX_W = 440;   // a side column's narrowest on screen; its widest before zoom
-function fitSides(vh){
-  const set = document.querySelector(".set"), cs = getComputedStyle(set);
-  const padV = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom), padH = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
-  const trackW = (document.documentElement.clientWidth - padH - 2 * parseFloat(cs.columnGap) - $("boardWrap").offsetWidth) / 2;
-  const rowsH = vh - padV - parseFloat(cs.rowGap);
-  // the columns' heights unzoomed, with the crab's card and the directory at their smallest
-  root.style.setProperty("--side-zoom", "1"); root.style.setProperty("--side-w", "320px"); root.classList.add("fsm");
-  const top = Math.max(document.querySelector(".logo").offsetHeight, document.querySelector(".mast-right").offsetHeight);
-  const cols = Math.max(document.querySelector(".col.left").offsetHeight, document.querySelector(".col.right").offsetHeight);
-  root.classList.remove("fsm");
-  let z = Math.min(rowsH / (top + cols) * 0.97, trackW / 270, 2.4);
-  z = Math.max(0.6, z);
-  const w = Math.max(220, Math.min(SIDE_MAX_W, Math.floor(trackW / z)));
-  root.style.setProperty("--side-zoom", z.toFixed(3)); root.style.setProperty("--side-w", w + "px");
-}
+// Full screen play on a wide screen (a laptop): the first screen is the game alone (its status bar and the board, as
+// tall as the screen), with the buttons in the corner; the panels and the rest of the page are a scroll away.
+const FS_SIDE = 190;   // kept clear on each side of the board: the buttons sit in the right one
 const PREVIEWS = ["nextCv", "holdCv", "next2Cv", "hudNext", "hudHold"];
 let lastFit = "";
 function resize(){
@@ -1279,10 +1264,12 @@ function resize(){
     availW = document.documentElement.clientWidth - 2 * side; availH = vh - header - 70 - (padOn ? 100 : 0) - 40;
     // full screen on a phone: the board takes all the height the header, the status bar and the pad leave
     if (fsOn) availH = vh - (document.querySelector(".set").offsetHeight - cv.offsetHeight); }
-  else if (wide){   // the board takes the full height; the side columns keep at least SIDE_MIN each
-    const cs = getComputedStyle(document.querySelector(".set")), frame = $("boardWrap").offsetWidth - cv.offsetWidth;
-    availH = vh - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - (document.querySelector(".center").offsetHeight - cv.offsetHeight);
-    availW = document.documentElement.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 2 * parseFloat(cs.columnGap) - 2 * SIDE_MIN - frame; }
+  else if (wide){   // the screen's height less the status bar (and the pad on a tablet), the board's frame and the gaps
+    const center = document.querySelector(".center"), cs = getComputedStyle(center), gap = parseFloat(cs.rowGap) || 0;
+    let other = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) - gap;
+    for (const k of center.children) if (getComputedStyle(k).display !== "none") other += gap + (k.id === "boardWrap" ? k.offsetHeight - cv.offsetHeight : k.offsetHeight);
+    availH = vh - other;
+    availW = document.documentElement.clientWidth - 2 * FS_SIDE - ($("boardWrap").offsetWidth - cv.offsetWidth); }
   else { availW = Math.max(260, window.innerWidth - 620); availH = vh - header - 70 - (padOn ? 100 : 0); }
   const fit = [narrow, wide, padOn, availW, availH, window.devicePixelRatio].join();
   if (fit === lastFit) return;
@@ -1297,7 +1284,6 @@ function resize(){
   $("pad").style.maxWidth = Math.max(300, W * SC + 20) + "px";
   if (!L.sky) buildLayers();
   else if (Math.abs(SC - prevSC) > 0.015 || DPR !== prevDPR) buildLayers(true);
-  if (wide) fitSides(vh);
   root.style.setProperty("--board-zoom", wide ? Math.min(1.5, Math.max(1, SC / 1.2)).toFixed(3) : "1");
   drawCrabs();
   const gw = document.querySelector('.col.right').getBoundingClientRect().right - document.querySelector('.col.left').getBoundingClientRect().left; $("info").style.maxWidth = narrow ? "" : Math.round(gw) + "px"; document.querySelector(".mast").style.maxWidth = narrow ? "" : Math.round(gw) + "px";
@@ -2321,7 +2307,7 @@ initDB();
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => {
   for (const s of SPR.values()) if (s.text) s.k = -1;
   buildLayers(true, "plat"); needDraw = true; drawPreviews(true);
-  if (root.classList.contains("wide")){ lastFit = ""; resize(); }   // the side columns' heights were measured in the fallback font
+  if (root.classList.contains("wide")){ lastFit = ""; resize(); }   // the status bar was measured in the fallback font
 });
 requestAnimationFrame(frame);
 })();
