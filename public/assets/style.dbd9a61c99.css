@@ -4,20 +4,20 @@
    are the ones Google Fonts served, so --f-* below and clay.js (canvas lettering) stay as they are. */
 @font-face{font-family:"Gluten";font-style:normal;font-weight:400 900;font-display:swap;src:url(/assets/gluten.842f8cce6e.woff2) format("woff2")}
 /* Noto Sans HK is one variable file. Four faces, not one 400 900 range, so a weight-800 label still uses the 900 face, as before. */
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/noto-sans-hk.53be2a7426.woff2) format("woff2")}
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:500;font-display:swap;src:url(/assets/noto-sans-hk.53be2a7426.woff2) format("woff2")}
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/noto-sans-hk.53be2a7426.woff2) format("woff2")}
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:900;font-display:swap;src:url(/assets/noto-sans-hk.53be2a7426.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/noto-sans-hk.8134ee1e10.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:500;font-display:swap;src:url(/assets/noto-sans-hk.8134ee1e10.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/noto-sans-hk.8134ee1e10.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:900;font-display:swap;src:url(/assets/noto-sans-hk.8134ee1e10.woff2) format("woff2")}
 /* WenKai draws only Chinese (and the digits inside Chinese lines): its Latin is a thin handwriting, so English in a
    Chinese-font line falls through to Noto Sans HK and reads the same as everywhere else */
-@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/lxgw-wenkai-tc-regular.f03f81714f.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
-@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/lxgw-wenkai-tc-bold.00c808f0e1.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
+@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/lxgw-wenkai-tc-regular.e5a6569d9f.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
+@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/lxgw-wenkai-tc-bold.b30c6b14c5.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
 /* Curly quotes, ‘ ’, × and · in Latin widths: Noto Sans HK draws them a whole Chinese character wide, which left holes
    in English ("to   “rent”", "pays ×1.5"). Source Sans 3 (the Latin Noto Sans HK is based on), 1 KB a weight. */
 @font-face{font-family:"TFF Punct";font-style:normal;font-weight:400 650;font-display:swap;src:url(/assets/source-sans-punct-400.f1e8c6c73b.woff2) format("woff2");unicode-range:U+00B7,U+00D7,U+2018-201D}
 @font-face{font-family:"TFF Punct";font-style:normal;font-weight:651 850;font-display:swap;src:url(/assets/source-sans-punct-700.54c4ee4dfe.woff2) format("woff2");unicode-range:U+00B7,U+00D7,U+2018-201D}
 @font-face{font-family:"TFF Punct";font-style:normal;font-weight:851 900;font-display:swap;src:url(/assets/source-sans-punct-900.622c4a765b.woff2) format("woff2");unicode-range:U+00B7,U+00D7,U+2018-201D}
-@font-face{font-family:"DotGothic16";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/dotgothic16.d1069111ac.woff2) format("woff2")}
+@font-face{font-family:"DotGothic16";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/dotgothic16.dbbb84695a.woff2) format("woff2")}
 
 /* Layout: a clay tabletop set — passbook + 3 Falls | the diorama board | tickets, building directory, leaderboard.
    One light (top-left) everywhere: CSS shadows fall down-right like the canvas clay. Single bright theme by design. */
@@ -883,16 +883,36 @@ html.jp-end .fzglow{animation-duration:.35s}
 @media (prefers-reduced-motion: reduce){ .jpban.show{animation:jpfade 2.4s ease-out forwards} .btn:hover, .iconbtn:hover, button.ov-chip:hover, .choice:hover{transform:none} }
 
 /* ---------- full screen play on a wide screen (laptops, monitors) ----------
-   The first screen is the game alone: the status bar and the board, as tall as the screen (resize() in game.js), with
-   the buttons in the corner. The passbook, the next item, the directory, how to play and the leaderboard are below
-   it, a scroll away. */
-html.fs.wide .set{max-width:none;position:relative;padding-top:0}
-html.fs.wide .mast{position:absolute;top:10px;right:max(16px, env(safe-area-inset-right));margin:0;display:block;z-index:2}
+   The first screen is the game alone, edge to edge: the play area in the middle with more sky, city and harbour either
+   side (resize() in game.js), the status bar over the sky on the left and the buttons on the right. The passbook, the
+   next item, the directory, how to play and the leaderboard are below it, a scroll away. */
+html.fs.wide .set{max-width:none;position:relative;padding:0 8px 36px}
+html.fs.wide .mast{position:absolute;top:28px;right:calc(28px + var(--fs-inset, 0px));margin:0;display:block;z-index:4}
 html.fs.wide .logo{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}   /* out of sight, still the page's heading */
 html.fs.wide .game{grid-template-columns:minmax(0,1fr) minmax(0,430px) minmax(0,430px) minmax(0,1fr)}
-html.fs.wide .center{grid-area:1 / 1 / 2 / -1;min-height:100vh;min-height:100dvh;padding:8px 0;display:grid;grid-template-columns:min-content;justify-content:center;align-content:center;gap:10px}
-html.fs.wide .hud{display:grid}
+html.fs.wide .center{grid-area:1 / 1 / 2 / -1;min-height:100vh;min-height:100dvh;padding:8px 0;display:grid;grid-template-columns:min-content;justify-content:center;align-content:center;gap:8px}
+html.fs.wide .board-wrap{grid-area:1 / 1;padding:6px;border-radius:24px}
+html.fs.wide .overlay, html.fs.wide .stamps{inset:6px}
+html.fs.wide .pad{grid-area:2 / 1;justify-self:center;width:100%}
+html.fs.wide .hud{grid-area:1 / 1;justify-self:start;align-self:start;position:relative;z-index:3;margin:20px;display:grid;grid-template-columns:auto auto;gap:10px 22px;width:auto;
+  padding:12px 16px 10px;border-radius:20px;background:rgba(255,248,236,.94);zoom:var(--board-zoom,1);
+  box-shadow:inset 2px 2px 1px rgba(255,255,255,.7), inset -3px -4px 8px rgba(60,20,10,.12), 3px 5px 0 rgba(37,49,122,.22)}
+html.fs.wide .hud .hs .k{font-size:11.5px}
+html.fs.wide .hud .hs .v{font-size:21px}
+html.fs.wide .hud .mini{grid-column:1 / -1;justify-self:start;gap:12px}
+html.fs.wide .hud canvas{width:56px;height:56px}
+html.fs.wide .hud .hbtn span{font-size:10.5px}
 html.fs.wide .col.left{grid-area:2 / 2} html.fs.wide .col.right{grid-area:2 / 3}
 html.fs.wide .info{margin-top:20px}
 /* on a big board the cards and banners on it grow with it (--board-zoom, from resize()) */
 html.fs.wide .overlay .ov-card, html.fs.wide .seeov .btn, html.fs.wide .jpban, html.fs.wide .frenzy{zoom:var(--board-zoom,1)}
+
+/* ---------- game controller ---------- */
+.ov-card .ctl.pad-only{display:none}
+html.gamepad .ov-card .ctl.kb-only, html.gamepad .ov-card .ctl.touch-only{display:none}
+html.gamepad .ov-card .ctl.pad-only{display:flex}
+.ov-card .ctl kbd.gp{width:23px;height:23px;padding:0;border-radius:50%;display:grid;place-items:center;font-family:var(--f-body);font-weight:900;font-size:13px}
+.howto .keys li.gp{white-space:normal;flex-basis:100%}
+/* the D-pad moves the focus: show where it is, whatever was used last */
+html.padnav :is(button, a, [role=tab]):focus{outline:3px solid var(--navy);outline-offset:3px}
+html.padnav .ctime input:focus + span{outline:3px solid var(--navy);outline-offset:2px}

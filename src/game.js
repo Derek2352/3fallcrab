@@ -580,7 +580,7 @@ function openCard(){
   const box = $("cardChoices"); box.replaceChildren(); box.hidden = false;
   S.card.order.forEach((k, i) => {
     const b = document.createElement("button"); b.className = "choice"; b.type = "button";
-    const key = document.createElement("span"); key.className = "key"; key.textContent = i === 0 ? "1" : "2";
+    const key = document.createElement("span"); key.className = "key"; key.textContent = root.classList.contains("gamepad") ? (i === 0 ? "X" : "Y") : (i === 0 ? "1" : "2");
     const th = document.createElement("canvas"); th.className = "thumb"; th.width = 88; th.height = 88; th.setAttribute("aria-hidden", "true");
     const t = document.createElement("span");
     const be = document.createElement("b"); be.textContent = c[k][0];
@@ -591,7 +591,7 @@ function openCard(){
     box.appendChild(b);
   });
   $("cardOutcome").hidden = true; $("cardBar").style.transform = "scaleX(1)";
-  $("cardHint").textContent = "Life Event card. Choose within " + cardMs() / 1000 + " seconds: press 1 or 2, or tap a choice." +
+  $("cardHint").textContent = "Life Event card. Choose within " + cardMs() / 1000 + " seconds: press 1 or 2" + (root.classList.contains("gamepad") ? ", or X or Y on the controller" : ", or tap a choice") + "." +
     (slowRead ? "" : " For more time on later cards, pause the game and set the card timer to 30 seconds.");
   $("cardModal").hidden = false;
   const sheet = $("cardSheet"); sheet.classList.remove("done"); sheet.style.animation = "none"; void sheet.offsetWidth; sheet.style.animation = "";
@@ -992,9 +992,93 @@ $("pad").querySelectorAll("button").forEach(b => {
   b.addEventListener("pointerup", up); b.addEventListener("pointerleave", up); b.addEventListener("pointercancel", up);
   b.addEventListener("contextmenu", e => e.preventDefault());
 });
+// ---------- game controller ----------
+// Any standard pad (Xbox, PlayStation, Switch Pro and most others). In play: the D-pad or left stick moves, down (or
+// RT) falls faster, A drops, B, Y or up turns, X holds, LB / RB fine-turn, Start pauses, Select (View) mutes. On a
+// Life Event card X and Y pick the first or second choice, or the D-pad moves between them and A picks. On the start
+// card, the pause card, the tower view and the statement the D-pad moves between the buttons, A presses the one in
+// focus, B goes back and Start starts (or resumes). A browser shows a pad to the page once a button is pressed on it.
+const GP = {on: 0, prev: {}, held: {}, repAt: 0};
+function padState(gp){
+  const b = i => { const x = gp.buttons[i]; return !!x && (x.pressed || x.value > 0.5); };
+  const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
+  return {a: b(0), b: b(1), x: b(2), y: b(3), lb: b(4), rb: b(5), rt: b(7), sel: b(8), start: b(9),
+    up: b(12) || ay < -0.6, down: b(13) || ay > 0.6, left: b(14) || ax < -0.5, right: b(15) || ax > 0.5};
+}
+const padTargets = box => [...box.querySelectorAll("button, input, a[href]")].filter(e => !e.disabled && !e.closest("[hidden]") && e.getClientRects().length && getComputedStyle(e).visibility !== "hidden");
+function padMove(box, dir){   // the next (or previous) control in the box gets the focus
+  const els = padTargets(box); if (!els.length) return;
+  const i = els.indexOf(document.activeElement);
+  els[i < 0 ? (dir > 0 ? 0 : els.length - 1) : clamp(i + dir, 0, els.length - 1)].focus();
+}
+function padPress(box){ const el = document.activeElement; if (el && padTargets(box).includes(el)){ el.click(); return true; } return false; }
+function pollPad(now){
+  let gp = null; for (const p of (navigator.getGamepads ? navigator.getGamepads() : [])) if (p && p.connected){ gp = p; break; }
+  const cur = gp ? padState(gp) : {}, was = GP.prev; GP.prev = cur;
+  const hit = k => cur[k] && !was[k];
+  // held moves: the pad lets go only of what it was holding, so a key held at the same time isn't cut off
+  for (const k of ["left", "right", "soft"]){
+    const on = k === "soft" ? !!(cur.down || cur.rt) : !!cur[k];
+    if (on === !!GP.held[k]) continue;
+    GP.held[k] = on; const v = on && !!S && S.mode === "playing";
+    if (k === "soft") softHeld = v; else keys[k] = v;
+    if (v) S.dragX = null;
+  }
+  if (!gp || !S) return;
+  if (Object.keys(cur).some(hit)){ root.classList.add("padnav"); A.unlock(); }
+  if (hit("sel")) toggleMute();
+  // the D-pad between buttons: once per press, then again every 0.15 s after 0.4 s held
+  const dir = cur.up || cur.left ? -1 : cur.down || cur.right ? 1 : 0;
+  let nav = 0;
+  if (dir && (hit("up") || hit("left") || hit("down") || hit("right"))){ nav = dir; GP.repAt = now + 400; }
+  else if (dir && now >= GP.repAt){ nav = dir; GP.repAt = now + 150; }
+  if (!$("endModal").hidden){   // the statement
+    if (nav) padMove($("endModal"), nav);
+    if (hit("a") && performance.now() - endShownAt > 900) padPress($("endModal"));
+    if (hit("b")) $("closeEnd").click(); else if (hit("start")) startGame();
+    return;
+  }
+  if (S.mode === "card" && S.card){
+    if (!S.card.flip){
+      if (S.card.t < 450) return;   // a press meant for the last item, as the card came up
+      if (hit("x") || hit("y")) choose(S.card.order[hit("x") ? 0 : 1] === "w" ? "wise" : "risky");
+      else { if (nav) padMove($("cardChoices"), nav); if (hit("a")) padPress($("cardChoices")); }
+    } else if ((hit("a") || hit("b") || hit("start")) && S.card.t - S.card.flipAt >= 450) closeCard();
+    return;
+  }
+  if (S.mode === "paused"){
+    if (hit("start") || hit("b")) togglePause();
+    else { if (nav) padMove($("pauseOv"), nav); if (hit("a") && !padPress($("pauseOv"))) togglePause(); }
+    return;
+  }
+  if (S.mode === "idle"){
+    const box = !$("seeOv").hidden ? $("seeOv") : !$("startOv").hidden ? $("startOv") : null;
+    if (!box) return;
+    if (hit("start")) startGame();
+    else if (box.id === "seeOv" && hit("b")) openResults();
+    else { if (nav) padMove(box, nav); if (hit("a") && !padPress(box)) startGame(); }
+    return;
+  }
+  if (S.mode !== "playing") return;
+  if (hit("start")){ togglePause(); return; }
+  if (hit("a")) act("drop");
+  if (hit("b") || hit("y") || hit("up")) act("rotate");
+  if (hit("x")) act("hold");
+  if (hit("lb")) act("rotL");
+  if (hit("rb")) act("rotR");
+}
+window.addEventListener("gamepadconnected", () => {
+  GP.on++; root.classList.add("gamepad");
+  if (S && S.mode !== "over") stamp("Controller ready", "手掣已連接", "info");
+});
+window.addEventListener("gamepaddisconnected", () => {
+  GP.on = Math.max(0, GP.on - 1);
+  if (!GP.on){ root.classList.remove("gamepad"); pollPad(performance.now()); }   // lets go of anything it was holding
+});
+document.addEventListener("pointerdown", () => root.classList.remove("padnav"), true);
 const cv = $("board");
 let drag = null;
-function worldX(clientX, r){ r = r || cv.getBoundingClientRect(); return (clientX - r.left) / r.width * W; }
+function worldX(clientX, r){ r = r || cv.getBoundingClientRect(); return (clientX - r.left) / r.width * (W + 2 * XV) - XV; }
 // Board gestures. The first clear movement decides what a touch is: sideways steers (the item follows the finger),
 // downward doesn't (a slow drag down makes it fall faster while held). A swipe down drops the item, and so does a
 // flick down at the end of steering; a short touch that barely moved turns it. So a swipe down that drifts a
@@ -1056,7 +1140,7 @@ cv.tabIndex = 0;
 
 // ---------- rendering: sprites ----------
 const ctx = cv.getContext("2d", {alpha: false});   // opaque: the sky covers it all, so the page never blends it
-let SC = 1, DPR = 1;
+let SC = 1, DPR = 1, XV = 0;   // XV: scenery shown either side of the play area (a wide screen in full screen), in world units
 const SPR = new Map(), SPR_MAX = 160, QA = Math.PI / 4;
 let usedText = false;   // did the sprite being made use lettering (it is made again once the web fonts arrive)
 const kText = K.text; K.text = function(){ usedText = true; return kText.apply(this, arguments); };
@@ -1165,7 +1249,8 @@ function crabArt(g, mood){
 function buildLayers(soft, only){
   const make = {};
   // sun + clouds (screen space, drawn with slow parallax)
-  make.sky = () => layer(W, 260, g => {
+  make.sky = () => layer(W + 2 * XV, 260, g => {
+    g.save(); g.translate(XV, 0);
     for (let i = 0; i < 8; i++){ const a = i * Math.PI / 4 + 0.2, r0 = 36, r1 = 47;
       K.blob(g, K.tube([[110 + r0*Math.cos(a), 95 + r0*Math.sin(a)], [110 + r1*Math.cos(a), 95 + r1*Math.sin(a)]], 6), "orange", {depth:1.4, soft:2, sheen:false, rim:0.5}); }
     K.blob(g, K.ball(110, 95, 30, 30, {lump:0.6, seed:3}), "#FFE45C", {sheen:{x:100, y:83, rx:9, ry:5}});
@@ -1174,16 +1259,24 @@ function buildLayers(soft, only){
     K.press(g, K.ball(94, 99, 3.5, 2.2, {lump:0.05}), "#FF9DBF", {sheen:false, texture:0}); K.press(g, K.ball(126, 99, 3.5, 2.2, {lump:0.05}), "#FF9DBF", {sheen:false, texture:0});
     const cloud = (cx, cy, s, seed) => K.blob(g, K.merge(K.ball(cx, cy, 24*s, 14*s, {lump:0.6, seed}), K.ball(cx + 22*s, cy - 6*s, 18*s, 15*s, {lump:0.6, seed:seed + 1}), K.ball(cx - 22*s, cy + 2*s, 15*s, 11*s, {lump:0.6, seed:seed + 2})), "white", {depth:3, soft:5});
     cloud(300, 78, 1, 11); cloud(215, 180, 0.72, 21); cloud(92, 228, 0.55, 31);
-    duskTint(g, W, 260, "255,160,175", 0.3);   // sunset-pink clouds and sun at dusk
+    if (XV){   // more sky either side
+      const r = K.rng(91); let seed = 41;
+      for (let x = -60; x > -XV + 30; x -= 150 + r() * 90) cloud(x, 40 + r() * 190, 0.5 + r() * 0.45, seed += 3);
+      for (let x = W + 70; x < W + XV - 30; x += 150 + r() * 90) cloud(x, 40 + r() * 190, 0.5 + r() * 0.45, seed += 3);
+    }
+    g.restore();
+    duskTint(g, W + 2 * XV, 260, "255,160,175", 0.3);   // sunset-pink clouds and sun at dusk
   });
   // skyline: colourful clay towers (parallax)
-  make.city = () => layer(W + 60, 260, g => {
-    // Lion Rock-ish hill behind the city
-    K.blob(g, K.blobPoly([[-20, 260], [-20, 170], [40, 140], [95, 128], [130, 104], [158, 96], [172, 110], [200, 122], [260, 140], [330, 150], [400, 136], [W + 80, 150], [W + 80, 260]], {lump:1.2, seed:4, step:14}), "#3FAE6A", {depth:5, soft:9, sheen:false});
+  make.city = () => layer(W + 60 + 2 * XV, 260, g => {
+    g.save(); g.translate(XV, 0);
+    // Lion Rock-ish hill behind the city (on a wide screen it rolls on either side)
+    const hill = [[-20, 170], [40, 140], [95, 128], [130, 104], [158, 96], [172, 110], [200, 122], [260, 140], [330, 150], [400, 136], [W + 80, 150]];
+    if (XV) hill.unshift([-20 - XV, 160], [-20 - XV * 0.65, 132], [-20 - XV * 0.3, 152]), hill.push([W + 80 + XV * 0.35, 126], [W + 80 + XV * 0.7, 148], [W + 80 + XV, 138]);
+    hill.unshift([hill[0][0], 260]); hill.push([hill[hill.length - 1][0], 260]);
+    K.blob(g, K.blobPoly(hill, {lump:1.2, seed:4, step:14}), "#3FAE6A", {depth:5, soft:9, sheen:false});
     const r = K.rng(77); const cols = ["pink", "teal", "purple", "orange", "blue", "green", "red", "yellow"];
-    let x = -10, i = 0;
-    while (x < W + 60){
-      const w = 34 + r() * 30, h = (i === 6 ? 175 : 50 + r() * 100), c = cols[i % cols.length]; i++;
+    const tower = (x, w, h, c, i, r) => {
       const top = 260 - h;
       if (i === 7){ // a Bank of China-style triangle-facet tower
         K.blob(g, K.blobPoly([[x, 260], [x, top + 70], [x + w*0.5, top + 30], [x + w*0.5, top - 25], [x + w, top + 5], [x + w, 260]], {lump:0.6, seed:i}), "blue", {depth:4, soft:6});
@@ -1193,20 +1286,28 @@ function buildLayers(soft, only){
       } else K.blob(g, K.slab(x + w/2, top + h/2 + 10, w, h + 20, 6, {lump:0.9, seed:i * 13}), c, {depth:4, soft:6});
       for (let wy = top + 14; wy < 245; wy += 15) for (let wx = x + 7; wx < x + w - 9; wx += 10)
         if (r() > 0.55) K.press(g, K.rrc(wx + 2, wy, 5, 7, 1.5), r() > 0.25 ? "#FFF3A6" : "cream", {sheen:false, texture:0, depth:0.6, soft:0.8, rim:0.3});
+    };
+    let x = -10, i = 0;
+    while (x < W + 60 + XV){
+      const w = 34 + r() * 30, h = (i === 6 ? 175 : 50 + r() * 100), c = cols[i % cols.length]; i++;
+      tower(x, w, h, c, i, r);
       x += w + 4 + r() * 6;
     }
+    if (XV){ const r2 = K.rng(78); let x2 = -14, i2 = 20;   // the skyline on to the left
+      while (x2 > -XV - 50){ const w = 34 + r2() * 30, h = 50 + r2() * 100, c = cols[i2 % cols.length]; i2++; x2 -= w + 4 + r2() * 6; tower(x2, w, h, c, i2, r2); } }
+    g.restore();
     // atmospheric haze so the tower of items always reads in front of the city
-    g.save(); g.globalCompositeOperation = "source-atop"; g.fillStyle = "rgba(" + mixHex("#A0DCFF", "#FFB38A", duskStep).slice(4, -1) + ",0.42)"; g.fillRect(0, 0, W + 60, 260); g.restore();
+    g.save(); g.globalCompositeOperation = "source-atop"; g.fillStyle = "rgba(" + mixHex("#A0DCFF", "#FFB38A", duskStep).slice(4, -1) + ",0.42)"; g.fillRect(0, 0, W + 60 + 2 * XV, 260); g.restore();
   });
   // harbour (world units, wide so it can scroll)
-  make.sea = () => layer(W + 120, 220, g => {
-    const sea = K.slab((W + 120)/2, 120, W + 160, 240, 0, {lump:0.6, seed:5});
+  make.sea = () => layer(W + 120 + 2 * XV, 220, g => {
+    const sw = W + 120 + 2 * XV, sea = K.slab(sw/2, 120, sw + 40, 240, 0, {lump:0.6, seed:5});
     K.blob(g, sea, "blue", {depth:6, soft:10, sheen:false, texture:0.18});
     for (let row = 0; row < 5; row++){
-      const pts = []; for (let x = -10; x <= W + 130; x += 12) pts.push([x, 10 + row*26 + Math.sin(x / 22 + row) * 3.5]);
+      const pts = []; for (let x = -10; x <= sw + 10; x += 12) pts.push([x, 10 + row*26 + Math.sin(x / 22 + row) * 3.5]);
       K.blob(g, K.tube(pts, 6 - row*0.6), row % 2 ? "#5DB3F5" : "sky", {depth:1.6, soft:2.4, sheen:false, rim:0.5, texture:0.06});
     }
-    duskTint(g, W + 120, 220, "255,150,120", 0.24);   // the harbour reflects the sunset
+    duskTint(g, sw, 220, "255,150,120", 0.24);   // the harbour reflects the sunset
   });
   // platform + pillar
   make.plat = () => layer(PW + 40, 200, g => {
@@ -1243,9 +1344,10 @@ function drawCrabs(){   // logo + panel crabs, at the size they show (full scree
     const s = c.width / 80; g.setTransform(s, 0, 0, s, 40*s, 32*s); crabArt(g, m);
   }
 }
-// Full screen play on a wide screen (a laptop): the first screen is the game alone (its status bar and the board, as
-// tall as the screen), with the buttons in the corner; the panels and the rest of the page are a scroll away.
-const FS_SIDE = 190;   // kept clear on each side of the board: the buttons sit in the right one
+// Full screen play on a wide screen (a laptop): the first screen is the game alone, as tall as the screen and as wide:
+// the play area in the middle and more sky, city and harbour either side (XV), with the status bar and the buttons
+// over that scenery. The panels and the rest of the page are a scroll away.
+const FS_SIDE = 250, FS_ASPECT = 1.9;   // scenery kept either side of the play area for the status bar and the buttons, px; the widest view (width / height)
 const PREVIEWS = ["nextCv", "holdCv", "next2Cv", "hudNext", "hudHold"];
 let lastFit = "";
 function resize(){
@@ -1258,33 +1360,35 @@ function resize(){
   // scroll or type), so the address bar sliding away or the keyboard opening doesn't resize the board and remake
   // every picture mid-game.
   const vh = (narrow || touch) && document.documentElement.clientHeight || window.innerHeight;
-  let availH, availW;
+  let availH, availW, viewW = 0;
   if (narrow){
     const cs = el => getComputedStyle(el), side = parseFloat(cs(document.querySelector(".set")).paddingLeft) + parseFloat(cs($("boardWrap")).paddingLeft);
     availW = document.documentElement.clientWidth - 2 * side; availH = vh - header - 70 - (padOn ? 100 : 0) - 40;
     // full screen on a phone: the board takes all the height the header, the status bar and the pad leave
     if (fsOn) availH = vh - (document.querySelector(".set").offsetHeight - cv.offsetHeight); }
-  else if (wide){   // the screen's height less the status bar (and the pad on a tablet), the board's frame and the gaps
-    const center = document.querySelector(".center"), cs = getComputedStyle(center), gap = parseFloat(cs.rowGap) || 0;
-    let other = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) - gap;
-    for (const k of center.children) if (getComputedStyle(k).display !== "none") other += gap + (k.id === "boardWrap" ? k.offsetHeight - cv.offsetHeight : k.offsetHeight);
-    availH = vh - other;
-    availW = document.documentElement.clientWidth - 2 * FS_SIDE - ($("boardWrap").offsetWidth - cv.offsetWidth); }
+  else if (wide){   // the screen less the board's frame (and the pad under it on a tablet)
+    const cs = getComputedStyle(document.querySelector(".center")), ss = getComputedStyle(document.querySelector(".set")), wrap = $("boardWrap");
+    availH = vh - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - (wrap.offsetHeight - cv.offsetHeight) - (padOn ? $("pad").offsetHeight + (parseFloat(cs.rowGap) || 0) : 0);
+    viewW = document.documentElement.clientWidth - parseFloat(ss.paddingLeft) - parseFloat(ss.paddingRight) - (wrap.offsetWidth - cv.offsetWidth);
+    availW = viewW - 2 * FS_SIDE; }
   else { availW = Math.max(260, window.innerWidth - 620); availH = vh - header - 70 - (padOn ? 100 : 0); }
   const fit = [narrow, wide, padOn, availW, availH, window.devicePixelRatio].join();
   if (fit === lastFit) return;
   lastFit = fit;
-  const prevSC = SC, prevDPR = DPR;
+  const prevSC = SC, prevDPR = DPR, prevXV = XV;
   SC = Math.max(0.3, Math.min(availH / H, availW / W, wide ? 3 : 1.25));
-  // a very big board draws fewer pixels per point: never more than the biggest normal board (550 points at 2x)
-  DPR = Math.min(2, window.devicePixelRatio || 1, Math.max(1, 1100 / (W * SC)));
-  const cw = Math.round(W * SC * DPR), ch = Math.round(H * SC * DPR);
+  XV = wide ? Math.max(0, Math.floor((Math.min(viewW / SC, H * FS_ASPECT) - W) / 2)) : 0;
+  const vw = W + 2 * XV;
+  // a very big board draws fewer pixels per point: never more than the biggest normal board (550 x 875 points at 2x)
+  DPR = Math.min(2, window.devicePixelRatio || 1, Math.max(1, Math.sqrt(1925000 / (vw * H * SC * SC))));
+  const cw = Math.round(vw * SC * DPR), ch = Math.round(H * SC * DPR);
   if (cv.width !== cw || cv.height !== ch){ cv.width = cw; cv.height = ch; needDraw = true; }
-  cv.style.width = Math.round(W * SC) + "px"; cv.style.height = Math.round(H * SC) + "px";
+  cv.style.width = Math.round(vw * SC) + "px"; cv.style.height = Math.round(H * SC) + "px";
   $("pad").style.maxWidth = Math.max(300, W * SC + 20) + "px";
   if (!L.sky) buildLayers();
-  else if (Math.abs(SC - prevSC) > 0.015 || DPR !== prevDPR) buildLayers(true);
+  else if (Math.abs(SC - prevSC) > 0.015 || DPR !== prevDPR || XV !== prevXV) buildLayers(XV === prevXV);   // a new width: remade now (stretched would show)
   root.style.setProperty("--board-zoom", wide ? Math.min(1.5, Math.max(1, SC / 1.2)).toFixed(3) : "1");
+  root.style.setProperty("--fs-inset", wide ? Math.max(0, Math.round((viewW - vw * SC) / 2)) + "px" : "0px");   // an ultra-wide screen: the board's margin
   drawCrabs();
   const gw = document.querySelector('.col.right').getBoundingClientRect().right - document.querySelector('.col.left').getBoundingClientRect().left; $("info").style.maxWidth = narrow ? "" : Math.round(gw) + "px"; document.querySelector(".mast").style.maxWidth = narrow ? "" : Math.round(gw) + "px";
   for (const id of PREVIEWS) $(id)._sz = null;
@@ -1308,8 +1412,9 @@ const PAD = 32;   // how far a sprite and its shadow reach past the item's outli
 const BACK = {c: null, key: "", next: ""};
 const PILE = {s: null, b: null, set: new Set(), list: [], k: 0, at: -99, top: 0, h: 0, w0: 0, w1: 0, x0: 0, x1: 0};
 function paintSky(g, k, skyY, cityY){
-  g.setTransform(k, 0, 0, k, 0, 0); g.fillStyle = skyFill; g.fillRect(0, 0, W + 1, H + 1);   // +1: the canvas rounds up to whole pixels
-  g.drawImage(L.sky, 0, skyY, W, 260); g.drawImage(L.city, -30, cityY, W + 60, 260);
+  const vw = W + 2 * XV;   // the view's width, the play area in the middle
+  g.setTransform(k, 0, 0, k, 0, 0); g.fillStyle = skyFill; g.fillRect(0, 0, vw + 1, H + 1);   // +1: the canvas rounds up to whole pixels
+  g.drawImage(L.sky, 0, skyY, vw, 260); g.drawImage(L.city, -30, cityY, vw + 60, 260);
 }
 function backdrop(c, k, skyY, cityY){
   const key = [cv.width, cv.height, skyDusk, layerVer, Math.round(skyY * k * 2), Math.round(cityY * k * 2)].join();
@@ -1364,7 +1469,7 @@ function pileBand(y0, y1, T){
   const k = PILE.k, top = PILE.top, p0 = Math.max(0, Math.floor((y0 - top) * k)), p1 = Math.min(PILE.h, Math.ceil((y1 - top) * k));
   if (p1 <= p0) return;
   const gs = PILE.s.getContext("2d"), gb = PILE.b.getContext("2d"), a0 = top + p0 / k, a1 = top + p1 / k;
-  for (const g of [gs, gb]){ g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, p0, g.canvas.width, p1 - p0); g.beginPath(); g.rect(0, p0, g.canvas.width, p1 - p0); g.clip(); g.setTransform(k, 0, 0, k, 0, -top * k); }
+  for (const g of [gs, gb]){ g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, p0, g.canvas.width, p1 - p0); g.beginPath(); g.rect(0, p0, g.canvas.width, p1 - p0); g.clip(); g.setTransform(k, 0, 0, k, XV * k, -top * k); }
   const keep = ALPHA, here = PILE.list.filter(b => b.tff.cb.y1 + PAD >= a0 && b.tff.cb.y0 - PAD <= a1);
   ALPHA = 1;   // settled: drawn where the physics has them
   for (const b of here) for (const m of membersOf(b)) drawBody(gs, m, true);
@@ -1430,10 +1535,10 @@ function updatePile(k, T){
 }
 function blitPile(c, k, img){
   if (!PILE.h) return;
-  const x0 = clamp(Math.floor(PILE.x0 * k), 0, img.width), x1 = clamp(Math.ceil(PILE.x1 * k), x0, img.width);   // only as wide as the pile
+  const x0 = clamp(Math.floor((PILE.x0 + XV) * k), 0, img.width), x1 = clamp(Math.ceil((PILE.x1 + XV) * k), x0, img.width);   // only as wide as the pile
   c.setTransform(1, 0, 0, 1, 0, 0);
   if (x1 > x0) c.drawImage(img, x0, 0, x1 - x0, PILE.h, x0, Math.round((PILE.top - S.camTop) * k), x1 - x0, PILE.h);   // whole pixels: crisp
-  c.setTransform(k, 0, 0, k, 0, -S.camTop * k);
+  c.setTransform(k, 0, 0, k, XV * k, -S.camTop * k);
 }
 // dt: this frame's length in ms. Everything that moves on its own (camera, shake, splashes, leaves, sea, boat, crab)
 // moves by time, not by frames, so it runs at the same speed on a 60 Hz or a 120 Hz screen.
@@ -1456,7 +1561,7 @@ function draw(dt){
   // world
   const still = sx === 0;   // a quake shakes everything: then it is all drawn live
   if (still) updatePile(k, T);
-  c.setTransform(k, 0, 0, k, k * sx, -S.camTop * k);
+  c.setTransform(k, 0, 0, k, k * (sx + XV), -S.camTop * k);
   drawRuler(c);
   c.drawImage(L.plat, W/2 - PW/2 - 20, 0, PW + 40, 200);
   const a = S.active, v0 = S.camTop, v1 = S.camTop + H, live = [];   // what moves, in view (out of view isn't drawn)
@@ -1488,9 +1593,9 @@ function draw(dt){
   drawLabels(c);
   // harbour in front (anything below the surface sinks behind it)
   const off = (T * 0.35) % 60;
-  c.drawImage(L.sea, -60 - off, WATER_Y - 6, W + 120, 220);
+  c.drawImage(L.sea, -60 - XV - off, WATER_Y - 6, W + 120 + 2 * XV, 220);
   c.fillStyle = "rgba(20,30,90,0.28)"; c.beginPath(); c.ellipse(W/2, WATER_Y + 6, 46, 6, 0, 0, Math.PI * 2); c.fill();
-  const jx = ((T * 0.22) % (W + 160)) - 100, jy = WATER_Y - 44 + (reduceMotion ? 0 : Math.sin(T / 22) * 1.6);
+  const jx = ((T * 0.22) % (W + 160 + 2 * XV)) - 100 - XV, jy = WATER_Y - 44 + (reduceMotion ? 0 : Math.sin(T / 22) * 1.6);
   c.drawImage(L.junk, jx, jy, 80, 60);
   for (const sp of S.splashes){
     sp.t += f; const t = sp.t / 45, n = sp.big ? 9 : 6;
@@ -1509,8 +1614,8 @@ function draw(dt){
   c.drawImage(L.crab[md] || L.crab.idle, W/2 + 48, WATER_Y - 46 + bob, 80, 64);
   placeTalk(md, bob);
   c.setTransform(k, 0, 0, k, 0, 0);
-  if (S.mode === "playing" && S.play < S.speedUntil){ c.fillStyle = "rgba(255,123,53,0.08)"; c.fillRect(0, 0, W, H); }
-  if (S.mode === "over" && S.over === "drops"){ c.fillStyle = "rgba(242,70,62,0.12)"; c.fillRect(0, 0, W, H); }
+  if (S.mode === "playing" && S.play < S.speedUntil){ c.fillStyle = "rgba(255,123,53,0.08)"; c.fillRect(0, 0, W + 2 * XV, H); }
+  if (S.mode === "over" && S.over === "drops"){ c.fillStyle = "rgba(242,70,62,0.12)"; c.fillRect(0, 0, W + 2 * XV, H); }
 }
 function drawRuler(c){
   c.save();
@@ -1520,7 +1625,7 @@ function drawRuler(c){
     const st = STAGES.find(s => s.at === f);
     if (st){
       c.strokeStyle = "rgba(255,255,255,0.85)"; c.lineWidth = 2; c.setLineDash([8, 7]);
-      c.beginPath(); c.moveTo(44, y); c.lineTo(W, y); c.stroke(); c.setLineDash([]);
+      c.beginPath(); c.moveTo(XV ? -XV : 44, y); c.lineTo(W + XV, y); c.stroke(); c.setLineDash([]);
     }
     c.fillStyle = st ? "#FFE45C" : skyDusk >= .5 ? "rgba(37,49,122,0.8)" : "rgba(37,49,122,0.55)";
     roundRect(c, 8, y - 10, 34, 20, 8); c.fill();
@@ -1528,7 +1633,7 @@ function drawRuler(c){
   }
   if (S.best > 8 && S.mode !== "idle"){
     const y = -S.best; c.strokeStyle = "rgba(255,95,162,0.9)"; c.lineWidth = 2; c.setLineDash([3, 5]);
-    c.beginPath(); c.moveTo(44, y); c.lineTo(W - 8, y); c.stroke(); c.setLineDash([]);
+    c.beginPath(); c.moveTo(XV ? -XV : 44, y); c.lineTo(W + XV - 8, y); c.stroke(); c.setLineDash([]);
   }
   c.restore();
 }
@@ -1759,7 +1864,7 @@ const TALK_TIP = W/2 + 50, TALK_ROOM = 70;   // world x of the tail's tip (the c
 const talkWidth = docked => Math.round(docked ? Math.min(320, W * SC - 20) : Math.min(250, TALK_TIP * SC - 16)) + "px";
 function placeTalk(md, bob){
   const b = talk.el; if (b.hidden) return;
-  const cw = W * SC, ch = H * SC, tipX = TALK_TIP * SC, tipY = (WATER_Y - 30 + bob - S.camTop) * SC;
+  const ox = XV * SC, cw = W * SC, ch = H * SC, tipX = TALK_TIP * SC, tipY = (WATER_Y - 30 + bob - S.camTop) * SC;   // ox: where the play area starts
   const floor = ch - (S.mode === "idle" && S.viewing ? 76 : 14);     // clear of Play again when looking at the tower
   const docked = tipY + talk.hu / 2 > floor;   // decided by its height beside the crab, so it can't flip back and forth
   if (docked !== talk.docked){
@@ -1770,9 +1875,9 @@ function placeTalk(md, bob){
     talk.mood = md; const g = talk.face.getContext("2d"); g.clearRect(0, 0, 64, 52); g.drawImage(L.crab[md] || L.crab.idle, 0, 0, 64, 52);
   }
   let x, y;
-  if (docked){ x = cw - talk.w - 10; y = floor - talk.h; }
-  else { x = tipX - 10 - talk.w; y = Math.max((30 - S.camTop) * SC + 4, tipY - talk.h / 2); }   // never above the platform's underside
-  x = Math.round(clamp(x, 6, cw - talk.w - 6)); y = Math.round(Math.max(6, y));
+  if (docked){ x = ox + cw - talk.w - 10; y = floor - talk.h; }
+  else { x = ox + tipX - 10 - talk.w; y = Math.max((30 - S.camTop) * SC + 4, tipY - talk.h / 2); }   // never above the platform's underside
+  x = Math.round(clamp(x, ox + 6, ox + cw - talk.w - 6)); y = Math.round(Math.max(6, y));
   if (x !== talk.x || y !== talk.y){ talk.x = x; talk.y = y; talk.pos.style.transform = "translate(" + x + "px," + y + "px)"; }   // on the wrapper: the pop scales the bubble alone
 }
 // how far up from the board's bottom the bubble may reach, in px: stamps placed low stay above it
@@ -1821,6 +1926,7 @@ cv.addEventListener("contextrestored", () => {
 });
 function frameBody(now){
   const raw = now - last, dt = Math.min(50, raw); last = now;
+  if (GP.on) pollPad(now);
   if (S){
     const side = SIDEWAYS.matches && (S.mode === "playing" || S.mode === "paused" || S.mode === "card");
     if (side !== sideways){ sideways = side; $("turnOv").hidden = !side; if (side && S.mode === "playing") togglePause(); }
