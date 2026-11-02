@@ -112,6 +112,14 @@ The game aims for WCAG 2.2 AA. An automated check (axe-core) finds no problems o
 - **Motion and sound:** "Reduce motion" turns off the shake, bobbing and card animations; sound has a mute button and starts only after Start.
 - Controls are at least 24 × 24 px, and the pages fit a 320 px wide screen without sideways scrolling.
 
+## Too good to be true
+
+Three moments in a game look like good news. None of them is. Declining costs nothing, and keyboard 1 / 2 / Esc or controller X / Y / B answer them. Each one is saved with the game and only ever lowers the score.
+
+- **Fake revive:** after the 3rd drop, a 10-second "CONTINUE?" offers a second go. It never works: there's no take two in life. (`troll_revive`: empty = not offered, 0 = left alone, 1 = pressed Revive.)
+- **"Guaranteed 30% a month":** between 50 and 110 s an investment pop-up appears. Investing costs HK$3,000. Fake profits tick up, then a HK$1,000 "release fee" is asked and the platform vanishes. It counts as a Scam fall. (`troll_invest`: 0 = not offered, 1 = declined, 2 = invested, 3 = invested and paid the fee.)
+- **Lucky scratch card:** between 30 and 150 s a HK$500 card is offered, up to 5 times. Every card is a near miss. Buying counts as an Overspending fall, and the lesson cites the Mark Six jackpot odds of 1 in 13,983,816. (`troll_tickets`: empty = never offered, 0 to 5 = cards bought.)
+
 ## Settings
 
 Set these in `wrangler.jsonc` under `"vars"`, then `npm run deploy`. Secrets are set with Wrangler and never go in the file.
@@ -128,7 +136,7 @@ Set these in `wrangler.jsonc` under `"vars"`, then `npm run deploy`. Secrets are
 
 ## The leaderboard and your data
 
-- **Every finished game is saved, anonymously, as soon as the statement opens:** score, floors reached, life stage, items placed, each Life Event choice (card plus wise, risky or missed), how the game ended, the time and how long it really took. As the player answers the quiz and picks a habit, the same record gets each quiz answer (which option, right or wrong) and the habit. The quiz shows right or wrong, with the reason, the moment an answer is tapped, and answers can't be changed after that. Nothing is ticked for the habit until the player picks one, so the pledge counts are real choices.
+- **Every finished game is saved, anonymously, as soon as the statement opens:** score, floors reached, life stage, items placed, each Life Event choice (card plus wise, risky or missed), how the game ended, the time and how long it really took, and what the player did with the three "Too good to be true" offers. As the player answers the quiz and picks a habit, the same record gets each quiz answer (which option, right or wrong) and the habit. The quiz shows right or wrong, with the reason, the moment an answer is tapped, and answers can't be changed after that. Nothing is ticked for the habit until the player picks one, so the pledge counts are real choices.
 - **Posting to the board** adds the nickname to that same record and shows it on the leaderboard. Players who don't post still count in the survey results, just not on the board. A game posted after its week is over goes on the current week's board, so a week's winners can't change once it has ended.
 - **Email (optional, private):** players can leave an email when they post, so you can contact weekly and monthly winners. It is never shown on the board, never returned by any public API, never stored on the player's device, and once saved it is never changed or cleared. Only `/admin` (behind `ADMIN_TOKEN`, and Cloudflare Access if you keep it on `/admin`) shows it.
 - **What is not saved:** real names (unless someone types one as a nickname) or IP addresses. For the rate limit, a new game briefly keeps a hash of the network address, keyed with a secret and the week. It is wiped about 5 minutes later, so players can't be tracked over time.
@@ -138,7 +146,7 @@ Set these in `wrangler.jsonc` under `"vars"`, then `npm run deploy`. Secrets are
 - **Survey results in `/admin`:** pick all time, a week or a month. You get games played, quiz takers and the share who scored 2/3 or better against the 70% target, the same share for first tries only (a device's first finished quiz, counted for games saved from 14 October 2026; replays see the same 3 questions with the answers already shown), how each quiz question was answered (and the most common wrong answer), habit pledges, every Life Event card sorted by how often players chose the risky option, the 3 Falls, life stages reached, and week-by-week and month-by-month trends. Hidden games are left out.
 - **Winners:** `/admin → Winners` lists the top scores of any week or month with their emails, with copy buttons, and flags a player who appears twice. Each row also shows the items placed, seconds actually played and items dropped. A full 3-minute game that took more than 4½ minutes of real time is marked "slow motion: check": a slow or throttled device makes the game easier.
 - **Downloads for your report** (`/admin → Downloads`, Excel-ready CSV):
-  - `games.csv`: one row per game, with each quiz answer and each Life Event choice in its own column, then `items_placed`, `seconds_played`, `quizzes_before` (quizzes that device had finished before; 0 is a first try) and `jackpot` (1 = the Jackpot crab came up in that game).
+  - `games.csv`: one row per game, with each quiz answer and each Life Event choice in its own column, then `items_placed`, `seconds_played`, `quizzes_before` (quizzes that device had finished before; 0 is a first try), `jackpot` (1 = the Jackpot crab came up in that game), `troll_revive` (empty = the fake revive was never offered, 0 = declined, 1 = pressed Revive), `troll_invest` (0 = no investment pop-up, 1 = declined, 2 = invested HK$3,000, 3 = also paid the HK$1,000 fee) and `troll_tickets` (empty = no scratch-card offer, 0 to 5 = cards bought). The three `troll_` columns are empty for games saved before they were added.
   - `quiz_answers.csv`: one row per quiz answer. Pivot it by question to see which questions and wrong answers trip players up.
   - `life_events.csv`: one row per Life Event decision. Pivot it by card, life stage or trap.
   - `Raw CSV`: every column exactly as stored.

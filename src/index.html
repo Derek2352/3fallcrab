@@ -109,6 +109,7 @@
         <div class="stamps" id="stamps" aria-live="polite"></div>
         <div class="fzglow" aria-hidden="true"></div>
         <div class="frenzy" id="frenzy" hidden><b id="frenzyX">×1.5</b><span>Jackpot time<small>大獎時間</small></span><i id="frenzySec">15</i><u aria-hidden="true"><s id="frenzyBar"></s></u></div>
+        <div class="pfchip" id="pfChip" hidden><b><span id="pfK">Portfolio</span><small lang="zh-HK" id="pfKz">投資組合</small></b><span class="pfv" id="pfVal">+HK$0</span><i id="pfPct">▲0%</i></div>
         <div class="jpban" id="jpBan" hidden aria-live="polite"><b>JACKPOT!</b><span class="zh">大獎！</span><em id="jpAmt">+HK$2,000</em><small id="jpNote">Everything pays ×1.5 for 15 s · 15秒內存入1.5倍</small></div>
         <div class="overlay" id="startOv">
           <div class="ov-card">
@@ -198,6 +199,7 @@
     <section class="falls clay" aria-label="The 3 Falls explained">
       <h2 class="h">The 3 Falls <span class="zh" lang="zh-HK">三大陷阱</span></h2>
       <ul class="tags" id="fallsList"></ul>
+      <p class="falls-note">Mid-game, some offers look too good to be true. They are. <span class="zl" lang="zh-HK">遊戲中有啲優惠好到唔似真，佢哋真係假㗎。</span></p>
     </section>
 
     <section class="lbx clay" aria-label="Leaderboard">
@@ -243,6 +245,34 @@
   </div>
 </div>
 
+<div class="modal offerm" id="offerModal" role="dialog" aria-modal="true" aria-labelledby="offerTitle" aria-describedby="offerPitch offerHint" hidden>
+  <div class="sheet offer" id="offerSheet" tabindex="-1">
+    <div class="of-band"><span class="of-tag" id="offerTag"></span><span class="of-clock" id="offerClock" aria-hidden="true"><i id="offerBar"></i><b id="offerSec"></b></span></div>
+    <div class="of-body">
+      <h3 id="offerTitle"></h3>
+      <p class="zh of-zh" lang="zh-HK" id="offerTitleZh"></p>
+      <p class="of-pitch" id="offerPitch"></p>
+      <div class="scratch" id="scratch" hidden aria-hidden="true"><span class="sc"></span><span class="sc"></span><span class="sc"></span></div>
+      <p class="of-note" id="offerNote" aria-live="polite"></p>
+      <div class="of-actions"><button class="btn" id="offerYes" type="button"></button><button class="btn alt" id="offerNo" type="button"></button></div>
+      <p class="sr" id="offerHint"></p>
+    </div>
+  </div>
+</div>
+
+<div class="modal revivem" id="reviveModal" role="dialog" aria-modal="true" aria-labelledby="rvTitle" aria-describedby="rvSub" hidden>
+  <div class="sheet revive" id="rvSheet" tabindex="-1">
+    <p class="rv-eye">GAME OVER</p>
+    <h3 id="rvTitle"></h3>
+    <div class="rv-count" id="rvCount" aria-hidden="true">10</div>
+    <p class="rv-sub" id="rvSub"></p>
+    <div class="rv-bar" id="rvBarBox" hidden><i id="rvBar"></i></div>
+    <p class="rv-msg" id="rvMsg" aria-live="assertive"></p>
+    <div class="rv-actions" id="rvActions"><button class="btn go" id="rvYes" type="button"></button><button class="btn alt" id="rvNo" type="button"></button></div>
+    <div class="rv-lesson" id="rvLesson" hidden><p id="rvLessonText"></p><button class="btn" id="rvGo" type="button"></button></div>
+  </div>
+</div>
+
 <div class="modal" id="endModal" role="dialog" aria-modal="true" aria-labelledby="endTitle" hidden>
   <div class="sheet statement">
     <div class="st-scroll" id="stScroll">
@@ -259,6 +289,7 @@
         <li class="jp" id="rJpRow" hidden><span class="lab">Jackpot<small>大獎蟹</small></span><span class="dots"></span><span class="val" id="rJp"></span></li>
       </ul>
       <div class="esec"><h4>Your 3 Falls<span class="zh" lang="zh-HK">你中過嘅陷阱</span></h4><ul class="fallrep" id="fallRep"></ul></div>
+      <div class="esec" id="trollSec" hidden><h4>Too good to be true<span class="zh" lang="zh-HK">太好嘅嘢唔會係真</span></h4><ul class="fallrep trollrep" id="trollRep"></ul></div>
       <div class="esec"><h4>Quick quiz<span class="zh" lang="zh-HK">小測驗 · <span id="quizScore">0/3</span></span></h4>
         <p class="esec-note">Tap an answer to see if you're right (saved anonymously).<span class="zl" lang="zh-HK">撳一個答案，即刻知啱唔啱（匿名記錄）。</span></p>
         <div id="quiz"></div></div>

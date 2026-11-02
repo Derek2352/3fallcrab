@@ -134,8 +134,69 @@ const QUIPS = {
   over0:     [["Time! Still at uni… go again?", "夠鐘！仲喺大學…再嚟？"]],
   over1:     [["Time! A solid first job.", "夠鐘！第一份工都唔錯。"]],
   over2:     [["Time! Family and savings, nice.", "夠鐘！成家又有錢，叻！"]],
-  over3:     [["Retired rich. Legend!", "退休做富翁，神級！"]]
+  over3:     [["Retired rich. Legend!", "退休做富翁，神級！"]],
+  invested:  [["Look at that profit… on paper.", "嘩，賺咗好多…不過係紙上富貴。"]],
+  investDodged: [["Guaranteed returns? No such thing. Smart!", "保證回報？冇呢回事。醒目！"]],
+  ticketDodged: [["Skipping the lucky draw is the real win.", "唔買刮刮卡，先係真正中獎。"]],
+  ticketStop:   [["Smart: stop chasing the near miss.", "醒目：唔好再追「差少少」。"]],
+  reviveGiveUp: [["Right. There's no take two.", "啱，人生冇得重來。"]]
 };
 
-root.TFF_CONTENT = {STAGES, TRAPS, CARDS, QUIZ, HABITS, QUIPS};
+// Three "too good to be true" moments: each promises something, adds time pressure, doesn't deliver, then explains.
+// The investment and the scratch cards cost real money in the game; the revive is free and never works.
+const TROLLS = {
+  revive: {
+    title: ["CONTINUE?", "再嚟過？"],
+    sub: ["Revive now and get your tower back!", "即刻復活，座塔即刻返嚟！"],
+    yes: ["Revive", "復活"], no: ["Give up", "放棄"],
+    busy: ["Reviving…", "復活中…"],
+    fail: ["ERROR: Life has no continue button.", "錯誤：人生冇得重來。"],
+    lesson: ["There's no take two in real life. The only revive is the one you set up before you fall: an emergency fund and insurance.",
+             "現實冇得take two。唯一嘅「復活」，係跌之前已經準備好：應急錢同保險。"],
+    go: ["See my statement", "睇結單"]
+  },
+  invest: {
+    tag: ["Sponsored", "贊助"],
+    title: ["Guaranteed 30% a month!", "每月保證回報30%！"],
+    pitch: ["Mr Chan turned HK$3,000 into HK$80,000. Only 3 places left!", "陳生用HK$3,000賺咗HK$80,000。仲有3個名額！"],
+    yes: ["Invest HK$3,000", "投資"], no: ["No thanks", "唔使喇"],
+    chip: ["Portfolio", "投資組合"],
+    feeTitle: ["Withdraw {n}?", "提走{n}？"],
+    fee: ["Pay a HK$1,000 release fee first, then the money is yours.", "要先付HK$1,000手續費，啲錢就係你嘅。"],
+    feeYes: ["Pay HK$1,000 fee", "付手續費"], feeNo: ["Walk away", "收手"], feeShort: ["Not enough money for the fee", "唔夠錢俾手續費"],
+    wait: ["Processing…", "處理中…"],
+    goneTitle: ["Account suspended", "戶口已凍結"],
+    gone: ["The platform has vanished, with your money.", "個平台連你啲錢一齊消失咗。"],
+    lesson: ["Guaranteed high returns, a countdown, profits you can't withdraw and a fee to get your money out: that's an investment scam. Real investments never guarantee returns. Check the SFC's register of licensed firms, or call the Anti-Scam Helpline 18222.",
+             "保證高回報、倒數催你、賺咗攞唔到、要俾手續費先提到錢：就係投資騙局。真投資唔會保證回報。可以查證監會持牌人名冊，或者打防騙易熱線18222。"],
+    ok: ["Got it", "明白"],
+    dodged: ["Scam dodged", "避開騙局"]
+  },
+  ticket: {
+    tag: ["Lucky draw", "幸運抽獎"],
+    title: ["HK$1,000,000 top prize!", "頭獎一百萬！"],
+    pitch: ["Scratch 3 bags of money to win. Only HK$500 a card!", "刮出3袋錢就中獎。每張只係HK$500！"],
+    yes: ["Buy a card · HK$500", "買一張"], no: ["Skip", "唔買"],
+    scratching: ["Scratching…", "刮緊…"],
+    close: ["So close!", "差少少！"],
+    closeSub: ["Two out of three! Next one's surely a winner…", "三個中咗兩個！下張實中…"],
+    again: ["Buy another · HK$500", "再買一張"], stop: ["Stop", "唔再買"],
+    shut: ["Booth closed. That's 5 cards.", "攤位收咗，你買咗5張。"],
+    lessonTitle: ["Every card was a near miss", "每張都係「差少少」"],
+    lesson: ["Near misses are designed to keep you buying. The real odds of winning the Mark Six jackpot are 1 in 13,983,816. You spent {n}.",
+             "「差少少」係設計出嚟引你繼續買。六合彩頭獎嘅真實機會係13,983,816分之一。你使咗{n}。"],
+    ok: ["Got it", "明白"],
+    dodged: ["Kept your HK$500", "慳返HK$500"]
+  },
+  report: {
+    revive: ["Tried to revive", "試過復活", "There's no take two in life 人生冇得重來"],
+    gaveUp: ["Didn't try to revive", "冇試復活", "Right: there's no take two 啱，人生冇得重來"],
+    investLost: ["'Guaranteed return' scam", "「保證回報」騙局", "Lost {n} 輸咗{n}"],
+    investDodged: ["'Guaranteed return' offer", "「保證回報」優惠", "Dodged: it was a scam 避開咗，係騙局"],
+    tickets: ["Scratch cards", "刮刮卡", "{k} bought, {n} gone, no win 買咗{k}張，使咗{n}，冇中"],
+    ticketDodged: ["Scratch card", "刮刮卡", "Didn't buy one 冇買"]
+  }
+};
+
+root.TFF_CONTENT = {STAGES, TRAPS, CARDS, QUIZ, HABITS, QUIPS, TROLLS};
 })(typeof window !== "undefined" ? window : globalThis);

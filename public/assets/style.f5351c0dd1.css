@@ -4,20 +4,20 @@
    are the ones Google Fonts served, so --f-* below and clay.js (canvas lettering) stay as they are. */
 @font-face{font-family:"Gluten";font-style:normal;font-weight:400 900;font-display:swap;src:url(/assets/gluten.842f8cce6e.woff2) format("woff2")}
 /* Noto Sans HK is one variable file. Four faces, not one 400 900 range, so a weight-800 label still uses the 900 face, as before. */
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/noto-sans-hk.8134ee1e10.woff2) format("woff2")}
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:500;font-display:swap;src:url(/assets/noto-sans-hk.8134ee1e10.woff2) format("woff2")}
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/noto-sans-hk.8134ee1e10.woff2) format("woff2")}
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:900;font-display:swap;src:url(/assets/noto-sans-hk.8134ee1e10.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/noto-sans-hk.9d81ba8f13.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:500;font-display:swap;src:url(/assets/noto-sans-hk.9d81ba8f13.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/noto-sans-hk.9d81ba8f13.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:900;font-display:swap;src:url(/assets/noto-sans-hk.9d81ba8f13.woff2) format("woff2")}
 /* WenKai draws only Chinese (and the digits inside Chinese lines): its Latin is a thin handwriting, so English in a
    Chinese-font line falls through to Noto Sans HK and reads the same as everywhere else */
-@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/lxgw-wenkai-tc-regular.e5a6569d9f.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
-@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/lxgw-wenkai-tc-bold.b30c6b14c5.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
+@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/lxgw-wenkai-tc-regular.38c57c291b.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
+@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/lxgw-wenkai-tc-bold.d1a202501a.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
 /* Curly quotes, ‘ ’, × and · in Latin widths: Noto Sans HK draws them a whole Chinese character wide, which left holes
    in English ("to   “rent”", "pays ×1.5"). Source Sans 3 (the Latin Noto Sans HK is based on), 1 KB a weight. */
 @font-face{font-family:"TFF Punct";font-style:normal;font-weight:400 650;font-display:swap;src:url(/assets/source-sans-punct-400.f1e8c6c73b.woff2) format("woff2");unicode-range:U+00B7,U+00D7,U+2018-201D}
 @font-face{font-family:"TFF Punct";font-style:normal;font-weight:651 850;font-display:swap;src:url(/assets/source-sans-punct-700.54c4ee4dfe.woff2) format("woff2");unicode-range:U+00B7,U+00D7,U+2018-201D}
 @font-face{font-family:"TFF Punct";font-style:normal;font-weight:851 900;font-display:swap;src:url(/assets/source-sans-punct-900.622c4a765b.woff2) format("woff2");unicode-range:U+00B7,U+00D7,U+2018-201D}
-@font-face{font-family:"DotGothic16";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/dotgothic16.dbbb84695a.woff2) format("woff2")}
+@font-face{font-family:"DotGothic16";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/dotgothic16.9e7c3f80ae.woff2) format("woff2")}
 
 /* Layout: a clay tabletop set — passbook + 3 Falls | the diorama board | tickets, building directory, leaderboard.
    One light (top-left) everywhere: CSS shadows fall down-right like the canvas clay. Single bright theme by design. */
@@ -916,3 +916,79 @@ html.gamepad .ov-card .ctl.pad-only{display:flex}
 /* the D-pad moves the focus: show where it is, whatever was used last */
 html.padnav :is(button, a, [role=tab]):focus{outline:3px solid var(--navy);outline-offset:3px}
 html.padnav .ctime input:focus + span{outline:3px solid var(--navy);outline-offset:2px}
+
+/* ---------- too good to be true: the ad, the scratch card, the revive ---------- */
+.offer{max-width:400px;border:6px solid #FFFDF7;border-radius:28px;animation:deal .32s cubic-bezier(.2,.9,.3,1.3)}
+.of-band{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 16px;background:linear-gradient(135deg,#FFE45C,#FFB627);color:var(--ink)}
+.offer.lucky .of-band{background:linear-gradient(135deg,#C9B8FF,#8EDBFF)}
+.offer.bust .of-band{background:#EEDCC0}
+.of-tag{font-size:12px;font-weight:800;letter-spacing:.4px;background:rgba(255,255,255,.65);padding:3px 10px;border-radius:999px}
+.of-tag .zl{display:inline;margin-left:5px;font-family:var(--f-zh)}
+.of-clock{display:grid;grid-template-columns:84px auto;align-items:center;gap:8px;background:linear-gradient(rgba(60,20,10,.16),rgba(60,20,10,.16)) left center / 84px 10px no-repeat}
+.of-clock[hidden]{display:none}
+.of-clock i{display:block;height:10px;border-radius:6px;background:var(--red-d);transform-origin:left}
+.of-clock b{font-family:var(--f-display);font-weight:900;font-size:22px;min-width:1.2em;text-align:right;color:var(--red-d);font-variant-numeric:tabular-nums}
+.of-body{padding:16px 20px 18px}
+.offer h3{margin:0;font-family:var(--f-display);font-weight:900;font-size:26px;line-height:1.1;text-wrap:balance}
+.offer.bust h3{color:var(--red-d)}
+.of-zh{margin:4px 0 10px;font-family:var(--f-zh);font-size:18px;font-weight:700;color:var(--hot-d)}
+.of-pitch{margin:0 0 12px;font-size:14px;line-height:1.45}
+.of-pitch:empty{display:none}
+.of-pitch .zl, .rv-sub .zl, .rv-lesson .zl{display:block;font-family:var(--f-zh)}
+.of-pitch .zl{color:var(--ink-2)}
+.of-note{margin:0 0 12px;font-size:13px;line-height:1.5;color:var(--ink-2)}
+.of-note:empty{display:none}
+.offer.bust .of-note{color:var(--ink);background:#FFF4E2;border-radius:14px;padding:10px 12px}
+.of-actions{display:flex;gap:10px;flex-wrap:wrap}
+.of-actions .btn{flex:1 1 auto}
+.of-actions .btn[hidden]{display:none}
+.offer.ad:not(.bust) #offerYes{background:linear-gradient(180deg,#FFD23F,#FF9F1C);color:var(--ink);box-shadow:inset 2px 2px 1px rgba(255,255,255,.55), inset -3px -4px 6px rgba(0,0,0,.14), 0 5px 0 #C77700, 3px 9px 14px rgba(120,62,12,.22)}
+.of-actions .btn:disabled{opacity:.5;cursor:default}
+.scratch{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:4px 0 12px}
+.scratch[hidden]{display:none}
+.scratch .sc{aspect-ratio:1;border-radius:16px;display:grid;place-items:center;font-size:40px;line-height:1;
+  background:repeating-linear-gradient(45deg,#C9CED6 0 6px,#B7BDC7 6px 12px);box-shadow:inset 2px 2px 2px rgba(255,255,255,.6), inset -3px -4px 6px rgba(0,0,0,.18)}
+.scratch .sc.on, .scratch .sc.spin{background:#FFFDF7}
+.scratch .sc.on{animation:scpop .3s cubic-bezier(.2,.9,.3,1.4)}
+.scratch .sc.spin{filter:blur(1.2px)}
+.scratch .sc.miss{box-shadow:inset 0 0 0 3px var(--red), inset -3px -4px 6px rgba(0,0,0,.12)}
+@keyframes scpop{from{transform:scale(.6)}to{transform:scale(1)}}
+/* the fake profit, on the board under the jackpot badge's place */
+.pfchip{position:absolute;left:50%;top:16px;z-index:3;transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:5px 14px 6px;border-radius:999px;background:#FFFDF7;color:var(--ink);font-size:12px;white-space:nowrap;
+  box-shadow:inset 2px 2px 1px #fff, inset -2px -3px 5px rgba(60,20,10,.12), 3px 4px 0 rgba(37,49,122,.28)}
+.pfchip[hidden]{display:none}
+.pfchip b{display:flex;flex-direction:column;line-height:1.1;font-weight:800}
+.pfchip small{font-family:var(--f-zh);font-size:10.5px;color:var(--ink-2)}
+.pfchip .pfv{font-family:var(--f-display);font-weight:900;font-size:19px;color:var(--green-t);font-variant-numeric:tabular-nums}
+.pfchip i{font-style:normal;font-weight:800;color:var(--green-t)}
+.pfchip.gone .pfv, .pfchip.gone i{color:var(--red-d)}
+/* CONTINUE? An arcade screen */
+.revive{max-width:380px;background:#1C1640;color:#FFFDF7;text-align:center;padding:22px 22px 24px;border:6px solid #FFE45C;border-radius:28px;animation:deal .32s cubic-bezier(.2,.9,.3,1.3)}
+.rv-eye{margin:0;font-family:var(--f-display);font-weight:900;letter-spacing:3px;font-size:14px;color:#FF7DB5}
+.revive h3{margin:6px 0 0;font-family:var(--f-display);font-weight:900;font-size:40px;line-height:1;color:#FFE45C;text-shadow:0 3px 0 #B42A6A}
+.revive h3 .zh{display:block;margin-top:6px;font-family:var(--f-zh);font-size:22px;color:#FFFDF7;text-shadow:none}
+.rv-count{font-family:var(--f-display);font-weight:900;font-size:96px;line-height:1;margin:10px 0 6px;font-variant-numeric:tabular-nums}
+.rv-count[hidden], .rv-actions[hidden], .rv-bar[hidden], .rv-lesson[hidden], .rv-sub[hidden]{display:none}
+.rv-count.beat{animation:beat .5s ease-out}
+@keyframes beat{0%{transform:scale(1.25);color:#FF7DB5}100%{transform:scale(1)}}
+.rv-sub{margin:0 0 14px;font-size:14px}
+.rv-sub .zl, .rv-lesson .zl{color:#D9D4F2}
+.rv-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.rv-bar{height:16px;border-radius:10px;background:rgba(255,255,255,.15);overflow:hidden;margin:18px 0 10px}
+.rv-bar i{display:block;height:100%;background:linear-gradient(90deg,#4CC36A,#FFE45C);transform-origin:left;transform:scaleX(0)}
+.revive.dead .rv-bar i{background:#F2463E}
+.rv-msg{min-height:1.4em;margin:0 0 6px;font-family:var(--f-display);font-weight:800;font-size:16px}
+.revive.dead .rv-msg{color:#FF9A90}
+.rv-lesson p{margin:6px 0 14px;font-size:14px;line-height:1.5}
+.revive:focus{outline:none}
+.offer:focus{outline:none}
+.glitch{animation:glitch .35s steps(2) 3}
+@keyframes glitch{0%,100%{transform:none;filter:none}
+  25%{transform:translate(-4px,2px);filter:drop-shadow(3px 0 0 rgba(255,0,80,.7)) drop-shadow(-3px 0 0 rgba(0,220,255,.7))}
+  50%{transform:translate(3px,-2px) skewX(-4deg)}
+  75%{transform:translate(-2px,1px);filter:drop-shadow(-3px 0 0 rgba(255,0,80,.7)) drop-shadow(3px 0 0 rgba(0,220,255,.7))}}
+.falls-note{margin:12px 0 0;font-size:12.5px;line-height:1.45;color:var(--ink-2)}
+.falls-note .zl{display:block;font-family:var(--f-zh)}
+@media (max-width: 420px){ .offer h3{font-size:22px} .scratch .sc{font-size:32px} .rv-count{font-size:72px} .revive h3{font-size:34px} }
+@media (prefers-reduced-motion: reduce){ .glitch, .rv-count.beat, .scratch .sc.on, .offer, .revive{animation:none} .scratch .sc.spin{filter:none} }
+@media (forced-colors: active){ .of-clock i, .rv-bar i{forced-color-adjust:none;background:CanvasText} .revive{border-color:CanvasText} }

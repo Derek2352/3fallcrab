@@ -121,7 +121,8 @@ function newState(){
     quiz:[null, null, null], camTop:-(H - 240), shake:0, splashes:[], dragX:null, steps:0, ledger:[], warned:false,
     mood:{type:"idle", until:0}, lastImpact:new Map(), grabs:[], leaves:[], habit:null, rec:null,
     said:new Set(), streak:0, wiseRun:0, afterCard:null, overKey:null, pb:0, items:0, realMs:0, endAt:0, prior:0, quizDone:false,
-    jpAt:-1, frenzyUntil:0, frenzySec:0, jpExtra:0, pops:[]};   // jackpot: when it appeared, end of jackpot time, extra it paid
+    jpAt:-1, frenzyUntil:0, frenzySec:0, jpExtra:0, pops:[],
+    troll:{investAt:0, ticketAt:0, invest:0, tickets:0, ticketSeen:0, revive:0, reviveSeen:0, scamSaid:0}, offer:null, pf:null, revive:null};   // jackpot: when it appeared, end of jackpot time, extra it paid
 }
 function makeEngine(){
   engine = Engine.create({enableSleeping:true});
@@ -672,6 +673,182 @@ function shock(){
   updateHUD();
 }
 
+// ---------- too good to be true ----------
+// Three moments that promise something, hurry the player, don't deliver, then explain (TROLLS in content.js): a
+// "guaranteed return" investment (a scam: its profit is never paid out), a lucky scratch card (always a near miss) and,
+// when the third item falls, a revive that never works. The first two cost real money in the game; saying no costs
+// nothing. The offers stop the game like a Life Event card, and a press in their first 0.45 s doesn't count (it was
+// meant for the falling item). With extra reading time (the card timer at 30 s) their countdowns are longer too.
+const TR = window.TFF_CONTENT.TROLLS;
+const INVEST = 3000, FEE = 1000, TICKET = 500, MAX_TICKETS = 5, PF_MS = 15000, REVIVE_MS = 10000;
+const OFFER_MS = {pitch: 6000, fee: 8000, ticket: 8000, again: 6000};
+const offerMs = step => (OFFER_MS[step] || 0) * (slowRead ? 2.5 : 1);
+const label = (b, [en, zh]) => { const z = document.createElement("span"); z.className = "zh"; z.lang = "zh-HK"; z.textContent = zh; b.replaceChildren(en, z); };
+function planTrolls(){   // when the two offers come: the investment at 50-110 s, the scratch card at 30-150 s, 20 s apart or more
+  const T = S.troll; T.investAt = 50000 + Math.random() * 60000; T.ticketAt = 30000 + Math.random() * 120000;
+  if (Math.abs(T.ticketAt - T.investAt) < 20000) T.ticketAt = T.investAt + (T.investAt < 120000 ? 25000 : -25000);
+}
+function charge(amount, zh, en){ S.score -= amount; ledger({zh, en}, -amount); updateHUD(); }
+// called from tick(): the portfolio's fake profit, and an offer when one is due and nothing else is going on (it waits
+// 8 s at a time for a card that's about to open, the jackpot, money to pay with; after 150 s it's dropped)
+function trollTick(){
+  if (S.pf && portfolioTick()) return true;
+  const T = S.troll;
+  if (S.play > GAME_MS - 15000) return false;
+  for (const [k, kind, need] of [["investAt", "invest", INVEST + 1000], ["ticketAt", "ticket", TICKET]]){
+    if (!T[k] || S.play < T[k]) continue;
+    if (S.score < need || S.pf || S.nextEvent - S.play < 6000 || frenzyOn() || !$("jpBan").hidden){ T[k] = S.play > 150000 ? 0 : S.play + 8000; continue; }
+    T[k] = 0; openOffer(kind); return true;
+  }
+  return false;
+}
+function portfolioTick(){   // +0 to +60% over 15 s of play, in steps of HK$300; then the "withdraw" pop-up
+  const p = S.pf, k = clamp((S.play - p.at) / PF_MS, 0, 1), gain = Math.floor(INVEST * 0.6 * k / 300) * 300;
+  if (gain !== p.gain){ p.gain = gain; $("pfVal").textContent = "+" + fmt(gain); $("pfPct").textContent = "▲" + Math.round(gain / INVEST * 100) + "%"; if (gain) A.sfx("profitTick"); }
+  $("pfChip").style.top = frenzyOn() ? "64px" : "";
+  if (k >= 1 && S.nextEvent - S.play > 3000 && !p.asked){ p.asked = true; openOffer("fee"); return true; }
+  return false;
+}
+function openOffer(kind){
+  S.mode = "offer"; softHeld = false; keys.left = keys.right = false; S.dragX = null;
+  S.offer = {kind, t: 0, stepAt: 0, step: "", limit: 0, sec: -1};
+  if (kind === "invest") S.troll.invest = Math.max(1, S.troll.invest);   // offered: declined unless they invest
+  if (kind === "ticket") S.troll.ticketSeen = 1;
+  A.sfx("offerPop"); A.mode("card");
+  const sh = $("offerSheet"); sh.className = "sheet offer " + (kind === "ticket" ? "lucky" : "ad");
+  offerStep(kind === "fee" ? "fee" : "pitch");
+  $("offerModal").hidden = false; modalOpen(true);
+  sh.style.animation = "none"; void sh.offsetWidth; sh.style.animation = "";
+  sh.focus({preventScroll: true});
+}
+// one screen of an offer: its words, buttons and countdown (0: none)
+function offerStep(step){
+  const o = S.offer, I = TR.invest, L = TR.ticket, T = S.troll;
+  o.step = step; o.stepAt = o.t; o.limit = offerMs(step === "pitch" && o.kind === "ticket" ? "ticket" : step); o.sec = -1; o.sc = 0;
+  const set = (title, pitch) => { $("offerTitle").textContent = title[0]; $("offerTitleZh").textContent = title[1]; $("offerPitch").replaceChildren(); if (pitch) bi($("offerPitch"), pitch[0], pitch[1]); };
+  const btns = (yes, no) => { const y = $("offerYes"), n = $("offerNo"); y.hidden = !yes; n.hidden = !no; y.disabled = false; if (yes) label(y, yes); if (no) label(n, no); };
+  $("offerTag").replaceChildren(); bi($("offerTag"), ...(o.kind === "ticket" ? L.tag : I.tag));
+  $("offerClock").hidden = !o.limit; $("offerNote").textContent = ""; $("scratch").hidden = o.kind !== "ticket" || step === "pitch" || step === "lesson";
+  $("offerSheet").classList.toggle("bust", step === "gone" || step === "lesson");
+  if (o.kind === "invest"){ set(I.title, I.pitch); btns(I.yes, I.no); }
+  else if (o.kind === "fee"){
+    const worth = fmt(INVEST + S.pf.gain), sub = s => s.replace("{n}", worth);
+    if (step === "fee"){ set(I.feeTitle.map(sub), I.fee); btns(I.feeYes, I.feeNo); if (S.score < FEE){ $("offerYes").disabled = true; $("offerNote").textContent = I.feeShort.join(" "); } }
+    else if (step === "wait"){ set(I.wait, null); btns(null, null); }
+    else {   // gone: the scam is a Fall, and the portfolio shows what it really was
+      set(I.goneTitle, I.gone); btns(I.ok, null); $("offerNote").textContent = I.lesson[0] + " " + I.lesson[1];
+      S.falls.scam++; T.scamSaid = 1; updateHUD(); A.sfx("scam");
+      $("pfChip").classList.add("gone"); $("pfVal").textContent = "−" + fmt(INVEST + (T.invest === 3 ? FEE : 0)); $("pfPct").textContent = "▼100%";
+    }
+  } else {
+    if (step === "pitch"){ set(L.title, L.pitch); btns(L.yes, L.no); }
+    else if (step === "scratch"){
+      set(L.title, null); btns(null, null); $("offerNote").textContent = L.scratching.join(" ");
+      for (const c of $("scratch").children){ c.textContent = ""; c.className = "sc"; }
+    } else if (step === "again"){
+      set(L.close, L.closeSub); btns(L.again, L.stop);
+      if (T.tickets >= MAX_TICKETS || S.score < TICKET){ $("offerYes").hidden = true; $("offerNote").textContent = T.tickets >= MAX_TICKETS ? L.shut.join(" ") : ""; o.limit = 0; $("offerClock").hidden = true; }
+    } else {   // lesson
+      set(L.lessonTitle, L.lesson.map(t => t.replace("{n}", fmt(T.tickets * TICKET)))); btns(L.ok, null);
+      if (T.tickets){ S.falls.spend++; updateHUD(); A.sfx("risky"); }
+    }
+  }
+  const one = $("offerNo").hidden;   // a single button: Enter, 1 or 2 all press it
+  $("offerHint").textContent = one ? "Press Enter to continue." : "Press 1 for the first button or 2 (or Esc) for the second" + (root.classList.contains("gamepad") ? "; on the controller, X or Y." : ".");
+  if (!$("offerModal").hidden){ const f = !$("offerYes").hidden && !$("offerYes").disabled ? $("offerSheet") : !$("offerNo").hidden ? $("offerNo") : $("offerSheet"); if (one && !$("offerYes").hidden) $("offerYes").focus({preventScroll: true}); else f.focus({preventScroll: true}); }
+}
+// yes: the first button (invest, pay, buy, got it); no: the second (no thanks, walk away, skip, stop), or the timer ran out
+function offerAnswer(yes, force){
+  const o = S.offer; if (!o || (!force && o.t - o.stepAt < 450)) return;
+  const T = S.troll, I = TR.invest, L = TR.ticket, step = o.kind + ":" + o.step;
+  if (step === "invest:pitch"){
+    if (yes){ charge(INVEST, "投資", "Investment"); T.invest = 2; S.pf = {at: S.play, gain: -1, asked: false};
+      $("pfChip").classList.remove("gone"); $("pfChip").hidden = false; portfolioTick(); quip("invested", 2); }
+    else { stamp(I.dodged[0], I.dodged[1], "good"); quip("investDodged", 2); }
+    closeOffer();
+  } else if (step === "fee:fee"){
+    if (yes){ if (S.score < FEE) return; charge(FEE, "手續費", "Release fee"); T.invest = 3; }
+    offerStep("wait");
+  } else if (step === "fee:gone"){ S.pf = null; $("pfChip").hidden = true; closeOffer(); }
+  else if (step === "ticket:pitch" || step === "ticket:again"){
+    if (yes){ if ($("offerYes").hidden || S.score < TICKET || T.tickets >= MAX_TICKETS) return; charge(TICKET, "刮刮卡", "Scratch card"); T.tickets++; offerStep("scratch"); }
+    else if (o.step === "pitch"){ stamp(L.dodged[0], L.dodged[1], "good"); quip("ticketDodged", 2); closeOffer(); }
+    else { quip("ticketStop", 2); offerStep("lesson"); }
+  } else if (step === "ticket:lesson") closeOffer();
+}
+function closeOffer(){
+  $("offerModal").hidden = true; S.offer = null; modalOpen(false);
+  if (S.mode === "offer"){ S.mode = "playing"; A.mode(musicMode()); }
+  $("board").focus({preventScroll: true});
+}
+// each frame while an offer is up: its countdown (the last 3 seconds tick), the pause before the scam is revealed, the
+// scratch card: two bags of money, then the third panel spins past one and stops on the crab. Always.
+const SC_SYM = ["💎", "🍀", "🦀", "💰"];
+function offerFrame(){
+  const o = S.offer, el = o.t - o.stepAt;
+  if (o.limit){
+    const left = o.limit - el;
+    $("offerBar").style.transform = "scaleX(" + clamp(left / o.limit, 0, 1).toFixed(3) + ")";
+    const sec = Math.max(0, Math.ceil(left / 1000));
+    if (sec !== o.sec){ o.sec = sec; $("offerSec").textContent = sec; if (sec <= 3 && sec > 0) A.sfx("cardTick", {n: sec}); }
+    if (left <= 0) offerAnswer(false, true);
+  } else if (o.step === "wait" && el >= 1400) offerStep("gone");
+  else if (o.step === "scratch"){
+    const c = $("scratch").children, show = (i, sym) => { c[i].textContent = sym; c[i].classList.add("on"); };
+    if (o.sc === 0 && el >= 250){ o.sc = 1; show(0, "💰"); A.sfx("scratch"); }
+    else if (o.sc === 1 && el >= 650){ o.sc = 2; show(1, "💰"); A.sfx("scratch"); }
+    else if (o.sc === 2 && el >= 750 && el < 1750){ if (!reduceMotion){ const i = Math.floor(el / 80); if (i !== o.spin){ o.spin = i; c[2].textContent = el > 1600 ? "💰" : SC_SYM[i % SC_SYM.length]; c[2].classList.add("spin"); } } }
+    else if (o.sc === 2 && el >= 1750){ o.sc = 3; c[2].classList.remove("spin"); show(2, "🦀"); c[2].classList.add("miss"); A.sfx("nearMiss"); $("offerNote").textContent = TR.ticket.close.join(" "); }
+    else if (o.sc === 3 && el >= 2300) offerStep("again");
+  }
+}
+// The revive: a 10 s CONTINUE? screen after the third drop. Pressing it fills a bar to 99%, then it glitches: there is
+// no take two. Then the statement, as always.
+function openRevive(){
+  if (!S || S.mode !== "over" || S.over !== "drops") return showEnd();
+  const R = TR.revive;
+  S.revive = {t: 0, phase: "ask", sec: -1, at: 0}; S.troll.reviveSeen = 1;
+  $("rvTitle").textContent = R.title[0]; const z = document.createElement("span"); z.className = "zh"; z.lang = "zh-HK"; z.textContent = R.title[1]; $("rvTitle").appendChild(z);
+  $("rvSub").replaceChildren(); bi($("rvSub"), R.sub[0], R.sub[1]);
+  label($("rvYes"), ["❤ " + R.yes[0], R.yes[1]]); label($("rvNo"), R.no); label($("rvGo"), R.go);
+  $("rvActions").hidden = false; $("rvCount").hidden = false; $("rvBarBox").hidden = true; $("rvLesson").hidden = true; $("rvMsg").textContent = "";
+  $("rvBar").style.transform = "scaleX(0)"; $("rvSheet").classList.remove("glitch", "dead"); $("rvSub").hidden = false;
+  $("reviveModal").hidden = false; modalOpen(true); $("rvYes").focus({preventScroll: true});
+}
+function reviveFrame(dt){
+  const r = S.revive; r.t += dt;
+  const limit = REVIVE_MS * (slowRead ? 2 : 1);
+  if (r.phase === "ask"){
+    const sec = Math.max(0, Math.ceil((limit - r.t) / 1000));
+    if (sec !== r.sec){ r.sec = sec; $("rvCount").textContent = sec; if (sec > 0){ A.sfx("heartbeat"); const c = $("rvCount"); c.classList.remove("beat"); void c.offsetWidth; c.classList.add("beat"); } }
+    if (r.t >= limit) reviveAnswer(false, true);
+  } else if (r.phase === "busy"){
+    const k = Math.min(0.99, (r.t - r.at) / 2500);
+    $("rvBar").style.transform = "scaleX(" + k.toFixed(3) + ")"; $("rvMsg").textContent = TR.revive.busy[0] + " " + Math.round(k * 100) + "% " + TR.revive.busy[1];
+    if (r.t - r.at >= 2900){
+      r.phase = "fail"; r.at = r.t; $("rvSheet").classList.add("glitch", "dead"); if (!reduceMotion) $("boardWrap").classList.add("glitch");
+      $("rvMsg").textContent = TR.revive.fail.join(" "); A.sfx("reviveFail"); mood("cover", 4000);
+    }
+  } else if (r.phase === "fail" && r.t - r.at >= 1200){
+    r.phase = "lesson"; $("boardWrap").classList.remove("glitch"); $("rvSheet").classList.remove("glitch");
+    $("rvLessonText").replaceChildren(); bi($("rvLessonText"), TR.revive.lesson[0], TR.revive.lesson[1]);
+    $("rvLesson").hidden = false; $("rvGo").focus({preventScroll: true});
+  }
+}
+function reviveAnswer(yes, force){
+  const r = S.revive; if (!r || r.phase !== "ask" || (!force && r.t < 600)) return;   // a key mashed as the third item fell
+  if (!yes){ closeRevive(); if (!force) quip("reviveGiveUp", 3); showEnd(); return; }
+  S.troll.revive = 1; r.phase = "busy"; r.at = r.t;
+  $("rvActions").hidden = true; $("rvCount").hidden = true; $("rvSub").hidden = true; $("rvBarBox").hidden = false;
+  mood("happy", 3000); A.sfx("vineGet"); $("rvSheet").focus({preventScroll: true});
+}
+function closeRevive(){ $("reviveModal").hidden = true; S.revive = null; $("boardWrap").classList.remove("glitch"); }
+$("offerYes").addEventListener("click", () => offerAnswer(true));
+$("offerNo").addEventListener("click", () => offerAnswer(false));
+$("rvYes").addEventListener("click", () => reviveAnswer(true));
+$("rvNo").addEventListener("click", () => reviveAnswer(false));
+$("rvGo").addEventListener("click", () => { if (!S.revive || S.revive.phase !== "lesson") return; closeRevive(); showEnd(); });
+
 // ---------- jackpot ----------
 // The Jackpot crab's moment: money rains over the whole screen (a canvas laid over the page), a banner pops up on the
 // board, the windfall goes in, and jackpot time starts: every item and floor pays FRENZY_X for FRENZY_MS of play (a card
@@ -863,6 +1040,7 @@ function startGame(){
   S = newState(); makeEngine(); S.mode = "playing"; frenzyUI(); $("jpBan").hidden = true;
   if (firstQueue){ S.queue = firstQueue; S.lastId = firstQueue[2].id; S.jackpot = firstQueue.some(d => d.jackpot); firstQueue = null; }
   $("startOv").hidden = true; $("pauseOv").hidden = true; $("endModal").hidden = true; $("cardModal").hidden = true; $("seeOv").hidden = true; modalOpen(false);
+  $("offerModal").hidden = true; $("reviveModal").hidden = true; $("pfChip").hidden = true; $("boardWrap").classList.remove("glitch"); planTrolls();
   A.stage(0); A.mode("normal"); A.start();
   renderLedger();
   crab("Steer each item into place, then let go. Flat things stack; round things roll.", "搵好位置先放手。扁嘅易疊，圓嘅會碌。");
@@ -876,13 +1054,16 @@ function endGame(reason){
   if (S.frenzyUntil){ S.frenzyUntil = 0; frenzyUI(); }   // jackpot time ends with the game
   if (S.active){ S.active.tff.released = true; S.active = null; }
   $("cardModal").hidden = true; S.card = null;
+  if (S.offer){ $("offerModal").hidden = true; S.offer = null; modalOpen(false); }
+  if (S.pf){ $("pfChip").hidden = true; S.pf = null; }
+  if (S.troll.invest >= 2 && !S.troll.scamSaid){ S.troll.scamSaid = 1; S.falls.scam++; }   // the game ended before the scam showed itself
   A.mode("over"); setPauseUI();
   A.sfx(reason === "drops" ? "gameOver" : (S.stage === STAGES.length - 1 ? "win" : "timeUp"));
   mood(reason === "drops" ? "cover" : "happy", 4000);
   S.overKey = reason === "drops" ? "overDrops" : "over" + S.stage; quip(S.overKey, 3);
   if (S.score > lsGet("tff_pb", 0)) lsSet("tff_pb", Math.round(S.score));
   updateHUD();
-  setTimeout(showEnd, reason === "drops" ? 1200 : 700);
+  setTimeout(reason === "drops" ? openRevive : showEnd, reason === "drops" ? 1000 : 700);   // the third drop: a revive is offered first
 }
 function modalOpen(on){ const set = document.querySelector(".set"); if (set) set.inert = !!on; }
 function setPauseUI(){ const pb = $("pauseBtn"); const live = S && (S.mode === "playing" || S.mode === "paused"); pb.disabled = !live; document.documentElement.classList.toggle("ingame", !!live); const p = !!(S && S.mode === "paused"); pb.setAttribute("aria-pressed", String(p)); }   // the label stays "Pause game": pressed = paused
@@ -948,6 +1129,21 @@ document.addEventListener("keydown", e => {
   const k = e.key;
   if (k === "m" || k === "M"){ toggleMute(); e.preventDefault(); return; }
   if ((k === "f" || k === "F") && !e.ctrlKey && !e.metaKey && !e.altKey){ toggleFs(); e.preventDefault(); return; }
+  if (S.revive){   // 1 revives, 2 or Esc gives up; Space or Enter mashed as the third item fell does nothing
+    if (S.revive.phase === "ask"){
+      if (k === "1"){ reviveAnswer(true); e.preventDefault(); }
+      else if (k === "2" || k === "Escape"){ reviveAnswer(false); e.preventDefault(); }
+      else if ((k === " " || k === "Enter") && S.revive.t < 600) e.preventDefault();
+    } else if (S.revive.phase === "lesson" && (k === "Escape" || k === "1" || k === "2")){ $("rvGo").click(); e.preventDefault(); }
+    return;
+  }
+  if (S.mode === "offer" && S.offer){   // 1: the first button, 2 or Esc: the second; Space or Enter only on a button in focus
+    const onBtn = !!(e.target && e.target.closest && e.target.closest("#offerModal button"));
+    if (k === "1"){ offerAnswer(true); e.preventDefault(); }
+    else if (k === "2" || k === "Escape"){ offerAnswer($("offerNo").hidden); e.preventDefault(); }
+    else if ((k === " " || k === "Enter") && (!onBtn || S.offer.t - S.offer.stepAt < 450)) e.preventDefault();
+    return;
+  }
   if (S.mode === "card" && S.card){
     if (!S.card.flip && (k === " " || k === "Enter") && !(e.target && e.target.classList && e.target.classList.contains("choice"))){ e.preventDefault(); return; }
     if (!S.card.flip && ["1","2","a","b","A","B"].includes(k)){
@@ -1036,6 +1232,17 @@ function pollPad(now){
     if (nav) padMove($("endModal"), nav);
     if (hit("a") && performance.now() - endShownAt > 900) padPress($("endModal"));
     if (hit("b")) $("closeEnd").click(); else if (hit("start")) startGame();
+    return;
+  }
+  if (S.revive){
+    const r = S.revive;
+    if (r.phase === "ask"){ if (hit("x")) reviveAnswer(true); else if (hit("y") || hit("b")) reviveAnswer(false); else { if (nav) padMove($("reviveModal"), nav); if (hit("a")) padPress($("reviveModal")); } }
+    else if (r.phase === "lesson" && (hit("a") || hit("b") || hit("start"))) $("rvGo").click();
+    return;
+  }
+  if (S.mode === "offer" && S.offer){
+    if (hit("x")) offerAnswer(true); else if (hit("y") || hit("b")) offerAnswer($("offerNo").hidden);
+    else { if (nav) padMove($("offerModal"), nav); if (hit("a") && !padPress($("offerModal")) && $("offerNo").hidden) offerAnswer(true); }
     return;
   }
   if (S.mode === "card" && S.card){
@@ -1928,7 +2135,7 @@ function frameBody(now){
   const raw = now - last, dt = Math.min(50, raw); last = now;
   if (GP.on) pollPad(now);
   if (S){
-    const side = SIDEWAYS.matches && (S.mode === "playing" || S.mode === "paused" || S.mode === "card");
+    const side = SIDEWAYS.matches && (S.mode === "playing" || S.mode === "paused" || S.mode === "card" || S.mode === "offer");
     if (side !== sideways){ sideways = side; $("turnOv").hidden = !side; if (side && S.mode === "playing") togglePause(); }
     let live = false;
     if (S.mode === "card" && S.card){
@@ -1939,9 +2146,11 @@ function frameBody(now){
         const sec = Math.ceil(left / 1000); if (sec <= 3 && sec < S.card.lastTick && sec > 0){ S.card.lastTick = sec; A.sfx("cardTick"); }
         if (S.card.t >= cardMs()) choose("none");
       } else if (!slowRead && S.card.t - S.card.flipAt > RESULT_MS) closeCard();
-    } else if (S.mode === "playing"){ S.realMs += Math.min(1000, raw); tick(dt); live = true; }   // real time played (a slow device plays in slow motion)
+    } else if (S.mode === "offer" && S.offer){ if (!sideways) S.offer.t += dt; offerFrame(); }
+    else if (S.mode === "playing"){ S.realMs += Math.min(1000, raw); tick(dt); live = true; }   // real time played (a slow device plays in slow motion)
     else if (S.mode === "over" || (S.mode === "idle" && S.viewing)){
       S.acc += dt; let n = 0; while (S.acc >= STEP && n++ < 3){ S.acc -= STEP; snap(); worldStep(); }
+      if (S.revive) reviveFrame(dt);
       // an item knocked off at the end sinks out of sight behind the harbour: dropped, so a settled tower can rest
       for (const b of engine.world.bodies.slice()) if (b.tff && b.position.y > WATER_Y + 40) Composite.remove(engine.world, b);
       live = S.mode !== "over" || $("endModal").hidden || awake();   // under the statement, a settled tower stays as drawn
@@ -1960,6 +2169,7 @@ function tick(dt){
   if (S.frenzyUntil) frenzyTick();
   if (S.active && S.play >= S.nextEvent){ openCard(); return; }
   if (!S.plan && S.play >= S.nextEvent - 4000) S.plan = planCard();
+  if (S.active && trollTick()) return;
   if (S.active && S.shocks.length && S.play >= S.shocks[0]){ S.shocks.shift(); shock(); }
   if (!S.active && S.spawnAt && S.play >= S.spawnAt){ S.spawnAt = 0; if (S.scamLock > 0) S.scamLock--; nextPiece(); }
   S.acc += dt; let n = 0;
@@ -2001,6 +2211,19 @@ function showEnd(){
     const z = document.createElement("small"); z.textContent = dodged.length === 3 ? "三大陷阱全部避開" : "避開咗：" + dodged.map(([k]) => TRAPS[k].zh).join("、"); m.appendChild(z);
     li.append(svgUse("i-good"), m); fr.appendChild(li);
   }
+  // the "too good to be true" moments this game had, and what each one cost
+  const T = S.troll, RP = TR.report, tr = $("trollRep"); tr.replaceChildren();
+  const trow = (icon, bg, [en, zh, sub], val, bad, vars) => {
+    const li = document.createElement("li"); const ic = svgUse(icon); ic.style.background = bg; ic.style.borderRadius = "8px"; ic.style.padding = "2px";
+    const m = document.createElement("span"); m.textContent = en + " " + zh; const sm = document.createElement("small"); sm.textContent = sub.replace(/\{n\}/g, vars.n || "").replace(/\{k\}/g, vars.k || ""); m.appendChild(sm);
+    const c = document.createElement("span"); c.className = "fc"; c.textContent = val; c.style.color = bad ? "var(--red-d)" : "var(--green-t)";
+    li.append(ic, m, c); tr.appendChild(li);
+  };
+  if (T.reviveSeen) trow("i-drop", "#fff", T.revive ? RP.revive : RP.gaveUp, T.revive ? "✗" : "✓", T.revive, {});
+  if (T.invest){ const lost = T.invest >= 2 ? INVEST + (T.invest === 3 ? FEE : 0) : 0;
+    trow("i-scam", "var(--purple)", lost ? RP.investLost : RP.investDodged, lost ? "−" + fmt(lost) : "✓", lost, {n: fmt(lost)}); }
+  if (T.ticketSeen) trow("i-spend", "var(--orange)", T.tickets ? RP.tickets : RP.ticketDodged, T.tickets ? "−" + fmt(T.tickets * TICKET) : "✓", T.tickets, {n: fmt(T.tickets * TICKET), k: T.tickets});
+  $("trollSec").hidden = !tr.children.length;
   // Quiz: each answer is marked right or wrong the moment it's tapped, with the reason, and then locked.
   const qz = $("quiz"); qz.replaceChildren(); S.quiz = QUIZ.map(() => null);
   const quizScore = () => { $("quizScore").textContent = S.quiz.filter(x => x && x.ok).length + "/" + QUIZ.length; };
@@ -2126,7 +2349,8 @@ function recordBody(st){
     wise: st.wise, risky: st.risky, missed: st.missed, falls: {...st.falls}, choices: st.choices.slice(0, 20), ended: st.over,
     answers: answersOf(st), habit: st.habit || null,
     items: st.items, real_ms: Math.round(st.realMs), at: st.endAt || undefined, prior: st.prior,   // checked by the server; at buckets a late retry
-    jackpot: st.jpAt >= 0 ? 1 : 0};   // its windfall and jackpot time raise the server's score limit
+    jackpot: st.jpAt >= 0 ? 1 : 0,   // its windfall and jackpot time raise the server's score limit
+    troll_revive: st.troll.reviveSeen ? st.troll.revive : null, troll_invest: st.troll.invest, troll_tickets: st.troll.ticketSeen ? st.troll.tickets : null};
 }
 // Saves go out one at a time; each sends the latest state, and only if it changed since the last one.
 function saveRecord(st, opts = {}){

@@ -104,6 +104,9 @@ export const ADDED = [
   ["real_ms", "INTEGER"], // real time spent playing, in ms (newer game pages): far above 180000 = a slowed-down game
   ["quiz_prior", "INTEGER"], // quizzes this device had finished before this game (newer game pages): 0 = a first attempt
   ["jackpot", "INTEGER"], // 1 = the Jackpot crab came up, with its windfall and jackpot time (newer game pages)
+  ["troll_revive", "INTEGER"], // null = the fake revive was never offered (not a 3-drops ending), 0 = offered, declined, 1 = pressed Revive (newer game pages)
+  ["troll_invest", "INTEGER"], // 0 = no investment pop-up, 1 = declined, 2 = invested HK$3,000 (the scam), 3 = also paid the HK$1,000 fee (newer game pages)
+  ["troll_tickets", "INTEGER"], // null = no scratch-card offer, else 0..5 = how many HK$500 scratch cards were bought (newer game pages)
 ];
 const SCHEMA_2 = [
   `CREATE UNIQUE INDEX IF NOT EXISTS idx_scores_gid ON scores (gid)`,
@@ -453,6 +456,10 @@ async function post(request, env, db) {
     real_ms: Number.isFinite(Number(b.real_ms)) && b.real_ms !== null ? int(b.real_ms, 0, 3600000) : null,
     quiz_prior: Number.isInteger(b.prior) && b.prior >= 0 ? Math.min(99, b.prior) : null,
     jackpot: b.jackpot === 1 || b.jackpot === true ? 1 : b.jackpot === 0 || b.jackpot === false ? 0 : null,
+    // the three "too good to be true" moments only ever lower the score, so implausible() does not look at them
+    troll_revive: Number.isInteger(b.troll_revive) && b.troll_revive >= 0 && b.troll_revive <= 1 ? b.troll_revive : null,
+    troll_invest: Number.isInteger(b.troll_invest) && b.troll_invest >= 0 && b.troll_invest <= 3 ? b.troll_invest : null,
+    troll_tickets: Number.isInteger(b.troll_tickets) && b.troll_tickets >= 0 && b.troll_tickets <= 5 ? b.troll_tickets : null,
     ip_hash: null,
   };
   if (implausible(values, counts.wise, items)) return fail("implausible", 422);
@@ -531,7 +538,7 @@ async function authorised(request, env) {
   return diff === 0;
 }
 
-const ADMIN_COLS = "id, name, email, posted, score, stage, height, drops, wise, risky, missed, fall_spend, fall_scam, fall_delay, choices, habit, quiz, quiz_answered, quiz_answers, ended, week, month, created_at, updated_at, hidden, items, real_ms, quiz_prior, jackpot";
+const ADMIN_COLS = "id, name, email, posted, score, stage, height, drops, wise, risky, missed, fall_spend, fall_scam, fall_delay, choices, habit, quiz, quiz_answered, quiz_answers, ended, week, month, created_at, updated_at, hidden, items, real_ms, quiz_prior, jackpot, troll_revive, troll_invest, troll_tickets";
 
 // ?week=2026-W41 or ?month=2026-10 narrows a view; neither means every game.
 function period(url) {
@@ -673,7 +680,7 @@ async function admin(path, request, env, db) {
     const asked = period(url), p = asked.key ? asked : { type: "week", key: current.week, where: "week = ?1" };
     const limit = int(url.searchParams.get("limit") || 20, 1, 100);
     const { results } = await db
-      .prepare(`SELECT id, name, email, score, height, stage, created_at, week, month, drops, wise, ended, items, real_ms, jackpot FROM scores
+      .prepare(`SELECT id, name, email, score, height, stage, created_at, week, month, drops, wise, ended, items, real_ms, jackpot, troll_revive, troll_invest, troll_tickets FROM scores
         WHERE posted = 1 AND hidden = 0 AND ${p.where} ORDER BY score DESC, id ASC LIMIT ?2`)
       .bind(p.key, limit)
       .all();

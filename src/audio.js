@@ -551,6 +551,32 @@
       noiseHit(v, t + 0.34, 0.001, 0.45, 0.05, "lowpass", 700, 0.7);
       var c = tone(v, "sine", 140, t + 0.34, 0.002, 0.4, 0.07); c.o.frequency.exponentialRampToValueAtTime(70, t + 0.4);
       bell(v, t + 0.38, mtof(K(v.r, 98)), 0.3, 0.35);
+    },
+    // ---- "too good to be true" offers and the revive that never works
+    offerPop: function (v, t) {                            // a phone notification: ding-dong and a glint
+      bell(v, t, mtof(K(v.r, 88)), 0.32, 0.5);
+      bell(v, t + 0.12, mtof(K(v.r, 95)), 0.3, 0.6);
+      noiseHit(v, t, 0.002, 0.2, 0.05, "highpass", 6000, 0.7);
+    },
+    profitTick: function (v, t) {                          // the fake profit ticks up: one bright coin
+      coinTing(v, t, mtof(K(v.r, 93)), (v.r.rand() - 0.5) * 20, 0.1, 0.25);
+    },
+    scratch: function (v, t) {                             // a coin scratching a ticket
+      for (var i = 0; i < 4; i++) noiseHit(v, t + i * 0.055, 0.004, 0.35, 0.04, "bandpass", 2500 + v.r.rand() * 1500, 1.2);
+    },
+    nearMiss: function (v, t) {                            // the last reel clunks to a stop, then "aww"
+      noiseHit(v, t, 0.001, 0.6, 0.05, "lowpass", 900, 0.8);
+      tone(v, "square", 220, t, 0.001, 0.15, 0.06);
+      wahNote(v, 64, t + 0.12, 0.22, 0.32);
+      wahNote(v, 60, t + 0.36, 0.42, 0.34, 0.92);
+    },
+    heartbeat: function (v, t) {                           // lub-dub, for the revive countdown
+      var a = tone(v, "sine", 70, t, 0.004, 0.9, 0.12); a.o.frequency.exponentialRampToValueAtTime(45, t + 0.1);
+      var b = tone(v, "sine", 62, t + 0.16, 0.004, 0.7, 0.14); b.o.frequency.exponentialRampToValueAtTime(40, t + 0.28);
+    },
+    reviveFail: function (v, t) {                          // the glitch, then everything powers down
+      SFX.scam(v, t);
+      var z = tone(v, "sawtooth", 440, t + 0.3, 0.01, 0.25, 0.9); z.o.frequency.exponentialRampToValueAtTime(40, t + 1.1);
     }
   };
   // per-sound output trim (calibrated by out/audiotest.js measurements)
@@ -558,11 +584,12 @@
     click: 0.7, spawn: 0.7, move: 1.35, rotate: 0.7, hold: 0.75, release: 0.7, harddrop: 0.85, deposit: 0.7,
     floor: 0.8, stage: 0.95, splash: 0.85, cardOpen: 0.8, cardTick: 0.75, wise: 0.9, risky: 0.5, stamp: 0.9,
     debt: 0.8, scam: 0.45, quake: 1.0, shield: 0.9, timeWarn: 0.75, timeUp: 0.9, gameOver: 0.52, win: 1.0, post: 0.85,
-    vine: 0.85, vineGet: 0.8, jackpot: 1.0, frenzyTick: 1.0, frenzyEnd: 0.8
+    vine: 0.85, vineGet: 0.8, jackpot: 1.0, frenzyTick: 1.0, frenzyEnd: 0.8,
+    offerPop: 0.8, profitTick: 0.7, scratch: 0.7, nearMiss: 0.55, heartbeat: 1.0, reviveFail: 0.6
   };
   var THROTTLE = { move: 0.055, rotate: 0.05, click: 0.035, deposit: 0.045, spawn: 0.08, cardTick: 0.15, splash: 0.08,
                    hold: 0.06, release: 0.05, harddrop: 0.08, stamp: 0.08, cardOpen: 0.1, vine: 0.06, vineGet: 0.3,
-                   jackpot: 1.5, frenzyTick: 0.3, frenzyEnd: 0.5 };
+                   jackpot: 1.5, frenzyTick: 0.3, frenzyEnd: 0.5, profitTick: 0.08, scratch: 0.1, heartbeat: 0.3 };
   var LOW_PRIORITY = { move: 1, click: 1, spawn: 1, rotate: 1, hold: 1, release: 1, deposit: 1, cardTick: 1 };
 
   // ------------------------------------------------------------------ impacts
