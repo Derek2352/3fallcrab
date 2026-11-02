@@ -2344,7 +2344,7 @@ function showEnd(){
   $("email").value = ""; emailError(false); $("email").closest(".fld").hidden = $("emailNote").closest(".email-note").hidden = !live;   // never kept on the device
   $("postBtn").disabled = false; postLabel("Post score", "上榜");
   const ps = $("postStatus"); ps.className = "post-status";
-  ps.textContent = live ? "Only your nickname and score go on the board. 排行榜只顯示暱稱同分數。" : "Your score will be saved on this device. 分數會存喺呢部機。";
+  ps.textContent = live ? "Only your nickname and score will appear on the leaderboard. 排行榜只會顯示你的暱稱及分數。" : "Your score will be saved on this device only. 分數只會儲存在這部裝置。";
   $("endModal").hidden = false; $("stScroll").scrollTop = 0; endScroll = 0;
   endShownAt = performance.now(); modalOpen(true);
   $("endTitle").focus({preventScroll:true});
