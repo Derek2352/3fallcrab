@@ -1120,7 +1120,9 @@ function rainFrame(now){
 
 // ---------- flow ----------
 function startGame(){
-  A.unlock();
+  A.unlock(); closeInfo();
+  if (root.classList.contains("title")){ played = true; root.classList.remove("title"); enterBrowserFs(); lastFit = ""; resize(); }
+  played = true;
   flushRecord(S);   // the last game's quiz answers or habit may still be waiting to be saved
   S = newState(); makeEngine(); S.mode = "playing"; frenzyUI(); $("jpBan").hidden = true;
   if (firstQueue){ S.queue = firstQueue; S.lastId = firstQueue[2].id; S.jackpot = firstQueue.some(d => d.jackpot); firstQueue = null; }
@@ -1170,7 +1172,7 @@ function act(a){
   else if (a === "hold") doHold();
   if (S.active && a.startsWith("rot")) wantSprite(S.active.tff.def, qOf(S.targetAngle), 0);   // the turn it's heading for
 }
-function setMuteUI(){ const m = A.muted(); $("muteBtn").setAttribute("aria-pressed", String(m)); }
+function setMuteUI(){ const m = String(A.muted()); $("muteBtn").setAttribute("aria-pressed", m); $("tsMute").setAttribute("aria-pressed", m); }
 function toggleMute(){ A.unlock(); A.toggle(); setMuteUI(); }
 // ---------- full screen play ----------
 // One tap (the ⛶ button, Full screen on the start card, or F) for just the game: the browser goes full screen where
@@ -1179,32 +1181,42 @@ function toggleMute(){ A.unlock(); A.toggle(); setMuteUI(); }
 const root = document.documentElement;
 const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement || null;
 const fsApi = !!(root.requestFullscreen || root.webkitRequestFullscreen);
-let fsOn = false;
+// Full screen is the default (the page opens in it); ⛶ switches to the page view and back, and that choice is
+// remembered. Before the first game, full screen is a title screen (the "title" class): the scene covers the screen
+// and the start card becomes a logo, a prize sign, a big Start button and a few pills.
+let fsOn = false, played = false;
 function setFs(on){
-  fsOn = on; root.classList.toggle("fs", on);
+  fsOn = on; root.classList.toggle("fs", on); root.classList.toggle("title", on && !played); needDraw = true;
   const b = $("fsBtn"); b.setAttribute("aria-pressed", String(on));
   lastFit = ""; resize();
   if (on) window.scrollTo(0, 0);
 }
-function toggleFs(want = !fsOn){
-  if (want === fsOn && !!fsEl() === (want && fsApi)) return;
-  setFs(want);
+function enterBrowserFs(){   // the browser's own full screen (needs a tap or a key); a phone is held upright
+  if (!fsApi || fsEl()) return;
   try {
-    if (want && fsApi && !fsEl()){
-      const p = root.requestFullscreen ? root.requestFullscreen({navigationUI: "hide"}) : root.webkitRequestFullscreen();
-      Promise.resolve(p).then(() => {
-        if (Math.min(screen.width, screen.height) < 600 && screen.orientation && screen.orientation.lock) screen.orientation.lock("portrait").catch(() => {});
-      }, () => {});   // refused: the page-only full screen stays
-    } else if (!want && fsEl()) Promise.resolve(document.exitFullscreen ? document.exitFullscreen() : document.webkitExitFullscreen()).catch(() => {});
+    const p = root.requestFullscreen ? root.requestFullscreen({navigationUI: "hide"}) : root.webkitRequestFullscreen();
+    Promise.resolve(p).then(() => {
+      if (Math.min(screen.width, screen.height) < 600 && screen.orientation && screen.orientation.lock) screen.orientation.lock("portrait").catch(() => {});
+    }, () => {});   // refused: the page's own full screen stays
   } catch(e){}
 }
-for (const ev of ["fullscreenchange", "webkitfullscreenchange"]) document.addEventListener(ev, () => {
-  if (!fsEl() && fsOn) setFs(false);   // left with Esc or the phone's back gesture
-  else { lastFit = ""; resize(); }     // the screen size changed: fit the board now
-});
+function toggleFs(want = !fsOn){
+  if (want === fsOn && !!fsEl() === (want && fsApi)) return;
+  lsSet("tff_fs", want);
+  setFs(want);
+  if (want) enterBrowserFs();
+  else if (fsEl()) try { Promise.resolve(document.exitFullscreen ? document.exitFullscreen() : document.webkitExitFullscreen()).catch(() => {}); } catch(e){}
+}
+// leaving the browser's full screen (Esc, the phone's back gesture) only brings its bars back: the layout stays
+for (const ev of ["fullscreenchange", "webkitfullscreenchange"]) document.addEventListener(ev, () => { lastFit = ""; resize(); });
 let endShownAt = 0;
 document.addEventListener("keydown", e => {
   if (!S) return;
+  if (!$("infoModal").hidden){   // a sheet over the title: Esc closes it; Space and Enter only press its own buttons
+    if (e.key === "Escape"){ closeInfo(); e.preventDefault(); }
+    else if ((e.key === " " || e.key === "Enter") && !(e.target && e.target.closest && e.target.closest("button, a, input, label, [role=tab]"))) e.preventDefault();
+    return;
+  }
   if (!$("endModal").hidden){
     if ((e.key === " " || e.key === "Enter") && performance.now() - endShownAt < 900){ e.preventDefault(); return; }
     if (e.key === "Escape"){ $("closeEnd").click(); e.preventDefault(); return; }
@@ -1273,6 +1285,32 @@ $("pad").querySelectorAll("button").forEach(b => {
   b.addEventListener("pointerup", up); b.addEventListener("pointerleave", up); b.addEventListener("pointercancel", up);
   b.addEventListener("contextmenu", e => e.preventDefault());
 });
+// ---------- the title screen's sheets ----------
+// Leaderboard, How to play and Privacy open in a sheet over the title: the page's own sections are moved into it (so
+// they work as they do on the page) and put back when it closes.
+const INFO = {lb: {t: ["Leaderboard", "排行榜"], q: [".lbx"]}, how: {t: ["How to play", "玩法"], q: [".howto", ".falls"]}, priv: {t: ["Privacy", "私隱聲明"], q: [".foot"]}};
+let infoOpen = null;
+function openInfo(kind, from){
+  closeInfo();
+  const k = INFO[kind], body = $("infoBody");
+  infoOpen = {from, moved: k.q.map(sel => { const el = document.querySelector(sel), mark = document.createComment(sel); el.before(mark); body.appendChild(el); return [el, mark]; })};
+  const t = $("infoTitle"), z = document.createElement("span"); z.className = "zh"; z.lang = "zh-HK"; z.textContent = k.t[1]; t.replaceChildren(k.t[0], z);
+  $("infoModal").hidden = false; modalOpen(true); body.scrollTop = 0; $("infoClose").focus({preventScroll: true});
+  if (kind === "lb") refreshLB(true);
+}
+function closeInfo(){
+  if (!infoOpen) return;
+  for (const [el, mark] of infoOpen.moved) mark.replaceWith(el);
+  const from = infoOpen.from; infoOpen = null;
+  $("infoModal").hidden = true; modalOpen(false);
+  if (from && !from.closest("[hidden]")) from.focus({preventScroll: true});
+}
+$("infoClose").addEventListener("click", closeInfo);
+$("infoModal").addEventListener("click", e => { if (e.target === e.currentTarget) closeInfo(); });
+for (const [id, kind] of [["tsLb", "lb"], ["tsHow", "how"], ["tsPriv", "priv"]]) $(id).addEventListener("click", e => openInfo(kind, e.currentTarget));
+$("tsMute").addEventListener("click", toggleMute);
+$("tsFs").addEventListener("click", () => toggleFs(false));
+
 // ---------- game controller ----------
 // Any standard pad (Xbox, PlayStation, Switch Pro and most others). In play: the D-pad or left stick moves, down (or
 // RT) falls faster, A drops, B, Y or up turns, X holds, LB / RB fine-turn, Start pauses, Select (View) mutes. On a
@@ -1317,6 +1355,11 @@ function pollPad(now){
     if (nav) padMove($("endModal"), nav);
     if (hit("a") && performance.now() - endShownAt > 900) padPress($("endModal"));
     if (hit("b")) $("closeEnd").click(); else if (hit("start")) startGame();
+    return;
+  }
+  if (!$("infoModal").hidden){
+    if (hit("b") || hit("start")) closeInfo();
+    else { if (nav) padMove($("infoModal"), nav); if (hit("a")) padPress($("infoModal")); }
     return;
   }
   if (S.revive){
@@ -1629,7 +1672,7 @@ function buildLayers(soft, only){
 }
 function drawCrabs(){   // logo + panel crabs, at the size they show (full screen play zooms them)
   const dpr = Math.min(3, window.devicePixelRatio || 1);
-  for (const [id, m] of [["crabLogo", "happy"], ["crabSay", "idle"]]){
+  for (const [id, m] of [["crabLogo", "happy"], ["crabSay", "idle"], ["crabSplash", "happy"]]){
     const c = $(id), r = c.getBoundingClientRect();
     if (r.width){ const w = Math.max(40, Math.round(r.width * dpr)); if (c.width !== w){ c.width = w; c.height = Math.round(w * r.height / r.width); } }
     const g = c.getContext("2d"); g.setTransform(1,0,0,1,0,0); g.clearRect(0, 0, c.width, c.height);
@@ -1644,7 +1687,7 @@ const PREVIEWS = ["nextCv", "holdCv", "next2Cv", "hudNext", "hudHold"];
 let lastFit = "";
 function resize(){
   const narrow = matchMedia("(max-width: 899px)").matches, touch = matchMedia("(pointer: coarse)").matches;
-  const wide = fsOn && !narrow;
+  const wide = fsOn && !narrow, title = fsOn && root.classList.contains("title");
   if (root.classList.contains("wide") !== wide) root.classList.toggle("wide", wide);
   const padOn = getComputedStyle($("pad")).display !== "none";
   const header = document.querySelector(".mast").offsetHeight;
@@ -1653,7 +1696,8 @@ function resize(){
   // every picture mid-game.
   const vh = (narrow || touch) && document.documentElement.clientHeight || window.innerHeight;
   let availH, availW, viewW = 0;
-  if (narrow){
+  if (title){ availH = vh; availW = viewW = document.documentElement.clientWidth; }   // the title: the scene covers the screen
+  else if (narrow){
     const cs = el => getComputedStyle(el), side = parseFloat(cs(document.querySelector(".set")).paddingLeft) + parseFloat(cs($("boardWrap")).paddingLeft);
     availW = document.documentElement.clientWidth - 2 * side; availH = vh - header - 70 - (padOn ? 100 : 0) - 40;
     // full screen on a phone: the board takes all the height the header, the status bar and the pad leave
@@ -1664,12 +1708,13 @@ function resize(){
     viewW = document.documentElement.clientWidth - parseFloat(ss.paddingLeft) - parseFloat(ss.paddingRight) - (wrap.offsetWidth - cv.offsetWidth);
     availW = viewW - 2 * FS_SIDE; }
   else { availW = Math.max(260, window.innerWidth - 620); availH = vh - header - 70 - (padOn ? 100 : 0); }
-  const fit = [narrow, wide, padOn, availW, availH, window.devicePixelRatio].join();
+  const fit = [narrow, wide, title, padOn, availW, availH, window.devicePixelRatio].join();
   if (fit === lastFit) return;
   lastFit = fit;
   const prevSC = SC, prevDPR = DPR, prevXV = XV;
   SC = Math.max(0.3, Math.min(availH / H, availW / W, wide ? 3 : 1.25));
-  XV = wide ? Math.max(0, Math.floor((Math.min(viewW / SC, H * FS_ASPECT) - W) / 2)) : 0;
+  if (title) SC = Math.min(3, availH / H);   // as tall as the screen; on a phone wider than it, its sides cropped
+  XV = wide || title ? Math.max(0, Math.floor((Math.min(viewW / SC, H * FS_ASPECT) - W) / 2)) : 0;
   const vw = W + 2 * XV;
   // a very big board draws fewer pixels per point: never more than the biggest normal board (550 x 875 points at 2x)
   DPR = Math.min(2, window.devicePixelRatio || 1, Math.max(1, Math.sqrt(1925000 / (vw * H * SC * SC))));
@@ -1681,8 +1726,9 @@ function resize(){
   else if (Math.abs(SC - prevSC) > 0.015 || DPR !== prevDPR || XV !== prevXV) buildLayers(XV === prevXV);   // a new width: remade now (stretched would show)
   root.style.setProperty("--board-zoom", wide ? Math.min(1.5, Math.max(1, SC / 1.2)).toFixed(3) : "1");
   root.style.setProperty("--fs-inset", wide ? Math.max(0, Math.round((viewW - vw * SC) / 2)) + "px" : "0px");   // an ultra-wide screen: the board's margin
+  root.style.setProperty("--tl-x", title ? Math.round((viewW - Math.round(vw * SC)) / 2) + "px" : "0px");   // the title's scene, centred (cropped on a phone)
   drawCrabs();
-  const gw = document.querySelector('.col.right').getBoundingClientRect().right - document.querySelector('.col.left').getBoundingClientRect().left; $("info").style.maxWidth = narrow ? "" : Math.round(gw) + "px"; document.querySelector(".mast").style.maxWidth = narrow ? "" : Math.round(gw) + "px";
+  const gw = document.querySelector('.col.right').getBoundingClientRect().right - document.querySelector('.col.left').getBoundingClientRect().left; $("info").style.maxWidth = narrow || title ? "" : Math.round(gw) + "px"; document.querySelector(".mast").style.maxWidth = narrow || title ? "" : Math.round(gw) + "px";
   for (const id of PREVIEWS) $(id)._sz = null;
   drawPreviews(true);
 }
@@ -1852,13 +1898,14 @@ function draw(dt){
   backdrop(c, k, Math.min(40, rise * 0.05) - 10, Math.min(H - 110, (WATER_Y - S.camTop) - 250 + rise * 0.85));
   // world
   const still = sx === 0;   // a quake shakes everything: then it is all drawn live
-  if (still) updatePile(k, T);
+  const bare = root.classList.contains("title");   // the title screen: the scene alone, no floors, labels or sample tower
+  if (still && !bare) updatePile(k, T);
   c.setTransform(k, 0, 0, k, k * (sx + XV), -S.camTop * k);
-  drawRuler(c);
+  if (!bare) drawRuler(c);
   c.drawImage(L.plat, W/2 - PW/2 - 20, 0, PW + 40, 200);
   const a = S.active, v0 = S.camTop, v1 = S.camTop + H, live = [];   // what moves, in view (out of view isn't drawn)
-  for (const b of engine.world.bodies) if (b.tff && !(still && PILE.set.has(b)) && b.bounds.max.y + PAD >= v0 && b.bounds.min.y - PAD <= v1) live.push(b);
-  if (still) blitPile(c, k, PILE.s);
+  if (!bare) for (const b of engine.world.bodies) if (b.tff && !(still && PILE.set.has(b)) && b.bounds.max.y + PAD >= v0 && b.bounds.min.y - PAD <= v1) live.push(b);
+  if (still && !bare) blitPile(c, k, PILE.s);
   for (const b of live) for (const m of membersOf(b)) drawBody(c, m, true);
   if (a && S.mode !== "over"){
     // dashed guide down to where the item will land, with a landing ring. Only bodies under the item can stop it:
@@ -1877,12 +1924,12 @@ function draw(dt){
     c.beginPath(); c.moveTo(x, y0); c.lineTo(x, land - 4); c.stroke(); c.setLineDash([]);
     c.strokeStyle = "rgba(255,95,162,0.9)"; c.lineWidth = 2.4; c.beginPath(); c.ellipse(x, land - 2, 9, 3.2, 0, 0, Math.PI * 2); c.stroke(); c.restore();
   }
-  if (still) blitPile(c, k, PILE.b);
+  if (still && !bare) blitPile(c, k, PILE.b);
   for (const b of live) if (b !== a){ for (const m of membersOf(b)) drawBody(c, m, false); if (b.tff.members) drawMarks(c, b, T); }
   if (a) drawBody(c, a, false);
   drawLeaves(c, f);
   if (S.pops.length) drawPops(c, f);
-  drawLabels(c);
+  if (!bare) drawLabels(c);
   if (S.revive) drawGhosts(c, k);   // drawn before the harbour: they rise out of it
   // harbour in front (anything below the surface sinks behind it)
   const off = (T * 0.35) % 60;
@@ -2709,6 +2756,7 @@ function sampleTower(){
   S.queue = [pick("football") || fallback[0], pick("textbooks") || fallback[1] || fallback[0], pick("banana") || fallback[2] || fallback[0]];
   crab("Hi! I'm the 3 Fall Crab. Every item you stack is a money decision.", "我係3 Fall Crab！你疊嘅每件嘢，都係一個理財決定。");
 }
+fsOn = !!lsGet("tff_fs", true); root.classList.toggle("fs", fsOn); root.classList.toggle("title", fsOn); $("fsBtn").setAttribute("aria-pressed", String(fsOn));   // full screen by default
 buildStatic(); sampleTower(); resize(); drawCrabs(); updateHUD(); renderLedger(); setMuteUI(); planFirst();
 markZh(document.body); zhWatch.observe(document.body, ZH_WATCH);
 // Card timer, 10 s or 30 s: the same choice on the start and pause cards

@@ -112,7 +112,12 @@
         <div class="pfchip" id="pfChip" hidden><b><span id="pfK">Portfolio</span><small lang="zh-HK" id="pfKz">投資組合</small></b><svg class="pfspark" viewBox="0 0 60 20" aria-hidden="true"><polyline id="pfLine" points="0,18"/></svg><span class="pfv" id="pfVal">+HK$0</span><i id="pfPct">▲0%</i></div>
         <div class="jpban" id="jpBan" hidden aria-live="polite"><b>JACKPOT!</b><span class="zh">大獎！</span><em id="jpAmt">+HK$2,000</em><small id="jpNote">Everything pays ×1.5 for 15 s · 15秒內存入1.5倍</small></div>
         <div class="overlay" id="startOv">
+          <button class="iconbtn ts-only ts-fs" id="tsFs" type="button" aria-label="Exit full screen" title="Exit full screen 離開全螢幕"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5" fill="none" stroke="#DF1B72" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           <div class="ov-card">
+            <div class="ts-only ts-logo" aria-hidden="true"><canvas id="crabSplash" width="240" height="192"></canvas>
+              <p class="word ts-word"><span>3</span><span>F</span><span>a</span><span>l</span><span>l</span><span>F</span><span>u</span><span>n</span></p>
+              <p class="ts-zh" lang="zh-HK">人生跌塔</p></div>
+            <p class="ts-only ts-sign"><b lang="zh-HK">每週同每月最高分有獎！</b><span>Top scorers each week and month win prizes!</span></p>
             <h2>Stack your life</h2>
             <p class="zh" lang="zh-HK">疊出你嘅人生</p>
             <p class="desc">Reach Retirement in 3&nbsp;minutes. Drop 3 and it's over. <span class="zh" lang="zh-HK">3分鐘疊到退休，跌3件就玩完。</span></p>
@@ -131,13 +136,19 @@
               <li><span class="ic"><kbd class="gp">B</kbd></span>Turn<small lang="zh-HK">轉向</small></li>
               <li><span class="ic"><kbd class="gp">A</kbd></span>Drop<small lang="zh-HK">即放</small></li>
             </ul>
-            <button class="btn go" id="startBtn">Start<span class="zh" lang="zh-HK">開始</span></button>
+            <button class="btn go" id="startBtn">Start<span class="zh" lang="zh-HK">立即挑戰</span></button>
+            <div class="ts-only ts-pills">
+              <button class="ov-chip" id="tsLb" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M7 6H4.5a2.5 2.5 0 0 0 3 3.3M17 6h2.5a2.5 2.5 0 0 1-3 3.3M12 13v4M8.5 20h7"/></svg><span>Leaderboard<span class="zh" lang="zh-HK">排行榜</span></span></button>
+              <button class="ov-chip" id="tsHow" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.6a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5v.6M12 16.8v.2"/></svg><span>How to play<span class="zh" lang="zh-HK">玩法</span></span></button>
+            </div>
             <div class="ov-opts">
               <button class="ov-chip" id="fsStartBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg><span>Full screen<span class="zh" lang="zh-HK">全螢幕</span></span></button>
               <div class="ov-chip ctime" role="radiogroup" aria-labelledby="ctStartK"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V9.8M9.5 2.6h5M12 2.6V6M18.2 6.8l1.6-1.6"/></svg><span class="k" id="ctStartK">Card timer<span class="zh" lang="zh-HK">揀答案時間</span></span>
                 <label><input type="radio" name="ctStart" value="10"><span>10<span aria-hidden="true">s</span><span class="sr"> seconds</span></span></label><label><input type="radio" name="ctStart" value="30"><span>30<span aria-hidden="true">s</span><span class="sr"> seconds</span></span></label></div>
             </div>
           </div>
+          <button class="ts-only ts-priv" id="tsPriv" type="button">Privacy<span class="zh" lang="zh-HK">私隱聲明</span></button>
+          <button class="iconbtn ts-only ts-mute" id="tsMute" type="button" aria-pressed="false" aria-label="Mute sound"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="#2E2838"/><path class="w" d="M16 8.5c1.6 1.8 1.6 5.2 0 7M18.6 6c3 3.2 3 8.8 0 12" fill="none" stroke="#FF5FA2" stroke-width="2.2" stroke-linecap="round"/><path class="x" d="M16.5 9.5l5 5M21.5 9.5l-5 5" stroke="#F2463E" stroke-width="2.4" stroke-linecap="round"/></svg></button>
         </div>
         <div class="overlay seeov" id="seeOv" hidden><button class="btn alt" id="resultsBtn" aria-label="Back to results">Results<span class="zh" lang="zh-HK">睇返結算</span></button><button class="btn" id="againBtn2">Play again<span class="zh" lang="zh-HK">再玩</span></button></div>
         <div class="overlay" id="pauseOv" hidden>
@@ -271,6 +282,13 @@
     <p class="rv-msg" id="rvMsg" aria-live="assertive"></p>
     <div class="rv-actions" id="rvActions"><button class="btn go" id="rvYes" type="button"></button><button class="btn alt" id="rvNo" type="button"></button></div>
     <div class="rv-lesson" id="rvLesson" hidden><p id="rvLessonText"></p><button class="btn" id="rvGo" type="button"></button></div>
+  </div>
+</div>
+
+<div class="modal infom" id="infoModal" role="dialog" aria-modal="true" aria-labelledby="infoTitle" hidden>
+  <div class="sheet infosheet" id="infoSheet" tabindex="-1">
+    <div class="is-head"><h2 id="infoTitle"></h2><button class="iconbtn" id="infoClose" type="button" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="#2E2838" stroke-width="2.6" stroke-linecap="round"/></svg></button></div>
+    <div class="is-body" id="infoBody"></div>
   </div>
 </div>
 
