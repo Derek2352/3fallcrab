@@ -25,8 +25,8 @@
 <meta property="og:image:alt" content="3 Fall Fun: a clay tower of everyday items on a Hong Kong harbour pier">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preload" href="/assets/gluten.842f8cce6e.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="/assets/noto-sans-hk.41077a5dfb.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/assets/style.3cc2ef3751.css">
+<link rel="preload" href="/assets/noto-sans-hk.7bb71d8173.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/style.7f0d001909.css">
 </head>
 <body>
 <noscript><p style="margin:0;padding:16px;background:#2E2838;color:#fff;font:16px/1.5 system-ui,sans-serif;text-align:center">3 Fall Fun needs JavaScript to run. 請開啟 JavaScript 先玩到。</p></noscript>
@@ -89,11 +89,12 @@
         <ul class="chips" id="fallsChips"></ul>
       </section>
 
-      <section class="crabcard clay" aria-live="polite"><canvas id="crabSay" width="88" height="72" aria-hidden="true"></canvas><p id="crabMsg"></p></section>
+      <section class="crabcard clay" aria-live="polite"><canvas class="cav" id="cardAvatar" width="104" height="200" aria-hidden="true"></canvas><canvas id="crabSay" width="88" height="72" aria-hidden="true"></canvas><p id="crabMsg"></p></section>
     </aside>
 
     <div class="center">
       <div class="hud" aria-label="Game status">
+        <canvas class="hav" id="hudAvatar" width="60" height="115" aria-hidden="true"></canvas>
         <div class="hs"><span class="k">Time</span><span class="v" id="hudTime">3:00</span></div>
         <div class="hs nw"><span class="k">Net worth</span><span class="v" id="hudNw">HK$0</span></div>
         <div class="hs"><span class="k">Height</span><span class="v" id="hudH">0.0F</span></div>
@@ -285,6 +286,18 @@
   </div>
 </div>
 
+<div class="modal pickm" id="pickModal" role="dialog" aria-modal="true" aria-labelledby="pickTitle" aria-describedby="pickNote" hidden>
+  <div class="sheet picksheet" id="pickSheet" tabindex="-1">
+    <h2 id="pickTitle">Choose your player<span class="zh" lang="zh-HK">揀你嘅角色</span></h2>
+    <div class="picks" role="radiogroup" aria-labelledby="pickTitle">
+      <button class="who" id="pickJack" type="button" role="radio" aria-checked="true" data-who="jack"><canvas width="240" height="460" aria-hidden="true"></canvas><b>Jack</b></button>
+      <button class="who" id="pickJackie" type="button" role="radio" aria-checked="false" data-who="jackie"><canvas width="240" height="460" aria-hidden="true"></canvas><b>Jackie</b></button>
+    </div>
+    <p class="pick-note" id="pickNote">Your look changes with your life stage, your money and your choices.<span class="zl" lang="zh-HK">你嘅造型會隨住人生階段、錢包同選擇而變。</span></p>
+    <button class="btn go" id="pickGo" type="button">Let's go<span class="zh" lang="zh-HK">出發</span></button>
+  </div>
+</div>
+
 <div class="modal infom" id="infoModal" role="dialog" aria-modal="true" aria-labelledby="infoTitle" hidden>
   <div class="sheet infosheet" id="infoSheet" tabindex="-1">
     <div class="is-head"><h2 id="infoTitle"></h2><button class="iconbtn" id="infoClose" type="button" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="#2E2838" stroke-width="2.6" stroke-linecap="round"/></svg></button></div>
@@ -343,6 +356,7 @@
 <script src="/assets/scam.05ff1a07ff.js"></script>
 <script src="/assets/jackpot.993fa050bf.js"></script>
 <script src="/assets/content.845ef86df6.js"></script>
-<script src="/assets/game.ce0dfc3690.js"></script>
+<script src="/assets/avatar.2a84cc27be.js"></script>
+<script src="/assets/game.809eee6608.js"></script>
 </body>
 </html>

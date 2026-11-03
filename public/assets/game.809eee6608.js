@@ -122,7 +122,7 @@ function newState(){
     quiz:[null, null, null], camTop:-(H - 240), shake:0, splashes:[], dragX:null, steps:0, ledger:[], warned:false,
     mood:{type:"idle", until:0}, lastImpact:new Map(), grabs:[], leaves:[], habit:null, rec:null,
     said:new Set(), streak:0, wiseRun:0, afterCard:null, overKey:null, pb:0, items:0, realMs:0, endAt:0, prior:0, quizDone:false,
-    jpAt:-1, frenzyUntil:0, frenzySec:0, jpExtra:0, pops:[],
+    jpAt:-1, frenzyUntil:0, frenzySec:0, jpExtra:0, pops:[], hand:null,
     troll:{investAt:0, ticketAt:0, invest:0, tickets:0, ticketSeen:0, revive:0, reviveSeen:0, scamSaid:0}, offer:null, pf:null, revive:null, lost:[]};   // jackpot: when it appeared, end of jackpot time, extra it paid
 }
 function makeEngine(){
@@ -614,7 +614,7 @@ function choose(kind){
   const txt = document.createElement("span");
   let en, zh, loss = 0;
   if (kind === "wise"){
-    S.wise++; S.rate = Math.min(2, +(S.rate + 0.2).toFixed(1)); S.fund = Math.min(3, S.fund + 1);
+    S.wise++; S.rate = Math.min(2, +(S.rate + 0.2).toFixed(1)); S.fund = Math.min(3, S.fund + 1); S.hand = "piggy";
     S.forced = {type: "wise", n: 4};
     S.wiseRun++; S.afterCard = S.rate >= 2 && !S.said.has("boost") ? (S.said.add("boost"), "boost") : S.wiseRun === 3 ? "wise3" : "wise";
     head.className = "oc-head good"; head.appendChild(svgUse("i-good")); txt.textContent = "Good call! 揀得好！";
@@ -623,6 +623,7 @@ function choose(kind){
     $("ocEffect").style.color = "var(--green-t)"; A.sfx("wise");
   } else {
     const trap = kind === "risky" ? c.trap : "delay";
+    S.hand = trap === "spend" ? "bags" : trap === "scam" ? "phone" : "hourglass";
     if (kind === "risky") S.risky++; else S.missed++;
     S.wiseRun = 0; S.afterCard = trap;
     S.falls[trap]++;
@@ -744,7 +745,7 @@ function offerStep(step){
     else if (step === "wait"){ set(I.wait, null); btns(null, null); }
     else {   // gone: the scam is a Fall, and the portfolio shows what it really was
       set(I.goneTitle, null); btns(I.ok, null); lessonInto($("offerNote"), I.lesson, I.fact);
-      S.falls.scam++; T.scamSaid = 1; updateHUD(); A.sfx("scam");
+      S.falls.scam++; T.scamSaid = 1; S.hand = "phone"; updateHUD(); A.sfx("scam");
       $("pfChip").classList.add("gone"); $("pfVal").textContent = "−" + fmt(INVEST + (T.invest === 3 ? FEE : 0)); $("pfPct").textContent = "▼100%";
       $("pfLine").setAttribute("points", (S.pf.pts || "0,18") + " 60,20");
     }
@@ -758,7 +759,7 @@ function offerStep(step){
       if (T.tickets >= MAX_TICKETS || S.score < TICKET){ $("offerYes").hidden = true; $("offerNote").textContent = T.tickets >= MAX_TICKETS ? L.shut.join(" ") : ""; o.limit = 0; $("offerClock").hidden = true; }
     } else {   // lesson
       set(L.lessonTitle, null); btns(L.ok, null); lessonInto($("offerNote"), L.lesson, L.fact, fmt(T.tickets * TICKET));
-      if (T.tickets){ S.falls.spend++; updateHUD(); A.sfx("risky"); }
+      if (T.tickets){ S.falls.spend++; S.hand = "bags"; updateHUD(); A.sfx("risky"); }
     }
   }
   const one = $("offerNo").hidden;   // a single button: Enter, 1 or 2 all press it
@@ -1120,7 +1121,7 @@ function rainFrame(now){
 
 // ---------- flow ----------
 function startGame(){
-  A.unlock(); closeInfo();
+  A.unlock(); closeInfo(); closePicker();
   if (root.classList.contains("title")){ played = true; root.classList.remove("title"); enterBrowserFs(); lastFit = ""; resize(); }
   played = true;
   flushRecord(S);   // the last game's quiz answers or habit may still be waiting to be saved
@@ -1134,6 +1135,7 @@ function startGame(){
   hush(); S.pb = lsGet("tff_pb", 0); quip(S.pb > 0 ? "startPb" : "start", 2, fmt(S.pb));
   nextPiece();   // last: a Jackpot crab as the very first item gets its own words in
   updateHUD(); setPauseUI(); $("board").focus({preventScroll:true});
+  updateAvatar(true);
 }
 function endGame(reason){
   if (S.mode === "over") return;
@@ -1212,6 +1214,13 @@ for (const ev of ["fullscreenchange", "webkitfullscreenchange"]) document.addEve
 let endShownAt = 0;
 document.addEventListener("keydown", e => {
   if (!S) return;
+  if (!$("pickModal").hidden){   // choosing the player: arrows switch, Enter or Space on the Go button (or a player) goes, Esc goes back
+    const k = e.key;
+    if (k === "ArrowLeft" || k === "ArrowRight" || k === "ArrowUp" || k === "ArrowDown"){ setPick(pickSel === "jack" ? "jackie" : "jack"); document.querySelector('#pickModal .who[aria-checked="true"]').focus(); e.preventDefault(); }
+    else if (k === "Escape"){ closePicker(); e.preventDefault(); }
+    else if ((k === "Enter" || k === " ") && e.target && e.target.classList && e.target.classList.contains("who")){ setPick(e.target.dataset.who); pickGo(); e.preventDefault(); }
+    return;
+  }
   if (!$("infoModal").hidden){   // a sheet over the title: Esc closes it; Space and Enter only press its own buttons
     if (e.key === "Escape"){ closeInfo(); e.preventDefault(); }
     else if ((e.key === " " || e.key === "Enter") && !(e.target && e.target.closest && e.target.closest("button, a, input, label, [role=tab]"))) e.preventDefault();
@@ -1251,7 +1260,7 @@ document.addEventListener("keydown", e => {
   }
   if (S.mode === "idle" && S.viewing && !$("seeOv").hidden && (k === "Escape" || k === "r" || k === "R")){ openResults(); e.preventDefault(); return; }
   const onControl = !!(e.target && e.target.closest && e.target.closest("button, a, label, [role=tab]"));   // it does its own thing
-  if (S.mode === "idle" && (k === "Enter" || k === " ") && !onControl && (!$("startOv").hidden || !$("seeOv").hidden)){ startGame(); e.preventDefault(); return; }
+  if (S.mode === "idle" && (k === "Enter" || k === " ") && !onControl && (!$("startOv").hidden || !$("seeOv").hidden)){ if (!$("startOv").hidden) beginGame(); else startGame(); e.preventDefault(); return; }
   if (k === "p" || k === "P" || k === "Escape"){ if (S.mode === "playing" || S.mode === "paused"){ togglePause(); e.preventDefault(); } return; }
   if (S.mode !== "playing") return;
   switch (k){
@@ -1285,6 +1294,63 @@ $("pad").querySelectorAll("button").forEach(b => {
   b.addEventListener("pointerup", up); b.addEventListener("pointerleave", up); b.addEventListener("pointercancel", up);
   b.addEventListener("contextmenu", e => e.preventDefault());
 });
+// ---------- the player: Jack or Jackie ----------
+// Picked once per visit after Start (the last pick comes up first). In the status bar (and in the crab's card on a
+// big screen) the player is drawn full length (avatar.js) and dressed by the game: the life stage sets the clothes,
+// money the extras (a patched knee, a watch, gold and sunglasses), the last money decision what's in hand, the
+// moment the face. A new outfit pops in.
+const AV = window.TFF_AVATAR, AV_IDS = ["hudAvatar", "cardAvatar"];
+const ssGet = k => { try { return sessionStorage.getItem(k); } catch(e){ return null; } }, ssSet = (k, v) => { try { sessionStorage.setItem(k, v); } catch(e){} };
+let WHO = lsGet("tff_who", "jack") === "jackie" ? "jackie" : "jack", whoPicked = ssGet("tff_picked") === "1", pickSel = WHO;   // asked once per tab: a reload doesn't ask again
+const avKeys = new Map();
+let lookKey = "", outfitKey = "", avTick = 0;
+function lookNow(){
+  const sc = S.score, tier = sc < 2000 && S.play > 25000 ? 0 : sc < 20000 ? 1 : sc < 60000 ? 2 : 3;
+  const md = S.mode === "over" ? (S.over === "drops" ? "worried" : "happy") : S.mood.until > S.play ? (S.mood.type === "happy" ? "happy" : S.mood.type === "idle" ? "idle" : "worried") : "idle";
+  return {who: WHO, stage: S.stage, tier, hand: S.hand, mood: md, drops: Math.min(2, S.drops), boost: S.rate >= 2};
+}
+function paintAvatar(c, look){
+  const r = c.getBoundingClientRect(); if (!r.width) return;
+  const dpr = Math.min(2, window.devicePixelRatio || 1), w = Math.round(r.width * dpr), h = Math.round(r.height * dpr), key = AV.keyOf(look) + "|" + w + "x" + h;
+  if (avKeys.get(c) === key) return; avKeys.set(c, key);
+  if (c.width !== w || c.height !== h){ c.width = w; c.height = h; }
+  const g = c.getContext("2d"), s = Math.min(w / AV.W, h / AV.H);
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, w, h); g.setTransform(s, 0, 0, s, (w - AV.W * s) / 2, h - AV.H * s); AV.draw(g, look);
+}
+function updateAvatar(force){
+  if (!S || !AV) return;
+  const L = lookNow(), k = AV.keyOf(L);
+  if (k === lookKey && !force) return; lookKey = k;
+  for (const id of AV_IDS) paintAvatar($(id), L);
+  const ok = [L.who, L.stage, L.tier, L.hand, L.drops, L.boost].join();   // the clothes and props, not the face
+  if (ok !== outfitKey){
+    if (outfitKey && !reduceMotion) for (const id of AV_IDS){ const c = $(id); c.classList.remove("pop"); void c.offsetWidth; c.classList.add("pop"); }
+    outfitKey = ok;
+  }
+}
+function setPick(who){
+  pickSel = who;
+  for (const b of document.querySelectorAll("#pickModal .who")){ const on = b.dataset.who === who; b.setAttribute("aria-checked", String(on)); b.tabIndex = on ? 0 : -1; }
+  for (const b of document.querySelectorAll("#pickModal .who")) paintAvatar(b.querySelector("canvas"), {who: b.dataset.who, stage: 0, tier: 1, hand: null, mood: b.dataset.who === who ? "happy" : "idle", drops: 0, boost: false});
+}
+function openPicker(){
+  $("pickModal").hidden = false; modalOpen(true); setPick(WHO);
+  document.querySelector('#pickModal .who[aria-checked="true"]').focus({preventScroll: true});
+}
+function closePicker(){ if ($("pickModal").hidden) return; $("pickModal").hidden = true; modalOpen(false); }
+function pickGo(){ WHO = pickSel; lsSet("tff_who", WHO); whoPicked = true; ssSet("tff_picked", "1"); closePicker(); startGame(); }
+// Start from the title or the start card: the player is chosen first (once a visit); Play again goes straight on
+function beginGame(){
+  if (root.classList.contains("title")) enterBrowserFs();   // on the tap itself: browsers allow it only then
+  if (whoPicked) startGame(); else openPicker();
+}
+for (const b of document.querySelectorAll("#pickModal .who")){
+  b.addEventListener("click", () => setPick(b.dataset.who));
+  b.addEventListener("dblclick", pickGo);
+}
+$("pickGo").addEventListener("click", pickGo);
+$("pickModal").addEventListener("click", e => { if (e.target === e.currentTarget) closePicker(); });
+
 // ---------- the title screen's sheets ----------
 // Leaderboard, How to play and Privacy open in a sheet over the title: the page's own sections are moved into it (so
 // they work as they do on the page) and put back when it closes.
@@ -1357,6 +1423,11 @@ function pollPad(now){
     if (hit("b")) $("closeEnd").click(); else if (hit("start")) startGame();
     return;
   }
+  if (!$("pickModal").hidden){   // left/right: Jack or Jackie; A or Start: go; B: back
+    if (hit("left") || hit("right")) setPick(pickSel === "jack" ? "jackie" : "jack");
+    else if (hit("a") || hit("start")) pickGo(); else if (hit("b")) closePicker();
+    return;
+  }
   if (!$("infoModal").hidden){
     if (hit("b") || hit("start")) closeInfo();
     else { if (nav) padMove($("infoModal"), nav); if (hit("a")) padPress($("infoModal")); }
@@ -1389,9 +1460,10 @@ function pollPad(now){
   if (S.mode === "idle"){
     const box = !$("seeOv").hidden ? $("seeOv") : !$("startOv").hidden ? $("startOv") : null;
     if (!box) return;
-    if (hit("start")) startGame();
+    const go = box.id === "startOv" ? beginGame : startGame;
+    if (hit("start")) go();
     else if (box.id === "seeOv" && hit("b")) openResults();
-    else { if (nav) padMove(box, nav); if (hit("a") && !padPress(box)) startGame(); }
+    else { if (nav) padMove(box, nav); if (hit("a") && !padPress(box)) go(); }
     return;
   }
   if (S.mode !== "playing") return;
@@ -1452,10 +1524,10 @@ cv.addEventListener("pointerup", endDrag); cv.addEventListener("pointercancel", 
 document.addEventListener("click", e => { if (e.target.closest && e.target.closest(".btn,.tab,.choice,.qopt,.iconbtn")) A.sfx("click"); });
 $("muteBtn").addEventListener("click", toggleMute);
 $("fsBtn").addEventListener("click", () => toggleFs());
-$("fsStartBtn").addEventListener("click", () => { toggleFs(true); startGame(); });
+$("fsStartBtn").addEventListener("click", () => { toggleFs(true); beginGame(); });
 $("pauseBtn").addEventListener("click", () => { if (S && (S.mode === "playing" || S.mode === "paused")) togglePause(); });
 $("hudHoldBtn").addEventListener("click", () => act("hold"));
-$("startBtn").addEventListener("click", startGame);
+$("startBtn").addEventListener("click", beginGame);
 $("resumeBtn").addEventListener("click", togglePause);
 $("cardContinue").addEventListener("click", e => { if (!(S.card && tapTooSoon(e, S.card.flipAt))) closeCard(); });
 $("againBtn").addEventListener("click", startGame);
@@ -1731,6 +1803,7 @@ function resize(){
   const gw = document.querySelector('.col.right').getBoundingClientRect().right - document.querySelector('.col.left').getBoundingClientRect().left; $("info").style.maxWidth = narrow || title ? "" : Math.round(gw) + "px"; document.querySelector(".mast").style.maxWidth = narrow || title ? "" : Math.round(gw) + "px";
   for (const id of PREVIEWS) $(id)._sz = null;
   drawPreviews(true);
+  avKeys.clear(); lookKey = "";
 }
 let rzT = 0; window.addEventListener("resize", () => { clearTimeout(rzT); rzT = setTimeout(resize, 220); });
 
@@ -2267,6 +2340,7 @@ cv.addEventListener("contextrestored", () => {
 function frameBody(now){
   const raw = now - last, dt = Math.min(50, raw); last = now;
   if (GP.on) pollPad(now);
+  if (++avTick % 8 === 0) updateAvatar();
   if (S){
     const side = SIDEWAYS.matches && (S.mode === "playing" || S.mode === "paused" || S.mode === "card" || S.mode === "offer");
     if (side !== sideways){ sideways = side; $("turnOv").hidden = !side; if (side && S.mode === "playing") togglePause(); }

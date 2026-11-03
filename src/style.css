@@ -1132,3 +1132,33 @@ html.fs.title .ts-priv{display:inline-flex;align-items:baseline;gap:6px;position
 .is-body .howto .how{grid-template-columns:repeat(2, minmax(0, 1fr))}
 @media (max-width: 520px){ .is-body .howto .how{grid-template-columns:1fr} }
 .is-body > section:first-child > h2.h{display:none}   /* the sheet's title already says it */
+
+/* ---------- the player: Jack or Jackie ---------- */
+.picksheet{max-width:440px;padding:20px 20px 22px;text-align:center;animation:deal .32s cubic-bezier(.2,.9,.3,1.3)}
+.picksheet:focus{outline:none}
+.picksheet h2{margin:0 0 14px;font-family:var(--f-display);font-weight:900;font-size:26px;line-height:1.1}
+.picksheet h2 .zh{display:block;margin-top:4px;font-family:var(--f-zh);font-size:19px;font-weight:700;color:var(--pink-t)}
+.picks{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.who{appearance:none;border:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px 12px;border-radius:22px;color:var(--ink);
+  background:linear-gradient(180deg, #CFEFFF, #A8DDF7);box-shadow:inset 2px 2px 1px rgba(255,255,255,.7), inset -3px -4px 8px rgba(37,49,122,.15), 0 5px 0 #7FB7D6;transition:transform .12s}
+.who canvas{width:100%;max-width:130px;height:auto;aspect-ratio:120 / 230}
+.who b{font-family:var(--f-display);font-weight:900;font-size:22px}
+.who[aria-checked="true"]{background:linear-gradient(180deg, #FFE7F1, #FFC6DD);box-shadow:inset 2px 2px 1px rgba(255,255,255,.7), inset -3px -4px 8px rgba(180,42,106,.18), 0 5px 0 var(--hot-d), 0 0 0 4px var(--hot)}
+.who[aria-checked="true"] b{color:var(--pink-t)}
+.who:hover{transform:translateY(-2px)}
+.pick-note{margin:14px 4px 14px;font-size:13px;line-height:1.45;color:var(--ink-2)}
+.pick-note .zl{display:block;font-family:var(--f-zh)}
+.picksheet .btn.go{font-size:22px;padding:13px 40px 14px;border-radius:20px}
+.picksheet .btn.go .zh{font-size:.8em}
+/* in the status bar (phones: a strip; laptops: the card over the sky) and in the crab's card (big screens) */
+.hav{width:38px;height:72px;flex:none;margin:-6px 0}
+.hud{grid-template-columns:auto repeat(4,auto) minmax(0,1fr)}
+html.fs.wide .hud{grid-template-columns:auto auto auto}
+html.fs.wide .hud .hav{grid-row:1 / span 3;width:62px;height:120px;align-self:end}
+html.fs.wide .hud .mini{grid-column:2 / -1}
+.cav{display:none}
+@media (min-width: 900px){ .crabcard .cav{display:block;width:50px;height:96px;flex:none;align-self:center} }
+.hav.pop, .cav.pop{animation:avpop .55s cubic-bezier(.2,.9,.3,1.5)}
+@keyframes avpop{0%{transform:scale(.6) rotate(-6deg);filter:brightness(1.4)}60%{transform:scale(1.14) rotate(2deg)}100%{transform:none;filter:none}}
+@media (max-width: 380px){ .hav{width:32px;height:62px} }
+@media (prefers-reduced-motion: reduce){ .hav.pop, .cav.pop, .picksheet{animation:none} .who:hover{transform:none} }
