@@ -26,10 +26,11 @@ const A = {
 
 // ---------- world ----------
 const W = 440, H = 700, PW = 270, FLOOR = 50, WATER_Y = 120;
-const GAME_MS = 180000, CARD_MS = 10000, FIRST_CARD = 15000, CARD_GAP = 24000;
+const GAME_MS = 180000, CARD_MS = 10000, FIRST_CARD = 25000, CARD_GAP = 24000;
 const SLOW_CARD_MS = 30000, RESULT_MS = 12000;   // Extra reading time: 30 s per card, results wait for Continue
 const STEP = 1000 / 60;
 const FALL = [1.5, 1.8, 2.1, 2.4];
+const WARMUP_MS = 45000, WARMUP_FROM = 0.65;   // a gentle start: items fall at 65% speed, easing up to full over the first 45 s
 const MAX_DROPS = 3;
 
 const {STAGES, TRAPS, CARDS, QUIZ, HABITS} = window.TFF_CONTENT;   // src/content.js
@@ -199,7 +200,11 @@ function doHold(){
   if (S.hold){ const h = S.hold; S.hold = def; spawn(h); } else { S.hold = def; nextPiece(); }
   S.canHold = false; A.sfx("hold"); drawPreviews(); prewarm();
 }
-function fallSpeed(){ let f = FALL[S.stage]; if (S.play < S.speedUntil) f *= 1.7; return f; }
+function fallSpeed(){
+  let f = FALL[S.stage] * (WARMUP_FROM + (1 - WARMUP_FROM) * clamp(S.play / WARMUP_MS, 0, 1));
+  if (S.play < S.speedUntil) f *= 1.7;
+  return f;
+}
 function dropDebt(){
   if (!DEBT) return;
   const b = addItem(DEBT, W/2 + (Math.random() * 120 - 60), S.camTop + 40, false);
@@ -684,8 +689,8 @@ const INVEST = 3000, FEE = 1000, TICKET = 500, MAX_TICKETS = 5, PF_MS = 15000, R
 const OFFER_MS = {pitch: 6000, fee: 8000, ticket: 8000, again: 6000};
 const offerMs = step => (OFFER_MS[step] || 0) * (slowRead ? 2.5 : 1);
 const label = (b, [en, zh]) => { const z = document.createElement("span"); z.className = "zh"; z.lang = "zh-HK"; z.textContent = zh; b.replaceChildren(en, z); };
-function planTrolls(){   // when the two offers come: the investment at 50-110 s, the scratch card at 30-150 s, 20 s apart or more
-  const T = S.troll; T.investAt = 50000 + Math.random() * 60000; T.ticketAt = 30000 + Math.random() * 120000;
+function planTrolls(){   // when the two offers come: the investment at 50-110 s, the scratch card at 45-150 s, 20 s apart or more
+  const T = S.troll; T.investAt = 50000 + Math.random() * 60000; T.ticketAt = 45000 + Math.random() * 105000;
   if (Math.abs(T.ticketAt - T.investAt) < 20000) T.ticketAt = T.investAt + (T.investAt < 120000 ? 25000 : -25000);
 }
 function charge(amount, zh, en){ S.score -= amount; ledger({zh, en}, -amount); updateHUD(); }
