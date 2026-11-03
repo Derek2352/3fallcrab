@@ -92,7 +92,7 @@ export const SCHEMA = [
 // (they were all posted to the board) and no email, quiz answers or game id. Never remove or rename a column.
 export const ADDED = [
   ["posted", "INTEGER NOT NULL DEFAULT 1"], // 1 = on the board (player pressed Post), 0 = saved anonymously for the analysis
-  ["email", "TEXT"], // optional, private: only to contact weekly/monthly winners. No public route ever returns it.
+  ["email", "TEXT"], // private: only to contact weekly/monthly winners (the game asks for it to post; older pages may not send it). No public route ever returns it.
   ["month", "TEXT"], // "2026-10" in the event's time zone
   ["quiz_answers", "TEXT"], // JSON [{"q":"mule","pick":1,"ok":1}, ...], the first answer to each question
   ["quiz_answered", "INTEGER"], // how many quiz questions were answered (quiz = how many were right)
@@ -263,7 +263,7 @@ function implausible(v, wise, items) {
   return null;
 }
 
-// Optional contact email for prize winners: trimmed, otherwise kept exactly as typed.
+// Contact email for prize winners: trimmed, otherwise kept exactly as typed.
 // Returns undefined when none was given and null when it doesn't look like an email address.
 const EMAIL = /^[^\s@<>()[\]\\,;:"]{1,64}@[^\s@<>()[\]\\,;:"]+\.[^\s@<>()[\]\\,;:".]{2,}$/;
 export function cleanEmail(raw) {
@@ -380,7 +380,7 @@ async function stats(db) {
 
 // Saves one finished game. The game page sends it as soon as the statement opens (board: false: it only feeds the
 // analysis), then again as the player answers the quiz, picks a habit and posts to the board (board: true, with
-// the nickname and an optional email). Every request carries the whole state plus the game's random id (gid) and
+// the nickname and the email). Every request carries the whole state plus the game's random id (gid) and
 // secret key, so the first one inserts the row and later ones update it, in any order and with retries. The score
 // and the game data are fixed once saved; only the quiz answers, habit, board flag, nickname and email change.
 // Older game pages send a single request without gid or board: the game is saved and posted at once, as before.

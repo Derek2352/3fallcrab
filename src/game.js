@@ -1260,7 +1260,7 @@ document.addEventListener("keydown", e => {
   }
   if (S.mode === "idle" && S.viewing && !$("seeOv").hidden && (k === "Escape" || k === "r" || k === "R")){ openResults(); e.preventDefault(); return; }
   const onControl = !!(e.target && e.target.closest && e.target.closest("button, a, label, [role=tab]"));   // it does its own thing
-  if (S.mode === "idle" && (k === "Enter" || k === " ") && !onControl && (!$("startOv").hidden || !$("seeOv").hidden)){ if (!$("startOv").hidden) beginGame(); else startGame(); e.preventDefault(); return; }
+  if (S.mode === "idle" && (k === "Enter" || k === " ") && !onControl && (!$("startOv").hidden || !$("seeOv").hidden)){ if (!$("startOv").hidden) beginGame(); else if (S.flowDone) startGame(); else openResults(); e.preventDefault(); return; }
   if (k === "p" || k === "P" || k === "Escape"){ if (S.mode === "playing" || S.mode === "paused"){ togglePause(); e.preventDefault(); } return; }
   if (S.mode !== "playing") return;
   switch (k){
@@ -1420,7 +1420,8 @@ function pollPad(now){
   if (!$("endModal").hidden){   // the statement
     if (nav) padMove($("endModal"), nav);
     if (hit("a") && performance.now() - endShownAt > 900) padPress($("endModal"));
-    if (hit("b")) $("closeEnd").click(); else if (hit("start")) startGame();
+    if (hit("b")) $("closeEnd").click();
+    else if (hit("start")){ if (S.step < 4){ if (!$("stNext").disabled) $("stNext").click(); } else startGame(); }
     return;
   }
   if (!$("pickModal").hidden){   // left/right: Jack or Jackie; A or Start: go; B: back
@@ -1460,7 +1461,7 @@ function pollPad(now){
   if (S.mode === "idle"){
     const box = !$("seeOv").hidden ? $("seeOv") : !$("startOv").hidden ? $("startOv") : null;
     if (!box) return;
-    const go = box.id === "startOv" ? beginGame : startGame;
+    const go = box.id === "startOv" ? beginGame : S.flowDone ? startGame : openResults;
     if (hit("start")) go();
     else if (box.id === "seeOv" && hit("b")) openResults();
     else { if (nav) padMove(box, nav); if (hit("a") && !padPress(box)) go(); }
@@ -1538,10 +1539,10 @@ function openResults(){
   $("seeOv").hidden = true; S.viewing = false; S.mode = "over";
   $("endModal").hidden = false; $("stScroll").scrollTop = endScroll;
   endShownAt = performance.now(); modalOpen(true); setPauseUI();
-  $("closeEnd").focus({preventScroll:true});
+  $(S.step === 4 ? "closeEnd" : STEP_FOCUS[S.step - 1]).focus({preventScroll:true});   // back on the step they left
 }
 $("resultsBtn").addEventListener("click", openResults);
-$("closeEnd").addEventListener("click", () => { endScroll = $("stScroll").scrollTop; $("endModal").hidden = true; modalOpen(false); S.viewing = true; S.mode = "idle"; S.queue = []; S.hold = null; drawPreviews(true); $("seeOv").hidden = false; setPauseUI(); $("againBtn2").focus(); if (S.overKey) quip(S.overKey, 3); });
+$("closeEnd").addEventListener("click", () => { endScroll = $("stScroll").scrollTop; $("endModal").hidden = true; modalOpen(false); S.viewing = true; S.mode = "idle"; S.queue = []; S.hold = null; drawPreviews(true); $("seeOv").hidden = false; setPauseUI(); $("againBtn2").hidden = !S.flowDone; ($("againBtn2").hidden ? $("resultsBtn") : $("againBtn2")).focus(); if (S.overKey) quip(S.overKey, 3); });
 $("againBtn2").addEventListener("click", startGame);
 cv.tabIndex = 0;
 
@@ -2402,9 +2403,41 @@ function heroUp(){
   for (let fs = parseFloat(getComputedStyle(box).fontSize); box.scrollWidth > box.clientWidth + 1 && fs > 20; ) box.style.fontSize = (fs -= 2) + "px";
   const step = now => { if (run !== heroRun) return; const k = ms ? Math.min(1, (now - t0) / ms) : 1, e = 1 - Math.pow(1 - k, 3); amt.textContent = fmt(Math.round(to * e / 10) * 10); if (k < 1) requestAnimationFrame(step); };
   requestAnimationFrame(step);
-  $("shareStatus").textContent = ""; $("shareImg").hidden = !canShareFiles();
+  $("shareStatus").textContent = ""; $("cardImg").removeAttribute("src");
   cardBlob = null; setTimeout(() => { if (run === heroRun) readyCard().catch(() => {}); }, 1200);
 }
+// The statement is four steps, pressed through in order like the title screen: 1 the result, 2 the survey (all three
+// questions answered and a habit picked before going on), 3 the leaderboard (nickname and email to post, or skip),
+// 4 the result card (save, share), then See tower or Play again. Play again on the tower view waits for step 4 too.
+const STEP_FOCUS = ["endTitle", "quizHead", "infoHead", "cardHead"];
+const surveyDone = () => !!S && S.quiz.every(Boolean) && !!S.habit;
+function stepButtons(){
+  const n = S.step, next = $("stNext"), posted = !!S.posted;
+  $("stBack").hidden = n === 1 || n === 4; next.hidden = n === 4; $("closeEnd").hidden = $("againBtn").hidden = n !== 4;
+  next.disabled = n === 2 && !surveyDone();
+  next.classList.toggle("alt", n === 3 && !posted);
+  label(next, n === 3 ? (posted ? ["See my card", "睇結果卡"] : ["Skip posting", "唔上榜"]) : ["Next", "下一步"]);
+  $("surveyGate").textContent = n === 2 && !surveyDone() ? "Answer all 3 questions and pick a habit to go on. 答晒3題同揀一個習慣，先可以繼續。" : "";
+}
+function setStep(n, focus){
+  S.step = n; if (n === 4) S.flowDone = true;
+  const sheet = document.querySelector("#endModal .statement"); sheet.dataset.step = n;
+  [...$("stSteps").children].forEach((li, i) => { li.classList.toggle("done", i + 1 < n); if (i + 1 === n) li.setAttribute("aria-current", "step"); else li.removeAttribute("aria-current"); });
+  stepButtons();
+  const body = $("stBody"); body.classList.remove("enter"); void body.offsetWidth; if (!reduceMotion) body.classList.add("enter");
+  $("stScroll").scrollTop = 0;
+  if (n === 4) showCard();
+  if (focus !== false) $(STEP_FOCUS[n - 1]).focus({preventScroll: true});
+}
+async function showCard(){
+  const img = $("cardImg"), ps = $("postStatus");
+  $("cardRank").textContent = S.posted ? ps.textContent : "";
+  img.alt = "Your result card: " + fmt(S.score) + ", " + (S.stage === STAGES.length - 1 ? "made it to Retirement" : "reached " + STAGES[S.stage].en) + ". 你的結果卡";
+  $("shareImg").hidden = !canShareFiles();
+  try { const b = await readyCard(); if (img._url) URL.revokeObjectURL(img._url); img._url = URL.createObjectURL(b); img.src = img._url; } catch(e){}
+}
+$("stNext").addEventListener("click", () => { if (S.step < 4 && !(S.step === 2 && !surveyDone())) setStep(S.step + 1); });
+$("stBack").addEventListener("click", () => { if (S.step > 1) setStep(S.step - 1); });
 async function readyCard(){
   const k = [S.endAt, Math.round(S.score), cardName(), WHO].join("|");
   if (cardBlob && cardKey === k) return cardBlob;
@@ -2541,6 +2574,7 @@ function showEnd(){
         const wz = document.createElement("small"); wz.textContent = q.why[1];
         fb.className = "qfb " + (ok ? "ok" : "no"); fb.replaceChildren(head, hz, why, wz);
         if (!S.quizDone && S.quiz.every(Boolean)){ S.quizDone = true; lsSet("tff_quiz_n", (+lsGet("tff_quiz_n", 0) || 0) + 1); }
+        if (S.step === 2) stepButtons();
         quizScore(); saveSoon();
       });
       box.appendChild(b);
@@ -2552,7 +2586,7 @@ function showEnd(){
   HABITS.forEach(h => {
     const lab = document.createElement("label"); lab.className = "habit";
     const inp = document.createElement("input"); inp.type = "radio"; inp.name = "habit"; inp.value = h.id; inp.id = "habit_" + h.id;
-    inp.addEventListener("change", () => { if (inp.checked){ S.habit = h.id; saveSoon(); } });
+    inp.addEventListener("change", () => { if (inp.checked){ S.habit = h.id; saveSoon(); if (S.step === 2) stepButtons(); } });
     const t = document.createElement("span"); t.textContent = h.en; const z = document.createElement("small"); z.textContent = h.zh; t.appendChild(z);
     lab.append(inp, t); hb.appendChild(lab);
   });
@@ -2563,7 +2597,7 @@ function showEnd(){
   const ps = $("postStatus"); ps.className = "post-status";
   ps.textContent = live ? "Only your nickname and score will appear on the leaderboard. 排行榜只會顯示你的暱稱及分數。" : "Your score will be saved on this device only. 分數只會儲存在這部裝置。";
   $("endModal").hidden = false; $("stScroll").scrollTop = 0; endScroll = 0;
-  heroUp();
+  S.flowDone = false; setStep(1, false); heroUp();
   endShownAt = performance.now(); modalOpen(true);
   $("endTitle").focus({preventScroll:true});
   const game = S; game.rec = newRecord();
@@ -2711,10 +2745,15 @@ const showStatus = () => requestAnimationFrame(() => {
 $("postBtn").addEventListener("click", async () => {
   const st = S; if (st.posted || st.posting) return;
   const ps = $("postStatus"), btn = $("postBtn"), em = $("email");
-  const email = em.closest(".fld").hidden ? "" : em.value.trim();
-  if (email && (email.length > 254 || !EMAIL_OK.test(email))){
+  const email = em.closest(".fld").hidden ? "" : em.value.trim(), nick = $("nickname");
+  nick.classList.remove("bad"); nick.removeAttribute("aria-invalid");
+  if (!$("nickname").value.trim()){   // posting needs a nickname...
+    nick.classList.add("bad"); nick.setAttribute("aria-invalid", "true"); nick.focus(); ps.className = "post-status bad";
+    ps.textContent = "Add a nickname to post your score. 請填暱稱先可以上榜。"; return;
+  }
+  if (!em.closest(".fld").hidden && (!email || email.length > 254 || !EMAIL_OK.test(email))){   // ...and, on the live board, an email for the prizes
     emailError(true); em.focus(); ps.className = "post-status bad";
-    ps.textContent = "That email doesn't look right. Check it, or leave it blank. 電郵地址好似唔啱，請再檢查，或者留空。";
+    ps.textContent = email ? "That email doesn't look right. Please check it. 電郵地址好似唔啱，請再檢查。" : "Add your email to post: it's how we reach prize winners. 請填電郵先可以上榜，我哋會用嚟聯絡得獎者。";
     return;
   }
   emailError(false); st.posting = true;
@@ -2737,7 +2776,8 @@ $("postBtn").addEventListener("click", async () => {
         A.sfx("post"); ps.className = "post-status ok";
         ps.textContent = (j.rank ? "You're #" + j.rank + " this week! 今個星期排第" + j.rank + "！ " : "On the live board! 已上榜！ ") +
           (email ? "We'll email you if you win a prize. 如果你得獎，我哋會電郵通知你。" : "");
-        postLabel("Posted ✓", "已上榜"); showStatus(); setTimeout(() => readyCard().catch(() => {}), 300);   // the picture now carries the nickname
+        postLabel("Posted ✓", "已上榜"); showStatus(); cardBlob = null; stepButtons();   // the picture will carry the nickname
+        setTimeout(() => { if (st === S && S.step === 3) setStep(4); }, 1600);   // a moment to read the rank, then the card
       }
       lbSig = ""; refreshLB(true);
       return;
@@ -2746,7 +2786,7 @@ $("postBtn").addEventListener("click", async () => {
       if (e.code === "bad_email"){
         st.posting = false;
         if (st === S){ btn.disabled = false; postLabel("Post score", "上榜"); emailError(true); em.focus(); ps.className = "post-status bad";
-          ps.textContent = "That email doesn't look right. Check it, or leave it blank. 電郵地址好似唔啱，請再檢查，或者留空。"; }
+          ps.textContent = "That email doesn't look right. Please check it. 電郵地址好似唔啱，請再檢查。"; }
         return;
       }
       if (!e.status || e.status === 429 || (e.status >= 500 && e.code !== "no_database")){
@@ -2766,7 +2806,7 @@ $("postBtn").addEventListener("click", async () => {
     }
   } else ps.textContent = "Saved on this device. 已經存咗喺呢部機。";
   saveLocal(); myLocalAt = entry.at; st.posted = true; st.posting = false;
-  if (st === S){ A.sfx("post"); ps.className = "post-status ok"; postLabel("Saved ✓", "已儲存"); showStatus(); }
+  if (st === S){ A.sfx("post"); ps.className = "post-status ok"; postLabel("Saved ✓", "已儲存"); showStatus(); cardBlob = null; stepButtons(); setTimeout(() => { if (st === S && S.step === 3) setStep(4); }, 1600); }
   lbSig = ""; renderLB();
 });
 document.querySelectorAll(".tab").forEach(b => b.addEventListener("click", () => {

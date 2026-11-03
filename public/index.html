@@ -25,8 +25,8 @@
 <meta property="og:image:alt" content="3 Fall Fun: a clay tower of everyday items on a Hong Kong harbour pier">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preload" href="/assets/gluten.842f8cce6e.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="/assets/noto-sans-hk.28eca54a6e.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/assets/style.9ef9b26174.css">
+<link rel="preload" href="/assets/noto-sans-hk.57b26e10fd.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/style.3e359b2094.css">
 </head>
 <body>
 <noscript><p style="margin:0;padding:16px;background:#2E2838;color:#fff;font:16px/1.5 system-ui,sans-serif;text-align:center">3 Fall Fun needs JavaScript to run. 請開啟 JavaScript 先玩到。</p></noscript>
@@ -227,8 +227,8 @@
   </div>
 
   <footer class="foot">
-    <p><b>Privacy</b> · Game records, including scores, choices, quiz answers and habit pledges, are stored anonymously for programme evaluation and game development. Only your nickname appears on the leaderboard. If you provide your email address, only authorised team members can access it, and it is used solely to contact prize winners. You have the right to request access to and correction of your personal data. For enquiries, please email <a href="mailto:team@3fallcrab.com">team@3fallcrab.com</a>.</p>
-    <p class="zh" lang="zh-HK">私隱聲明：遊戲紀錄（包括分數、選擇、測驗答案及習慣承諾）會以匿名方式儲存，用於計劃評估及遊戲開發。排行榜只會顯示你的暱稱。如你提供電郵地址，只有獲授權人員可以查閱，並只會用於聯絡得獎者。你有權要求查閱及更正你的個人資料。如有查詢，請電郵至 <a href="mailto:team@3fallcrab.com">team@3fallcrab.com</a>。</p>
+    <p><b>Privacy</b> · Game records, including scores, choices, quiz answers and habit pledges, are stored anonymously for programme evaluation and game development. Only your nickname appears on the leaderboard. The email address you give when posting a score can be accessed only by authorised team members and is used solely to contact prize winners. You have the right to request access to and correction of your personal data. For enquiries, please email <a href="mailto:team@3fallcrab.com">team@3fallcrab.com</a>.</p>
+    <p class="zh" lang="zh-HK">私隱聲明：遊戲紀錄（包括分數、選擇、測驗答案及習慣承諾）會以匿名方式儲存，用於計劃評估及遊戲開發。排行榜只會顯示你的暱稱。你上榜時提供的電郵地址，只有獲授權人員可以查閱，並只會用於聯絡得獎者。你有權要求查閱及更正你的個人資料。如有查詢，請電郵至 <a href="mailto:team@3fallcrab.com">team@3fallcrab.com</a>。</p>
   </footer>
 </div>
 
@@ -307,52 +307,67 @@
 
 <div class="modal" id="endModal" role="dialog" aria-modal="true" aria-labelledby="endTitle" hidden>
   <div class="sheet statement">
-    <div class="st-scroll" id="stScroll">
+    <div class="st-scroll" id="stScroll" tabindex="0" role="region" aria-label="Your results 你的結果">
     <div class="st-band"><span class="zh" lang="zh-HK">結單</span><small id="stDate">STATEMENT</small><span class="seal" aria-hidden="true">結算</span></div>
-    <div class="st-body">
-      <div class="st-hero" id="stHero">
+    <div class="st-body" id="stBody">
+      <ol class="steps" id="stSteps" aria-label="Your results, step by step 一步一步睇結果">
+        <li>Result<span class="zh" lang="zh-HK">結果</span></li><li>Survey<span class="zh" lang="zh-HK">問卷</span></li><li>Leaderboard<span class="zh" lang="zh-HK">上榜</span></li><li>Your card<span class="zh" lang="zh-HK">結果卡</span></li>
+      </ol>
+      <div class="st-hero" id="stHero" data-s="1">
         <canvas id="endAvatar" width="168" height="322" aria-hidden="true"></canvas>
         <div class="sh-text">
           <p class="st-eyebrow" id="endEyebrow"></p>
           <p class="sh-cong" id="heroCong"></p>
           <p class="sh-amt"><span id="heroAmt" aria-hidden="true"></span><span class="sr" id="rNw"></span></p>
           <h3 id="endTitle" tabindex="-1"></h3>
-          <div class="sh-share">
-            <button class="btn teal" id="saveImg" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10.5l5 5 5-5M5 19h14"/></svg>Save image<span class="zh" lang="zh-HK">下載圖片</span></button>
-            <button class="btn alt" id="shareImg" type="button" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="M8.2 10.8l7.6-4M8.2 13.2l7.6 4"/></svg>Share<span class="zh" lang="zh-HK">分享</span></button>
-          </div>
-          <p class="sh-status" id="shareStatus" aria-live="polite"></p>
         </div>
         <i class="spk s1" aria-hidden="true"></i><i class="spk s2" aria-hidden="true"></i><i class="spk s3" aria-hidden="true"></i><i class="spk s4" aria-hidden="true"></i>
       </div>
-      <p class="sub" id="endSub"></p>
-      <ul class="rows">
+      <p class="sub" id="endSub" data-s="1"></p>
+      <ul class="rows" data-s="1">
         <li><span class="lab">Life stage<small>人生階段</small></span><span class="dots"></span><span class="val" id="rStage"></span></li>
         <li><span class="lab">Best height<small>最高樓層</small></span><span class="dots"></span><span class="val" id="rHeight"></span></li>
         <li><span class="lab">Wise picks<small>明智選擇</small></span><span class="dots"></span><span class="val" id="rWise"></span></li>
         <li class="jp" id="rJpRow" hidden><span class="lab">Jackpot<small>大獎蟹</small></span><span class="dots"></span><span class="val" id="rJp"></span></li>
       </ul>
-      <div class="esec"><h4>Your 3 Falls<span class="zh" lang="zh-HK">你中過嘅陷阱</span></h4><ul class="fallrep" id="fallRep"></ul></div>
-      <div class="esec" id="trollSec" hidden><h4>Too good to be true<span class="zh" lang="zh-HK">太好嘅嘢唔會係真</span></h4><ul class="fallrep trollrep" id="trollRep"></ul></div>
-      <div class="esec"><h4>Quick quiz<span class="zh" lang="zh-HK">小測驗 · <span id="quizScore">0/3</span></span></h4>
+      <div class="esec" data-s="1"><h4>Your 3 Falls<span class="zh" lang="zh-HK">你中過嘅陷阱</span></h4><ul class="fallrep" id="fallRep"></ul></div>
+      <div class="esec" id="trollSec" data-s="1" hidden><h4>Too good to be true<span class="zh" lang="zh-HK">太好嘅嘢唔會係真</span></h4><ul class="fallrep trollrep" id="trollRep"></ul></div>
+      <div class="esec" data-s="2"><h4 id="quizHead" tabindex="-1">Quick quiz<span class="zh" lang="zh-HK">小測驗 · <span id="quizScore">0/3</span></span></h4>
         <p class="esec-note">Tap an answer to see if you're right (saved anonymously).<span class="zl" lang="zh-HK">撳一個答案，即刻知啱唔啱（匿名記錄）。</span></p>
         <div id="quiz"></div></div>
-      <div class="esec">
+      <div class="esec" data-s="2">
         <h4>Commit to one habit<span class="zh" lang="zh-HK">揀一個好習慣，堅持落去</span></h4>
         <div class="habits" id="habits"></div>
+        <p class="gate" id="surveyGate" aria-live="polite"></p>
+      </div>
+      <div class="esec" data-s="3">
+        <h4 id="infoHead" tabindex="-1">Join the leaderboard<span class="zh" lang="zh-HK">上排行榜</span></h4>
+        <p class="esec-note">Add a nickname and an email to post your score and play for the prizes.<span class="zl" lang="zh-HK">填暱稱同電郵就可以上榜，爭取獎品。</span></p>
         <div class="namerow">
           <div class="fld"><label for="nickname">Nickname <span class="zh" lang="zh-HK">暱稱</span></label>
             <input id="nickname" maxlength="16" placeholder="No real names 唔好用真名" autocomplete="off"></div>
-          <div class="fld em"><label for="email">Email for prizes <span class="opt">(optional)</span> <span class="zh" lang="zh-HK">領獎電郵（選填）</span></label>
+          <div class="fld em"><label for="email">Email for prizes <span class="zh" lang="zh-HK">領獎電郵</span></label>
             <input id="email" type="email" inputmode="email" maxlength="254" placeholder="you@example.com" autocomplete="email" spellcheck="false" aria-describedby="emailNote privacyNote"></div>
           <button class="btn teal" id="postBtn">Post score<span class="zh" lang="zh-HK">上榜</span></button>
         </div>
         <p class="post-status" id="postStatus" aria-live="polite"></p>
         <p class="email-note"><span id="emailNote">Top scorers each week and each month win prizes. Your email address is used only to contact winners and is never made public.<span class="zl" lang="zh-HK">每週及每月最高分的玩家可獲獎品。你的電郵地址只會用於聯絡得獎者，絕不會公開。</span></span> <span id="privacyNote">To access or correct your email address, please email <a href="mailto:team@3fallcrab.com">team@3fallcrab.com</a>.<span class="zl" lang="zh-HK">如需查閱或更正你的電郵地址，請電郵至 <a href="mailto:team@3fallcrab.com">team@3fallcrab.com</a>。</span></span></p>
       </div>
+      <div class="esec" data-s="4">
+        <h4 id="cardHead" tabindex="-1">Your result card<span class="zh" lang="zh-HK">你的結果卡</span></h4>
+        <p class="card-rank" id="cardRank"></p>
+        <img class="card-img" id="cardImg" alt="" width="1080" height="1350">
+        <div class="sh-share">
+          <button class="btn teal" id="saveImg" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10.5l5 5 5-5M5 19h14"/></svg>Save image<span class="zh" lang="zh-HK">下載圖片</span></button>
+          <button class="btn alt" id="shareImg" type="button" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="M8.2 10.8l7.6-4M8.2 13.2l7.6 4"/></svg>Share<span class="zh" lang="zh-HK">分享</span></button>
+        </div>
+        <p class="sh-status" id="shareStatus" aria-live="polite"></p>
+      </div>
     </div>
     </div>
     <div class="endactions">
+      <button class="btn alt" id="stBack" type="button" hidden>Back<span class="zh" lang="zh-HK">上一步</span></button>
+      <button class="btn" id="stNext" type="button">Next<span class="zh" lang="zh-HK">下一步</span></button>
       <button class="btn alt" id="closeEnd">See tower<span class="zh" lang="zh-HK">睇返座塔</span></button>
       <button class="btn" id="againBtn">Play again<span class="zh" lang="zh-HK">再玩</span></button>
     </div>
@@ -369,6 +384,6 @@
 <script src="/assets/jackpot.993fa050bf.js"></script>
 <script src="/assets/content.845ef86df6.js"></script>
 <script src="/assets/avatar.2a84cc27be.js"></script>
-<script src="/assets/game.30df096af1.js"></script>
+<script src="/assets/game.d39da86b5b.js"></script>
 </body>
 </html>
