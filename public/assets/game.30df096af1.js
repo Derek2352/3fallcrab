@@ -2384,6 +2384,90 @@ function tick(dt){
   if (S.acc > STEP * 4) S.acc = 0;
 }
 
+// ---------- the result: the top of the statement, and a picture of it to save or share ----------
+// The statement opens on the result: the player as the game left them, the net worth counting up (the number pops),
+// what they reached. "Save image" makes a 1080 x 1350 JPEG card of it (the game's own sky, city and harbour, the
+// player, the amount, the stage, the 3 Falls, the address); "Share" hands it to the phone's share sheet (Instagram,
+// WhatsApp...) where the browser can share files. The card is made in advance: a share must happen right on the tap.
+let cardBlob = null, cardKey = "", heroRun = 0;
+const canShareFiles = () => { try { return !!(navigator.share && navigator.canShare && navigator.canShare({files: [new File([new Uint8Array([255, 216, 255])], "x.jpg", {type: "image/jpeg"})]})); } catch(e){ return false; } };
+const cardName = () => S && S.rec && S.rec.board && S.rec.name && S.rec.name !== ANON ? S.rec.name : "";
+function heroUp(){
+  const up = S.score > 0, cong = $("heroCong"), en = document.createElement("span"), hero = $("stHero");
+  en.textContent = up ? "Congrats! You saved" : "Your net worth"; cong.replaceChildren(up ? "恭喜你儲到" : "你嘅淨資產", en);
+  avKeys.delete($("endAvatar")); paintAvatar($("endAvatar"), lookNow());   // as the game left them
+  hero.classList.remove("pop"); void hero.offsetWidth; if (!reduceMotion) hero.classList.add("pop");
+  const to = Math.round(S.score), t0 = performance.now(), ms = reduceMotion ? 0 : 900, run = ++heroRun, amt = $("heroAmt"), box = amt.parentNode;
+  box.style.fontSize = ""; amt.textContent = fmt(to);   // sized to fit the final amount first, so the count doesn't jump
+  for (let fs = parseFloat(getComputedStyle(box).fontSize); box.scrollWidth > box.clientWidth + 1 && fs > 20; ) box.style.fontSize = (fs -= 2) + "px";
+  const step = now => { if (run !== heroRun) return; const k = ms ? Math.min(1, (now - t0) / ms) : 1, e = 1 - Math.pow(1 - k, 3); amt.textContent = fmt(Math.round(to * e / 10) * 10); if (k < 1) requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+  $("shareStatus").textContent = ""; $("shareImg").hidden = !canShareFiles();
+  cardBlob = null; setTimeout(() => { if (run === heroRun) readyCard().catch(() => {}); }, 1200);
+}
+async function readyCard(){
+  const k = [S.endAt, Math.round(S.score), cardName(), WHO].join("|");
+  if (cardBlob && cardKey === k) return cardBlob;
+  const b = await makeResultCard(); cardBlob = b; cardKey = k; return b;
+}
+async function makeResultCard(){
+  if (document.fonts && document.fonts.ready) await document.fonts.ready;
+  const CW = 1080, CH = 1350, c = document.createElement("canvas"); c.width = CW; c.height = CH;
+  const g = c.getContext("2d"), F = K.FONTS, st = STAGES[S.stage], top = S.stage === STAGES.length - 1;
+  const rr = (x, y, w, h, r) => { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); };
+  const outlined = (txt, x, y, font, fill, sw) => { g.font = font; g.textAlign = "center"; g.lineJoin = "round"; g.strokeStyle = "rgba(37,49,122,0.3)"; g.lineWidth = sw + 6; g.strokeText(txt, x + 5, y + 8); g.strokeStyle = "#fff"; g.lineWidth = sw; g.strokeText(txt, x, y); g.fillStyle = fill; g.fillText(txt, x, y); };
+  // the game's own sky, city and harbour
+  const sky = g.createLinearGradient(0, 0, 0, CH); sky.addColorStop(0, "#3FB4FF"); sky.addColorStop(0.6, "#8EDBFF"); sky.addColorStop(1, "#C8F0FF"); g.fillStyle = sky; g.fillRect(0, 0, CW, CH);
+  const tile = (img, y, h) => { if (!img || !img.width) return; const w = h * img.width / img.height, x0 = (CW - w) / 2; for (let x = x0 - Math.ceil(x0 / w) * w; x < CW; x += w) g.drawImage(img, x, y, w, h); };
+  tile(L.sky, 0, 330); tile(L.city, CH - 500, 340); tile(L.sea, CH - 200, 230);
+  // the title
+  const word = ["3", "F", "a", "l", "l", "F", "u", "n"], cols = ["#FF5FA2", "#3A9BF0", "#4CC36A", "#FF7B35", "#8B6CF2", "#F2463E", "#20C1B3", "#FF5FA2"];
+  g.font = "900 124px " + F.display; const gaps = [26, 0, 0, 0, 22, 0, 0, 0], ws = word.map(ch => g.measureText(ch).width), tw = ws.reduce((a, b) => a + b, 0) + gaps.reduce((a, b) => a + b, 0);
+  let x = (CW - tw) / 2; word.forEach((ch, i) => { outlined(ch, x + ws[i] / 2, 160, g.font, cols[i], 14); x += ws[i] + gaps[i]; });
+  if ("letterSpacing" in g) g.letterSpacing = "14px";
+  outlined("人生跌塔", CW / 2 + 7, 278, "700 88px " + F.zh, "#25317A", 16);
+  if ("letterSpacing" in g) g.letterSpacing = "0px";
+  // the card
+  g.save(); g.shadowColor = "rgba(37,49,122,0.28)"; g.shadowOffsetY = 16; rr(70, 330, 940, 700, 48); g.fillStyle = "#FFF6E6"; g.fill(); g.restore();
+  g.save(); rr(70, 330, 940, 700, 48); g.clip(); const gl = g.createLinearGradient(0, 330, 0, 1030); gl.addColorStop(0, "#FFFDF7"); gl.addColorStop(1, "#FFE6BE"); g.fillStyle = gl; g.fillRect(70, 330, 940, 700); g.restore();
+  // the player, as the game left them
+  g.save(); g.translate(100, 380); g.scale(2.45, 2.45); AV.draw(g, lookNow()); g.restore();
+  // the result
+  const cx = 705; g.textAlign = "center";
+  g.fillStyle = "#25317A"; g.font = "700 54px " + F.zh; g.fillText(S.score > 0 ? "恭喜你儲到" : "我嘅淨資產", cx, 470);
+  g.fillStyle = "#5B516C"; g.font = "800 30px " + F.sans; g.fillText(S.score > 0 ? "I saved" : "My net worth", cx, 515);
+  const amt = fmt(S.score); let fs = 120; g.font = "900 " + fs + "px " + F.display; while (g.measureText(amt).width > 540 && fs > 56){ fs -= 4; g.font = "900 " + fs + "px " + F.display; }
+  outlined(amt, cx, 645, g.font, "#1F9E4A", 14);
+  g.fillStyle = "#25317A"; g.font = "700 42px " + F.zh; g.fillText(top ? "成功退休！" : "去到「" + st.zh + "」", cx, 728);
+  g.fillStyle = "#5B516C"; g.font = "800 28px " + F.sans; g.fillText((top ? "Made it to Retirement" : "Reached " + st.en) + " · " + (S.best / FLOOR).toFixed(1) + "F", cx, 770);
+  [["spend", "#E8661F", "過度消費"], ["scam", "#7B5BE8", "騙局"], ["delay", "#2F86D6", "拖延"]].forEach(([k, col, zh], i) => {
+    const bx = 445 + i * 182, by = 805; rr(bx, by, 170, 104, 26); g.fillStyle = col; g.fill();
+    g.fillStyle = "#fff"; g.font = "700 30px " + F.zh; g.fillText(zh, bx + 85, by + 42); g.font = "900 34px " + F.display; g.fillText(S.falls[k] ? "×" + S.falls[k] : "✓", bx + 85, by + 86);
+  });
+  const nm = cardName(); g.fillStyle = "#25317A"; g.font = "800 30px " + F.sans; g.fillText((nm ? nm + " · " : "") + "as " + (WHO === "jackie" ? "Jackie" : "Jack"), cx, 975);
+  // where to play
+  rr(250, 1186, 580, 96, 48); g.fillStyle = "rgba(255,253,247,0.96)"; g.fill();
+  g.fillStyle = "#25317A"; g.font = "900 46px " + F.display; g.fillText("3fallcrab.com", CW / 2, 1250);
+  g.save(); g.shadowColor = "rgba(20,30,90,0.55)"; g.shadowBlur = 6; g.fillStyle = "#fff"; g.font = "700 26px " + F.zh; g.fillText("HSUHK 個人理財大使計劃 2026 · 3 Fall Crab 整冧咗team", CW / 2, 1326); g.restore();
+  return await new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error("no image")), "image/jpeg", 0.92));
+}
+async function exportResult(share){
+  const out = $("shareStatus");
+  out.textContent = cardBlob ? "" : "Making your picture… 製作緊…";
+  let blob;
+  try { blob = await readyCard(); } catch(e){ out.textContent = "Couldn't make the picture. 整唔到圖片。"; return; }
+  const file = new File([blob], "3fallfun-result.jpg", {type: "image/jpeg"});
+  if (share && canShareFiles()){
+    try { await navigator.share({files: [file], title: "3 Fall Fun 人生跌塔", text: "我喺《3 Fall Fun 人生跌塔》儲到 " + fmt(S.score) + "！你又得唔得？ " + location.origin}); out.textContent = "Shared 已分享"; return; }
+    catch(e){ if (e && e.name === "AbortError"){ out.textContent = ""; return; } }   // closed the share sheet: nothing more to do
+  }
+  const a = document.createElement("a"), url = URL.createObjectURL(blob);
+  a.href = url; a.download = "3fallfun-result.jpg"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000);
+  out.textContent = "Saved to your device 已下載";
+}
+$("saveImg").addEventListener("click", () => exportResult(false));
+$("shareImg").addEventListener("click", () => exportResult(true));
+
 // ---------- end screen ----------
 function showEnd(){
   const st = STAGES[S.stage];
@@ -2479,6 +2563,7 @@ function showEnd(){
   const ps = $("postStatus"); ps.className = "post-status";
   ps.textContent = live ? "Only your nickname and score will appear on the leaderboard. 排行榜只會顯示你的暱稱及分數。" : "Your score will be saved on this device only. 分數只會儲存在這部裝置。";
   $("endModal").hidden = false; $("stScroll").scrollTop = 0; endScroll = 0;
+  heroUp();
   endShownAt = performance.now(); modalOpen(true);
   $("endTitle").focus({preventScroll:true});
   const game = S; game.rec = newRecord();
@@ -2557,6 +2642,7 @@ function recordBody(st){
     answers: answersOf(st), habit: st.habit || null,
     items: st.items, real_ms: Math.round(st.realMs), at: st.endAt || undefined, prior: st.prior,   // checked by the server; at buckets a late retry
     jackpot: st.jpAt >= 0 ? 1 : 0,   // its windfall and jackpot time raise the server's score limit
+    avatar: WHO,   // Jack or Jackie
     troll_revive: st.troll.reviveSeen ? st.troll.revive : null, troll_invest: st.troll.invest, troll_tickets: st.troll.ticketSeen ? st.troll.tickets : null};
 }
 // Saves go out one at a time; each sends the latest state, and only if it changed since the last one.
@@ -2651,7 +2737,7 @@ $("postBtn").addEventListener("click", async () => {
         A.sfx("post"); ps.className = "post-status ok";
         ps.textContent = (j.rank ? "You're #" + j.rank + " this week! 今個星期排第" + j.rank + "！ " : "On the live board! 已上榜！ ") +
           (email ? "We'll email you if you win a prize. 如果你得獎，我哋會電郵通知你。" : "");
-        postLabel("Posted ✓", "已上榜"); showStatus();
+        postLabel("Posted ✓", "已上榜"); showStatus(); setTimeout(() => readyCard().catch(() => {}), 300);   // the picture now carries the nickname
       }
       lbSig = ""; refreshLB(true);
       return;

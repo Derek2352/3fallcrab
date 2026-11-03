@@ -4,20 +4,20 @@
    are the ones Google Fonts served, so --f-* below and clay.js (canvas lettering) stay as they are. */
 @font-face{font-family:"Gluten";font-style:normal;font-weight:400 900;font-display:swap;src:url(/assets/gluten.842f8cce6e.woff2) format("woff2")}
 /* Noto Sans HK is one variable file. Four faces, not one 400 900 range, so a weight-800 label still uses the 900 face, as before. */
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/noto-sans-hk.7bb71d8173.woff2) format("woff2")}
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:500;font-display:swap;src:url(/assets/noto-sans-hk.7bb71d8173.woff2) format("woff2")}
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/noto-sans-hk.7bb71d8173.woff2) format("woff2")}
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:900;font-display:swap;src:url(/assets/noto-sans-hk.7bb71d8173.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/noto-sans-hk.28eca54a6e.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:500;font-display:swap;src:url(/assets/noto-sans-hk.28eca54a6e.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/noto-sans-hk.28eca54a6e.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:900;font-display:swap;src:url(/assets/noto-sans-hk.28eca54a6e.woff2) format("woff2")}
 /* WenKai draws only Chinese (and the digits inside Chinese lines): its Latin is a thin handwriting, so English in a
    Chinese-font line falls through to Noto Sans HK and reads the same as everywhere else */
-@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/lxgw-wenkai-tc-regular.8bf093e3ee.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
-@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/lxgw-wenkai-tc-bold.f61af9581d.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
+@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/lxgw-wenkai-tc-regular.695e17a016.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
+@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/lxgw-wenkai-tc-bold.ad6fc96fb9.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
 /* Curly quotes, ‘ ’, × and · in Latin widths: Noto Sans HK draws them a whole Chinese character wide, which left holes
    in English ("to   “rent”", "pays ×1.5"). Source Sans 3 (the Latin Noto Sans HK is based on), 1 KB a weight. */
 @font-face{font-family:"TFF Punct";font-style:normal;font-weight:400 650;font-display:swap;src:url(/assets/source-sans-punct-400.f1e8c6c73b.woff2) format("woff2");unicode-range:U+00B7,U+00D7,U+2018-201D}
 @font-face{font-family:"TFF Punct";font-style:normal;font-weight:651 850;font-display:swap;src:url(/assets/source-sans-punct-700.54c4ee4dfe.woff2) format("woff2");unicode-range:U+00B7,U+00D7,U+2018-201D}
 @font-face{font-family:"TFF Punct";font-style:normal;font-weight:851 900;font-display:swap;src:url(/assets/source-sans-punct-900.622c4a765b.woff2) format("woff2");unicode-range:U+00B7,U+00D7,U+2018-201D}
-@font-face{font-family:"DotGothic16";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/dotgothic16.6a63bf652b.woff2) format("woff2")}
+@font-face{font-family:"DotGothic16";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/dotgothic16.c795a8de8a.woff2) format("woff2")}
 
 /* Layout: a clay tabletop set — passbook + 3 Falls | the diorama board | tickets, building directory, leaderboard.
    One light (top-left) everywhere: CSS shadows fall down-right like the canvas clay. Single bright theme by design. */
@@ -1162,3 +1162,34 @@ html.fs.wide .hud .mini{grid-column:2 / -1}
 @keyframes avpop{0%{transform:scale(.6) rotate(-6deg);filter:brightness(1.4)}60%{transform:scale(1.14) rotate(2deg)}100%{transform:none;filter:none}}
 @media (max-width: 380px){ .hav{width:32px;height:62px} }
 @media (prefers-reduced-motion: reduce){ .hav.pop, .cav.pop, .picksheet{animation:none} .who:hover{transform:none} }
+
+/* ---------- the result, at the top of the statement: it pops ---------- */
+.st-hero{position:relative;display:grid;grid-template-columns:auto 1fr;gap:4px 14px;align-items:center;margin:-2px 0 12px;padding:12px 14px 14px 10px;border-radius:22px;overflow:hidden;
+  background:radial-gradient(ellipse at 28% 30%, #FFFBEF, #FFE6BE);box-shadow:inset 2px 2px 1px rgba(255,255,255,.85), inset -3px -4px 8px rgba(120,62,12,.14)}
+.st-hero canvas{width:84px;height:161px;align-self:end}
+.sh-text{min-width:0}
+.sh-cong{margin:2px 0 0;font-family:var(--f-zh);font-weight:700;font-size:21px;line-height:1.2;color:var(--navy)}
+.sh-cong span{display:block;font-family:var(--f-body);font-size:12.5px;font-weight:700;color:var(--ink-2)}
+.sh-amt{margin:2px 0 4px;font-family:var(--f-display);font-weight:900;font-size:clamp(34px, 10vw, 50px);line-height:1.05;color:#1F8F44;font-variant-numeric:tabular-nums;white-space:nowrap;
+  text-shadow:2px 2px 0 #fff, -2px 2px 0 #fff, 2px -2px 0 #fff, -2px -2px 0 #fff, 0 3px 0 #fff, 3px 0 0 #fff, -3px 0 0 #fff, 0 -3px 0 #fff, 3px 6px 0 rgba(37,49,122,.22)}
+.statement .st-hero #endTitle{margin:2px 0 0;font-size:18px;line-height:1.2}
+.statement .st-hero #endTitle .zh{font-size:15px;margin-top:2px}
+.sh-share{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.sh-share .btn{display:inline-flex;align-items:center;gap:6px;font-size:14px;padding:8px 14px 9px;border-radius:14px}
+.sh-share .btn[hidden]{display:none}
+.sh-share .btn .zh{font-size:12.5px}
+.sh-share svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.sh-status{margin:6px 0 0;font-size:12.5px;color:var(--ink-2);min-height:1em}
+.sh-status:empty{display:none}
+.st-hero.pop{animation:heropop .7s cubic-bezier(.2,.9,.3,1.35)}
+@keyframes heropop{0%{transform:scale(.55);opacity:0}60%{opacity:1}100%{transform:none;opacity:1}}
+.st-hero.pop #endAvatar{animation:avpop .8s .15s cubic-bezier(.2,.9,.3,1.5) both}
+.st-hero .spk{position:absolute;width:18px;height:18px;opacity:0;pointer-events:none;background:#FFD23F;clip-path:polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%)}
+.st-hero .s1{left:12%;top:10%} .st-hero .s2{right:10%;top:14%} .st-hero .s3{right:22%;bottom:12%} .st-hero .s4{left:30%;bottom:8%}
+.st-hero.pop .spk{animation:spark 1.2s .3s ease-out both}
+.st-hero.pop .s2{animation-delay:.45s} .st-hero.pop .s3{animation-delay:.6s} .st-hero.pop .s4{animation-delay:.75s}
+@keyframes spark{0%{opacity:0;transform:scale(.2) rotate(0)}40%{opacity:1;transform:scale(1.2) rotate(45deg)}100%{opacity:0;transform:scale(.6) rotate(90deg)}}
+.sh-share .btn{white-space:nowrap}
+@media (max-width: 480px){ .st-hero canvas{width:70px;height:134px} .sh-share{flex-direction:column;align-items:stretch} .sh-share .btn{justify-content:center} }
+@media (max-width: 380px){ .st-hero canvas{width:60px;height:115px} .sh-cong{font-size:18px} }
+@media (prefers-reduced-motion: reduce){ .st-hero.pop, .st-hero.pop #endAvatar, .st-hero.pop .spk{animation:none} }

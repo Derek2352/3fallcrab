@@ -36,7 +36,8 @@ CREATE TABLE IF NOT EXISTS scores (
   jackpot INTEGER,                     -- 1 = the Jackpot crab came up, with its windfall and jackpot time (newer game pages)
   troll_revive INTEGER,                -- null = the fake revive was never offered, 0 = offered and declined, 1 = pressed Revive (it never works)
   troll_invest INTEGER,                -- 0 = no investment pop-up, 1 = declined, 2 = invested HK$3,000 (the scam), 3 = also paid the HK$1,000 fee
-  troll_tickets INTEGER                -- null = no scratch-card offer, else 0..5 = HK$500 scratch cards bought (never a win)
+  troll_tickets INTEGER,               -- null = no scratch-card offer, else 0..5 = HK$500 scratch cards bought (never a win)
+  avatar TEXT                          -- "jack" or "jackie": the character the player chose (newer game pages)
 );
 CREATE INDEX IF NOT EXISTS idx_scores_week ON scores (week, hidden, score DESC, id);
 CREATE INDEX IF NOT EXISTS idx_scores_all ON scores (hidden, score DESC, id);

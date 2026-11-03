@@ -107,6 +107,7 @@ export const ADDED = [
   ["troll_revive", "INTEGER"], // null = the fake revive was never offered (not a 3-drops ending), 0 = offered, declined, 1 = pressed Revive (newer game pages)
   ["troll_invest", "INTEGER"], // 0 = no investment pop-up, 1 = declined, 2 = invested HK$3,000 (the scam), 3 = also paid the HK$1,000 fee (newer game pages)
   ["troll_tickets", "INTEGER"], // null = no scratch-card offer, else 0..5 = how many HK$500 scratch cards were bought (newer game pages)
+  ["avatar", "TEXT"], // "jack" | "jackie": the character the player chose (newer game pages)
 ];
 const SCHEMA_2 = [
   `CREATE UNIQUE INDEX IF NOT EXISTS idx_scores_gid ON scores (gid)`,
@@ -460,6 +461,7 @@ async function post(request, env, db) {
     troll_revive: Number.isInteger(b.troll_revive) && b.troll_revive >= 0 && b.troll_revive <= 1 ? b.troll_revive : null,
     troll_invest: Number.isInteger(b.troll_invest) && b.troll_invest >= 0 && b.troll_invest <= 3 ? b.troll_invest : null,
     troll_tickets: Number.isInteger(b.troll_tickets) && b.troll_tickets >= 0 && b.troll_tickets <= 5 ? b.troll_tickets : null,
+    avatar: b.avatar === "jack" || b.avatar === "jackie" ? b.avatar : null,
     ip_hash: null,
   };
   if (implausible(values, counts.wise, items)) return fail("implausible", 422);
@@ -538,7 +540,7 @@ async function authorised(request, env) {
   return diff === 0;
 }
 
-const ADMIN_COLS = "id, name, email, posted, score, stage, height, drops, wise, risky, missed, fall_spend, fall_scam, fall_delay, choices, habit, quiz, quiz_answered, quiz_answers, ended, week, month, created_at, updated_at, hidden, items, real_ms, quiz_prior, jackpot, troll_revive, troll_invest, troll_tickets";
+const ADMIN_COLS = "id, name, email, posted, score, stage, height, drops, wise, risky, missed, fall_spend, fall_scam, fall_delay, choices, habit, quiz, quiz_answered, quiz_answers, ended, week, month, created_at, updated_at, hidden, items, real_ms, quiz_prior, jackpot, troll_revive, troll_invest, troll_tickets, avatar";
 
 // ?week=2026-W41 or ?month=2026-10 narrows a view; neither means every game.
 function period(url) {
@@ -557,7 +559,8 @@ async function summary(db, p) {
   const TREND = `COUNT(*) AS games, ${sum("posted")} AS posted, ${sum(QUIZ_TAKER)} AS quizTakers,
       ${sum(`${QUIZ_TAKER} AND quiz >= ${QUIZ_PASS}`)} AS quizPass, ${sum("habit IS NOT NULL")} AS habits, ${sum("email IS NOT NULL")} AS emails,
       ROUND(AVG(score)) AS avgScore, ${sum("wise")} AS wise, ${sum("risky")} AS risky, ${sum("missed")} AS missed,
-      ${sum("fall_spend")} AS spend, ${sum("fall_scam")} AS scam, ${sum("fall_delay")} AS delay`;
+      ${sum("fall_spend")} AS spend, ${sum("fall_scam")} AS scam, ${sum("fall_delay")} AS delay,
+      ${sum("avatar = 'jack'")} AS jack, ${sum("avatar = 'jackie'")} AS jackie`;
   const res = await db.batch([
     q(`SELECT ${TREND}, ${sum("quiz_answered >= 1")} AS quizStarted, ${sum("quiz_answered IS NULL AND quiz IS NOT NULL")} AS quizLegacy,
         ${sum(`${QUIZ_TAKER} AND quiz_prior = 0`)} AS quizFirst, ${sum(`${QUIZ_TAKER} AND quiz_prior = 0 AND quiz >= ${QUIZ_PASS}`)} AS quizFirstPass,
@@ -595,7 +598,7 @@ async function summary(db, p) {
     period: { type: p.type, key: p.key },
     periods: { weeks: weeks.map((r) => r.k).filter(Boolean), months: months.map((r) => r.k).filter(Boolean) },
     overview: {
-      games, posted: o.posted || 0, anonymous: games - (o.posted || 0), emails: o.emails || 0,
+      games, jack: o.jack || 0, jackie: o.jackie || 0, posted: o.posted || 0, anonymous: games - (o.posted || 0), emails: o.emails || 0,
       quizQuestions: QUIZ.length, quizPassMark: QUIZ_PASS, quizTargetPct: 70,
       quizStarted: o.quizStarted || 0, quizTakers: o.quizTakers || 0, quizLegacy: o.quizLegacy || 0,
       quizPass: o.quizPass || 0, quizPassPct: pct(o.quizPass, o.quizTakers), quizPerfect: o.quizPerfect || 0,
@@ -680,7 +683,7 @@ async function admin(path, request, env, db) {
     const asked = period(url), p = asked.key ? asked : { type: "week", key: current.week, where: "week = ?1" };
     const limit = int(url.searchParams.get("limit") || 20, 1, 100);
     const { results } = await db
-      .prepare(`SELECT id, name, email, score, height, stage, created_at, week, month, drops, wise, ended, items, real_ms, jackpot, troll_revive, troll_invest, troll_tickets FROM scores
+      .prepare(`SELECT id, name, email, score, height, stage, created_at, week, month, drops, wise, ended, items, real_ms, jackpot, troll_revive, troll_invest, troll_tickets, avatar FROM scores
         WHERE posted = 1 AND hidden = 0 AND ${p.where} ORDER BY score DESC, id ASC LIMIT ?2`)
       .bind(p.key, limit)
       .all();

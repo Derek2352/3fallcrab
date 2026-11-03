@@ -310,11 +310,23 @@
     <div class="st-scroll" id="stScroll">
     <div class="st-band"><span class="zh" lang="zh-HK">結單</span><small id="stDate">STATEMENT</small><span class="seal" aria-hidden="true">結算</span></div>
     <div class="st-body">
-      <p class="st-eyebrow" id="endEyebrow"></p>
-      <h3 id="endTitle" tabindex="-1"></h3>
+      <div class="st-hero" id="stHero">
+        <canvas id="endAvatar" width="168" height="322" aria-hidden="true"></canvas>
+        <div class="sh-text">
+          <p class="st-eyebrow" id="endEyebrow"></p>
+          <p class="sh-cong" id="heroCong"></p>
+          <p class="sh-amt"><span id="heroAmt" aria-hidden="true"></span><span class="sr" id="rNw"></span></p>
+          <h3 id="endTitle" tabindex="-1"></h3>
+          <div class="sh-share">
+            <button class="btn teal" id="saveImg" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10.5l5 5 5-5M5 19h14"/></svg>Save image<span class="zh" lang="zh-HK">下載圖片</span></button>
+            <button class="btn alt" id="shareImg" type="button" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="M8.2 10.8l7.6-4M8.2 13.2l7.6 4"/></svg>Share<span class="zh" lang="zh-HK">分享</span></button>
+          </div>
+          <p class="sh-status" id="shareStatus" aria-live="polite"></p>
+        </div>
+        <i class="spk s1" aria-hidden="true"></i><i class="spk s2" aria-hidden="true"></i><i class="spk s3" aria-hidden="true"></i><i class="spk s4" aria-hidden="true"></i>
+      </div>
       <p class="sub" id="endSub"></p>
       <ul class="rows">
-        <li class="big"><span class="lab">Net worth<small>淨資產</small></span><span class="dots"></span><span class="val" id="rNw"></span></li>
         <li><span class="lab">Life stage<small>人生階段</small></span><span class="dots"></span><span class="val" id="rStage"></span></li>
         <li><span class="lab">Best height<small>最高樓層</small></span><span class="dots"></span><span class="val" id="rHeight"></span></li>
         <li><span class="lab">Wise picks<small>明智選擇</small></span><span class="dots"></span><span class="val" id="rWise"></span></li>
