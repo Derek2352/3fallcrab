@@ -1072,3 +1072,11 @@ html.fs .board-wrap.static::after{inset:6px}
 @media (max-width: 420px){ .offer h3{font-size:22px} .scratch .sc{font-size:32px} .rv-count{font-size:72px} .revive h3{font-size:34px} }
 @media (prefers-reduced-motion: reduce){ .glitch, .rv-count.beat, .scratch .sc.on .sym, .scratch .sc.miss, .offer, .revive, .of-art *, .board-wrap.static #board, .board-wrap.crt #board{animation:none!important} .scratch .sc.scratching .foil{animation:none;opacity:0} .scratch .coin, .scratch .dust, .board-wrap.static::after{display:none} .of-art.crash .down, .of-art.rise .up{stroke-dashoffset:0} .of-art.gone .susp{opacity:1} }
 @media (forced-colors: active){ .of-clock i, .rv-bar i{forced-color-adjust:none;background:CanvasText} .revive{border-color:CanvasText} }
+
+/* a trap's lesson: one line each language, and one fact */
+.of-note b, .rv-lesson b{display:block;font-size:14.5px;line-height:1.35}
+.of-note .zl, .rv-lesson .zl{display:block;margin-top:2px;font-family:var(--f-zh)}
+.of-note .fact, .rv-lesson .fact{display:block;margin-top:10px;padding:6px 10px;border-radius:12px;font-size:12px;font-weight:700;line-height:1.35;background:#FFFDF7;color:var(--ink)}
+.of-note .fact small, .rv-lesson .fact small{display:block;font-family:var(--f-zh);font-weight:400;color:var(--ink-2)}
+.rv-lesson .fact{background:rgba(255,255,255,.1);color:#FFE45C}
+.rv-lesson .fact small{color:#D9D4F2}

@@ -743,7 +743,7 @@ function offerStep(step){
     if (step === "fee"){ set(I.feeTitle.map(sub), I.fee); btns(I.feeYes, I.feeNo); if (S.score < FEE){ $("offerYes").disabled = true; $("offerNote").textContent = I.feeShort.join(" "); } }
     else if (step === "wait"){ set(I.wait, null); btns(null, null); }
     else {   // gone: the scam is a Fall, and the portfolio shows what it really was
-      set(I.goneTitle, I.gone); btns(I.ok, null); $("offerNote").textContent = I.lesson[0] + " " + I.lesson[1];
+      set(I.goneTitle, null); btns(I.ok, null); lessonInto($("offerNote"), I.lesson, I.fact);
       S.falls.scam++; T.scamSaid = 1; updateHUD(); A.sfx("scam");
       $("pfChip").classList.add("gone"); $("pfVal").textContent = "−" + fmt(INVEST + (T.invest === 3 ? FEE : 0)); $("pfPct").textContent = "▼100%";
       $("pfLine").setAttribute("points", (S.pf.pts || "0,18") + " 60,20");
@@ -757,7 +757,7 @@ function offerStep(step){
       set(L.close, L.closeSub); btns(L.again, L.stop);
       if (T.tickets >= MAX_TICKETS || S.score < TICKET){ $("offerYes").hidden = true; $("offerNote").textContent = T.tickets >= MAX_TICKETS ? L.shut.join(" ") : ""; o.limit = 0; $("offerClock").hidden = true; }
     } else {   // lesson
-      set(L.lessonTitle, L.lesson.map(t => t.replace("{n}", fmt(T.tickets * TICKET)))); btns(L.ok, null);
+      set(L.lessonTitle, null); btns(L.ok, null); lessonInto($("offerNote"), L.lesson, L.fact, fmt(T.tickets * TICKET));
       if (T.tickets){ S.falls.spend++; updateHUD(); A.sfx("risky"); }
     }
   }
@@ -783,6 +783,13 @@ function offerAnswer(yes, force){
     else if (o.step === "pitch"){ stamp(L.dodged[0], L.dodged[1], "good"); quip("ticketDodged", 2); closeOffer(); }
     else { quip("ticketStop", 2); offerStep("lesson"); }
   } else if (step === "ticket:lesson") closeOffer();
+}
+// a lesson: one line in each language and one fact to remember
+function lessonInto(el, [en, zh], fact, n){
+  const sub = t => t.replace("{n}", n || ""), mk = (tag, cls, t) => { const e = document.createElement(tag); if (cls) e.className = cls; e.textContent = sub(t); return e; };
+  const z = mk("span", "zl", zh); z.lang = "zh-HK";
+  const f = mk("span", "fact", fact[0]), fz = mk("small", "", fact[1]); fz.lang = "zh-HK"; f.appendChild(fz);
+  el.replaceChildren(mk("b", "", en), z, f);
 }
 function closeOffer(){
   $("offerModal").hidden = true; S.offer = null; modalOpen(false);
@@ -879,7 +886,7 @@ function reviveFrame(dt){
   } else if (r.phase === "fail" && r.t - r.at >= 1150 && !r.crt && !reduceMotion){ r.crt = true; $("boardWrap").classList.add("crt"); }   // the screen switches off
   else if (r.phase === "fail" && r.t - r.at >= (reduceMotion ? 1200 : 2000)){
     r.phase = "lesson"; $("boardWrap").classList.remove("static", "crt"); $("rvSheet").classList.remove("glitch"); $("reviveModal").classList.remove("watch");
-    $("rvLessonText").replaceChildren(); bi($("rvLessonText"), TR.revive.lesson[0], TR.revive.lesson[1]);
+    lessonInto($("rvLessonText"), TR.revive.lesson, TR.revive.fact);
     $("rvLesson").hidden = false; $("rvGo").focus({preventScroll: true});
   }
 }
