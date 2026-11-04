@@ -2756,6 +2756,8 @@ async function readyCard(){
 }
 async function makeResultCard(){
   if (document.fonts && document.fonts.ready) await document.fonts.ready;
+  const M = await Promise.race([loadMedal(), new Promise(r => setTimeout(() => r(null), 4000))]);
+  let medalPic = null; try { medalPic = M && M.snapshot(tierOf(S.verdict || verdictOf(S)), 240, 282); } catch(e){}
   const CW = 1080, CH = 1350, c = document.createElement("canvas"); c.width = CW; c.height = CH;
   const g = c.getContext("2d"), F = K.FONTS, st = STAGES[S.stage], top = S.stage === STAGES.length - 1;
   const rr = (x, y, w, h, r) => { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); };
@@ -2809,15 +2811,15 @@ async function makeResultCard(){
     g.font = fitFont("Beat " + who, 300, 24, 16, 900, F.sans); g.fillText("Beat " + who, 0, 27);
     g.restore(); g.textAlign = "center";
   }
-  // the 稱號 (title), on a ribbon under the card: a red chop, the title, its one-line roast
+  // the 稱號 (title), on a ribbon under the card: its medal (3D), the title, its one-line roast
   g.save(); g.shadowColor = "rgba(37,49,122,0.3)"; g.shadowOffsetY = 10; rr(90, 1050, 900, 126, 40); g.fillStyle = "#25317A"; g.fill(); g.restore();
-  rr(120, 1028, 250, 44, 22); g.fillStyle = "#DF1B72"; g.fill();
-  g.fillStyle = "#fff"; g.font = "700 24px " + F.zh; g.fillText("我的稱號 · MY TITLE", 245, 1059);
-  g.save(); g.translate(176, 1124); g.rotate(-0.06); rr(-39, -39, 78, 78, 13); g.fillStyle = "#D7262E"; g.fill(); g.lineWidth = 4; g.strokeStyle = "#FFD9D9"; g.stroke();
-  g.fillStyle = "#fff"; g.font = "700 31px " + F.zh; g.fillText("稱", 0, -5); g.fillText("號", 0, 29); g.restore();
-  g.textAlign = "left"; g.fillStyle = "#fff"; g.font = fitFont(v.zh, 470, 56, 32, 700, F.zh); g.fillText(v.zh, 240, 1112);
-  const zw = g.measureText(v.zh).width; g.fillStyle = "#FFE7A0"; g.font = fitFont(v.en, Math.max(120, 720 - zw), 26, 16, 800, F.sans); g.fillText(v.en, 252 + zw, 1110);
-  g.fillStyle = "#DCE3FF"; g.font = fitFont(v.line[1], 720, 27, 18, 700, F.zh); g.fillText(v.line[1], 242, 1155); g.textAlign = "center";
+  rr(262, 1028, 250, 44, 22); g.fillStyle = "#DF1B72"; g.fill();
+  g.fillStyle = "#fff"; g.font = "700 24px " + F.zh; g.fillText("我的稱號 · MY TITLE", 387, 1059);
+  if (medalPic){ g.save(); g.shadowColor = "rgba(20,30,90,0.45)"; g.shadowBlur = 14; g.shadowOffsetY = 6; g.drawImage(medalPic, 76, 980, 196, 230); g.restore(); }
+  else flatMedal(g, 173, 1118, 48, tierOf(v));
+  g.textAlign = "left"; g.fillStyle = "#fff"; g.font = fitFont(v.zh, 430, 56, 32, 700, F.zh); g.fillText(v.zh, 266, 1116);
+  const zw = g.measureText(v.zh).width; g.fillStyle = "#FFE7A0"; g.font = fitFont(v.en, Math.max(120, 690 - zw), 26, 16, 800, F.sans); g.fillText(v.en, 280 + zw, 1114);
+  g.fillStyle = "#DCE3FF"; g.font = fitFont(v.line[1], 690, 27, 18, 700, F.zh); g.fillText(v.line[1], 268, 1158); g.textAlign = "center";
   // where to play
   rr(250, 1186, 580, 96, 48); g.fillStyle = "rgba(255,253,247,0.96)"; g.fill();
   g.fillStyle = "#25317A"; g.font = "900 46px " + F.display; g.fillText("3fallcrab.com", CW / 2, 1250);
@@ -2870,11 +2872,48 @@ const TITLE_TEST = {
   moonlight: () => true
 };
 const verdictOf = st => TITLES.find(t => TITLE_TEST[t.id] && TITLE_TEST[t.id](st)) || TITLES[TITLES.length - 1];
+// The title's medal, drawn in 3D with three.js (src/vendor/medal3d.js, made from tools/medal3d/medal.js by `npm run medal`):
+// gold for the brag titles, silver for a steady game, a dented bronze one with a plaster for the disasters. The script
+// (500 KB, 130 KB over the wire) loads in the background once the title screen is idle, so it's ready by the end of a
+// game; on the result the medal drops in with a spin and sways, on the card it's a still picture. Without it (no WebGL,
+// an old browser, a failed load) the result shows a flat medal (CSS) and the card draws one.
+const MEDAL_TIER = {zero: "gold", retire: "gold", lucky: "gold", stacker: "gold", tycoon: "gold", steady: "silver"};
+const tierOf = v => (v && MEDAL_TIER[v.id]) || "bronze";
+let medalP = null;
+function loadMedal(){
+  if (medalP) return medalP;
+  const src = (document.querySelector('meta[name="tff-medal3d"]') || {}).content;
+  medalP = !src || /%%/.test(src) ? Promise.resolve(null) : new Promise(res => {
+    const sc = document.createElement("script"); sc.src = src; sc.async = true;
+    sc.onload = () => res(window.TFF_MEDAL3D || null); sc.onerror = () => res(null);
+    document.head.appendChild(sc);
+  });
+  return medalP;
+}
+setTimeout(function medalWhenIdle(){   // not during the opening story or a game: parsing it could stutter them
+  if ((window.TFF_INTRO && TFF_INTRO.on()) || (S && S.mode === "playing")) { setTimeout(medalWhenIdle, 2500); return; }
+  (window.requestIdleCallback || (f => setTimeout(f, 300)))(() => loadMedal());
+}, 3000);
+// a flat medal for the card when the 3D one can't be drawn
+function flatMedal(g, cx, cy, r, tier){
+  const C = {gold: ["#FFE38A", "#FFBF2E", "#C98A12", "#FFF0A8"], silver: ["#F2F6FB", "#B9C6D6", "#7F8DA0", "#F4F8FF"], bronze: ["#F0A06A", "#C0652A", "#8A4317", "#F2B27A"]}[tier] || [];
+  g.save(); g.fillStyle = "#DF1B72"; g.beginPath(); g.moveTo(cx - r * 0.9, cy - r * 2); g.lineTo(cx - r * 0.1, cy - r * 0.6); g.lineTo(cx - r * 0.5, cy - r * 0.6); g.lineTo(cx - r * 1.3, cy - r * 2); g.fill();
+  g.beginPath(); g.moveTo(cx + r * 0.9, cy - r * 2); g.lineTo(cx + r * 0.1, cy - r * 0.6); g.lineTo(cx + r * 0.5, cy - r * 0.6); g.lineTo(cx + r * 1.3, cy - r * 2); g.fill();
+  const gr = g.createRadialGradient(cx - r * 0.3, cy - r * 0.35, r * 0.1, cx, cy, r); gr.addColorStop(0, C[0]); gr.addColorStop(0.55, C[1]); gr.addColorStop(1, C[2]);
+  g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fill(); g.lineWidth = r * 0.12; g.strokeStyle = C[2]; g.stroke();
+  g.fillStyle = C[3]; g.beginPath(); for (let i = 0; i < 10; i++){ const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.27 : r * 0.62; g.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); } g.fill();
+  g.restore();
+}
 function showVerdict(v){
   const box = $("heroVerdict"); box.hidden = !v; if (!v) return;
   const nm = $("svName"), en = document.createElement("span"); en.className = "en"; en.lang = "en"; en.textContent = v.en;
   nm.replaceChildren(v.zh, en);
   bi($("svLine"), v.line[0], v.line[1]);
+  const mb = $("svMedal"); mb.dataset.tier = tierOf(v); mb.classList.remove("gl"); if (window.TFF_MEDAL3D) TFF_MEDAL3D.unmount();
+  setTimeout(() => loadMedal().then(M => {
+    if (!M || !S || S.verdict !== v || $("endModal").hidden) return;
+    try { if (M.mount(mb, tierOf(v), {still: reduceMotion})) mb.classList.add("gl"); } catch(e){}
+  }), reduceMotion ? 0 : 950);   // as the title box lands
   box.classList.remove("in"); void box.offsetWidth; box.classList.add("in");
   if (!reduceMotion) setTimeout(() => { if (S && S.verdict === v && !$("endModal").hidden && S.step === 1) A.sfx("stamp"); }, 1050);   // the seal lands after the count
 }

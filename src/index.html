@@ -27,6 +27,7 @@
 <link rel="preload" href="%%asset:fonts/gluten.woff2%%" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="%%asset:fonts/noto-sans-hk.woff2%%" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="%%asset:style.css%%">
+<meta name="tff-medal3d" content="%%asset:vendor/medal3d.js%%">
 </head>
 <body>
 <div class="intro" id="intro" role="region" aria-label="Story 故事">
@@ -364,7 +365,7 @@
           <p class="sh-amt"><span id="heroAmt" aria-hidden="true"></span><span class="sr" id="rNw"></span></p>
           <h3 id="endTitle" tabindex="-1" data-fit="13"></h3>
         </div>
-        <div class="sh-verdict" id="heroVerdict" hidden><span class="sv-seal" aria-hidden="true"><b>稱</b><b>號</b></span>
+        <div class="sh-verdict" id="heroVerdict" hidden><span class="sv-medal" id="svMedal" aria-hidden="true"></span>
           <p class="sv-name"><span class="sr">Your title 你的稱號: </span><span id="svName"></span></p><p class="sv-line" id="svLine"></p></div>
         <p class="sh-pct" id="heroPct" hidden></p>
         <p class="sh-chal" id="heroChal" hidden></p>

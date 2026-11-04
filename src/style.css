@@ -1355,7 +1355,7 @@ html.fs.title .ts-fs{top:calc(max(12px, env(safe-area-inset-top)) + var(--iab-h,
 html.fs.title .ts-sound .ts-silent{display:block;margin-top:2px;font-size:11px;font-weight:700;color:var(--red-d)}
 html.fs.title .ts-sound .ts-silent[hidden]{display:none}
 html.iab-tight.fs.title .ts-sign{display:none}   /* a short screen with the tip showing: the title keeps Start, the pills and the options */
-.kind.lock{background:#B8860B;color:#fff;margin-left:4px}   /* the fixed-deposit lock, by the vine chip */
+.kind.lock{background:#8A6400;color:#fff;margin-left:4px}   /* the fixed-deposit lock, by the vine chip (a deep gold: white text at 5.4:1) */
 
 /* ---------- the opening manga: Jack and Jackie, Year 1 at HSUHK (src/intro.js) ---------- */
 .intro{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
@@ -1432,9 +1432,15 @@ html.iab-tight.fs.title .ts-sign{display:none}   /* a short screen with the tip 
 /* the title, stamped like a red chop once the amount has counted up */
 .sh-verdict{display:grid;grid-template-columns:auto minmax(0, 1fr);gap:1px 10px;align-items:center;margin:8px 4px 0;padding:8px 12px 9px 8px;border:3px solid #D7262E;border-radius:12px;
   background:rgba(255,238,238,.92);box-shadow:inset 0 0 0 2px #FFF7F7, inset 0 0 0 4px rgba(215,38,46,.4);transform:rotate(-1.2deg)}
-.sv-seal{grid-row:1 / span 2;display:flex;flex-direction:column;align-items:center;justify-content:center;width:40px;height:44px;border-radius:7px;background:#D7262E;color:#fff;
-  font-family:var(--f-zh);font-size:16px;line-height:1.05}
-.sv-seal b{font-weight:700}
+/* the title's medal: drawn in 3D (three.js, src/vendor/medal3d.js) once that has loaded; until then, or without WebGL, a flat one */
+.sv-medal{grid-row:1 / span 2;position:relative;width:66px;height:82px;margin:-12px -4px -10px -6px}
+.sv-medal:not(.gl)::before{content:"";position:absolute;left:50%;top:2px;width:26px;height:24px;transform:translateX(-50%);
+  background:linear-gradient(105deg, #DF1B72 0 30%, #fff 30% 42%, transparent 42% 58%, #fff 58% 70%, #DF1B72 70%);clip-path:polygon(0 0, 100% 0, 70% 100%, 30% 100%)}
+.sv-medal:not(.gl)::after{content:"★";position:absolute;left:50%;top:22px;width:40px;height:40px;transform:translateX(-50%);display:grid;place-items:center;border-radius:50%;
+  font-size:22px;line-height:1;color:#FFF0A8;background:radial-gradient(circle at 35% 30%, #FFE38A, #FFBF2E 55%, #C98A12);box-shadow:inset 0 0 0 3px #E7A21E, 0 2px 0 rgba(120,62,12,.3)}
+.sv-medal[data-tier="silver"]:not(.gl)::after{color:#F4F8FF;background:radial-gradient(circle at 35% 30%, #F2F6FB, #B9C6D6 55%, #7F8DA0);box-shadow:inset 0 0 0 3px #A3B1C4, 0 2px 0 rgba(60,60,90,.3)}
+.sv-medal[data-tier="bronze"]:not(.gl)::after{color:#F2B27A;background:radial-gradient(circle at 35% 30%, #F0A06A, #C0652A 55%, #8A4317);box-shadow:inset 0 0 0 3px #A8551F, 0 2px 0 rgba(120,62,12,.3)}
+.sv-medal canvas{position:absolute;inset:0}
 .sv-name{margin:0;font-family:var(--f-zh);font-weight:700;font-size:22px;line-height:1.15;color:#B81E28}
 .sv-name .en{display:inline-block;margin-left:8px;font-family:var(--f-body);font-size:12.5px;font-weight:800;color:#8E1C24}
 .sv-line{margin:0;font-size:12.5px;font-weight:700;line-height:1.3;color:#6B2A2F}
