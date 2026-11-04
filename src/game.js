@@ -1608,6 +1608,7 @@ function pollPad(now){
   let gp = null; for (const p of (navigator.getGamepads ? navigator.getGamepads() : [])) if (p && p.connected){ gp = p; break; }
   const cur = gp ? padState(gp) : {}, was = GP.prev; GP.prev = cur;
   const hit = k => cur[k] && !was[k];
+  if (window.TFF_INTRO && TFF_INTRO.on()){ if (hit("a")) TFF_INTRO.next(); else if (hit("b") || hit("start")) TFF_INTRO.skip(); return; }   // the opening story
   // held moves: the pad lets go only of what it was holding, so a key held at the same time isn't cut off
   for (const k of ["left", "right", "soft"]){
     const on = k === "soft" ? !!(cur.down || cur.rt) : !!cur[k];
@@ -1771,6 +1772,7 @@ function firstSound(){
 function menuMusic(){ A.stage(0); A.mode("menu"); A.start(); }
 for (const ev of ["pointerdown", "pointerup", "touchend", "keydown", "click"]) document.addEventListener(ev, firstSound, {capture: true, passive: true});
 soundHint(); iabTip();
+window.TFF_ART = {crab: crabArt, sound: firstSound, sfx: n => A.sfx(n)};   // for the opening story (src/intro.js)
 setTimeout(resize, 800);   // an app's browser may settle its bars after the page loads
 $("muteBtn").addEventListener("click", toggleMute);
 $("fsBtn").addEventListener("click", () => toggleFs());

@@ -4,20 +4,20 @@
    are the ones Google Fonts served, so --f-* below and clay.js (canvas lettering) stay as they are. */
 @font-face{font-family:"Gluten";font-style:normal;font-weight:400 900;font-display:swap;src:url(/assets/gluten.842f8cce6e.woff2) format("woff2")}
 /* Noto Sans HK is one variable file. Four faces, not one 400 900 range, so a weight-800 label still uses the 900 face, as before. */
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/noto-sans-hk.740edb215e.woff2) format("woff2")}
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:500;font-display:swap;src:url(/assets/noto-sans-hk.740edb215e.woff2) format("woff2")}
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/noto-sans-hk.740edb215e.woff2) format("woff2")}
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:900;font-display:swap;src:url(/assets/noto-sans-hk.740edb215e.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/noto-sans-hk.c02cff085d.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:500;font-display:swap;src:url(/assets/noto-sans-hk.c02cff085d.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/noto-sans-hk.c02cff085d.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:900;font-display:swap;src:url(/assets/noto-sans-hk.c02cff085d.woff2) format("woff2")}
 /* WenKai draws only Chinese (and the digits inside Chinese lines): its Latin is a thin handwriting, so English in a
    Chinese-font line falls through to Noto Sans HK and reads the same as everywhere else */
-@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/lxgw-wenkai-tc-regular.e4d2bc5a83.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
-@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/lxgw-wenkai-tc-bold.9ec56bd3d2.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
+@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/lxgw-wenkai-tc-regular.4d72be1927.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
+@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/lxgw-wenkai-tc-bold.54780a1629.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
 /* Curly quotes, ‘ ’, × and · in Latin widths: Noto Sans HK draws them a whole Chinese character wide, which left holes
    in English ("to   “rent”", "pays ×1.5"). Source Sans 3 (the Latin Noto Sans HK is based on), 1 KB a weight. */
 @font-face{font-family:"TFF Punct";font-style:normal;font-weight:400 650;font-display:swap;src:url(/assets/source-sans-punct-400.f1e8c6c73b.woff2) format("woff2");unicode-range:U+00B7,U+00D7,U+2018-201D}
 @font-face{font-family:"TFF Punct";font-style:normal;font-weight:651 850;font-display:swap;src:url(/assets/source-sans-punct-700.54c4ee4dfe.woff2) format("woff2");unicode-range:U+00B7,U+00D7,U+2018-201D}
 @font-face{font-family:"TFF Punct";font-style:normal;font-weight:851 900;font-display:swap;src:url(/assets/source-sans-punct-900.622c4a765b.woff2) format("woff2");unicode-range:U+00B7,U+00D7,U+2018-201D}
-@font-face{font-family:"DotGothic16";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/dotgothic16.8818722f71.woff2) format("woff2")}
+@font-face{font-family:"DotGothic16";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/dotgothic16.792b1878e2.woff2) format("woff2")}
 
 /* Layout: a clay tabletop set — passbook + 3 Falls | the diorama board | tickets, building directory, leaderboard.
    One light (top-left) everywhere: CSS shadows fall down-right like the canvas clay. Single bright theme by design. */
@@ -1377,3 +1377,68 @@ html.fs.title .ts-sound .ts-silent{display:block;margin-top:2px;font-size:11px;f
 html.fs.title .ts-sound .ts-silent[hidden]{display:none}
 html.iab-tight.fs.title .ts-sign{display:none}   /* a short screen with the tip showing: the title keeps Start, the pills and the options */
 .kind.lock{background:#B8860B;color:#fff;margin-left:4px}   /* the fixed-deposit lock, by the vine chip */
+
+/* ---------- the opening manga: Jack and Jackie, Year 1 at HSUHK (src/intro.js) ---------- */
+.intro{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+  padding:max(14px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  background:#FFF8EA radial-gradient(circle, rgba(46,40,56,.12) 1.1px, transparent 1.7px) 0 0 / 9px 9px;transition:opacity .45s ease;color:#1E1A24}
+.intro[hidden]{display:none}
+.intro.out{opacity:0;pointer-events:none}
+.mbook{position:relative;width:min(100%, 1000px);flex:1 1 auto;min-height:0}
+.mpage{position:absolute;inset:0;display:grid;gap:12px;padding:4px 6px 8px}
+.mpage[hidden]{display:none}
+.mpage.turn{animation:mturn .55s cubic-bezier(.2,.9,.3,1.1)}
+@keyframes mturn{from{transform:translateX(36%) rotate(5deg);opacity:0}to{transform:none;opacity:1}}
+.p1{grid-template-rows:1.2fr 1fr} .p2{grid-template-rows:repeat(3, 1fr)} .p3{grid-template-rows:1fr}
+@media (min-aspect-ratio: 6/5){ .p1{grid-template-rows:1fr;grid-template-columns:1.35fr 1fr} .p2{grid-template-rows:1fr;grid-template-columns:repeat(3, 1fr)} }
+.mpanel{position:relative;overflow:hidden;min-height:0;border:4px solid #1E1A24;border-radius:7px;background:#fff;box-shadow:6px 7px 0 rgba(30,26,36,.88);
+  opacity:0;transform:scale(.9) rotate(calc(var(--tilt, 0deg) * 4))}
+.mpanel:nth-child(1){--tilt:-.5deg} .mpanel:nth-child(2){--tilt:.7deg} .mpanel:nth-child(3){--tilt:-.35deg}
+.mpanel.on{opacity:1;transform:rotate(var(--tilt, 0deg));transition:opacity .3s ease, transform .55s cubic-bezier(.2,.9,.3,1.35)}
+.mpanel canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.mpanel.on canvas.art:not(.tower){animation:mpan 7s ease-out both}
+@keyframes mpan{from{transform:scale(1.08)}to{transform:scale(1)}}
+.mpanel.lines::after, .mpanel.burst::before{content:"";position:absolute;inset:-60%;pointer-events:none;z-index:1;
+  background:repeating-conic-gradient(from 0deg at 50% 50%, rgba(30,26,36,.09) 0 1.6deg, transparent 1.6deg 8deg)}
+.mpanel.burst{background:radial-gradient(circle at 50% 60%, #FFF6C8 0 22%, #FFD86B 60%, #FFB84A)}
+.mpanel.burst::before{z-index:0;background:repeating-conic-gradient(from 0deg at 50% 60%, rgba(255,255,255,.55) 0 4deg, transparent 4deg 12deg)}
+.mcap, .mbal, .mtag, .msfx{position:absolute;margin:0;z-index:2}
+.mcap{left:10px;top:10px;max-width:72%;padding:6px 11px 7px;background:#FFE45C;border:2.5px solid #1E1A24;box-shadow:3px 3px 0 #1E1A24;
+  font-weight:800;font-size:clamp(12px, 2.4vmin, 16px);line-height:1.25}
+.mtag{left:8px;top:8px;padding:4px 9px 5px;border:2.5px solid #1E1A24;border-radius:10px;color:#fff;font-weight:800;font-size:clamp(11px, 2.1vmin, 14px);line-height:1.2;box-shadow:2px 2px 0 #1E1A24}
+.mtag .zl, .mcap .zl, .mbal .zl{color:inherit}
+.spend .mtag{background:#D2541A} .scam .mtag{background:#6E4FD8} .delay .mtag{background:#2873C4}
+.mbal{max-width:min(64%, 300px);padding:8px 13px 9px;background:#fff;border:2.5px solid #1E1A24;border-radius:20px;font-weight:800;font-size:clamp(12.5px, 2.6vmin, 17px);line-height:1.25;
+  opacity:0;transform:scale(.55);transform-origin:var(--to, 20% 100%)}
+.mpanel.on .mbal{opacity:1;transform:none;transition:opacity .2s .45s, transform .4s .45s cubic-bezier(.2,.9,.3,1.6)}
+.mbal::after{content:"";position:absolute;width:16px;height:16px;background:#fff;border-right:2.5px solid #1E1A24;border-bottom:2.5px solid #1E1A24;bottom:-9px;left:var(--tail, 26px);transform:rotate(45deg) skew(10deg, 10deg)}
+.b1{right:7%;top:16%;--tail:28px} .b2{left:6%;top:9%;--tail:70%} .b3{right:5%;top:22%;--tail:30%} .b4{left:6%;top:24%;--tail:70%;background:#F0E9FF}
+.b4::after{background:#F0E9FF}
+.b5{right:5%;top:20%;--tail:22%;border-radius:26px;border-style:dashed}   /* a thought, half asleep */
+.b6{left:50%;top:7%;translate:-50% 0;max-width:min(80%, 420px);text-align:center;--tail:42%;font-size:clamp(14px, 3vmin, 20px);--to:50% 100%}
+.msfx{right:6%;bottom:9%;font-family:var(--f-display);font-weight:900;font-size:clamp(24px, 6.5vmin, 46px);color:#FFC83D;-webkit-text-stroke:2.2px #1E1A24;paint-order:stroke fill;
+  text-shadow:3px 3px 0 #1E1A24;transform:rotate(-12deg) scale(0)}
+.mpanel.on .msfx{transform:rotate(-12deg) scale(1);transition:transform .45s .75s cubic-bezier(.2,.9,.3,1.8)}
+.mpanel .tower{transform:translateY(105%)}
+.mpanel.on .tower{transform:none;transition:transform 1.6s .3s cubic-bezier(.2,.8,.3,1)}
+.mpanel .crab{transform:scale(0) rotate(-20deg);transform-origin:30% 75%}
+.mpanel.on .crab{transform:none;transition:transform .55s .2s cubic-bezier(.2,.9,.3,1.6)}
+.mlogo{position:absolute;left:50%;bottom:7%;translate:-50% 0;z-index:3;margin:0;display:flex;flex-direction:column;align-items:center;gap:2px;opacity:0;transform:scale(.4);
+  background:rgba(255,253,247,.92);border:3px solid #1E1A24;border-radius:22px;padding:8px 22px 10px;box-shadow:5px 5px 0 #1E1A24}
+.mlogo.on{opacity:1;transform:none;transition:opacity .25s, transform .5s cubic-bezier(.2,.9,.3,1.6)}
+.mword{font-family:var(--f-display);font-weight:900;font-size:clamp(30px, 7.5vmin, 58px);line-height:1;-webkit-text-stroke:2px #fff;paint-order:stroke fill;letter-spacing:.01em}
+.mword span:nth-child(1){color:#FF5FA2;margin-right:.18em} .mword span:nth-child(2){color:#3A9BF0} .mword span:nth-child(3){color:#4CC36A} .mword span:nth-child(4){color:#FF7B35}
+.mword span:nth-child(5){color:#8B6CF2;margin-right:.18em} .mword span:nth-child(6){color:#F2463E} .mword span:nth-child(7){color:#20C1B3} .mword span:nth-child(8){color:#FF5FA2}
+.mlogo .zh{font-family:var(--f-zh);font-weight:700;font-size:clamp(20px, 4.6vmin, 34px);letter-spacing:.2em;color:#25317A}
+.mlogo small{font-weight:800;font-size:clamp(11px, 2vmin, 14px);color:var(--ink-2)}
+.mskip{position:absolute;top:max(10px, env(safe-area-inset-top));right:max(10px, env(safe-area-inset-right));z-index:5;font-size:14px;padding:7px 14px 8px}
+.mfoot{flex:none;display:flex;align-items:center;gap:14px;min-height:22px}
+.mdots{display:flex;gap:7px;margin:0;padding:0;list-style:none}
+.mdots li{width:9px;height:9px;border-radius:50%;background:rgba(30,26,36,.22)}
+.mdots li.on{background:#DF1B72;transform:scale(1.25)}
+.mhint{margin:0;font-size:12px;font-weight:800;color:var(--ink-2)}
+@media (prefers-reduced-motion: reduce){
+  .mpanel, .mpanel.on, .mbal, .mpanel.on .mbal, .msfx, .mpanel.on .msfx, .mpanel .tower, .mpanel .crab, .mlogo, .mlogo.on{transform:none;transition:opacity .3s}
+  .msfx{transform:rotate(-12deg)} .mpanel.on .msfx{transform:rotate(-12deg)} .mpanel.on canvas.art:not(.tower), .mpage.turn{animation:none}
+  .msfx{opacity:0} .mpanel.on .msfx{opacity:1}
+}
