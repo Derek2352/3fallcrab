@@ -1127,7 +1127,7 @@ function startGame(){
   if (root.classList.contains("title")){ played = true; root.classList.remove("title"); enterBrowserFs(); lastFit = ""; resize(); }
   played = true;
   flushRecord(S);   // the last game's quiz answers or habit may still be waiting to be saved
-  S = newState(); makeEngine(); S.mode = "playing"; frenzyUI(); $("jpBan").hidden = true;
+  S = newState(); S.camTop = camTarget(); makeEngine(); S.mode = "playing"; frenzyUI(); $("jpBan").hidden = true;
   if (firstQueue){ S.queue = firstQueue; S.lastId = firstQueue[2].id; S.jackpot = firstQueue.some(d => d.jackpot); firstQueue = null; }
   $("startOv").hidden = true; $("pauseOv").hidden = true; $("endModal").hidden = true; $("cardModal").hidden = true; $("seeOv").hidden = true; modalOpen(false);
   $("offerModal").hidden = true; $("reviveModal").hidden = true; $("pfChip").hidden = true; $("boardWrap").classList.remove("glitch"); planTrolls();
@@ -1901,7 +1901,10 @@ function resize(){
 }
 let rzT = 0; window.addEventListener("resize", () => { clearTimeout(rzT); rzT = setTimeout(() => { resize(); fitAll(); }, 220); });
 
-const camTarget = () => Math.min(-(H - 240), -S.height - 330);
+// The harbour at the bottom of the view is a strip, so the tower has more of the screen: in full screen play most of
+// it is down behind the pad; the title keeps its fuller harbour.
+const camBase = () => WATER_Y - H + (root.classList.contains("title") ? 120 : YB > 40 ? 26 : 70);
+const camTarget = () => Math.min(camBase(), -S.height - 330);
 let skyDusk = -1, skyFill = null, duskStep = 0;
 const SKY = [["#3FB4FF", "#8EDBFF", "#C8F0FF"],   // day: top, 65%, horizon
              ["#6A8CF0", "#C9A8F0", "#FFD6E0"],   // golden hour (dusk .5)
@@ -2053,7 +2056,7 @@ function draw(dt){
   S.camTop += (target - S.camTop) * (1 - Math.pow(0.95, f));
   let sx = 0;
   if (S.shake > 0){ sx = (Math.random() - .5) * S.shake; S.shake = Math.max(0, S.shake - 0.4 * f); }
-  const rise = -S.camTop - (H - 240);                    // how far the camera has climbed
+  const rise = camBase() - S.camTop;                     // how far the camera has climbed
   const dusk = Math.round(clamp((S.best / FLOOR - 5) / 6, 0, 1) * 200) / 200;
   if (dusk !== skyDusk){
     skyDusk = dusk; skyFill = c.createLinearGradient(0, 0, 0, H);
@@ -2486,7 +2489,9 @@ function tick(dt){
 // WhatsApp...) where the browser can share files. The card is made in advance: a share must happen right on the tap.
 let cardBlob = null, cardKey = "", heroRun = 0;
 const canShareFiles = () => { try { return !!(navigator.share && navigator.canShare && navigator.canShare({files: [new File([new Uint8Array([255, 216, 255])], "x.jpg", {type: "image/jpeg"})]})); } catch(e){ return false; } };
-const cardName = () => S && S.rec && S.rec.board && S.rec.name && S.rec.name !== ANON ? S.rec.name : "";
+// The nickname on the result card: the board's version once posted (its filter may have hidden it), otherwise
+// whatever the player typed (it's their own picture).
+const cardName = () => { if (!S) return ""; const n = S.posted ? S.boardName || (S.rec && S.rec.name) : sanitizeName($("nickname").value); return n && n !== ANON ? n : ""; };
 function heroUp(){
   const up = S.score > 0, cong = $("heroCong"), en = document.createElement("span"), hero = $("stHero");
   en.textContent = up ? "Congrats! You saved" : "Your net worth"; cong.replaceChildren(up ? "恭喜你儲到" : "你嘅淨資產", en);
@@ -2561,6 +2566,9 @@ async function makeResultCard(){
   g.save(); g.translate(100, 380); g.scale(2.45, 2.45); AV.draw(g, lookNow()); g.restore();
   // the result
   const cx = 705; g.textAlign = "center";
+  const nm = cardName();
+  if (nm){ let nf = 42; g.font = "900 " + nf + "px " + F.display; while (g.measureText(nm).width > 520 && nf > 26){ nf -= 2; g.font = "900 " + nf + "px " + F.display; }
+    outlined(nm, cx, 396, g.font, "#DF1B72", 10); g.textAlign = "center"; }
   g.fillStyle = "#25317A"; g.font = "700 54px " + F.zh; g.fillText(S.score > 0 ? "恭喜你儲到" : "我嘅淨資產", cx, 470);
   g.fillStyle = "#5B516C"; g.font = "800 30px " + F.sans; g.fillText(S.score > 0 ? "I saved" : "My net worth", cx, 515);
   const amt = fmt(S.score); let fs = 120; g.font = "900 " + fs + "px " + F.display; while (g.measureText(amt).width > 540 && fs > 56){ fs -= 4; g.font = "900 " + fs + "px " + F.display; }
@@ -2571,7 +2579,7 @@ async function makeResultCard(){
     const bx = 445 + i * 182, by = 805; rr(bx, by, 170, 104, 26); g.fillStyle = col; g.fill();
     g.fillStyle = "#fff"; g.font = "700 30px " + F.zh; g.fillText(zh, bx + 85, by + 42); g.font = "900 34px " + F.display; g.fillText(S.falls[k] ? "×" + S.falls[k] : "✓", bx + 85, by + 86);
   });
-  const nm = cardName(); g.fillStyle = "#25317A"; g.font = "800 30px " + F.sans; g.fillText((nm ? nm + " · " : "") + "as " + (WHO === "jackie" ? "Jackie" : "Jack"), cx, 975);
+  g.fillStyle = "#25317A"; g.font = "800 30px " + F.sans; g.fillText("Played as " + (WHO === "jackie" ? "Jackie" : "Jack"), cx, 975);
   // the money type, on a ribbon under the card
   const mt = S.mtype || moneyType(S);
   g.save(); g.shadowColor = "rgba(37,49,122,0.3)"; g.shadowOffsetY = 10; rr(90, 1050, 900, 126, 40); g.fillStyle = "#25317A"; g.fill(); g.restore();
@@ -2915,7 +2923,7 @@ $("postBtn").addEventListener("click", async () => {
     r.board = true; r.name = name; r.email = email;
     try {
       const j = await saveRecord(st);
-      myLastId = j.id; myIds.add(j.id); lsSet("tff_my_ids", [...myIds].slice(-30)); st.posted = true; st.posting = false;
+      myLastId = j.id; myIds.add(j.id); lsSet("tff_my_ids", [...myIds].slice(-30)); st.posted = true; st.posting = false; st.boardName = j.name || name;
       myPost = {id: j.id, rank: j.rank || (j.rankCap || 500) + 1, week: j.week, name: j.name || name, score: entry.score, height: entry.height}; lsSet("tff_my_post", myPost);
       if (st === S){
         A.sfx("post"); ps.className = "post-status ok";
@@ -3097,7 +3105,7 @@ function sampleTower(){
     for (const b of engine.world.bodies.slice()) if (b.tff && b.position.y > WATER_Y) Composite.remove(engine.world, b);
   }
   let h = 0; for (const b of engine.world.bodies) if (b.tff && b.position.y < 5) h = Math.max(h, -b.bounds.min.y);
-  S.height = h; S.camTop = Math.min(-(H - 240), -h - 330);
+  S.height = h; S.camTop = Math.min(camBase(), -h - 330);
   S.queue = [pick("football") || fallback[0], pick("textbooks") || fallback[1] || fallback[0], pick("banana") || fallback[2] || fallback[0]];
   crab("Hi! I'm the 3 Fall Crab. Every item you stack is a money decision.", "我係3 Fall Crab！你疊嘅每件嘢，都係一個理財決定。");
 }

@@ -1335,3 +1335,6 @@ html.fs:not(.title) .mast .iconbtn{background:rgba(255,250,238,.66);-webkit-back
 html.fs.wide:not(.title) .set{padding:0}
 html.fs.wide:not(.title) .center{padding:0}
 html.fs.wide:not(.title) .set{overflow-x:clip}   /* the scene is a pixel over the screen width, never short of it */
+/* the laptop dashboard: the player runs the panel's full height, no gap above (size containment: the canvas's own
+   pixel size never pushes the panel taller) */
+html.fs.wide .hud .hav{grid-row:1 / span 3;align-self:stretch;width:86px;height:auto;margin:0;contain:size}
