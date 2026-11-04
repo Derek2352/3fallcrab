@@ -1412,7 +1412,11 @@ html.iab-tight.fs.title .ts-sign{display:none}   /* a short screen with the tip 
   opacity:0;transform:scale(.55);transform-origin:var(--to, 20% 100%)}
 .mpanel.on .mbal{opacity:1;transform:none;transition:opacity .2s .45s, transform .4s .45s cubic-bezier(.2,.9,.3,1.6)}
 .mbal::after{content:"";position:absolute;width:16px;height:16px;background:#fff;border-right:2.5px solid #1E1A24;border-bottom:2.5px solid #1E1A24;bottom:-9px;left:var(--tail, 26px);transform:rotate(45deg) skew(10deg, 10deg)}
-.b1{right:7%;top:16%;--tail:28px} .b2{left:6%;top:9%;--tail:70%} .b3{right:5%;top:22%;--tail:30%} .b4{left:6%;top:24%;--tail:70%;background:#F0E9FF}
+.b1{right:7%;top:16%;--tail:28px} .b2{left:6%;top:9%;--tail:70%} .b3{left:var(--sx);top:var(--sy);width:var(--sw);height:var(--sh);max-width:none;padding:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+  background:none;border:0;border-radius:0;color:#E8418B;font-family:var(--f-display);font-weight:900;font-size:clamp(11px, 2.4vmin, 16px);line-height:1.15}   /* the ad, on the phone's screen */
+.b3::after{display:none} .b3 .zl{font-family:var(--f-zh);color:#D2541A;margin-top:3px;white-space:nowrap;font-size:.92em}
+.mpanel.on .mbal.b3{animation:adblink 1.2s .9s ease-in-out 2}
+@keyframes adblink{50%{filter:brightness(1.35);transform:scale(1.06)}} .b4{right:4%;top:22%;--tail:68%;background:#F0E9FF}
 .b4::after{background:#F0E9FF}
 .b5{right:5%;top:20%;--tail:22%;border-radius:26px;border-style:dashed}   /* a thought, half asleep */
 .b6{left:50%;top:7%;translate:-50% 0;max-width:min(80%, 420px);text-align:center;--tail:42%;font-size:clamp(14px, 3vmin, 20px);--to:50% 100%}
@@ -1431,8 +1435,8 @@ html.iab-tight.fs.title .ts-sign{display:none}   /* a short screen with the tip 
 .mword span:nth-child(5){color:#8B6CF2;margin-right:.18em} .mword span:nth-child(6){color:#F2463E} .mword span:nth-child(7){color:#20C1B3} .mword span:nth-child(8){color:#FF5FA2}
 .mlogo .zh{font-family:var(--f-zh);font-weight:700;font-size:clamp(20px, 4.6vmin, 34px);letter-spacing:.2em;color:#25317A}
 .mlogo small{font-weight:800;font-size:clamp(11px, 2vmin, 14px);color:var(--ink-2)}
-.mskip{position:absolute;top:max(10px, env(safe-area-inset-top));right:max(10px, env(safe-area-inset-right));z-index:5;font-size:14px;padding:7px 14px 8px}
-.mfoot{flex:none;display:flex;align-items:center;gap:14px;min-height:22px}
+.mskip{position:absolute;bottom:max(6px, env(safe-area-inset-bottom));right:max(12px, env(safe-area-inset-right));z-index:5;font-size:14px;padding:6px 14px 7px}   /* by the page dots, clear of the panels */
+.mfoot{flex:none;display:flex;align-items:center;gap:14px;min-height:38px;padding-right:96px}
 .mdots{display:flex;gap:7px;margin:0;padding:0;list-style:none}
 .mdots li{width:9px;height:9px;border-radius:50%;background:rgba(30,26,36,.22)}
 .mdots li.on{background:#DF1B72;transform:scale(1.25)}

@@ -61,10 +61,9 @@ const SCENES = {
     const px = w * 0.66, py = h * 0.5, pw = Math.min(w * 0.3, h * 0.42), ph = pw * 1.8;
     K.blob(g, K.slab(px, py, pw, ph, pw * 0.16, {lump: 0.2, seed: 5}), "#2E2838", {depth: 2, soft: 3});
     K.blob(g, K.slab(px, py, pw * 0.82, ph * 0.84, pw * 0.1, {lump: 0.1, seed: 6}), "#FFF1DA", {depth: 0.6, soft: 1, sheen: false});
-    word(g, "BUY", px, py - ph * 0.22, Math.round(pw * 0.24), "#FF7B35", -0.08); word(g, "NOW!", px, py - ph * 0.05, Math.round(pw * 0.22), "#FF5FA2", 0.06);
-    g.fillStyle = "#1E1A24"; g.font = "800 " + Math.round(pw * 0.11) + "px " + F.display; g.textAlign = "center"; g.fillText("0% · 24 months", px, py + ph * 0.16);
     for (const [x, y, r] of [[px - pw * 0.7, py - ph * 0.4, 9], [px + pw * 0.62, py - ph * 0.2, 7], [px - pw * 0.5, py + ph * 0.3, 6]]) sparkle(g, x, y, r, "#FFF6C8");
     fig(g, jack({hand: "phone"}), w * 0.27, h * 1.02, Math.min(h * 0.82, w * 0.95));
+    return {x: px - pw * 0.4, y: py - ph * 0.41, w: pw * 0.8, h: ph * 0.82};   // the screen: the ad's words go here
   },
   // Fall 2: a "guaranteed" offer from a shadow
   scam(g, w, h){
@@ -112,7 +111,8 @@ function paint(cv){
     const dpr = Math.min(2, window.devicePixelRatio || 1), w = Math.round(r.width * dpr), h = Math.round(r.height * dpr);
     if (cv._drawn === w + "x" + h) return;
     cv.width = w; cv.height = h; const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    SCENES[cv.dataset.art](g, r.width, r.height); cv._drawn = w + "x" + h;
+    const box = SCENES[cv.dataset.art](g, r.width, r.height); cv._drawn = w + "x" + h;
+    if (box){ const pn = cv.parentElement; for (const k of ["x", "y", "w", "h"]) pn.style.setProperty("--s" + k, Math.round(box[k]) + "px"); }   // where its words sit
   } catch(e){}
 }
 const paintPage = page => page.querySelectorAll("canvas[data-art]").forEach(paint);
