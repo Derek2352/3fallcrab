@@ -332,6 +332,11 @@
       var s = tone(v, "sine", mtof(K(v.r, 96)), t + 0.22, 0.002, 0.16, 0.35); s.o.detune.value = 6;
       noiseHit(v, t + 0.2, 0.002, 0.1, 0.12, "highpass", 7000, 0.7);
     },
+    rival: function (v, t) {                               // a friend's score beaten: a "ta-da!" and two bells
+      [79, 84, 88].forEach(function (m, i) { tone(v, "pulse25", mtof(K(v.r, m)), t + i * 0.08, 0.003, 0.24, i === 2 ? 0.32 : 0.1); });
+      tone(v, "triangle", mtof(K(v.r, 64)), t + 0.16, 0.004, 0.3, 0.34);
+      bell(v, t + 0.2, mtof(K(v.r, 96)), 0.22, 0.4); bell(v, t + 0.3, mtof(K(v.r, 100)), 0.2, 0.5);
+    },
     click: function (v, t) {
       var x = tone(v, "triangle", 1700, t, 0.002, 0.6, 0.05); x.o.frequency.exponentialRampToValueAtTime(1000, t + 0.04);
       tone(v, "sine", 3400, t, 0.001, 0.15, 0.02);
@@ -636,14 +641,14 @@
   };
   // per-sound output trim (calibrated by out/audiotest.js measurements)
   var LEVEL = {
-    uiOpen: 0.8, uiClose: 0.95, uiNext: 0.8, uiBack: 0.85, uiToggle: 1.0, uiSelect: 0.8, uiDone: 0.55, uiNope: 0.65, go: 0.85, lock: 0.85, netCatch: 0.9, rescue: 0.7,
+    uiOpen: 0.8, uiClose: 0.95, uiNext: 0.8, uiBack: 0.85, uiToggle: 1.0, uiSelect: 0.8, uiDone: 0.55, uiNope: 0.65, go: 0.85, lock: 0.85, netCatch: 0.9, rescue: 0.7, rival: 0.8,
     click: 0.7, spawn: 0.7, move: 1.35, rotate: 0.7, hold: 0.75, release: 0.7, harddrop: 0.85, deposit: 0.7,
     floor: 0.8, stage: 0.95, splash: 0.85, cardOpen: 0.8, cardTick: 0.75, wise: 0.9, risky: 0.5, stamp: 0.9,
     debt: 0.8, scam: 0.45, quake: 1.0, shield: 0.9, timeWarn: 0.75, timeUp: 0.9, gameOver: 0.52, win: 1.0, post: 0.85,
     vine: 0.85, vineGet: 0.8, jackpot: 1.0, frenzyTick: 1.0, frenzyEnd: 0.8,
     offerPop: 0.8, profitTick: 0.7, scratch: 0.7, nearMiss: 0.55, heartbeat: 1.0, reviveFail: 0.6
   };
-  var THROTTLE = { uiOpen: 0.12, uiClose: 0.12, uiNext: 0.08, uiBack: 0.08, uiToggle: 0.06, uiSelect: 0.05, uiNope: 0.25, go: 0.3, lock: 0.3, netCatch: 0.2, rescue: 0.3, move: 0.055, rotate: 0.05, click: 0.035, deposit: 0.045, spawn: 0.08, cardTick: 0.15, splash: 0.08,
+  var THROTTLE = { uiOpen: 0.12, uiClose: 0.12, uiNext: 0.08, uiBack: 0.08, uiToggle: 0.06, uiSelect: 0.05, uiNope: 0.25, go: 0.3, lock: 0.3, netCatch: 0.2, rescue: 0.3, rival: 1, move: 0.055, rotate: 0.05, click: 0.035, deposit: 0.045, spawn: 0.08, cardTick: 0.15, splash: 0.08,
                    hold: 0.06, release: 0.05, harddrop: 0.08, stamp: 0.08, cardOpen: 0.1, vine: 0.06, vineGet: 0.3,
                    jackpot: 1.5, frenzyTick: 0.3, frenzyEnd: 0.5, profitTick: 0.08, scratch: 0.1, heartbeat: 0.3 };
   var LOW_PRIORITY = { move: 1, click: 1, spawn: 1, rotate: 1, hold: 1, release: 1, deposit: 1, cardTick: 1 };

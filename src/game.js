@@ -36,6 +36,8 @@ const MAX_DROPS = 3;
 const {STAGES, TRAPS, CARDS, QUIZ, HABITS} = window.TFF_CONTENT;   // src/content.js
 const QUIPS = window.TFF_CONTENT.QUIPS || {};
 const {TYPE_AXES, TYPES} = window.TFF_CONTENT;   // money types (like a personality test)
+const TITLES = window.TFF_CONTENT.TITLES || [];   // 稱號: the verdict title for each game
+let CHAL = null;   // a friend's challenge this visit came with: {s: score, n: nickname, t: type, v: title} (see "a friend's challenge")
 const TOP_AT = 14;
 
 const SHOCKS = [
@@ -1743,10 +1745,11 @@ function soundHint(){ const h = $("tsSound"); if (h) h.hidden = audioOn || A.mut
 // LINE: its own switch; elsewhere the app's ··· menu), or copy the link. Closed, it stays closed for the visit.
 function iabTip(){
   const tip = $("iabTip"); if (!IAB || ssGet("tff_iab_x")){ tip.hidden = true; root.style.setProperty("--iab-h", "0px"); root.classList.remove("iab-tight"); return; }
-  const url = location.origin + location.pathname, name = IAB === "app" ? "this app" : IAB, zh = IAB === "app" ? "呢個App" : IAB;
+  const q = location.pathname === "/c" ? location.search : "";   // a friend's challenge goes along
+  const url = location.origin + location.pathname + q, name = IAB === "app" ? "this app" : IAB, zh = IAB === "app" ? "呢個App" : IAB;
   let how = null;
-  if (IAB === "LINE") how = () => { location.href = url + "?openExternalBrowser=1"; };
-  else if (ANDROID && IAB !== "WeChat") how = () => { location.href = "intent://" + location.host + location.pathname + "#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=" + encodeURIComponent(url) + ";end"; };
+  if (IAB === "LINE") how = () => { location.href = url + (q ? "&" : "?") + "openExternalBrowser=1"; };
+  else if (ANDROID && IAB !== "WeChat") how = () => { location.href = "intent://" + location.host + location.pathname + q + "#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=" + encodeURIComponent(url) + ";end"; };
   const t = $("iabText"), dest = IAB === "LINE" ? ["your phone's browser", "手機瀏覽器"] : ["Chrome", "Chrome"];
   if (how) bi(t, "Best in " + dest[0] + ": full screen, sound, and saving your result.", "用" + dest[1] + "玩最好：全螢幕、有聲，仲儲到結果圖。");
   else bi(t, "Best in your browser: tap ··· (top right), then open in browser.", "用瀏覽器玩最好：撳右上角「···」，揀用瀏覽器開啟。");
@@ -1757,7 +1760,7 @@ function iabTip(){
 }
 $("iabClose").addEventListener("click", () => { ssSet("tff_iab_x", "1"); A.sfx("uiClose"); iabTip(); lastFit = ""; resize(); });
 $("iabCopy").addEventListener("click", async () => {
-  const u = location.origin + "/", st = $("iabStatus"); let done = false;
+  const u = location.origin + (location.pathname === "/c" ? "/c" + location.search : "/"), st = $("iabStatus"); let done = false;
   try { await navigator.clipboard.writeText(u); done = true; } catch(e){
     const t = document.createElement("textarea"); t.value = u; t.setAttribute("readonly", ""); t.style.cssText = "position:fixed;top:0;opacity:0";
     document.body.appendChild(t); t.select(); try { done = document.execCommand("copy"); } catch(_){} t.remove(); }
@@ -2500,6 +2503,7 @@ function updateTime(){
 }
 function updateHUD(){
   if (!S) return;
+  chalCheck();
   $("nwVal").textContent = fmt(S.score);
   $("hudNw").textContent = (window.innerWidth < 430 && S.score >= 10000) ? "HK$" + (S.score / 1000).toFixed(S.score >= 100000 ? 0 : 1) + "K" : fmt(S.score);
   $("rateVal").textContent = "×" + S.rate.toFixed(1);
@@ -2739,6 +2743,7 @@ async function showCard(){
   $("cardRank").textContent = S.posted ? ps.textContent : "";
   img.alt = "Your result card: " + fmt(S.score) + ", " + (S.stage === STAGES.length - 1 ? "made it to Retirement" : "reached " + STAGES[S.stage].en) + ". 你的結果卡";
   $("shareImg").hidden = !canShareFiles(); $("iabSave").hidden = !IAB;
+  threadsLink();
   try { const b = await readyCard();
     if (IAB) img.src = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(b); });   // press-and-hold can save it
     else { if (img._url) URL.revokeObjectURL(img._url); img._url = URL.createObjectURL(b); img.src = img._url; } } catch(e){}
@@ -2746,7 +2751,7 @@ async function showCard(){
 $("stNext").addEventListener("click", () => { if (S.step < 4 && !(S.step === 2 && !surveyDone())) setStep(S.step + 1); });
 $("stBack").addEventListener("click", () => { if (S.step > 1) setStep(S.step - 1); });
 async function readyCard(){
-  const k = [S.endAt, Math.round(S.score), cardName(), WHO].join("|");
+  const k = [S.endAt, Math.round(S.score), cardName(), WHO, S.pct, S.verdict && S.verdict.id, S.chal && S.chal.beat].join("|");
   if (cardBlob && cardKey === k) return cardBlob;
   const b = await makeResultCard(); cardBlob = b; cardKey = k; return b;
 }
@@ -2773,21 +2778,49 @@ async function makeResultCard(){
   // the player, as the game left them
   g.save(); g.translate(100, 380); g.scale(2.45, 2.45); AV.draw(g, lookNow()); g.restore();
   // the result
-  const cx = 705; g.textAlign = "center";
+  const cx = 705, hasPct = S.pct != null, dy = hasPct ? 0 : -34, v = S.verdict || verdictOf(S); g.textAlign = "center";
+  const fitFont = (txt, w, size, min, weight, fam) => { let f = size; g.font = weight + " " + f + "px " + fam; while (g.measureText(txt).width > w && f > min){ f -= 2; g.font = weight + " " + f + "px " + fam; } return g.font; };
   const nm = cardName();
-  if (nm){ let nf = 42; g.font = "900 " + nf + "px " + F.display; while (g.measureText(nm).width > 520 && nf > 26){ nf -= 2; g.font = "900 " + nf + "px " + F.display; }
-    outlined(nm, cx, 396, g.font, "#DF1B72", 10); g.textAlign = "center"; }
-  g.fillStyle = "#25317A"; g.font = "700 54px " + F.zh; g.fillText(S.score > 0 ? "恭喜你儲到" : "我嘅淨資產", cx, 470);
-  g.fillStyle = "#5B516C"; g.font = "800 30px " + F.sans; g.fillText(S.score > 0 ? "I saved" : "My net worth", cx, 515);
-  const amt = fmt(S.score); let fs = 120; g.font = "900 " + fs + "px " + F.display; while (g.measureText(amt).width > 540 && fs > 56){ fs -= 4; g.font = "900 " + fs + "px " + F.display; }
-  outlined(amt, cx, 645, g.font, "#1F9E4A", 14);
-  g.fillStyle = "#25317A"; g.font = "700 42px " + F.zh; g.fillText(top ? "成功退休！" : "去到「" + st.zh + "」", cx, 728);
-  g.fillStyle = "#5B516C"; g.font = "800 28px " + F.sans; g.fillText((top ? "Made it to Retirement" : "Reached " + st.en) + " · " + (S.best / FLOOR).toFixed(1) + "F", cx, 770);
+  if (nm) outlined(nm, cx, 392, fitFont(nm, 520, 42, 26, 900, F.display), "#DF1B72", 10);
+  g.textAlign = "center"; g.fillStyle = "#25317A"; g.font = "700 50px " + F.zh; g.fillText(S.score > 0 ? "恭喜你儲到" : "我嘅淨資產", cx, 458);
+  g.fillStyle = "#5B516C"; g.font = "800 28px " + F.sans; g.fillText(S.score > 0 ? "I saved" : "My net worth", cx, 498);
+  const amt = fmt(S.score); outlined(amt, cx, 610 - dy / 2, fitFont(amt, 540, 116, 56, 900, F.display), "#1F9E4A", 14);
+  if (hasPct){   // where it ranks, as a sticker
+    g.save(); g.translate(cx, 668); g.rotate(-0.025);
+    g.shadowColor = "rgba(37,49,122,0.25)"; g.shadowOffsetY = 6; rr(-235, -32, 470, 64, 32); g.fillStyle = "#FFD23F"; g.fill(); g.shadowColor = "transparent";
+    g.lineWidth = 4; g.strokeStyle = "#fff"; g.stroke();
+    g.fillStyle = "#25317A"; g.textAlign = "center"; g.font = "700 34px " + F.zh; const zt = "贏咗 " + S.pct + "% 玩家", et = " · Beat " + S.pct + "%";
+    const zw = g.measureText(zt).width; g.font = "900 26px " + F.sans; const ew = g.measureText(et).width; let x0 = -(zw + ew) / 2;
+    g.textAlign = "left"; g.font = "700 34px " + F.zh; g.fillText(zt, x0, 12); g.font = "900 26px " + F.sans; g.fillStyle = "#5B3B00"; g.fillText(et, x0 + zw, 11);
+    g.restore(); g.textAlign = "center";
+  }
+  g.fillStyle = "#25317A"; g.font = "700 40px " + F.zh; g.fillText(top ? "成功退休！" : "去到「" + st.zh + "」", cx, 748 + dy);
+  g.fillStyle = "#5B516C"; g.font = "800 26px " + F.sans; g.fillText((top ? "Made it to Retirement" : "Reached " + st.en) + " · " + (S.best / FLOOR).toFixed(1) + "F", cx, 786 + dy);
   [["spend", "#E8661F", "過度消費"], ["scam", "#7B5BE8", "騙局"], ["delay", "#2F86D6", "拖延"]].forEach(([k, col, zh], i) => {
-    const bx = 445 + i * 182, by = 805; rr(bx, by, 170, 104, 26); g.fillStyle = col; g.fill();
-    g.fillStyle = "#fff"; g.font = "700 30px " + F.zh; g.fillText(zh, bx + 85, by + 42); g.font = "900 34px " + F.display; g.fillText(S.falls[k] ? "×" + S.falls[k] : "✓", bx + 85, by + 86);
+    const bx = 445 + i * 182, by = 806 + dy; rr(bx, by, 170, 92, 24); g.fillStyle = col; g.fill();
+    g.fillStyle = "#fff"; g.font = "700 28px " + F.zh; g.fillText(zh, bx + 85, by + 38); g.font = "900 32px " + F.display; g.fillText(S.falls[k] ? "×" + S.falls[k] : "✓", bx + 85, by + 77);
   });
-  g.fillStyle = "#25317A"; g.font = "800 30px " + F.sans; g.fillText("Played as " + (WHO === "jackie" ? "Jackie" : "Jack"), cx, 975);
+  // the 稱號 (title), stamped like a red chop
+  if (v){
+    const ty = 958 + dy / 2; g.save(); g.translate(cx, ty); g.rotate(-0.035);
+    rr(-262, -46, 524, 92, 18); g.fillStyle = "rgba(255,236,236,0.9)"; g.fill(); g.lineWidth = 6; g.strokeStyle = "#D7262E"; g.stroke();
+    rr(-252, -36, 504, 72, 12); g.lineWidth = 2; g.stroke();
+    rr(-244, -30, 60, 60, 8); g.fillStyle = "#D7262E"; g.fill();
+    g.fillStyle = "#fff"; g.font = "700 25px " + F.zh; g.textAlign = "center"; g.fillText("稱", -214, -3); g.fillText("號", -214, 24);
+    g.textAlign = "left"; g.fillStyle = "#C21F2A"; g.font = fitFont(v.zh, 410, 44, 26, 700, F.zh); g.fillText(v.zh, -170, 4);
+    g.fillStyle = "#8E1C24"; g.font = fitFont(v.en, 410, 22, 15, 800, F.sans); g.fillText(v.en, -170, 33);
+    g.restore(); g.textAlign = "center";
+  }
+  g.fillStyle = "#25317A"; g.font = "800 28px " + F.sans; g.fillText("Played as " + (WHO === "jackie" ? "Jackie" : "Jack"), 247, 992);
+  // a friend's challenge, beaten: a sticker on the corner
+  if (S.chal && S.chal.beat){
+    const who = CHAL.n || "my friend";
+    g.save(); g.translate(232, 336); g.rotate(-0.12); g.shadowColor = "rgba(37,49,122,0.3)"; g.shadowOffsetY = 8;
+    rr(-170, -38, 340, 76, 24); g.fillStyle = "#DF1B72"; g.fill(); g.shadowColor = "transparent"; g.lineWidth = 5; g.strokeStyle = "#fff"; g.stroke();
+    g.fillStyle = "#fff"; g.textAlign = "center"; g.font = "700 30px " + F.zh; g.fillText("挑戰成功！", 0, -2);
+    g.font = fitFont("Beat " + who, 300, 24, 16, 900, F.sans); g.fillText("Beat " + who, 0, 27);
+    g.restore(); g.textAlign = "center";
+  }
   // the money type, on a ribbon under the card
   const mt = S.mtype || moneyType(S);
   g.save(); g.shadowColor = "rgba(37,49,122,0.3)"; g.shadowOffsetY = 10; rr(90, 1050, 900, 126, 40); g.fillStyle = "#25317A"; g.fill(); g.restore();
@@ -2811,7 +2844,7 @@ async function exportResult(share){
   try { blob = await readyCard(); } catch(e){ out.textContent = "Couldn't make the picture. 整唔到圖片。"; return; }
   const file = new File([blob], "3fallfun-result.jpg", {type: "image/jpeg"});
   if (share && canShareFiles()){
-    try { await navigator.share({files: [file], title: "3 Fall Fun 人生跌塔", text: "我喺《3 Fall Fun 人生跌塔》儲到 " + fmt(S.score) + "！你又得唔得？ " + location.origin}); out.textContent = "Shared 已分享"; A.sfx("uiDone"); return; }
+    try { await navigator.share({files: [file], title: "3 Fall Fun 人生跌塔", text: shareText() + "\n" + challengeUrl()}); out.textContent = "Shared 已分享"; A.sfx("uiDone"); return; }
     catch(e){ if (e && e.name === "AbortError"){ out.textContent = ""; return; } }   // closed the share sheet: nothing more to do
   }
   if (IAB){   // an app's browser drops downloads: the picture is saved by pressing and holding it
@@ -2864,10 +2897,109 @@ function showType(mt){
   }
 }
 
+// ---------- made for sharing (Threads especially) ----------
+// What makes a browser game spread on Threads in Hong Kong: a funny verdict to screenshot, a number to brag about
+// ("贏咗99%香港人"), a one-tap post, and a friend to beat. So every game gets
+//   a 稱號 (title): the first of TITLES (content.js) whose test passes; disasters first, they're the most shared,
+//   where it ranks: the share of recorded games it beat (GET /api/scores?view=pct), "players", never "Hong Kongers",
+//   a post: "Threads" opens a Threads post (its web intent) with the text below and a challenge link,
+//   a challenge: the link /c?s=score&n=nickname&t=type&v=title. A friend who opens it sees the challenge on the title
+//   screen, a bubble when they pass the score, and on their result whether they beat it (see "a friend's challenge").
+const TITLE_TEST = {
+  diver: st => st.over === "drops",
+  scamvip: st => st.falls.scam >= 2,
+  believer: st => st.troll.invest >= 2,
+  future: st => st.falls.spend >= 2,
+  tomorrow: st => st.falls.delay + st.missed >= 2,
+  scratch: st => !!st.troll.ticketSeen && st.troll.tickets >= 2,
+  zero: st => st.falls.spend + st.falls.scam + st.falls.delay === 0 && st.wise >= 3,
+  retire: st => st.stage === STAGES.length - 1,
+  lucky: st => st.jpAt >= 0,
+  stacker: st => st.best / FLOOR >= 8,
+  tycoon: st => st.score >= 30000,
+  steady: st => st.score > 0,
+  moonlight: () => true
+};
+const verdictOf = st => TITLES.find(t => TITLE_TEST[t.id] && TITLE_TEST[t.id](st)) || TITLES[TITLES.length - 1];
+function showVerdict(v){
+  const box = $("heroVerdict"); box.hidden = !v; if (!v) return;
+  const nm = $("svName"), en = document.createElement("span"); en.className = "en"; en.lang = "en"; en.textContent = v.en;
+  nm.replaceChildren(v.zh, en);
+  bi($("svLine"), v.line[0], v.line[1]);
+  box.classList.remove("in"); void box.offsetWidth; box.classList.add("in");
+  if (!reduceMotion) setTimeout(() => { if (S && S.verdict === v && !$("endModal").hidden && S.step === 1) A.sfx("stamp"); }, 1050);   // the seal lands after the count
+}
+// Where this game ranks among all recorded games. Fetched once per game; the hero, the card and the post use it.
+function fetchPct(game){
+  game.pct = null; $("heroPct").hidden = true;
+  if (!apiAllowed || apiGone) return;
+  api(API + "?view=pct&score=" + Math.round(game.score)).then(j => {
+    if (S !== game || typeof j.pct !== "number" || !isFinite(j.pct)) return;
+    game.pct = Math.max(0, Math.min(99, Math.round(j.pct)));
+    showPct();
+    if (S.step === 4) showCard(); else if (cardBlob) readyCard().catch(() => {});   // the card and the post carry it too
+    threadsLink();
+  }).catch(() => {});
+}
+function showPct(){
+  const el = $("heroPct"), p = S.pct; el.hidden = p == null; if (p == null) return;
+  const b = document.createElement("b"), z = document.createElement("span"), e = document.createElement("small");
+  z.lang = "zh-HK"; z.textContent = "贏咗"; b.textContent = p + "%"; const z2 = document.createElement("span"); z2.lang = "zh-HK"; z2.textContent = "玩家";
+  e.textContent = "Beat " + p + "% of players";
+  el.replaceChildren(z, b, z2, e); el.style.setProperty("--p", p + "%");
+  el.classList.remove("in"); void el.offsetWidth; el.classList.add("in");
+}
+// The challenge from a friend's link, against this game's result.
+function showChal(){
+  const el = $("heroChal"), c = S.chal; el.hidden = !c; if (!c) return;
+  const who = CHAL.n || "", whoZh = who || "你朋友", whoEn = who || "your friend";
+  el.classList.toggle("won", c.beat);
+  if (c.beat) bi(el, "You beat " + whoEn + "'s " + fmt(CHAL.s) + "!", "你贏咗" + zhIn(whoZh) + "！🎉");
+  else bi(el, fmt(c.gap) + " short of " + whoEn + " (" + fmt(CHAL.s) + ")", "仲差 " + fmt(c.gap) + " 就贏到" + zhIn(whoZh));
+}
+// The link a post or a share carries: a challenge with this game's result.
+function challengeUrl(){
+  const q = new URLSearchParams(); q.set("s", String(Math.round(S.score)));
+  const n = cardName(); if (n) q.set("n", n);
+  const mt = S.mtype || moneyType(S); q.set("t", mt.code);
+  const v = S.verdict || verdictOf(S); if (v) q.set("v", v.id);
+  return location.origin + "/c?" + q.toString();
+}
+// The words of a post: the result, the title, the type, the brag (or the dare), then a question and a tag, because on
+// Threads the replies are what spread it.
+function shareText(){
+  const v = S.verdict || verdictOf(S), mt = S.mtype || moneyType(S), p = S.pct, c = S.chal;
+  const out = ["我喺《3 Fall Fun 人生跌塔》儲到 " + fmt(S.score) + " 🦀", "稱號：「" + v.zh + "」", "理財性格：" + mt.t.zh + "（" + mt.code + "）"];
+  const who = c && CHAL.n ? CHAL.n : "我朋友";
+  if (c && c.beat) out.push("我贏咗" + zhIn(who) + " 😎 下一個係你");
+  else if (c) out.push("仲差 " + fmt(c.gap) + " 先贏到" + zhIn(who) + "…邊個幫我報仇？");
+  else if (p != null) out.push(p >= 50 ? "我算唔算已經贏咗" + p + "%香港人？" : "只係贏咗" + p + "%人…你夠膽同我比？");
+  else out.push("你又得唔得？");
+  out.push("你係咩type？👇 身邊邊個係「" + v.zh + "」？Tag 佢！");
+  return out.join("\n");
+}
+const THREADS = "https://www.threads.com/intent/post";
+function threadsLink(){
+  if (!S) return;
+  const a = $("threadsBtn"); a.href = THREADS + "?text=" + encodeURIComponent(shareText()) + "&url=" + encodeURIComponent(challengeUrl());
+}
+// A real link (no pop-up blocker, works in apps' browsers): it opens the post. The post can't take a picture, so on a
+// computer the card is saved as well, to add to the post; on a phone the status line says to add it.
+$("threadsBtn").addEventListener("click", () => {
+  threadsLink(); A.sfx("uiDone");
+  const out = $("shareStatus");
+  if (!IOS && !ANDROID && !IAB && cardBlob){
+    const a = document.createElement("a"), url = URL.createObjectURL(cardBlob);
+    a.href = url; a.download = "3fallfun-result.jpg"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000);
+    out.textContent = "Picture saved: add it to your post! 圖片已下載，記得一齊貼上！";
+  } else out.textContent = "Add your card picture to the post for more likes! 記得加埋結果卡圖片，多啲like！";
+});
+
 // ---------- end screen ----------
 function showEnd(){
   const st = STAGES[S.stage];
   S.mtype = moneyType(S); showType(S.mtype);
+  S.verdict = verdictOf(S); S.chal = CHAL ? {beat: Math.round(S.score) > CHAL.s, gap: Math.max(10, CHAL.s - Math.round(S.score))} : null;   // a tie still needs 10 more
   const top = S.stage === STAGES.length - 1;
   $("stDate").textContent = "STATEMENT · " + new Date().toLocaleDateString("en-GB", {day:"2-digit", month:"short", year:"numeric"}).toUpperCase();
   $("endEyebrow").textContent = S.over === "drops" ? "整冧咗！ 3 items fell into the harbour" : "夠鐘！ Time's up";
@@ -2961,11 +3093,12 @@ function showEnd(){
   const ps = $("postStatus"); ps.className = "post-status";
   ps.textContent = live ? "Only your nickname and score will appear on the leaderboard. 排行榜只會顯示你的暱稱及分數。" : "Your score will be saved on this device only. 分數只會儲存在這部裝置。";
   $("endModal").hidden = false; $("stScroll").scrollTop = 0; endScroll = 0;
-  S.flowDone = false; setStep(1, false); heroUp();
+  S.flowDone = false; setStep(1, false); heroUp(); showVerdict(S.verdict); showChal();
   fitLine($("endTitle"));
   endShownAt = performance.now(); modalOpen(true);
   $("endTitle").focus({preventScroll:true});
   const game = S; game.rec = newRecord();
+  fetchPct(game);
   setTimeout(() => { if (S === game && (S.mode === "over" || S.mode === "idle")) menuMusic(); }, 3200);   // after the end jingle, the menu music again
   saveRecord(game).catch(e => keepForLater(game, e));
   planFirst();
@@ -2985,6 +3118,40 @@ let myPost = lsGet("tff_my_post", null);   // last live post {id, rank, week, na
 const ANON = "Anonymous crab 匿名蟹";
 function bi(el, en, zh){ const z = document.createElement("span"); z.className = "zl"; z.lang = "zh-HK"; z.textContent = zh; el.replaceChildren(en, z); return el; }
 function sanitizeName(n){ const v = String(n || "").replace(/[\u0000-\u001f<>]/g, "").trim(); return !v || v === ANON ? ANON : Array.from(v).slice(0, 16).join(""); }
+// ---------- a friend's challenge ----------
+// A shared result links to /c?s=score&n=nickname&t=type&v=title. server/worker.js serves the game there, with link
+// previews about the friend's result, and puts what the link says after its checks (the nickname has passed the
+// board's filter) in <meta name="tff-chal">. Only that is used, never the address itself, so a made-up link can't put
+// words on the screen. It lasts for this visit (Play again keeps the target): the title screen shows it, a bubble
+// pops when the score passes it, the result says who won, and the game record says the player came from a link.
+// A Latin-letter nickname in a Chinese sentence gets a space on each side ("贏咗 Ming！"), a Chinese one doesn't.
+const zhName = n => /[A-Za-z0-9]$/.test(n) ? n + " " : n, zhIn = n => /^[A-Za-z0-9]/.test(n) ? " " + n : n;
+CHAL = (() => {
+  let c = null;
+  try { const m = document.querySelector('meta[name="tff-chal"]'); if (m) c = JSON.parse(m.getAttribute("content")); } catch(e){ c = null; }
+  if (!c) c = ssGet("tff_chal") ? (() => { try { return JSON.parse(ssGet("tff_chal")); } catch(e){ return null; } })() : null;
+  if (!c || typeof c.s !== "number" || !isFinite(c.s) || Math.abs(c.s) > 9999999) return null;
+  const n = typeof c.n === "string" ? sanitizeName(c.n) : ANON;
+  const out = {s: Math.round(c.s), n: n === ANON ? "" : n, t: typeof c.t === "string" && Object.prototype.hasOwnProperty.call(TYPES, c.t) ? c.t : "", v: TITLES.find(x => x.id === c.v) || null};
+  ssSet("tff_chal", JSON.stringify({s: out.s, n: out.n, t: out.t, v: out.v ? out.v.id : ""}));
+  return out;
+})();
+(function chalBanner(){
+  const box = $("chal"); if (!CHAL){ box.hidden = true; return; }
+  const who = CHAL.n, v = CHAL.v;
+  const amt = document.createElement("b"); amt.textContent = fmt(CHAL.s);
+  const t = $("chalT"); t.replaceChildren(zhName(who || "你朋友") + "儲到 ", amt);
+  if (v){ const i = document.createElement("i"); i.textContent = v.zh; t.append(i); }   // their 稱號
+  const z = document.createElement("span"); z.lang = "zh-HK"; z.textContent = "你夠唔夠膽挑戰？";
+  $("chalE").replaceChildren(z, "Can you beat " + (who || "your friend") + "?");
+  box.hidden = false; root.classList.add("chal");
+})();
+function chalCheck(){   // while playing: the moment the score passes the friend's
+  if (!CHAL || !S || S.chalSaid || S.mode !== "playing" || CHAL.s <= 0 || S.score <= CHAL.s) return;
+  S.chalSaid = true; const who = CHAL.n;
+  stamp("You beat " + (who || "your friend") + "!", "贏咗" + zhIn(who || "你朋友") + "！", "gold"); A.sfx("rival"); mood("happy", 2200);
+  quip(who ? "chalBeat" : "chalBeatAnon", 3, who);
+}
 async function api(url, opts = {}){
   const ctl = typeof AbortController === "function" ? new AbortController() : null;
   const to = ctl ? setTimeout(() => ctl.abort(), 9000) : 0;
@@ -3044,6 +3211,7 @@ function recordBody(st){
     jackpot: st.jpAt >= 0 ? 1 : 0,   // its windfall and jackpot time raise the server's score limit
     avatar: WHO,   // Jack or Jackie
     mtype: st.mtype ? st.mtype.code : undefined,   // the money type, e.g. SGPC
+    via: CHAL ? "c" : undefined,   // came from a friend's challenge link
     troll_revive: st.troll.reviveSeen ? st.troll.revive : null, troll_invest: st.troll.invest, troll_tickets: st.troll.ticketSeen ? st.troll.tickets : null};
 }
 // Saves go out one at a time; each sends the latest state, and only if it changed since the last one.

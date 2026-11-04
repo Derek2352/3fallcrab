@@ -38,7 +38,8 @@ CREATE TABLE IF NOT EXISTS scores (
   troll_invest INTEGER,                -- 0 = no investment pop-up, 1 = declined, 2 = invested HK$3,000 (the scam), 3 = also paid the HK$1,000 fee
   troll_tickets INTEGER,               -- null = no scratch-card offer, else 0..5 = HK$500 scratch cards bought (never a win)
   avatar TEXT,                         -- "jack" or "jackie": the character the player chose (newer game pages)
-  mtype TEXT                           -- the player's 4-letter money type, e.g. "SGPC" (newer game pages)
+  mtype TEXT,                          -- the player's 4-letter money type, e.g. "SGPC" (newer game pages)
+  via TEXT                             -- how the player arrived: 'c' = a friend's challenge link (newer game pages)
 );
 CREATE INDEX IF NOT EXISTS idx_scores_week ON scores (week, hidden, score DESC, id);
 CREATE INDEX IF NOT EXISTS idx_scores_all ON scores (hidden, score DESC, id);

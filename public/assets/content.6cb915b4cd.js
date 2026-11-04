@@ -107,6 +107,8 @@ const QUIPS = {
   start:     [["Let's build your future!", "一齊疊出你嘅未來！"], ["Flat things at the bottom. Trust me.", "扁嘅放最底，信我！"], ["Three minutes. No pressure!", "得三分鐘，唔使驚！"]],
   startPb:   [["Your best is {n}. Beat it!", "你最高分係{n}，今次破紀錄！"]],
   netCatch:  [["Caught! That's what insurance is for.", "接住咗！保險就係用喺呢度。"], ["Saved by the net. Back to you!", "張網救返你，再嚟過！"]],
+  chalBeat:  [["You just beat {n}! Keep going for more.", "你已經贏咗{n}！再疊高啲！"], ["{n} is behind you now. Make it a big win!", "{n}已經追唔上你，贏多啲！"]],
+  chalBeatAnon: [["You just beat your friend's score! Keep going.", "你已經贏咗你朋友！再疊高啲！"]],
   jackpot:   [["My cousin brought a windfall! Save it!", "我表哥帶住橫財嚟！記得儲起佢！"], ["Lucky! Bank it while it lasts.", "好運到！趁住有，快啲儲！"],
               ["Money from the sky! Bank it, don't blow it.", "天降橫財！存起佢，唔好洗晒！"]],
   frenzyEnd: [["That was {n} of luck. Bank it!", "幸運咗{n}，記得存起佢！"], ["Luck runs out. Steady saving doesn't.", "好運會完，穩定儲蓄先係王道。"]],
@@ -226,5 +228,25 @@ const TYPES = {
   YDLH: {en: "The Firework", zh: "煙花", d: ["Bright, fast and over too soon. Save first next time!", "好靚、好快，但一下就散。下次記住先儲後使！"]}
 };
 
-root.TFF_CONTENT = {STAGES, TRAPS, CARDS, QUIZ, HABITS, QUIPS, TROLLS, TYPE_AXES, TYPES};
+// ---------- 稱號: a funny verdict title for each game, the line people screenshot and argue about on Threads ----------
+// game.js (verdictOf) gives the first one whose test passes, in this order: disasters first (they're the most shared),
+// then the brags, then a fallback by money. The id goes into challenge links (/c?v=...), where server/worker.js shows
+// the zh name in the link preview, so give a changed title a new id.
+const TITLES = [
+  {id: "diver",   en: "Harbour Diver",            zh: "維港潛水員",   line: ["Three things in the harbour. The fish say thanks.", "三件嘢跌落海，啲魚多謝你。"]},
+  {id: "scamvip", en: "Scammers' VIP",            zh: "騙徒VIP",     line: ["The scammers have you on speed dial.", "騙徒已經將你加咗做VIP會員。"]},
+  {id: "believer",en: "“Guaranteed” Believer", zh: "保證回報信徒", line: ["Guaranteed returns? Guaranteed lesson.", "保證回報？保證上堂。"]},
+  {id: "future",  en: "Spending Tomorrow's Money", zh: "先使未來錢",  line: ["Next month's pay? Already spent.", "下個月人工？早就使咗。"]},
+  {id: "tomorrow",en: "Tomorrow, Tomorrow",       zh: "明日復明日",  line: ["You'll start saving tomorrow. Probably.", "儲錢？聽日先啦…應該。"]},
+  {id: "scratch", en: "Scratch Card Regular",     zh: "刮刮卡熟客",  line: ["The shop knows your name now.", "便利店職員已經認得你。"]},
+  {id: "zero",    en: "Trap-Proof Legend",        zh: "零中伏神人",  line: ["Zero traps. Are you even human?", "一次都冇中伏，你係咪人嚟㗎？"]},
+  {id: "retire",  en: "Early Retiree in Training", zh: "財務自由預備役", line: ["Retired in 3 minutes. Your future self owes you dinner.", "3分鐘就退休，將來嘅你要請你食飯。"]},
+  {id: "lucky",   en: "Windfall Magnet",          zh: "橫財就手",    line: ["The jackpot crab picked you. Don't count on it twice.", "大獎蟹揀咗你，唔好以為次次都有。"]},
+  {id: "stacker", en: "Stacking God",             zh: "疊疊樂之神",  line: ["That tower needs its own postcode.", "座塔高到要有自己嘅地址。"]},
+  {id: "tycoon",  en: "Little Tycoon",            zh: "小富翁",      line: ["Rich enough to split the bill. Just.", "夠錢夾份，啱啱好。"]},
+  {id: "steady",  en: "Slow and Steady",          zh: "穩穩陣陣",    line: ["Not flashy, but your money stays put.", "唔型，但啲錢唔會走佬。"]},
+  {id: "moonlight", en: "Broke by Month's End",   zh: "月光族",      line: ["Pay day in, pay day out. Same day.", "人工一出，即日清袋。"]}
+];
+
+root.TFF_CONTENT = {STAGES, TRAPS, CARDS, QUIZ, HABITS, QUIPS, TROLLS, TYPE_AXES, TYPES, TITLES};
 })(typeof window !== "undefined" ? window : globalThis);

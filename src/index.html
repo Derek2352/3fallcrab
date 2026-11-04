@@ -158,6 +158,8 @@
               <p class="word ts-word"><span>3</span><span>F</span><span>a</span><span>l</span><span>l</span><span>F</span><span>u</span><span>n</span></p>
               <p class="ts-zh" lang="zh-HK">人生跌塔</p></div>
             <p class="ts-only ts-sign"><b lang="zh-HK">每週同每月最高分有獎！</b><span>Top scorers each week and month win prizes!</span></p>
+            <div class="chal" id="chal" role="note" aria-label="A challenge 挑戰書" hidden><span class="chal-seal" aria-hidden="true">挑戰</span>
+              <p class="chal-t" id="chalT" lang="zh-HK"></p><p class="chal-e" id="chalE"></p></div>
             <h2 data-fit="10">Stack your life</h2>
             <p class="zh" lang="zh-HK">疊出你嘅人生</p>
             <p class="desc">Reach Retirement in 3&nbsp;minutes. Drop 3 and it's over. <span class="zh" lang="zh-HK">3分鐘疊到退休，跌3件就玩完。</span></p>
@@ -362,6 +364,10 @@
           <p class="sh-amt"><span id="heroAmt" aria-hidden="true"></span><span class="sr" id="rNw"></span></p>
           <h3 id="endTitle" tabindex="-1" data-fit="13"></h3>
         </div>
+        <div class="sh-verdict" id="heroVerdict" hidden><span class="sv-seal" aria-hidden="true"><b>稱</b><b>號</b></span>
+          <p class="sv-name"><span class="sr">Your title 你的稱號: </span><span id="svName"></span></p><p class="sv-line" id="svLine"></p></div>
+        <p class="sh-pct" id="heroPct" hidden></p>
+        <p class="sh-chal" id="heroChal" hidden></p>
         <i class="spk s1" aria-hidden="true"></i><i class="spk s2" aria-hidden="true"></i><i class="spk s3" aria-hidden="true"></i><i class="spk s4" aria-hidden="true"></i>
       </div>
       <section class="mtype" id="mType" data-s="1" aria-labelledby="mtEye mtName">
@@ -406,6 +412,7 @@
         <img class="card-img" id="cardImg" alt="" width="1080" height="1350">
         <div class="sh-share">
           <button class="btn teal" id="saveImg" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10.5l5 5 5-5M5 19h14"/></svg>Save image<span class="zh" lang="zh-HK">下載圖片</span></button>
+          <a class="btn threads" id="threadsBtn" href="https://www.threads.com/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.6 11.3c-.4-2.5-2-3.8-4.4-3.8-2.6 0-4.4 1.9-4.4 4.6s1.8 4.5 4.3 4.5c2 0 3.6-1.2 3.6-3 0-1.6-1.4-2.5-3.4-2.4-1.7.1-2.6.9-2.6 1.9 0 .9.8 1.5 1.9 1.5 2.3 0 3.4-1.8 3.2-4.6"/><path d="M19.2 7.6C17.9 4.9 15.4 3.5 12 3.5 7 3.5 3.8 7 3.8 12s3.2 8.5 8.2 8.5c3.4 0 5.8-1.5 7-4.2"/></svg>Post to Threads<span class="zh" lang="zh-HK">分享到Threads</span></a>
           <button class="btn alt" id="shareImg" type="button" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="M8.2 10.8l7.6-4M8.2 13.2l7.6 4"/></svg>Share<span class="zh" lang="zh-HK">分享</span></button>
         </div>
         <p class="iab-save" id="iabSave" hidden>In this app, press and hold the picture to save it.<span class="zl" lang="zh-HK">喺呢個App入面，長按圖片就可以儲存。</span></p>

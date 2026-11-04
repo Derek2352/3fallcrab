@@ -4,20 +4,20 @@
    are the ones Google Fonts served, so --f-* below and clay.js (canvas lettering) stay as they are. */
 @font-face{font-family:"Gluten";font-style:normal;font-weight:400 900;font-display:swap;src:url(/assets/gluten.842f8cce6e.woff2) format("woff2")}
 /* Noto Sans HK is one variable file. Four faces, not one 400 900 range, so a weight-800 label still uses the 900 face, as before. */
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/noto-sans-hk.c02cff085d.woff2) format("woff2")}
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:500;font-display:swap;src:url(/assets/noto-sans-hk.c02cff085d.woff2) format("woff2")}
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/noto-sans-hk.c02cff085d.woff2) format("woff2")}
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:900;font-display:swap;src:url(/assets/noto-sans-hk.c02cff085d.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/noto-sans-hk.48a941f4b5.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:500;font-display:swap;src:url(/assets/noto-sans-hk.48a941f4b5.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/noto-sans-hk.48a941f4b5.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:900;font-display:swap;src:url(/assets/noto-sans-hk.48a941f4b5.woff2) format("woff2")}
 /* WenKai draws only Chinese (and the digits inside Chinese lines): its Latin is a thin handwriting, so English in a
    Chinese-font line falls through to Noto Sans HK and reads the same as everywhere else */
-@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/lxgw-wenkai-tc-regular.4d72be1927.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
-@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/lxgw-wenkai-tc-bold.54780a1629.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
+@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/lxgw-wenkai-tc-regular.c218da9c6f.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
+@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/lxgw-wenkai-tc-bold.a4bd6bcaf7.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
 /* Curly quotes, ‘ ’, × and · in Latin widths: Noto Sans HK draws them a whole Chinese character wide, which left holes
    in English ("to   “rent”", "pays ×1.5"). Source Sans 3 (the Latin Noto Sans HK is based on), 1 KB a weight. */
 @font-face{font-family:"TFF Punct";font-style:normal;font-weight:400 650;font-display:swap;src:url(/assets/source-sans-punct-400.f1e8c6c73b.woff2) format("woff2");unicode-range:U+00B7,U+00D7,U+2018-201D}
 @font-face{font-family:"TFF Punct";font-style:normal;font-weight:651 850;font-display:swap;src:url(/assets/source-sans-punct-700.54c4ee4dfe.woff2) format("woff2");unicode-range:U+00B7,U+00D7,U+2018-201D}
 @font-face{font-family:"TFF Punct";font-style:normal;font-weight:851 900;font-display:swap;src:url(/assets/source-sans-punct-900.622c4a765b.woff2) format("woff2");unicode-range:U+00B7,U+00D7,U+2018-201D}
-@font-face{font-family:"DotGothic16";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/dotgothic16.792b1878e2.woff2) format("woff2")}
+@font-face{font-family:"DotGothic16";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/dotgothic16.921718d052.woff2) format("woff2")}
 
 /* Layout: a clay tabletop set — passbook + 3 Falls | the diorama board | tickets, building directory, leaderboard.
    One light (top-left) everywhere: CSS shadows fall down-right like the canvas clay. Single bright theme by design. */
@@ -1197,7 +1197,7 @@ html.fs.wide .hud .mini{grid-column:2 / -1}
 /* ---------- the statement, step by step: result, survey, leaderboard, card ---------- */
 .steps{list-style:none;margin:-2px 0 14px;padding:0;display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:4px;counter-reset:st}
 .steps li{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11.5px;font-weight:800;line-height:1.15;text-align:center;color:var(--ink-2)}
-.steps li::before{counter-increment:st;content:counter(st);width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-family:var(--f-display);font-weight:900;font-size:14px;
+.steps li::before{content:var(--n, "1");width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-family:var(--f-display);font-weight:900;font-size:14px;
   background:#EEDCC0;color:var(--ink-2);box-shadow:inset 1px 2px 3px rgba(60,20,10,.15)}
 .steps li:not(:last-child)::after{content:"";position:absolute;top:13px;left:calc(50% + 18px);right:calc(-50% + 18px);height:3px;border-radius:2px;background:#EEDCC0}
 .steps li.done::before{content:"✓";background:var(--teal);color:#fff;box-shadow:none}
@@ -1254,6 +1254,8 @@ h1, h2, h3, .qopt, .choice b, .choice small, .habit span, .stamp, .ticket .nm, .
 @media (max-width: 600px){ .statement .endactions .btn{font-size:clamp(14px, 4.4vw, 16px)} }
 /* the 4 steps: labels shrink with the sheet, so "Leaderboard" and "Your card" never meet */
 .steps{container-type:inline-size}
+/* the step numbers are written out: a container query scopes CSS counters to each step, so counter() showed 1, 1, 1, 1 */
+.steps li:nth-child(2){--n:"2"} .steps li:nth-child(3){--n:"3"} .steps li:nth-child(4){--n:"4"}
 .steps li{font-size:clamp(10px, calc((100cqi - 12px) / 24.5), 11.5px)}
 /* a narrow list of choices (small phones): smaller key and picture, so the words get the room */
 .choices{container-type:inline-size}
@@ -1446,3 +1448,48 @@ html.iab-tight.fs.title .ts-sign{display:none}   /* a short screen with the tip 
   .msfx{transform:rotate(-12deg)} .mpanel.on .msfx{transform:rotate(-12deg)} .mpanel.on canvas.art:not(.tower), .mpage.turn{animation:none}
   .msfx{opacity:0} .mpanel.on .msfx{opacity:1}
 }
+
+/* ---------- made for sharing: the 稱號 (title), the rank, a friend's challenge, Post to Threads ---------- */
+.sh-verdict, .sh-pct, .sh-chal{grid-column:1 / -1}
+.sh-verdict[hidden], .sh-pct[hidden], .sh-chal[hidden], .chal[hidden]{display:none}
+/* the title, stamped like a red chop once the amount has counted up */
+.sh-verdict{display:grid;grid-template-columns:auto minmax(0, 1fr);gap:1px 10px;align-items:center;margin:8px 4px 0;padding:8px 12px 9px 8px;border:3px solid #D7262E;border-radius:12px;
+  background:rgba(255,238,238,.92);box-shadow:inset 0 0 0 2px #FFF7F7, inset 0 0 0 4px rgba(215,38,46,.4);transform:rotate(-1.2deg)}
+.sv-seal{grid-row:1 / span 2;display:flex;flex-direction:column;align-items:center;justify-content:center;width:40px;height:44px;border-radius:7px;background:#D7262E;color:#fff;
+  font-family:var(--f-zh);font-size:16px;line-height:1.05}
+.sv-seal b{font-weight:700}
+.sv-name{margin:0;font-family:var(--f-zh);font-weight:700;font-size:22px;line-height:1.15;color:#B81E28}
+.sv-name .en{display:inline-block;margin-left:8px;font-family:var(--f-body);font-size:12.5px;font-weight:800;color:#8E1C24}
+.sv-line{margin:0;font-size:12.5px;font-weight:700;line-height:1.3;color:#6B2A2F}
+.sv-line .zl{display:block;font-family:var(--f-zh)}
+.sh-verdict.in{animation:chop .55s 1s cubic-bezier(.2,.9,.3,1.4) both}
+@keyframes chop{0%{opacity:0;transform:scale(2.3) rotate(-9deg)}60%{opacity:1;transform:scale(.94) rotate(-.4deg)}100%{opacity:1;transform:rotate(-1.2deg)}}
+/* where it ranks: the pill fills to the share of games beaten */
+.sh-pct{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 5px;margin:9px 4px 0;padding:6px 14px 7px;border-radius:999px;font-family:var(--f-zh);font-weight:700;font-size:16px;line-height:1.2;color:var(--navy);
+  background:linear-gradient(90deg, #FFD23F var(--p, 50%), #FFF2C2 var(--p, 50%));box-shadow:inset 0 0 0 2px #fff, 0 3px 0 rgba(150,105,0,.25)}
+.sh-pct b{font-family:var(--f-display);font-weight:900;font-size:23px;line-height:1}
+.sh-pct small{margin-left:auto;font-family:var(--f-body);font-size:12px;font-weight:800;color:#5B3B00}
+.sh-pct.in{animation:pctin .5s .2s cubic-bezier(.2,.9,.3,1.35) both}
+@keyframes pctin{0%{opacity:0;transform:translateY(8px) scale(.9)}100%{opacity:1;transform:none}}
+/* a friend's challenge: won or how far short */
+.sh-chal{margin:9px 4px 0;padding:7px 12px 8px;border-radius:12px;border:2px dashed #8FA0E8;background:#EEF1FF;color:var(--navy);font-weight:800;font-size:13px;line-height:1.3}
+.sh-chal .zl{display:block;font-family:var(--f-zh);font-weight:700;font-size:16px}
+.sh-chal.won{border-color:var(--hot);background:#FFE6F1;color:#8E0D4A}
+@media (prefers-reduced-motion: reduce){ .sh-verdict.in, .sh-pct.in{animation:none} }
+/* Post to Threads: the platform's black */
+a.btn{text-decoration:none}
+.btn.threads{background:#151515;color:#fff;box-shadow:inset 2px 2px 1px rgba(255,255,255,.25), inset -3px -4px 6px rgba(0,0,0,.4), 0 5px 0 #000, 3px 9px 14px rgba(120,62,12,.22)}
+.btn.threads:active{box-shadow:inset 2px 2px 1px rgba(255,255,255,.25), inset -3px -4px 6px rgba(0,0,0,.4), 0 1px 0 #000}
+.btn.threads:focus-visible{outline:3px solid var(--hot);outline-offset:3px}
+/* the title screen, opened from a friend's link: the challenge letter takes the prize sign's place */
+.chal{position:relative;align-self:stretch;margin:0;padding:8px 12px 9px 54px;border-radius:14px;background:#FFF8EC;border:3px solid var(--hot);text-align:left;
+  box-shadow:0 4px 0 rgba(223,27,114,.28)}   /* not tilted: a turned box here widened the page on phones */
+.chal-seal{position:absolute;left:10px;top:50%;width:34px;height:42px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:var(--hot);color:#fff;
+  font-family:var(--f-zh);font-weight:700;font-size:15px;line-height:1.05;writing-mode:vertical-rl;letter-spacing:2px;transform:translateY(-50%) rotate(-8deg)}
+.chal-t{margin:0;font-family:var(--f-zh);font-weight:700;font-size:15px;line-height:1.3;color:var(--navy);word-break:normal;overflow-wrap:anywhere}
+.chal-t b{font-family:var(--f-display);font-weight:900;color:#1F8F44}
+.chal-t i{display:inline-block;margin-left:4px;padding:0 7px 1px;border-radius:6px;border:2px solid #D7262E;color:#B81E28;font-style:normal;font-size:13px;line-height:1.3;vertical-align:1px}
+.chal-e{margin:1px 0 0;font-size:12px;font-weight:700;line-height:1.3;color:var(--ink-2);text-wrap:pretty}
+.chal-e span{font-family:var(--f-zh);color:var(--pink-t);margin-right:4px}
+html.fs.title.chal .ts-sign{display:none}
+html.fs.title .chal{max-width:380px;align-self:center;width:100%;background:rgba(255,248,236,.96)}

@@ -121,6 +121,13 @@
     el("div", ["tile", state && state[0], cls].filter(Boolean).join(" "), el("span", "tl", label), el("b", "", value), sub && el("span", "ts", sub),
       state && el("span", "pill " + state[0], state[1]));
 
+  // games that started from a friend's challenge link (/c?...), counted in this period
+  function fromLinks(o) {
+    const t = tile("From shared links ", fmt(o.via_c || 0), ratio(o.via_c || 0, o.games, "games"));
+    t.firstChild.append(zh("經分享連結"));
+    return t;
+  }
+
   // top 3 money types (4-letter codes, names from content.js) among the games in this period
   function moneyTypes(o) {
     const T = C.TYPES || {}, all = Object.entries(o.types || {}).filter(([k]) => T[k]), total = all.reduce((n, [, v]) => n + v, 0);
@@ -141,6 +148,7 @@
       tile("Games", fmt(o.games), "games saved"),
       tile("Jack / Jackie", `${fmt(o.jack || 0)} / ${fmt(o.jackie || 0)}`, ratio(o.jackie || 0, (o.jack || 0) + (o.jackie || 0), "who chose")),
       moneyTypes(o),
+      fromLinks(o),
       tile("On the board", fmt(o.posted), fmt(o.anonymous) + " saved anonymously"),
       tile("Quiz finished", fmt(o.quizTakers), ratio(o.quizTakers, o.games, "games")),
       tile(`Scored ${o.quizPassMark}/${qn} or better`, pc(o.quizPassPct), `${fmt(o.quizPass)} of ${fmt(o.quizTakers)} who finished · target ${o.quizTargetPct}%`,
@@ -294,7 +302,7 @@
     const pass = Math.ceil((QN * 2) / 3); // same rule as the server: 2 of 3
     const head = ["game_id", "saved_hkt", "week", "month", "on_board", "hidden", "nickname", "email", "score", "floors", "life_stage", "ended", "items_dropped",
       "wise_picks", "risky_picks", "missed_picks", "fall_overspending", "fall_scams", "fall_putting_off_saving", "habit_id", "habit", "quiz_answered", "quiz_correct", "quiz_2plus",
-      ...C.QUIZ.flatMap((q) => ["q_" + q.id, "q_" + q.id + "_correct"]), ...C.CARDS.map((c) => "card_" + c.id), "items_placed", "seconds_played", "quizzes_before", "jackpot", "troll_revive", "troll_invest", "troll_tickets", "player", "money_type", "money_type_name"];
+      ...C.QUIZ.flatMap((q) => ["q_" + q.id, "q_" + q.id + "_correct"]), ...C.CARDS.map((c) => "card_" + c.id), "items_placed", "seconds_played", "quizzes_before", "jackpot", "troll_revive", "troll_invest", "troll_tickets", "player", "money_type", "money_type_name", "via"];
     return csv(head, rows.map((r) => {
       const answers = new Map(list(r.quiz_answers).map((a) => [a.q, a])), picks = new Map();
       for (const c of list(r.choices)) if (!picks.has(c.card)) picks.set(c.card, choice(c));
@@ -303,7 +311,7 @@
         r.wise, r.risky, r.missed, r.fall_spend, r.fall_scam, r.fall_delay, r.habit, (C.HABITS.find((h) => h.id === r.habit) || {}).en,
         r.quiz_answered, r.quiz, done ? (r.quiz >= pass ? 1 : 0) : "",
         ...C.QUIZ.flatMap((q) => { const a = answers.get(q.id); return a ? [(q.o[a.pick] || [])[0], (a.ok ?? a.pick === q.a) ? 1 : 0] : ["", ""]; }),
-        ...C.CARDS.map((c) => picks.get(c.id)), r.items, r.real_ms == null ? "" : Math.round(r.real_ms / 1000), r.quiz_prior, r.jackpot ?? "", r.troll_revive ?? "", r.troll_invest ?? "", r.troll_tickets ?? "", r.avatar ?? "", r.mtype ?? "", ((C.TYPES || {})[r.mtype] || {}).en ?? ""];
+        ...C.CARDS.map((c) => picks.get(c.id)), r.items, r.real_ms == null ? "" : Math.round(r.real_ms / 1000), r.quiz_prior, r.jackpot ?? "", r.troll_revive ?? "", r.troll_invest ?? "", r.troll_tickets ?? "", r.avatar ?? "", r.mtype ?? "", ((C.TYPES || {})[r.mtype] || {}).en ?? "", r.via ?? ""];
     }));
   }
   function answersCsv(rows) {

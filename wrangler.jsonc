@@ -9,7 +9,8 @@
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
-    "run_worker_first": ["/api/*"],
+    // /api/* is the leaderboard; /c is a friend's challenge link (the home page with its link preview rewritten)
+    "run_worker_first": ["/api/*", "/c"],
     "not_found_handling": "404-page"
   },
   // Leaderboard database. No "database_id" needed: the first deploy creates the D1 database.
