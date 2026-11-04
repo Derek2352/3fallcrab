@@ -1604,7 +1604,9 @@ cv.tabIndex = 0;
 
 // ---------- rendering: sprites ----------
 const ctx = cv.getContext("2d", {alpha: false});   // opaque: the sky covers it all, so the page never blends it
-let SC = 1, DPR = 1, XV = 0;   // XV: scenery shown either side of the play area (a wide screen in full screen), in world units
+let SC = 1, DPR = 1, XV = 0, YT = 0, YB = 0;   // XV: scenery shown either side of the play area (a wide screen in full screen), in world units
+// YT, YB: in full screen play the scene covers the whole screen, the panels floating over it: the world drawn above
+// the play area (behind the header and the status bar) and below it (behind the pad), in world units
 const SPR = new Map(), SPR_MAX = 160, QA = Math.PI / 4;
 let usedText = false;   // did the sprite being made use lettering (it is made again once the web fonts arrive)
 const kText = K.text; K.text = function(){ usedText = true; return kText.apply(this, arguments); };
@@ -1683,6 +1685,12 @@ function drawBody(c, b, shadow){
 // ---------- rendering: scene layers (clay, cached) ----------
 const L = {};
 let layerVer = 0;   // bumped whenever a layer is remade
+// the harbour's colour at the bottom of its picture: the water below it (behind the pad in full screen) is filled with it
+let seaDeep = "#2F86E0";
+function sampleSea(){
+  try { const c = L.sea, n = 24, d = c.getContext("2d").getImageData(Math.floor(c.width / 2) - n / 2, c.height - 6, n, 3).data; let r = 0, g = 0, b = 0;
+    for (let i = 0; i < d.length; i += 4){ r += d[i]; g += d[i + 1]; b += d[i + 2]; } const m = d.length / 4; seaDeep = "rgb(" + Math.round(r / m) + "," + Math.round(g / m) + "," + Math.round(b / m) + ")"; } catch(e){}
+}
 function layer(w, h, fn){ const k = SC * DPR; const c = document.createElement("canvas"); c.width = Math.ceil(w * k); c.height = Math.ceil(h * k); const g = c.getContext("2d"); g.setTransform(k, 0, 0, k, 0, 0); fn(g); return c; }
 function crabArt(g, mood){
   // a clay crab centred on (0,0), ~64×46 units
@@ -1795,8 +1803,8 @@ function buildLayers(soft, only){
   make.crab = () => { const o = {}; for (const m of ["idle", "happy", "worried", "cover"]) o[m] = layer(80, 64, g => { g.translate(40, 30); crabArt(g, m); }); return o; };
   for (const name in make){
     if (only && name !== only) continue;
-    if (soft && L[name]) addJob("layer:" + name, 0.5, () => { L[name] = make[name](); layerVer++; });
-    else { L[name] = make[name](); layerVer++; }
+    if (soft && L[name]) addJob("layer:" + name, 0.5, () => { L[name] = make[name](); layerVer++; if (name === "sea") sampleSea(); });
+    else { L[name] = make[name](); layerVer++; if (name === "sea") sampleSea(); }
   }
 }
 function drawCrabs(){   // logo + panel crabs, at the size they show (full screen play zooms them)
@@ -1834,7 +1842,7 @@ const fitAll = () => document.querySelectorAll("[data-fit]").forEach(fitLine);
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitAll);   // the web fonts change the widths
 function resize(){
   const narrow = matchMedia("(max-width: 899px)").matches, touch = matchMedia("(pointer: coarse)").matches;
-  const wide = fsOn && !narrow, title = fsOn && root.classList.contains("title");
+  const wide = fsOn && !narrow, title = fsOn && root.classList.contains("title"), immersive = fsOn && !title;
   if (root.classList.contains("wide") !== wide) root.classList.toggle("wide", wide);
   const padOn = getComputedStyle($("pad")).display !== "none";
   const header = document.querySelector(".mast").offsetHeight;
@@ -1847,32 +1855,42 @@ function resize(){
   else if (narrow){
     const cs = el => getComputedStyle(el), side = parseFloat(cs(document.querySelector(".set")).paddingLeft) + parseFloat(cs($("boardWrap")).paddingLeft);
     availW = document.documentElement.clientWidth - 2 * side; availH = vh - header - 70 - (padOn ? 100 : 0) - 40;
-    // full screen on a phone: the board takes all the height the header, the status bar and the pad leave
-    if (fsOn) availH = vh - (document.querySelector(".set").offsetHeight - cv.offsetHeight); }
+    // full screen on a phone: the play area takes all the height the header, the status bar and the pad leave (the
+    // scene itself covers the whole screen, behind them)
+    if (fsOn){ availW = document.documentElement.clientWidth; viewW = availW; availH = vh - (document.querySelector(".set").offsetHeight - $("boardWrap").offsetHeight); } }
   else if (wide){   // the screen less the board's frame (and the pad under it on a tablet)
     const cs = getComputedStyle(document.querySelector(".center")), ss = getComputedStyle(document.querySelector(".set")), wrap = $("boardWrap");
-    availH = vh - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - (wrap.offsetHeight - cv.offsetHeight) - (padOn ? $("pad").offsetHeight + (parseFloat(cs.rowGap) || 0) : 0);
-    viewW = document.documentElement.clientWidth - parseFloat(ss.paddingLeft) - parseFloat(ss.paddingRight) - (wrap.offsetWidth - cv.offsetWidth);
+    availH = vh - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - (padOn ? $("pad").offsetHeight + (parseFloat(cs.rowGap) || 0) : 0);
+    viewW = document.documentElement.clientWidth - parseFloat(ss.paddingLeft) - parseFloat(ss.paddingRight);
     availW = viewW - 2 * FS_SIDE; }
   else { availW = Math.max(260, window.innerWidth - 620); availH = vh - header - 70 - (padOn ? 100 : 0); }
-  const fit = [narrow, wide, title, padOn, availW, availH, window.devicePixelRatio].join();
+  const fit = [narrow, wide, title, padOn, availW, availH, vh, window.devicePixelRatio].join();
   if (fit === lastFit) return;
   lastFit = fit;
   const prevSC = SC, prevDPR = DPR, prevXV = XV;
   SC = Math.max(0.3, Math.min(availH / H, availW / W, wide ? 3 : 1.25));
   if (title) SC = Math.min(3, availH / H);   // as tall as the screen; on a phone wider than it, its sides cropped
-  XV = wide || title ? Math.max(0, Math.floor((Math.min(viewW / SC, H * FS_ASPECT) - W) / 2)) : 0;
-  const vw = W + 2 * XV;
+  XV = immersive ? Math.max(0, Math.ceil((viewW / SC - W) / 2))   // edge to edge (a pixel over, never short)
+     : title ? Math.max(0, Math.floor((Math.min(viewW / SC, H * FS_ASPECT) - W) / 2)) : 0;
+  const vw = W + 2 * XV, wrap = $("boardWrap");
+  // Full screen play: the board box is the play area (where items fall, the overlays sit), and the picture covers the
+  // whole screen around it, under the header, the status bar and the pad, which float over the scene.
+  if (immersive){
+    wrap.style.width = Math.round(vw * SC) + "px"; wrap.style.height = Math.round(H * SC) + "px";
+    const r = wrap.getBoundingClientRect();
+    YT = Math.max(0, r.top / SC); YB = Math.max(0, (vh - r.bottom) / SC);
+    cv.style.top = -Math.round(YT * SC) + "px";
+  } else { YT = YB = 0; wrap.style.width = wrap.style.height = ""; cv.style.top = ""; }
   // a very big board draws fewer pixels per point: never more than the biggest normal board (550 x 875 points at 2x)
-  DPR = Math.min(2, window.devicePixelRatio || 1, Math.max(1, Math.sqrt(1925000 / (vw * H * SC * SC))));
-  const cw = Math.round(vw * SC * DPR), ch = Math.round(H * SC * DPR);
+  DPR = Math.min(2, window.devicePixelRatio || 1, Math.max(1, Math.sqrt(1925000 / (vw * (H + YT + YB) * SC * SC))));
+  const cw = Math.round(vw * SC * DPR), ch = Math.round((H + YT + YB) * SC * DPR);
   if (cv.width !== cw || cv.height !== ch){ cv.width = cw; cv.height = ch; needDraw = true; }
-  cv.style.width = Math.round(vw * SC) + "px"; cv.style.height = Math.round(H * SC) + "px";
+  cv.style.width = Math.round(vw * SC) + "px"; cv.style.height = Math.round((H + YT + YB) * SC) + "px";
   $("pad").style.maxWidth = Math.max(300, W * SC + 20) + "px";
   if (!L.sky) buildLayers();
   else if (Math.abs(SC - prevSC) > 0.015 || DPR !== prevDPR || XV !== prevXV) buildLayers(XV === prevXV);   // a new width: remade now (stretched would show)
   root.style.setProperty("--board-zoom", wide ? Math.min(1.5, Math.max(1, SC / 1.2)).toFixed(3) : "1");
-  root.style.setProperty("--fs-inset", wide ? Math.max(0, Math.round((viewW - vw * SC) / 2)) + "px" : "0px");   // an ultra-wide screen: the board's margin
+  root.style.setProperty("--fs-inset", wide && !immersive ? Math.max(0, Math.round((viewW - vw * SC) / 2)) + "px" : "0px");
   root.style.setProperty("--tl-x", title ? Math.round((viewW - Math.round(vw * SC)) / 2) + "px" : "0px");   // the title's scene, centred (cropped on a phone)
   drawCrabs();
   const gw = document.querySelector('.col.right').getBoundingClientRect().right - document.querySelector('.col.left').getBoundingClientRect().left; $("info").style.maxWidth = narrow || title ? "" : Math.round(gw) + "px"; document.querySelector(".mast").style.maxWidth = narrow || title ? "" : Math.round(gw) + "px";
@@ -1900,11 +1918,11 @@ const BACK = {c: null, key: "", next: ""};
 const PILE = {s: null, b: null, set: new Set(), list: [], k: 0, at: -99, top: 0, h: 0, w0: 0, w1: 0, x0: 0, x1: 0};
 function paintSky(g, k, skyY, cityY){
   const vw = W + 2 * XV;   // the view's width, the play area in the middle
-  g.setTransform(k, 0, 0, k, 0, 0); g.fillStyle = skyFill; g.fillRect(0, 0, vw + 1, H + 1);   // +1: the canvas rounds up to whole pixels
+  g.setTransform(k, 0, 0, k, 0, YT * k); g.fillStyle = skyFill; g.fillRect(0, -YT, vw + 1, H + YT + YB + 1);   // +1: the canvas rounds up to whole pixels
   g.drawImage(L.sky, 0, skyY, vw, 260); g.drawImage(L.city, -30, cityY, vw + 60, 260);
 }
 function backdrop(c, k, skyY, cityY){
-  const key = [cv.width, cv.height, skyDusk, layerVer, Math.round(skyY * k * 2), Math.round(cityY * k * 2)].join();
+  const key = [cv.width, cv.height, YT, skyDusk, layerVer, Math.round(skyY * k * 2), Math.round(cityY * k * 2)].join();
   c.setTransform(1, 0, 0, 1, 0, 0);
   if (key === BACK.key){ c.drawImage(BACK.c, 0, 0); return; }
   if (key !== BACK.next){ BACK.next = key; paintSky(c, k, skyY, cityY); return; }   // moving with the camera: drawn as is
@@ -1993,10 +2011,10 @@ function updatePile(k, T){
     if (!an || Math.abs(b.position.x - an.x) > 0.15 || Math.abs(b.position.y - an.y) > 0.15 || Math.abs(b.angle - an.a) > 0.003){ b.tff.an = {x: b.position.x, y: b.position.y, a: b.angle}; b.tff.sn = 0; }
     else b.tff.sn++;
   }
-  if (!PILE.h || PILE.k !== k || S.camTop < PILE.w0 || S.camTop + H > PILE.w1){   // nothing drawn yet, a new size, or the camera moved on
+  if (!PILE.h || PILE.k !== k || S.camTop - YT < PILE.w0 || S.camTop + H + YB > PILE.w1){   // nothing drawn yet, a new size, or the camera moved on
     if (drawN - PILE.at >= 8 || PILE.k !== k || PILE.h){ renderPile(k, T); } return;
   }
-  const off = (PILE.top - S.camTop) * k;   // the camera moved by a fraction of a pixel and has stopped: line up again
+  const off = (PILE.top - S.camTop + YT) * k;   // the camera moved by a fraction of a pixel and has stopped: line up again
   if (Math.abs(off - Math.round(off)) > 0.1 && Math.abs(camTarget() - S.camTop) < 0.05 && drawN - PILE.at >= 60){ renderPile(k, T); return; }
   const bands = [];
   for (const b of PILE.list){   // what moved, fell, or got a new sprite leaves (its band is redrawn without it)
@@ -2024,8 +2042,8 @@ function blitPile(c, k, img){
   if (!PILE.h) return;
   const x0 = clamp(Math.floor((PILE.x0 + XV) * k), 0, img.width), x1 = clamp(Math.ceil((PILE.x1 + XV) * k), x0, img.width);   // only as wide as the pile
   c.setTransform(1, 0, 0, 1, 0, 0);
-  if (x1 > x0) c.drawImage(img, x0, 0, x1 - x0, PILE.h, x0, Math.round((PILE.top - S.camTop) * k), x1 - x0, PILE.h);   // whole pixels: crisp
-  c.setTransform(k, 0, 0, k, XV * k, -S.camTop * k);
+  if (x1 > x0) c.drawImage(img, x0, 0, x1 - x0, PILE.h, x0, Math.round((PILE.top - S.camTop + YT) * k), x1 - x0, PILE.h);   // whole pixels: crisp
+  c.setTransform(k, 0, 0, k, XV * k, (YT - S.camTop) * k);
 }
 // dt: this frame's length in ms. Everything that moves on its own (camera, shake, splashes, leaves, sea, boat, crab)
 // moves by time, not by frames, so it runs at the same speed on a 60 Hz or a 120 Hz screen.
@@ -2049,10 +2067,10 @@ function draw(dt){
   const still = sx === 0;   // a quake shakes everything: then it is all drawn live
   const bare = root.classList.contains("title");   // the title screen: the scene alone, no floors, labels or sample tower
   if (still && !bare) updatePile(k, T);
-  c.setTransform(k, 0, 0, k, k * (sx + XV), -S.camTop * k);
+  c.setTransform(k, 0, 0, k, k * (sx + XV), (YT - S.camTop) * k);
   if (!bare) drawRuler(c);
   c.drawImage(L.plat, W/2 - PW/2 - 20, 0, PW + 40, 200);
-  const a = S.active, v0 = S.camTop, v1 = S.camTop + H, live = [];   // what moves, in view (out of view isn't drawn)
+  const a = S.active, v0 = S.camTop - YT, v1 = S.camTop + H + YB, live = [];   // what moves, in view (out of view isn't drawn)
   if (!bare) for (const b of engine.world.bodies) if (b.tff && !(still && PILE.set.has(b)) && b.bounds.max.y + PAD >= v0 && b.bounds.min.y - PAD <= v1) live.push(b);
   if (still && !bare) blitPile(c, k, PILE.s);
   for (const b of live) for (const m of membersOf(b)) drawBody(c, m, true);
@@ -2083,6 +2101,7 @@ function draw(dt){
   // harbour in front (anything below the surface sinks behind it)
   const off = (T * 0.35) % 60;
   c.drawImage(L.sea, -60 - XV - off, WATER_Y - 6, W + 120 + 2 * XV, 220);
+  if (v1 > WATER_Y + 206){ c.fillStyle = seaDeep; c.fillRect(-XV - 2, WATER_Y + 206, W + 2 * XV + 4, v1 - WATER_Y - 200); }   // deeper water, behind the pad
   c.fillStyle = "rgba(20,30,90,0.28)"; c.beginPath(); c.ellipse(W/2, WATER_Y + 6, 46, 6, 0, 0, Math.PI * 2); c.fill();
   const jx = ((T * 0.22) % (W + 160 + 2 * XV)) - 100 - XV, jy = WATER_Y - 44 + (reduceMotion ? 0 : Math.sin(T / 22) * 1.6);
   c.drawImage(L.junk, jx, jy, 80, 60);
@@ -2103,14 +2122,14 @@ function draw(dt){
   c.drawImage(L.crab[md] || L.crab.idle, W/2 + 48, WATER_Y - 46 + bob, 80, 64);
   placeTalk(md, bob);
   c.setTransform(k, 0, 0, k, 0, 0);
-  if (S.mode === "playing" && S.play < S.speedUntil){ c.fillStyle = "rgba(255,123,53,0.08)"; c.fillRect(0, 0, W + 2 * XV, H); }
-  if (S.mode === "over" && S.over === "drops"){ c.fillStyle = "rgba(242,70,62,0.12)"; c.fillRect(0, 0, W + 2 * XV, H); }
+  if (S.mode === "playing" && S.play < S.speedUntil){ c.fillStyle = "rgba(255,123,53,0.08)"; c.fillRect(0, 0, W + 2 * XV, H + YT + YB); }
+  if (S.mode === "over" && S.over === "drops"){ c.fillStyle = "rgba(242,70,62,0.12)"; c.fillRect(0, 0, W + 2 * XV, H + YT + YB); }
 }
 function drawRuler(c){
   c.save();
   c.font = "13px " + K.FONTS.dot; c.textBaseline = "middle";
   for (let f = 1; f <= 30; f++){
-    const y = -f * FLOOR; if (y < S.camTop - 20 || y > S.camTop + H + 20) continue;
+    const y = -f * FLOOR; if (y < S.camTop - 20 || y > S.camTop + H + YB + 20) continue;   // not up behind the header
     const st = STAGES.find(s => s.at === f);
     if (st){
       c.strokeStyle = "rgba(255,255,255,0.85)"; c.lineWidth = 2; c.setLineDash([8, 7]);
@@ -2129,7 +2148,7 @@ function drawRuler(c){
 function drawLabels(c){
   c.save(); c.textBaseline = "middle";
   for (const st of STAGES){
-    if (!st.at) continue; const y = -st.at * FLOOR; if (y < S.camTop - 30 || y > S.camTop + H + 30) continue;
+    if (!st.at) continue; const y = -st.at * FLOOR; if (y < S.camTop - 30 || y > S.camTop + H + YB + 30) continue;
     const label = st.zh + "  " + st.en;
     c.font = "700 13px " + K.FONTS.zh; const tw = c.measureText(label).width, ly = Math.max(y - 26, S.camTop + 6);   // never cut by the top edge
     c.fillStyle = "rgba(37,49,122,0.92)"; roundRect(c, W - tw - 22, ly, tw + 16, 21, 9); c.fill();

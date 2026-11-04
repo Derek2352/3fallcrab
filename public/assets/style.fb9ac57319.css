@@ -1307,3 +1307,31 @@ h1, h2, h3, .qopt, .choice b, .choice small, .habit span, .stamp, .ticket .nm, .
 @keyframes avring{from{transform:scale(.3);opacity:1}to{transform:scale(1.25);opacity:0}}
 @keyframes avstar{from{transform:rotate(var(--a)) translateX(4px) scale(.4);opacity:1}to{transform:rotate(var(--a)) translateX(calc(var(--s) * 1.1)) scale(1.1) rotate(90deg);opacity:0}}
 @keyframes avword{0%{transform:translate(-50%,10px) scale(.6);opacity:0}25%{transform:translate(-50%,0) scale(1.08);opacity:1}75%{transform:translate(-50%,-8px) scale(1);opacity:1}100%{transform:translate(-50%,-22px);opacity:0}}
+
+/* ---------- full screen play: the scene covers the whole screen, the panels float over it ----------
+   The board box is the play area; the picture reaches every edge of the screen around it (resize() sizes both), with
+   no frame. The header, the status bar and the pad sit over the sky and the harbour, frosted and see-through. */
+html.fs:not(.title) .board-wrap{padding:0;border-radius:0;background:none;box-shadow:none;overflow:visible}
+html.fs:not(.title) #board{position:absolute;left:0;z-index:0;border-radius:0}
+html.fs:not(.title) .overlay, html.fs:not(.title) .stamps, html.fs:not(.title) .talk, html.fs:not(.title) .fzglow, html.fs:not(.title) .board-wrap.static::after{inset:0}
+html.fs:not(.title) .talk, html.fs:not(.title) .board-wrap.static::after{border-radius:0}
+html.fs:not(.title) .board-wrap.crt{background:none}
+html.fs:not(.title) .board-wrap.crt::before{content:"";position:fixed;inset:0;background:#08080F}   /* the screen goes dark behind the switched-off picture */
+html.fs:not(.title) .hud, html.fs:not(.title) .pad{position:relative;z-index:2}
+html.fs:not(.title) .hud{background:rgba(255,250,238,.58);-webkit-backdrop-filter:blur(10px) saturate(1.3);backdrop-filter:blur(10px) saturate(1.3);
+  box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.6), 0 4px 14px rgba(20,40,110,.16)}
+html.fs:not(.title) .hud canvas{background:rgba(255,255,255,.72)}
+html.fs:not(.title) .pad button:not(.drop){background:rgba(255,250,238,.62);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+  box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.6), 0 3px 0 rgba(20,40,110,.18)}
+html.fs:not(.title) .pad .drop{background:rgba(223,27,114,.88);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.45), 0 3px 0 rgba(120,10,60,.35)}
+html.fs:not(.title) .mast .iconbtn{background:rgba(255,250,238,.66);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+@media (max-width: 899px){
+  html.fs:not(.title) .set{padding-inline:0}
+  html.fs:not(.title) body{min-height:100vh;min-height:100dvh}   /* the page reaches the screen's bottom: nothing clips the scene */
+  html.fs:not(.title) .mast{position:relative;z-index:2}
+  html.fs:not(.title) .mast{padding-inline:max(10px, env(safe-area-inset-left)) max(10px, env(safe-area-inset-right))}
+  html.fs:not(.title) .hud, html.fs:not(.title) .pad{width:calc(100% - 16px)}
+}
+html.fs.wide:not(.title) .set{padding:0}
+html.fs.wide:not(.title) .center{padding:0}
+html.fs.wide:not(.title) .set{overflow-x:clip}   /* the scene is a pixel over the screen width, never short of it */
