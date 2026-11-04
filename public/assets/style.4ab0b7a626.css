@@ -4,20 +4,20 @@
    are the ones Google Fonts served, so --f-* below and clay.js (canvas lettering) stay as they are. */
 @font-face{font-family:"Gluten";font-style:normal;font-weight:400 900;font-display:swap;src:url(/assets/gluten.842f8cce6e.woff2) format("woff2")}
 /* Noto Sans HK is one variable file. Four faces, not one 400 900 range, so a weight-800 label still uses the 900 face, as before. */
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/noto-sans-hk.48a941f4b5.woff2) format("woff2")}
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:500;font-display:swap;src:url(/assets/noto-sans-hk.48a941f4b5.woff2) format("woff2")}
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/noto-sans-hk.48a941f4b5.woff2) format("woff2")}
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:900;font-display:swap;src:url(/assets/noto-sans-hk.48a941f4b5.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/noto-sans-hk.ab7968a145.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:500;font-display:swap;src:url(/assets/noto-sans-hk.ab7968a145.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/noto-sans-hk.ab7968a145.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:900;font-display:swap;src:url(/assets/noto-sans-hk.ab7968a145.woff2) format("woff2")}
 /* WenKai draws only Chinese (and the digits inside Chinese lines): its Latin is a thin handwriting, so English in a
    Chinese-font line falls through to Noto Sans HK and reads the same as everywhere else */
-@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/lxgw-wenkai-tc-regular.c218da9c6f.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
-@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/lxgw-wenkai-tc-bold.a4bd6bcaf7.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
+@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/lxgw-wenkai-tc-regular.ce837df597.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
+@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/lxgw-wenkai-tc-bold.4c65269cb2.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
 /* Curly quotes, ‘ ’, × and · in Latin widths: Noto Sans HK draws them a whole Chinese character wide, which left holes
    in English ("to   “rent”", "pays ×1.5"). Source Sans 3 (the Latin Noto Sans HK is based on), 1 KB a weight. */
 @font-face{font-family:"TFF Punct";font-style:normal;font-weight:400 650;font-display:swap;src:url(/assets/source-sans-punct-400.f1e8c6c73b.woff2) format("woff2");unicode-range:U+00B7,U+00D7,U+2018-201D}
 @font-face{font-family:"TFF Punct";font-style:normal;font-weight:651 850;font-display:swap;src:url(/assets/source-sans-punct-700.54c4ee4dfe.woff2) format("woff2");unicode-range:U+00B7,U+00D7,U+2018-201D}
 @font-face{font-family:"TFF Punct";font-style:normal;font-weight:851 900;font-display:swap;src:url(/assets/source-sans-punct-900.622c4a765b.woff2) format("woff2");unicode-range:U+00B7,U+00D7,U+2018-201D}
-@font-face{font-family:"DotGothic16";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/dotgothic16.921718d052.woff2) format("woff2")}
+@font-face{font-family:"DotGothic16";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/dotgothic16.3ac1b635bc.woff2) format("woff2")}
 
 /* Layout: a clay tabletop set — passbook + 3 Falls | the diorama board | tickets, building directory, leaderboard.
    One light (top-left) everywhere: CSS shadows fall down-right like the canvas clay. Single bright theme by design. */
@@ -1270,29 +1270,6 @@ h1, h2, h3, .qopt, .choice b, .choice small, .habit span, .stamp, .ticket .nm, .
 /* a very short board (a phone held sideways, page view): the start card keeps the title and Start; the chips wait */
 @container (max-height: 200px){ #startOv .ov-card .ov-opts{display:none} }
 
-/* ---------- money type (result step) ---------- */
-.mtype{margin:2px 0 16px;padding:14px 16px 12px;border-radius:20px;background:linear-gradient(160deg,#FFFDF7,#F3ECFF);
-  box-shadow:inset 2px 2px 1px rgba(255,255,255,.9), inset -3px -4px 8px rgba(60,20,90,.1), 0 3px 0 #E4D8F6}
-.mt-eye{margin:0 0 8px;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
-.mt-eye .zh{margin-left:6px;font-family:var(--f-zh);letter-spacing:0;text-transform:none}
-.mt-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.mt-code{display:flex;gap:4px;margin:0}
-.mt-code b{display:grid;place-items:center;width:34px;height:40px;border-radius:10px;color:#fff;font-family:var(--f-display);font-weight:900;font-size:22px;
-  box-shadow:inset 2px 2px 1px rgba(255,255,255,.35), inset -2px -3px 4px rgba(0,0,0,.18);animation:mtflip .5s calc(.35s + var(--i) * .12s) both cubic-bezier(.2,.9,.3,1.4)}
-@keyframes mtflip{from{transform:rotateX(90deg) scale(.6);opacity:0}to{transform:none;opacity:1}}
-.mt-name{margin:0;font-family:var(--f-display);font-weight:900;font-size:21px;line-height:1.15;color:var(--ink)}
-.mt-name .zh{display:block;margin-top:2px;font-family:var(--f-zh);font-size:17px;font-weight:700;color:#6E4FD8}
-.mt-d{margin:10px 0 10px;font-size:13.5px;line-height:1.45;color:var(--ink)}
-.mt-d .zl{font-size:13px}
-.mt-axes{list-style:none;margin:0;padding:0;display:grid;gap:7px}
-.mt-axes li{display:grid;grid-template-columns:minmax(max-content,1fr) minmax(40px,.9fr) minmax(max-content,1fr);align-items:center;gap:8px}
-.ax-p{display:flex;flex-direction:column;font-size:11.5px;line-height:1.15;color:var(--ink-2)}
-.ax-p b{font-weight:800;white-space:nowrap} .ax-p small{font-family:var(--f-zh);font-size:11px;white-space:nowrap}
-.ax-p:last-child{text-align:right}
-.ax-p.on{color:var(--ink)} .ax-p.on b{font-weight:900}
-.ax-bar{position:relative;height:10px;border-radius:999px;background:linear-gradient(to right, var(--ca) 0 var(--a), var(--cb) var(--a) 100%);opacity:.9}
-.ax-bar::after{content:"";position:absolute;top:50%;left:var(--a);width:14px;height:14px;border-radius:50%;background:#fff;transform:translate(-50%,-50%);box-shadow:0 1px 3px rgba(0,0,0,.35)}
-@media (prefers-reduced-motion: reduce){ .mt-code b{animation:none} }
 
 /* ---------- the dashboard player's change of clothes ---------- */
 .avfx{position:fixed;z-index:60;width:0;height:0;pointer-events:none}

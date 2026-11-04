@@ -35,9 +35,8 @@ const MAX_DROPS = 3;
 
 const {STAGES, TRAPS, CARDS, QUIZ, HABITS} = window.TFF_CONTENT;   // src/content.js
 const QUIPS = window.TFF_CONTENT.QUIPS || {};
-const {TYPE_AXES, TYPES} = window.TFF_CONTENT;   // money types (like a personality test)
 const TITLES = window.TFF_CONTENT.TITLES || [];   // 稱號: the verdict title for each game
-let CHAL = null;   // a friend's challenge this visit came with: {s: score, n: nickname, t: type, v: title} (see "a friend's challenge")
+let CHAL = null;   // a friend's challenge this visit came with: {s: score, n: nickname, v: title} (see "a friend's challenge")
 const TOP_AT = 14;
 
 const SHOCKS = [
@@ -2778,40 +2777,29 @@ async function makeResultCard(){
   // the player, as the game left them
   g.save(); g.translate(100, 380); g.scale(2.45, 2.45); AV.draw(g, lookNow()); g.restore();
   // the result
-  const cx = 705, hasPct = S.pct != null, dy = hasPct ? 0 : -34, v = S.verdict || verdictOf(S); g.textAlign = "center";
+  const cx = 705, hasPct = S.pct != null, dy = hasPct ? 0 : -30, v = S.verdict || verdictOf(S); g.textAlign = "center";
   const fitFont = (txt, w, size, min, weight, fam) => { let f = size; g.font = weight + " " + f + "px " + fam; while (g.measureText(txt).width > w && f > min){ f -= 2; g.font = weight + " " + f + "px " + fam; } return g.font; };
   const nm = cardName();
-  if (nm) outlined(nm, cx, 392, fitFont(nm, 520, 42, 26, 900, F.display), "#DF1B72", 10);
-  g.textAlign = "center"; g.fillStyle = "#25317A"; g.font = "700 50px " + F.zh; g.fillText(S.score > 0 ? "恭喜你儲到" : "我嘅淨資產", cx, 458);
-  g.fillStyle = "#5B516C"; g.font = "800 28px " + F.sans; g.fillText(S.score > 0 ? "I saved" : "My net worth", cx, 498);
-  const amt = fmt(S.score); outlined(amt, cx, 610 - dy / 2, fitFont(amt, 540, 116, 56, 900, F.display), "#1F9E4A", 14);
+  if (nm) outlined(nm, cx, 400, fitFont(nm, 520, 42, 26, 900, F.display), "#DF1B72", 10);
+  g.textAlign = "center"; g.fillStyle = "#25317A"; g.font = "700 52px " + F.zh; g.fillText(S.score > 0 ? "恭喜你儲到" : "我嘅淨資產", cx, 470);
+  g.fillStyle = "#5B516C"; g.font = "800 29px " + F.sans; g.fillText(S.score > 0 ? "I saved" : "My net worth", cx, 512);
+  const amt = fmt(S.score); outlined(amt, cx, 630 - dy / 2, fitFont(amt, 540, 120, 56, 900, F.display), "#1F9E4A", 14);
   if (hasPct){   // where it ranks, as a sticker
-    g.save(); g.translate(cx, 668); g.rotate(-0.025);
-    g.shadowColor = "rgba(37,49,122,0.25)"; g.shadowOffsetY = 6; rr(-235, -32, 470, 64, 32); g.fillStyle = "#FFD23F"; g.fill(); g.shadowColor = "transparent";
+    g.save(); g.translate(cx, 692); g.rotate(-0.025);
+    g.shadowColor = "rgba(37,49,122,0.25)"; g.shadowOffsetY = 6; rr(-240, -33, 480, 66, 33); g.fillStyle = "#FFD23F"; g.fill(); g.shadowColor = "transparent";
     g.lineWidth = 4; g.strokeStyle = "#fff"; g.stroke();
-    g.fillStyle = "#25317A"; g.textAlign = "center"; g.font = "700 34px " + F.zh; const zt = "贏咗 " + S.pct + "% 玩家", et = " · Beat " + S.pct + "%";
-    const zw = g.measureText(zt).width; g.font = "900 26px " + F.sans; const ew = g.measureText(et).width; let x0 = -(zw + ew) / 2;
-    g.textAlign = "left"; g.font = "700 34px " + F.zh; g.fillText(zt, x0, 12); g.font = "900 26px " + F.sans; g.fillStyle = "#5B3B00"; g.fillText(et, x0 + zw, 11);
+    g.fillStyle = "#25317A"; g.font = "700 35px " + F.zh; const zt = "贏咗 " + S.pct + "% 玩家", et = " · Beat " + S.pct + "%";
+    const zw = g.measureText(zt).width; g.font = "900 27px " + F.sans; const ew = g.measureText(et).width, x0 = -(zw + ew) / 2;
+    g.textAlign = "left"; g.font = "700 35px " + F.zh; g.fillText(zt, x0, 12); g.font = "900 27px " + F.sans; g.fillStyle = "#5B3B00"; g.fillText(et, x0 + zw, 11);
     g.restore(); g.textAlign = "center";
   }
-  g.fillStyle = "#25317A"; g.font = "700 40px " + F.zh; g.fillText(top ? "成功退休！" : "去到「" + st.zh + "」", cx, 748 + dy);
-  g.fillStyle = "#5B516C"; g.font = "800 26px " + F.sans; g.fillText((top ? "Made it to Retirement" : "Reached " + st.en) + " · " + (S.best / FLOOR).toFixed(1) + "F", cx, 786 + dy);
+  g.fillStyle = "#25317A"; g.font = "700 42px " + F.zh; g.fillText(top ? "成功退休！" : "去到「" + st.zh + "」", cx, 784 + dy);
+  g.fillStyle = "#5B516C"; g.font = "800 28px " + F.sans; g.fillText((top ? "Made it to Retirement" : "Reached " + st.en) + " · " + (S.best / FLOOR).toFixed(1) + "F", cx, 826 + dy);
   [["spend", "#E8661F", "過度消費"], ["scam", "#7B5BE8", "騙局"], ["delay", "#2F86D6", "拖延"]].forEach(([k, col, zh], i) => {
-    const bx = 445 + i * 182, by = 806 + dy; rr(bx, by, 170, 92, 24); g.fillStyle = col; g.fill();
-    g.fillStyle = "#fff"; g.font = "700 28px " + F.zh; g.fillText(zh, bx + 85, by + 38); g.font = "900 32px " + F.display; g.fillText(S.falls[k] ? "×" + S.falls[k] : "✓", bx + 85, by + 77);
+    const bx = 445 + i * 182, by = 860 + dy * 0.6; rr(bx, by, 170, 104, 26); g.fillStyle = col; g.fill();
+    g.fillStyle = "#fff"; g.font = "700 30px " + F.zh; g.fillText(zh, bx + 85, by + 42); g.font = "900 34px " + F.display; g.fillText(S.falls[k] ? "×" + S.falls[k] : "✓", bx + 85, by + 86);
   });
-  // the 稱號 (title), stamped like a red chop
-  if (v){
-    const ty = 958 + dy / 2; g.save(); g.translate(cx, ty); g.rotate(-0.035);
-    rr(-262, -46, 524, 92, 18); g.fillStyle = "rgba(255,236,236,0.9)"; g.fill(); g.lineWidth = 6; g.strokeStyle = "#D7262E"; g.stroke();
-    rr(-252, -36, 504, 72, 12); g.lineWidth = 2; g.stroke();
-    rr(-244, -30, 60, 60, 8); g.fillStyle = "#D7262E"; g.fill();
-    g.fillStyle = "#fff"; g.font = "700 25px " + F.zh; g.textAlign = "center"; g.fillText("稱", -214, -3); g.fillText("號", -214, 24);
-    g.textAlign = "left"; g.fillStyle = "#C21F2A"; g.font = fitFont(v.zh, 410, 44, 26, 700, F.zh); g.fillText(v.zh, -170, 4);
-    g.fillStyle = "#8E1C24"; g.font = fitFont(v.en, 410, 22, 15, 800, F.sans); g.fillText(v.en, -170, 33);
-    g.restore(); g.textAlign = "center";
-  }
-  g.fillStyle = "#25317A"; g.font = "800 28px " + F.sans; g.fillText("Played as " + (WHO === "jackie" ? "Jackie" : "Jack"), 247, 992);
+  g.fillStyle = "#25317A"; g.font = "800 28px " + F.sans; g.fillText("Played as " + (WHO === "jackie" ? "Jackie" : "Jack"), 247, 990);
   // a friend's challenge, beaten: a sticker on the corner
   if (S.chal && S.chal.beat){
     const who = CHAL.n || "my friend";
@@ -2821,16 +2809,15 @@ async function makeResultCard(){
     g.font = fitFont("Beat " + who, 300, 24, 16, 900, F.sans); g.fillText("Beat " + who, 0, 27);
     g.restore(); g.textAlign = "center";
   }
-  // the money type, on a ribbon under the card
-  const mt = S.mtype || moneyType(S);
+  // the 稱號 (title), on a ribbon under the card: a red chop, the title, its one-line roast
   g.save(); g.shadowColor = "rgba(37,49,122,0.3)"; g.shadowOffsetY = 10; rr(90, 1050, 900, 126, 40); g.fillStyle = "#25317A"; g.fill(); g.restore();
-  rr(120, 1028, 330, 44, 22); g.fillStyle = "#DF1B72"; g.fill();
-  g.fillStyle = "#fff"; g.font = "700 24px " + F.zh; g.fillText("理財性格 · MONEY TYPE", 285, 1059);
-  mt.code.split("").forEach((ch, i) => { const x = 122 + i * 74; rr(x, 1088, 64, 70, 16); g.fillStyle = TYPE_COL[ch]; g.fill(); g.fillStyle = "#fff"; g.font = "900 44px " + F.display; g.fillText(ch, x + 32, 1139); });
-  g.textAlign = "left"; let zf = 50; g.font = "700 " + zf + "px " + F.zh; while (g.measureText(mt.t.zh).width > 540 && zf > 30){ zf -= 2; g.font = "700 " + zf + "px " + F.zh; }
-  g.fillStyle = "#fff"; g.fillText(mt.t.zh, 432, 1122);
-  let ef = 30; g.font = "800 " + ef + "px " + F.sans; while (g.measureText(mt.t.en).width > 540 && ef > 20){ ef -= 1; g.font = "800 " + ef + "px " + F.sans; }
-  g.fillStyle = "#FFE7A0"; g.fillText(mt.t.en, 434, 1160); g.textAlign = "center";
+  rr(120, 1028, 250, 44, 22); g.fillStyle = "#DF1B72"; g.fill();
+  g.fillStyle = "#fff"; g.font = "700 24px " + F.zh; g.fillText("我的稱號 · MY TITLE", 245, 1059);
+  g.save(); g.translate(176, 1124); g.rotate(-0.06); rr(-39, -39, 78, 78, 13); g.fillStyle = "#D7262E"; g.fill(); g.lineWidth = 4; g.strokeStyle = "#FFD9D9"; g.stroke();
+  g.fillStyle = "#fff"; g.font = "700 31px " + F.zh; g.fillText("稱", 0, -5); g.fillText("號", 0, 29); g.restore();
+  g.textAlign = "left"; g.fillStyle = "#fff"; g.font = fitFont(v.zh, 470, 56, 32, 700, F.zh); g.fillText(v.zh, 240, 1112);
+  const zw = g.measureText(v.zh).width; g.fillStyle = "#FFE7A0"; g.font = fitFont(v.en, Math.max(120, 720 - zw), 26, 16, 800, F.sans); g.fillText(v.en, 252 + zw, 1110);
+  g.fillStyle = "#DCE3FF"; g.font = fitFont(v.line[1], 720, 27, 18, 700, F.zh); g.fillText(v.line[1], 242, 1155); g.textAlign = "center";
   // where to play
   rr(250, 1186, 580, 96, 48); g.fillStyle = "rgba(255,253,247,0.96)"; g.fill();
   g.fillStyle = "#25317A"; g.font = "900 46px " + F.display; g.fillText("3fallcrab.com", CW / 2, 1250);
@@ -2859,51 +2846,13 @@ async function exportResult(share){
 $("saveImg").addEventListener("click", () => exportResult(false));
 $("shareImg").addEventListener("click", () => exportResult(true));
 
-// ---------- money type ----------
-// Like a personality test: four axes, each scored from what the player did this game, give one of 16 types (content.js).
-//   spend  Saver (wise picks) vs YOLO (risky picks, scratch cards bought)
-//   risk   Guarded (scam cards turned down, the "guaranteed" offer refused) vs Daring (scams fallen for, fees paid, tickets)
-//   time   Planner ("putting off" cards answered wisely, every card answered in time) vs Last-minute (put off, timed out)
-//   build  Calm (items placed) vs Hasty (items dropped in the harbour)
-// Each axis is the share for its first pole, 50% on a tie; a tie goes to the first pole.
-const TYPE_COL = {S: "#0E8C80", Y: "#D63A80", G: "#6E4FD8", D: "#D2541A", P: "#2873C4", L: "#A87400", C: "#2E8E4C", H: "#CF2E27"};
-function moneyType(st){
-  const T = st.troll, trapOf = id => (CARDS.find(c => c.id === id) || {}).trap;
-  const wiseOn = trap => st.choices.filter(x => x.pick === "wise" && trapOf(x.card) === trap).length;
-  const bought = T.ticketSeen ? T.tickets : 0, answered = st.wise + st.risky;
-  const pts = {
-    spend: [st.wise, st.risky + (bought ? 1 : 0)],
-    risk: [wiseOn("scam") + (T.invest === 1 ? 1 : 0) + (T.ticketSeen && !bought ? 1 : 0), st.falls.scam + (T.invest >= 3 ? 1 : 0) + (bought >= 2 ? 1 : 0)],
-    time: [wiseOn("delay") + (answered && !st.missed ? 1 : 0), st.falls.delay + st.missed],
-    build: [Math.min(4, st.items / 8), st.drops * 2]
-  };
-  const axes = TYPE_AXES.map(ax => { const [a, b] = pts[ax.id], share = Math.round(50 + 50 * (a - b) / (a + b + 1)); return {ax, share, pole: share >= 50 ? ax.a : ax.b}; });
-  const code = axes.map(x => x.pole[0]).join("");
-  return {code, axes, t: TYPES[code]};
-}
-function showType(mt){
-  const box = $("mtCode"); box.replaceChildren();
-  mt.code.split("").forEach((ch, i) => { const b = document.createElement("b"); b.textContent = ch; b.style.background = TYPE_COL[ch]; b.style.setProperty("--i", i); box.appendChild(b); });
-  $("mtSr").textContent = mt.code + ": " + mt.axes.map(x => x.pole[1]).join(", ") + ".";
-  const nm = $("mtName"), z = document.createElement("span"); z.className = "zh"; z.lang = "zh-HK"; z.textContent = mt.t.zh; nm.replaceChildren(mt.t.en, z);
-  bi($("mtDesc"), mt.t.d[0], mt.t.d[1]);
-  const ul = $("mtAxes"); ul.replaceChildren();
-  for (const x of mt.axes){
-    const li = document.createElement("li"), win = x.share >= 50;
-    const side = (pole, pct, on) => { const s = document.createElement("span"); s.className = "ax-p" + (on ? " on" : ""); const b = document.createElement("b"); b.textContent = pole[1] + " " + pct + "%"; const sm = document.createElement("small"); sm.lang = "zh-HK"; sm.textContent = pole[2]; s.append(b, sm); return s; };
-    const bar = document.createElement("span"); bar.className = "ax-bar"; bar.setAttribute("aria-hidden", "true");
-    bar.style.setProperty("--a", x.share + "%"); bar.style.setProperty("--ca", TYPE_COL[x.ax.a[0]]); bar.style.setProperty("--cb", TYPE_COL[x.ax.b[0]]);
-    li.append(side(x.ax.a, x.share, win), bar, side(x.ax.b, 100 - x.share, !win)); ul.appendChild(li);
-  }
-}
-
 // ---------- made for sharing (Threads especially) ----------
 // What makes a browser game spread on Threads in Hong Kong: a funny verdict to screenshot, a number to brag about
 // ("贏咗99%香港人"), a one-tap post, and a friend to beat. So every game gets
 //   a 稱號 (title): the first of TITLES (content.js) whose test passes; disasters first, they're the most shared,
 //   where it ranks: the share of recorded games it beat (GET /api/scores?view=pct), "players", never "Hong Kongers",
 //   a post: "Threads" opens a Threads post (its web intent) with the text below and a challenge link,
-//   a challenge: the link /c?s=score&n=nickname&t=type&v=title. A friend who opens it sees the challenge on the title
+//   a challenge: the link /c?s=score&n=nickname&v=title. A friend who opens it sees the challenge on the title
 //   screen, a bubble when they pass the score, and on their result whether they beat it (see "a friend's challenge").
 const TITLE_TEST = {
   diver: st => st.over === "drops",
@@ -2961,21 +2910,20 @@ function showChal(){
 function challengeUrl(){
   const q = new URLSearchParams(); q.set("s", String(Math.round(S.score)));
   const n = cardName(); if (n) q.set("n", n);
-  const mt = S.mtype || moneyType(S); q.set("t", mt.code);
   const v = S.verdict || verdictOf(S); if (v) q.set("v", v.id);
   return location.origin + "/c?" + q.toString();
 }
 // The words of a post: the result, the title, the type, the brag (or the dare), then a question and a tag, because on
 // Threads the replies are what spread it.
 function shareText(){
-  const v = S.verdict || verdictOf(S), mt = S.mtype || moneyType(S), p = S.pct, c = S.chal;
-  const out = ["我喺《3 Fall Fun 人生跌塔》儲到 " + fmt(S.score) + " 🦀", "稱號：「" + v.zh + "」", "理財性格：" + mt.t.zh + "（" + mt.code + "）"];
+  const v = S.verdict || verdictOf(S), p = S.pct, c = S.chal;
+  const out = ["我喺《3 Fall Fun 人生跌塔》儲到 " + fmt(S.score) + " 🦀", "稱號：「" + v.zh + "」— " + v.line[1]];
   const who = c && CHAL.n ? CHAL.n : "我朋友";
   if (c && c.beat) out.push("我贏咗" + zhIn(who) + " 😎 下一個係你");
   else if (c) out.push("仲差 " + fmt(c.gap) + " 先贏到" + zhIn(who) + "…邊個幫我報仇？");
   else if (p != null) out.push(p >= 50 ? "我算唔算已經贏咗" + p + "%香港人？" : "只係贏咗" + p + "%人…你夠膽同我比？");
   else out.push("你又得唔得？");
-  out.push("你係咩type？👇 身邊邊個係「" + v.zh + "」？Tag 佢！");
+  out.push("你又攞到咩稱號？👇 身邊邊個係「" + v.zh + "」？Tag 佢！");
   return out.join("\n");
 }
 const THREADS = "https://www.threads.com/intent/post";
@@ -2998,7 +2946,6 @@ $("threadsBtn").addEventListener("click", () => {
 // ---------- end screen ----------
 function showEnd(){
   const st = STAGES[S.stage];
-  S.mtype = moneyType(S); showType(S.mtype);
   S.verdict = verdictOf(S); S.chal = CHAL ? {beat: Math.round(S.score) > CHAL.s, gap: Math.max(10, CHAL.s - Math.round(S.score))} : null;   // a tie still needs 10 more
   const top = S.stage === STAGES.length - 1;
   $("stDate").textContent = "STATEMENT · " + new Date().toLocaleDateString("en-GB", {day:"2-digit", month:"short", year:"numeric"}).toUpperCase();
@@ -3119,7 +3066,7 @@ const ANON = "Anonymous crab 匿名蟹";
 function bi(el, en, zh){ const z = document.createElement("span"); z.className = "zl"; z.lang = "zh-HK"; z.textContent = zh; el.replaceChildren(en, z); return el; }
 function sanitizeName(n){ const v = String(n || "").replace(/[\u0000-\u001f<>]/g, "").trim(); return !v || v === ANON ? ANON : Array.from(v).slice(0, 16).join(""); }
 // ---------- a friend's challenge ----------
-// A shared result links to /c?s=score&n=nickname&t=type&v=title. server/worker.js serves the game there, with link
+// A shared result links to /c?s=score&n=nickname&v=title. server/worker.js serves the game there, with link
 // previews about the friend's result, and puts what the link says after its checks (the nickname has passed the
 // board's filter) in <meta name="tff-chal">. Only that is used, never the address itself, so a made-up link can't put
 // words on the screen. It lasts for this visit (Play again keeps the target): the title screen shows it, a bubble
@@ -3132,8 +3079,8 @@ CHAL = (() => {
   if (!c) c = ssGet("tff_chal") ? (() => { try { return JSON.parse(ssGet("tff_chal")); } catch(e){ return null; } })() : null;
   if (!c || typeof c.s !== "number" || !isFinite(c.s) || Math.abs(c.s) > 9999999) return null;
   const n = typeof c.n === "string" ? sanitizeName(c.n) : ANON;
-  const out = {s: Math.round(c.s), n: n === ANON ? "" : n, t: typeof c.t === "string" && Object.prototype.hasOwnProperty.call(TYPES, c.t) ? c.t : "", v: TITLES.find(x => x.id === c.v) || null};
-  ssSet("tff_chal", JSON.stringify({s: out.s, n: out.n, t: out.t, v: out.v ? out.v.id : ""}));
+  const out = {s: Math.round(c.s), n: n === ANON ? "" : n, v: TITLES.find(x => x.id === c.v) || null};
+  ssSet("tff_chal", JSON.stringify({s: out.s, n: out.n, v: out.v ? out.v.id : ""}));
   return out;
 })();
 (function chalBanner(){
@@ -3210,7 +3157,7 @@ function recordBody(st){
     items: st.items, real_ms: Math.round(st.realMs), at: st.endAt || undefined, prior: st.prior,   // checked by the server; at buckets a late retry
     jackpot: st.jpAt >= 0 ? 1 : 0,   // its windfall and jackpot time raise the server's score limit
     avatar: WHO,   // Jack or Jackie
-    mtype: st.mtype ? st.mtype.code : undefined,   // the money type, e.g. SGPC
+    title: st.verdict ? st.verdict.id : undefined,   // the 稱號 (title) id, e.g. "zero"
     via: CHAL ? "c" : undefined,   // came from a friend's challenge link
     troll_revive: st.troll.reviveSeen ? st.troll.revive : null, troll_invest: st.troll.invest, troll_tickets: st.troll.ticketSeen ? st.troll.tickets : null};
 }

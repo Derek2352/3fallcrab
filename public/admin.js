@@ -128,7 +128,19 @@
     return t;
   }
 
-  // top 3 money types (4-letter codes, names from content.js) among the games in this period
+  // top 3 稱號 (titles, names from content.js) among the games in this period
+  function titles(o) {
+    const T = new Map((C.TITLES || []).map((t) => [t.id, t])), all = Object.entries(o.titles || {}).filter(([k]) => T.has(k)), total = all.reduce((n, [, v]) => n + v, 0);
+    const top = all.sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).slice(0, 3);
+    const big = el("b", "", top.length ? T.get(top[0][0]).zh : "–"); if (top.length) big.lang = "zh-HK";
+    const t = el("div", "tile", el("span", "tl", "Titles ", zh("稱號")), big);
+    if (!top.length) t.append(el("span", "ts", "no data yet"));
+    for (const [k, n] of top) t.append(el("span", "ts", zh(T.get(k).zh), ` ${T.get(k).en} · ${fmt(n)} (${pc(Math.round(1000 * n / total) / 10)})`));
+    return t;
+  }
+
+  // top 3 money types (4-letter codes, names from content.js) among the games in this period; games saved before the
+  // 稱號 replaced them (the tile only shows when the period has some)
   function moneyTypes(o) {
     const T = C.TYPES || {}, all = Object.entries(o.types || {}).filter(([k]) => T[k]), total = all.reduce((n, [, v]) => n + v, 0);
     const top = all.sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).slice(0, 3);
@@ -147,7 +159,8 @@
     $("tiles").replaceChildren(
       tile("Games", fmt(o.games), "games saved"),
       tile("Jack / Jackie", `${fmt(o.jack || 0)} / ${fmt(o.jackie || 0)}`, ratio(o.jackie || 0, (o.jack || 0) + (o.jackie || 0), "who chose")),
-      moneyTypes(o),
+      titles(o),
+      ...(Object.keys(o.types || {}).length ? [moneyTypes(o)] : []),
       fromLinks(o),
       tile("On the board", fmt(o.posted), fmt(o.anonymous) + " saved anonymously"),
       tile("Quiz finished", fmt(o.quizTakers), ratio(o.quizTakers, o.games, "games")),
@@ -302,7 +315,7 @@
     const pass = Math.ceil((QN * 2) / 3); // same rule as the server: 2 of 3
     const head = ["game_id", "saved_hkt", "week", "month", "on_board", "hidden", "nickname", "email", "score", "floors", "life_stage", "ended", "items_dropped",
       "wise_picks", "risky_picks", "missed_picks", "fall_overspending", "fall_scams", "fall_putting_off_saving", "habit_id", "habit", "quiz_answered", "quiz_correct", "quiz_2plus",
-      ...C.QUIZ.flatMap((q) => ["q_" + q.id, "q_" + q.id + "_correct"]), ...C.CARDS.map((c) => "card_" + c.id), "items_placed", "seconds_played", "quizzes_before", "jackpot", "troll_revive", "troll_invest", "troll_tickets", "player", "money_type", "money_type_name", "via"];
+      ...C.QUIZ.flatMap((q) => ["q_" + q.id, "q_" + q.id + "_correct"]), ...C.CARDS.map((c) => "card_" + c.id), "items_placed", "seconds_played", "quizzes_before", "jackpot", "troll_revive", "troll_invest", "troll_tickets", "player", "money_type", "money_type_name", "via", "title", "title_name"];
     return csv(head, rows.map((r) => {
       const answers = new Map(list(r.quiz_answers).map((a) => [a.q, a])), picks = new Map();
       for (const c of list(r.choices)) if (!picks.has(c.card)) picks.set(c.card, choice(c));
@@ -311,7 +324,7 @@
         r.wise, r.risky, r.missed, r.fall_spend, r.fall_scam, r.fall_delay, r.habit, (C.HABITS.find((h) => h.id === r.habit) || {}).en,
         r.quiz_answered, r.quiz, done ? (r.quiz >= pass ? 1 : 0) : "",
         ...C.QUIZ.flatMap((q) => { const a = answers.get(q.id); return a ? [(q.o[a.pick] || [])[0], (a.ok ?? a.pick === q.a) ? 1 : 0] : ["", ""]; }),
-        ...C.CARDS.map((c) => picks.get(c.id)), r.items, r.real_ms == null ? "" : Math.round(r.real_ms / 1000), r.quiz_prior, r.jackpot ?? "", r.troll_revive ?? "", r.troll_invest ?? "", r.troll_tickets ?? "", r.avatar ?? "", r.mtype ?? "", ((C.TYPES || {})[r.mtype] || {}).en ?? "", r.via ?? ""];
+        ...C.CARDS.map((c) => picks.get(c.id)), r.items, r.real_ms == null ? "" : Math.round(r.real_ms / 1000), r.quiz_prior, r.jackpot ?? "", r.troll_revive ?? "", r.troll_invest ?? "", r.troll_tickets ?? "", r.avatar ?? "", r.mtype ?? "", ((C.TYPES || {})[r.mtype] || {}).en ?? "", r.via ?? "", r.title ?? "", ((C.TITLES || []).find((t) => t.id === r.title) || {}).en ?? ""];
     }));
   }
   function answersCsv(rows) {
