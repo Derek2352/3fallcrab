@@ -277,6 +277,46 @@
 
   // ------------------------------------------------------------------ SFX (each: function (voice, t, opts))
   var SFX = {
+    // ---- the interface: every press answers (menus, sheets, steps, toggles)
+    uiOpen: function (v, t) {                              // a sheet slides up: soft rising whoosh, then a glint
+      var x = tone(v, "triangle", 420, t, 0.008, 0.35, 0.13); x.o.frequency.exponentialRampToValueAtTime(980, t + 0.12);
+      var n = noiseHit(v, t, 0.03, 0.12, 0.09, "bandpass", 900, 1.4); n.f.frequency.exponentialRampToValueAtTime(3200, t + 0.12);
+      tone(v, "sine", mtof(K(v.r, 91)), t + 0.1, 0.002, 0.14, 0.18);
+    },
+    uiClose: function (v, t) {                             // and slides away: falling whoosh, a soft tap
+      var x = tone(v, "triangle", 900, t, 0.006, 0.3, 0.11); x.o.frequency.exponentialRampToValueAtTime(380, t + 0.1);
+      var n = noiseHit(v, t, 0.02, 0.1, 0.08, "bandpass", 2600, 1.4); n.f.frequency.exponentialRampToValueAtTime(700, t + 0.1);
+    },
+    uiNext: function (v, t) {                              // a step on: two notes up
+      tone(v, "pulse12", mtof(K(v.r, 79)), t, 0.003, 0.22, 0.09);
+      tone(v, "pulse12", mtof(K(v.r, 84)), t + 0.07, 0.003, 0.24, 0.14);
+      tone(v, "sine", mtof(K(v.r, 96)), t + 0.07, 0.002, 0.08, 0.12);
+    },
+    uiBack: function (v, t) {                              // a step back: two notes down
+      tone(v, "pulse12", mtof(K(v.r, 84)), t, 0.003, 0.2, 0.08);
+      tone(v, "pulse12", mtof(K(v.r, 79)), t + 0.07, 0.003, 0.2, 0.12);
+    },
+    uiToggle: function (v, t) {                            // a clay switch: click-clack
+      tone(v, "square", 1300, t, 0.001, 0.12, 0.02);
+      noiseHit(v, t, 0.001, 0.25, 0.015, "highpass", 3000, 0.7);
+      tone(v, "square", 1900, t + 0.045, 0.001, 0.1, 0.025);
+    },
+    uiSelect: function (v, t) {                            // picking one of several: a bright pluck
+      var f = mtof(K(v.r, 76));
+      tone(v, "triangle", f, t, 0.002, 0.4, 0.16); tone(v, "sine", f * 2, t, 0.002, 0.15, 0.1);
+      noiseHit(v, t, 0.001, 0.12, 0.01, "highpass", 5000, 0.7);
+    },
+    uiDone: function (v, t) {                              // done (picture saved): a little two-bell ding
+      bell(v, t, mtof(K(v.r, 91)), 0.24, 0.3); bell(v, t + 0.09, mtof(K(v.r, 96)), 0.26, 0.45);
+    },
+    uiNope: function (v, t) {                              // a locked button: a soft low "uh-uh"
+      tone(v, "triangle", 330, t, 0.004, 0.32, 0.07); tone(v, "triangle", 262, t + 0.09, 0.004, 0.3, 0.1);
+    },
+    go: function (v, t) {                                  // Start / Play again: a quick rising arpeggio and a sparkle
+      [72, 76, 79, 84].forEach(function (m, i) { tone(v, "pulse25", mtof(K(v.r, m)), t + i * 0.055, 0.003, 0.22, 0.12); });
+      var s = tone(v, "sine", mtof(K(v.r, 96)), t + 0.22, 0.002, 0.16, 0.35); s.o.detune.value = 6;
+      noiseHit(v, t + 0.2, 0.002, 0.1, 0.12, "highpass", 7000, 0.7);
+    },
     click: function (v, t) {
       var x = tone(v, "triangle", 1700, t, 0.002, 0.6, 0.05); x.o.frequency.exponentialRampToValueAtTime(1000, t + 0.04);
       tone(v, "sine", 3400, t, 0.001, 0.15, 0.02);
@@ -581,13 +621,14 @@
   };
   // per-sound output trim (calibrated by out/audiotest.js measurements)
   var LEVEL = {
+    uiOpen: 0.8, uiClose: 0.95, uiNext: 0.8, uiBack: 0.85, uiToggle: 1.0, uiSelect: 0.8, uiDone: 0.55, uiNope: 0.65, go: 0.85,
     click: 0.7, spawn: 0.7, move: 1.35, rotate: 0.7, hold: 0.75, release: 0.7, harddrop: 0.85, deposit: 0.7,
     floor: 0.8, stage: 0.95, splash: 0.85, cardOpen: 0.8, cardTick: 0.75, wise: 0.9, risky: 0.5, stamp: 0.9,
     debt: 0.8, scam: 0.45, quake: 1.0, shield: 0.9, timeWarn: 0.75, timeUp: 0.9, gameOver: 0.52, win: 1.0, post: 0.85,
     vine: 0.85, vineGet: 0.8, jackpot: 1.0, frenzyTick: 1.0, frenzyEnd: 0.8,
     offerPop: 0.8, profitTick: 0.7, scratch: 0.7, nearMiss: 0.55, heartbeat: 1.0, reviveFail: 0.6
   };
-  var THROTTLE = { move: 0.055, rotate: 0.05, click: 0.035, deposit: 0.045, spawn: 0.08, cardTick: 0.15, splash: 0.08,
+  var THROTTLE = { uiOpen: 0.12, uiClose: 0.12, uiNext: 0.08, uiBack: 0.08, uiToggle: 0.06, uiSelect: 0.05, uiNope: 0.25, go: 0.3, move: 0.055, rotate: 0.05, click: 0.035, deposit: 0.045, spawn: 0.08, cardTick: 0.15, splash: 0.08,
                    hold: 0.06, release: 0.05, harddrop: 0.08, stamp: 0.08, cardOpen: 0.1, vine: 0.06, vineGet: 0.3,
                    jackpot: 1.5, frenzyTick: 0.3, frenzyEnd: 0.5, profitTick: 0.08, scratch: 0.1, heartbeat: 0.3 };
   var LOW_PRIORITY = { move: 1, click: 1, spawn: 1, rotate: 1, hold: 1, release: 1, deposit: 1, cardTick: 1 };
@@ -826,10 +867,11 @@
     if (!rig) return;
     var mi = rig.musicIn.gain, lp = rig.musicLP.frequency;
     if (mode === "card") { rampTo(mi, 0.3, 0.08); rampTo(lp, 900, 0.08); }
+    else if (mode === "menu") { rampTo(mi, 0.55, 0.3); rampTo(lp, 2200, 0.3); }
     else if (mode === "paused") { rampTo(mi, 0, 0.25); rampTo(lp, 700, 0.2); pauseAt = now() + 1.0; }
     else if (mode !== "over") { rampTo(mi, 1, 0.12); rampTo(lp, 18000, 0.1); }
     if (engine) {
-      if (mode === "fast" || mode === "normal" || mode === "frenzy") {
+      if (mode === "fast" || mode === "normal" || mode === "frenzy" || mode === "menu") {
         engine.setMul(mode === "fast" ? FAST_MUL : mode === "frenzy" ? FRENZY_MUL : 1, now()); engine.frenzy = mode === "frenzy";
       }
       if (mode !== "paused" && engine.halted) { engine.halted = false; engine.next = now() + 0.05; }
@@ -981,7 +1023,7 @@
       },
       setMode: function (mode) {
         try {
-          if (!/^(normal|fast|frenzy|card|paused|over)$/.test(mode)) return;
+          if (!/^(normal|fast|frenzy|card|paused|over|menu)$/.test(mode)) return;
           mMode = mode;
           if (mode === "over") { stopMusic(0.5); applyMode("normal"); return; }
           applyMode(mode);

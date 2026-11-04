@@ -4,20 +4,20 @@
    are the ones Google Fonts served, so --f-* below and clay.js (canvas lettering) stay as they are. */
 @font-face{font-family:"Gluten";font-style:normal;font-weight:400 900;font-display:swap;src:url(/assets/gluten.842f8cce6e.woff2) format("woff2")}
 /* Noto Sans HK is one variable file. Four faces, not one 400 900 range, so a weight-800 label still uses the 900 face, as before. */
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/noto-sans-hk.78be328d74.woff2) format("woff2")}
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:500;font-display:swap;src:url(/assets/noto-sans-hk.78be328d74.woff2) format("woff2")}
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/noto-sans-hk.78be328d74.woff2) format("woff2")}
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:900;font-display:swap;src:url(/assets/noto-sans-hk.78be328d74.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/noto-sans-hk.86e1801f9b.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:500;font-display:swap;src:url(/assets/noto-sans-hk.86e1801f9b.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/noto-sans-hk.86e1801f9b.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:900;font-display:swap;src:url(/assets/noto-sans-hk.86e1801f9b.woff2) format("woff2")}
 /* WenKai draws only Chinese (and the digits inside Chinese lines): its Latin is a thin handwriting, so English in a
    Chinese-font line falls through to Noto Sans HK and reads the same as everywhere else */
-@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/lxgw-wenkai-tc-regular.966dc063ab.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
-@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/lxgw-wenkai-tc-bold.f43f3a9cc0.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
+@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/lxgw-wenkai-tc-regular.33bf860f7b.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
+@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/lxgw-wenkai-tc-bold.eeb4553ccd.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
 /* Curly quotes, ‘ ’, × and · in Latin widths: Noto Sans HK draws them a whole Chinese character wide, which left holes
    in English ("to   “rent”", "pays ×1.5"). Source Sans 3 (the Latin Noto Sans HK is based on), 1 KB a weight. */
 @font-face{font-family:"TFF Punct";font-style:normal;font-weight:400 650;font-display:swap;src:url(/assets/source-sans-punct-400.f1e8c6c73b.woff2) format("woff2");unicode-range:U+00B7,U+00D7,U+2018-201D}
 @font-face{font-family:"TFF Punct";font-style:normal;font-weight:651 850;font-display:swap;src:url(/assets/source-sans-punct-700.54c4ee4dfe.woff2) format("woff2");unicode-range:U+00B7,U+00D7,U+2018-201D}
 @font-face{font-family:"TFF Punct";font-style:normal;font-weight:851 900;font-display:swap;src:url(/assets/source-sans-punct-900.622c4a765b.woff2) format("woff2");unicode-range:U+00B7,U+00D7,U+2018-201D}
-@font-face{font-family:"DotGothic16";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/dotgothic16.419740c1f9.woff2) format("woff2")}
+@font-face{font-family:"DotGothic16";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/dotgothic16.725ecfd304.woff2) format("woff2")}
 
 /* Layout: a clay tabletop set — passbook + 3 Falls | the diorama board | tickets, building directory, leaderboard.
    One light (top-left) everywhere: CSS shadows fall down-right like the canvas clay. Single bright theme by design. */
@@ -1338,3 +1338,13 @@ html.fs.wide:not(.title) .set{overflow-x:clip}   /* the scene is a pixel over th
 /* the laptop dashboard: the player runs the panel's full height, no gap above (size containment: the canvas's own
    pixel size never pushes the panel taller) */
 html.fs.wide .hud .hav{grid-row:1 / span 3;align-self:stretch;width:86px;height:auto;margin:0;contain:size}
+
+/* the title: music starts with the first touch anywhere; a note by the sound button says so until then */
+html.fs.title .ts-sound:not([hidden]){display:block;position:absolute;right:max(16px, env(safe-area-inset-right));bottom:calc(max(16px, env(safe-area-inset-bottom)) + 70px);
+  margin:0;padding:6px 12px 7px;border-radius:14px;background:rgba(255,250,238,.9);color:var(--ink);font-size:12px;font-weight:800;line-height:1.25;text-align:right;
+  box-shadow:0 3px 0 rgba(20,40,110,.18);animation:hintbob 1.8s ease-in-out infinite}
+html.fs.title .ts-sound .zh{display:block;font-family:var(--f-zh);font-weight:700;font-size:11.5px;color:var(--ink-2)}
+@keyframes hintbob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@media (prefers-reduced-motion: reduce){ html.fs.title .ts-sound{animation:none} }
+/* the tower view's Results button: at the play area's top-right corner, clear of the screen's own buttons */
+html.fs:not(.title) .seeov #resultsBtn{right:calc(var(--xv, 0px) + 12px)}

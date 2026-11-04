@@ -1123,7 +1123,7 @@ function rainFrame(now){
 
 // ---------- flow ----------
 function startGame(){
-  A.unlock(); closeInfo(); closePicker();
+  A.unlock(); A.sfx("go"); closeInfo(true); closePicker(true);
   if (root.classList.contains("title")){ played = true; root.classList.remove("title"); enterBrowserFs(); lastFit = ""; resize(); }
   played = true;
   flushRecord(S);   // the last game's quiz answers or habit may still be waiting to be saved
@@ -1159,6 +1159,7 @@ function endGame(reason){
 function modalOpen(on){ const set = document.querySelector(".set"); if (set) set.inert = !!on; }
 function setPauseUI(){ const pb = $("pauseBtn"); const live = S && (S.mode === "playing" || S.mode === "paused"); pb.disabled = !live; document.documentElement.classList.toggle("ingame", !!live); const p = !!(S && S.mode === "paused"); pb.setAttribute("aria-pressed", String(p)); }   // the label stays "Pause game": pressed = paused
 function togglePause(){
+  if (S.mode === "playing" || S.mode === "paused") A.sfx("uiToggle");
   if (S.mode === "playing"){ S.mode = "paused"; $("pauseOv").hidden = false; A.mode("paused"); $("resumeBtn").focus({preventScroll:true}); }
   else if (S.mode === "paused"){ S.mode = "playing"; $("pauseOv").hidden = true; A.resume(); A.mode(musicMode()); $("board").focus({preventScroll:true}); }
   setPauseUI();
@@ -1177,7 +1178,7 @@ function act(a){
   if (S.active && a.startsWith("rot")) wantSprite(S.active.tff.def, qOf(S.targetAngle), 0);   // the turn it's heading for
 }
 function setMuteUI(){ const m = String(A.muted()); $("muteBtn").setAttribute("aria-pressed", m); $("tsMute").setAttribute("aria-pressed", m); }
-function toggleMute(){ A.unlock(); A.toggle(); setMuteUI(); }
+function toggleMute(){ A.unlock(); A.toggle(); setMuteUI(); A.sfx("uiToggle"); soundHint(); }   // heard only when sound comes back on
 // ---------- full screen play ----------
 // One tap (the ⛶ button, Full screen on the start card, or F) for just the game: the browser goes full screen where
 // it can (iPhones can't: there, Add to Home Screen does it), and either way the page hides everything but the game
@@ -1206,6 +1207,7 @@ function enterBrowserFs(){   // the browser's own full screen (needs a tap or a 
 }
 function toggleFs(want = !fsOn){
   if (want === fsOn && !!fsEl() === (want && fsApi)) return;
+  A.unlock(); A.sfx("uiToggle");
   lsSet("tff_fs", want);
   setFs(want);
   if (want) enterBrowserFs();
@@ -1383,18 +1385,19 @@ function avBurst(c, kind, look){
   if (words){ const t = document.createElement("span"); t.className = "avfx-t"; t.textContent = words[0]; const z = document.createElement("small"); z.textContent = words[1]; t.appendChild(z); d.appendChild(t); }
   document.body.appendChild(d); setTimeout(() => d.remove(), 1500);
 }
-function setPick(who){
+function setPick(who, quiet){
+  if (!quiet && who !== pickSel) A.sfx("uiSelect");
   pickSel = who;
   for (const b of document.querySelectorAll("#pickModal .who")){ const on = b.dataset.who === who; b.setAttribute("aria-checked", String(on)); b.tabIndex = on ? 0 : -1; }
   for (const b of document.querySelectorAll("#pickModal .who")) paintAvatar(b.querySelector("canvas"), {who: b.dataset.who, stage: 0, tier: 1, hand: null, mood: b.dataset.who === who ? "happy" : "idle", drops: 0, boost: false});
 }
 function openPicker(){
-  $("pickModal").hidden = false; modalOpen(true); setPick(WHO);
+  $("pickModal").hidden = false; modalOpen(true); setPick(WHO, true); A.sfx("uiOpen");
   fitLine($("pickTitle"));
   document.querySelector('#pickModal .who[aria-checked="true"]').focus({preventScroll: true});
 }
-function closePicker(){ if ($("pickModal").hidden) return; $("pickModal").hidden = true; modalOpen(false); }
-function pickGo(){ WHO = pickSel; lsSet("tff_who", WHO); whoPicked = true; ssSet("tff_picked", "1"); closePicker(); startGame(); }
+function closePicker(quiet){ if ($("pickModal").hidden) return; if (!quiet) A.sfx("uiClose"); $("pickModal").hidden = true; modalOpen(false); }
+function pickGo(){ WHO = pickSel; lsSet("tff_who", WHO); whoPicked = true; ssSet("tff_picked", "1"); closePicker(true); startGame(); }
 // Start from the title or the start card: the player is chosen first (once a visit); Play again goes straight on
 function beginGame(){
   if (root.classList.contains("title")) enterBrowserFs();   // on the tap itself: browsers allow it only then
@@ -1413,21 +1416,22 @@ $("pickModal").addEventListener("click", e => { if (e.target === e.currentTarget
 const INFO = {lb: {t: ["Leaderboard", "排行榜"], q: [".lbx"]}, how: {t: ["How to play", "玩法"], q: [".howto", ".falls"]}, priv: {t: ["Privacy", "私隱聲明"], q: [".foot"]}};
 let infoOpen = null;
 function openInfo(kind, from){
-  closeInfo();
+  closeInfo(true);
   const k = INFO[kind], body = $("infoBody");
   infoOpen = {from, moved: k.q.map(sel => { const el = document.querySelector(sel), mark = document.createComment(sel); el.before(mark); body.appendChild(el); return [el, mark]; })};
   const t = $("infoTitle"), z = document.createElement("span"); z.className = "zh"; z.lang = "zh-HK"; z.textContent = k.t[1]; t.replaceChildren(k.t[0], z);
-  $("infoModal").hidden = false; modalOpen(true); body.scrollTop = 0; $("infoClose").focus({preventScroll: true});
+  $("infoModal").hidden = false; modalOpen(true); body.scrollTop = 0; $("infoClose").focus({preventScroll: true}); A.sfx("uiOpen");
   if (kind === "lb") refreshLB(true);
 }
-function closeInfo(){
+function closeInfo(quiet){
   if (!infoOpen) return;
+  if (!quiet) A.sfx("uiClose");
   for (const [el, mark] of infoOpen.moved) mark.replaceWith(el);
   const from = infoOpen.from; infoOpen = null;
   $("infoModal").hidden = true; modalOpen(false);
   if (from && !from.closest("[hidden]")) from.focus({preventScroll: true});
 }
-$("infoClose").addEventListener("click", closeInfo);
+$("infoClose").addEventListener("click", () => closeInfo());
 $("infoModal").addEventListener("click", e => { if (e.target === e.currentTarget) closeInfo(); });
 for (const [id, kind] of [["tsLb", "lb"], ["tsHow", "how"], ["tsPriv", "priv"]]) $(id).addEventListener("click", e => openInfo(kind, e.currentTarget));
 $("tsMute").addEventListener("click", toggleMute);
@@ -1578,7 +1582,23 @@ const endDrag = e => {
   if (S) S.dragX = null; drag = null;
 };
 cv.addEventListener("pointerup", endDrag); cv.addEventListener("pointercancel", endDrag);
-document.addEventListener("click", e => { if (e.target.closest && e.target.closest(".btn,.tab,.choice,.qopt,.iconbtn")) A.sfx("click"); });
+// Every press answers. What has a sound of its own (Start, steps, sheets, toggles, picks, the game's own moves) plays
+// it where it happens, so keys and a controller get it too; any other button gets a tap. A locked button says no.
+const OWN_SOUND = "#startBtn,#pickGo,#againBtn,#againBtn2,#stNext,#stBack,#tsLb,#tsHow,#tsPriv,#infoClose,.who,#tsMute,#muteBtn,#fsBtn,#tsFs,#fsStartBtn,#pauseBtn,#resumeBtn,#resultsBtn,#closeEnd,.choice,.qopt,.pad button,#hudHoldBtn,label.habit,.ctime label";
+document.addEventListener("click", e => { const t = e.target.closest && e.target.closest(".btn,.tab,.iconbtn,.ov-chip,.hbtn,button,[role=tab]"); if (t && !t.disabled && !t.closest(OWN_SOUND)) A.sfx("click"); });
+document.addEventListener("pointerdown", e => { const t = e.target.closest && e.target.closest("button:disabled,[aria-disabled=true]"); if (t){ A.unlock(); A.sfx("uiNope"); } });
+// Sound from the first touch: a page may make sound only after a tap or a key, so the first one anywhere (the title
+// included) switches it on, with the theme playing softer as menu music until a game starts. The title says so.
+let audioOn = false;
+function soundHint(){ const h = $("tsSound"); if (h) h.hidden = audioOn || A.muted(); }
+function firstSound(){
+  A.unlock();
+  if (audioOn) return; audioOn = true; soundHint();
+  if (!S || S.mode !== "playing") menuMusic();
+}
+function menuMusic(){ A.stage(0); A.mode("menu"); A.start(); }
+for (const ev of ["pointerdown", "pointerup", "touchend", "keydown", "click"]) document.addEventListener(ev, firstSound, {capture: true, passive: true});
+soundHint();
 $("muteBtn").addEventListener("click", toggleMute);
 $("fsBtn").addEventListener("click", () => toggleFs());
 $("fsStartBtn").addEventListener("click", () => { toggleFs(true); beginGame(); });
@@ -1592,13 +1612,13 @@ $("againBtn").addEventListener("click", startGame);
 let endScroll = 0;
 function openResults(){
   if (!S || S.mode !== "idle" || !S.viewing) return;
-  $("seeOv").hidden = true; S.viewing = false; S.mode = "over";
+  $("seeOv").hidden = true; S.viewing = false; S.mode = "over"; A.sfx("uiOpen");
   $("endModal").hidden = false; $("stScroll").scrollTop = endScroll;
   endShownAt = performance.now(); modalOpen(true); setPauseUI();
   $(S.step === 4 ? "closeEnd" : STEP_FOCUS[S.step - 1]).focus({preventScroll:true});   // back on the step they left
 }
 $("resultsBtn").addEventListener("click", openResults);
-$("closeEnd").addEventListener("click", () => { endScroll = $("stScroll").scrollTop; $("endModal").hidden = true; modalOpen(false); S.viewing = true; S.mode = "idle"; S.queue = []; S.hold = null; drawPreviews(true); $("seeOv").hidden = false; setPauseUI(); $("againBtn2").hidden = !S.flowDone; ($("againBtn2").hidden ? $("resultsBtn") : $("againBtn2")).focus(); if (S.overKey) quip(S.overKey, 3); });
+$("closeEnd").addEventListener("click", () => { A.sfx("uiClose"); endScroll = $("stScroll").scrollTop; $("endModal").hidden = true; modalOpen(false); S.viewing = true; S.mode = "idle"; S.queue = []; S.hold = null; drawPreviews(true); $("seeOv").hidden = false; setPauseUI(); $("againBtn2").hidden = !S.flowDone; ($("againBtn2").hidden ? $("resultsBtn") : $("againBtn2")).focus(); if (S.overKey) quip(S.overKey, 3); });
 $("againBtn2").addEventListener("click", startGame);
 cv.tabIndex = 0;
 
@@ -1890,6 +1910,7 @@ function resize(){
   if (!L.sky) buildLayers();
   else if (Math.abs(SC - prevSC) > 0.015 || DPR !== prevDPR || XV !== prevXV) buildLayers(XV === prevXV);   // a new width: remade now (stretched would show)
   root.style.setProperty("--board-zoom", wide ? Math.min(1.5, Math.max(1, SC / 1.2)).toFixed(3) : "1");
+  root.style.setProperty("--xv", immersive ? Math.round(XV * SC) + "px" : "0px");   // where the play area starts inside the full-screen board
   root.style.setProperty("--fs-inset", wide && !immersive ? Math.max(0, Math.round((viewW - vw * SC) / 2)) + "px" : "0px");
   root.style.setProperty("--tl-x", title ? Math.round((viewW - Math.round(vw * SC)) / 2) + "px" : "0px");   // the title's scene, centred (cropped on a phone)
   drawCrabs();
@@ -2519,6 +2540,7 @@ function stepButtons(){
   $("surveyGate").textContent = n === 2 && !surveyDone() ? "Answer all 3 questions and pick a habit to go on. 答晒3題同揀一個習慣，先可以繼續。" : "";
 }
 function setStep(n, focus){
+  if (S.step && n !== S.step) A.sfx(n > S.step ? "uiNext" : "uiBack");
   S.step = n; if (n === 4) S.flowDone = true;
   const sheet = document.querySelector("#endModal .statement"); sheet.dataset.step = n;
   [...$("stSteps").children].forEach((li, i) => { li.classList.toggle("done", i + 1 < n); if (i + 1 === n) li.setAttribute("aria-current", "step"); else li.removeAttribute("aria-current"); });
@@ -2603,12 +2625,12 @@ async function exportResult(share){
   try { blob = await readyCard(); } catch(e){ out.textContent = "Couldn't make the picture. 整唔到圖片。"; return; }
   const file = new File([blob], "3fallfun-result.jpg", {type: "image/jpeg"});
   if (share && canShareFiles()){
-    try { await navigator.share({files: [file], title: "3 Fall Fun 人生跌塔", text: "我喺《3 Fall Fun 人生跌塔》儲到 " + fmt(S.score) + "！你又得唔得？ " + location.origin}); out.textContent = "Shared 已分享"; return; }
+    try { await navigator.share({files: [file], title: "3 Fall Fun 人生跌塔", text: "我喺《3 Fall Fun 人生跌塔》儲到 " + fmt(S.score) + "！你又得唔得？ " + location.origin}); out.textContent = "Shared 已分享"; A.sfx("uiDone"); return; }
     catch(e){ if (e && e.name === "AbortError"){ out.textContent = ""; return; } }   // closed the share sheet: nothing more to do
   }
   const a = document.createElement("a"), url = URL.createObjectURL(blob);
   a.href = url; a.download = "3fallfun-result.jpg"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000);
-  out.textContent = "Saved to your device 已下載";
+  out.textContent = "Saved to your device 已下載"; A.sfx("uiDone");
 }
 $("saveImg").addEventListener("click", () => exportResult(false));
 $("shareImg").addEventListener("click", () => exportResult(true));
@@ -2737,7 +2759,7 @@ function showEnd(){
   HABITS.forEach(h => {
     const lab = document.createElement("label"); lab.className = "habit";
     const inp = document.createElement("input"); inp.type = "radio"; inp.name = "habit"; inp.value = h.id; inp.id = "habit_" + h.id;
-    inp.addEventListener("change", () => { if (inp.checked){ S.habit = h.id; saveSoon(); if (S.step === 2) stepButtons(); } });
+    inp.addEventListener("change", () => { if (inp.checked){ S.habit = h.id; A.sfx("uiSelect"); saveSoon(); if (S.step === 2) stepButtons(); } });
     const t = document.createElement("span"); t.textContent = h.en; const z = document.createElement("small"); z.textContent = h.zh; t.appendChild(z);
     lab.append(inp, t); hb.appendChild(lab);
   });
@@ -2753,6 +2775,7 @@ function showEnd(){
   endShownAt = performance.now(); modalOpen(true);
   $("endTitle").focus({preventScroll:true});
   const game = S; game.rec = newRecord();
+  setTimeout(() => { if (S === game && (S.mode === "over" || S.mode === "idle")) menuMusic(); }, 3200);   // after the end jingle, the menu music again
   saveRecord(game).catch(e => keepForLater(game, e));
   planFirst();
 }
@@ -3115,6 +3138,7 @@ markZh(document.body); zhWatch.observe(document.body, ZH_WATCH);
 // Card timer, 10 s or 30 s: the same choice on the start and pause cards
 const syncTimer = () => document.querySelectorAll(".ctime input").forEach(r => { r.checked = r.value === (slowRead ? "30" : "10"); });
 document.querySelectorAll(".ctime input").forEach(r => r.addEventListener("change", () => {
+  A.sfx("uiToggle");
   if (!r.checked) return;
   slowRead = r.value === "30"; lsSet("tff_slow_read", slowRead); syncTimer();
 }));
