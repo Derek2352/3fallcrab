@@ -2892,7 +2892,8 @@ function loadMedal(){
 }
 setTimeout(function medalWhenIdle(){   // not during the opening story or a game: parsing it could stutter them
   if ((window.TFF_INTRO && TFF_INTRO.on()) || (S && S.mode === "playing")) { setTimeout(medalWhenIdle, 2500); return; }
-  (window.requestIdleCallback || (f => setTimeout(f, 300)))(() => loadMedal());
+  const idle = window.requestIdleCallback || (f => setTimeout(f, 300));
+  idle(() => loadMedal().then(M => { if (M && M.warm && !(S && S.mode === "playing")) idle(() => { try { M.warm(null, () => !!S && S.mode === "playing"); } catch(e){} }); }));   // its first drawing is the slow part: done now, not on the result
 }, 3000);
 // a flat medal for the card when the 3D one can't be drawn
 function flatMedal(g, cx, cy, r, tier){

@@ -10,11 +10,10 @@
 // Tiers: "gold" (the brag titles), "silver" (a steady game), "bronze" (the disasters: a dented bronze medal with a
 // plaster on it, the same joke as the plasters on the player).
 import {
-  WebGLRenderer, Scene, PerspectiveCamera, Group, Mesh, MeshStandardMaterial, MeshPhysicalMaterial,
-  CylinderGeometry, TorusGeometry, ExtrudeGeometry, BoxGeometry, Shape, PMREMGenerator,
+  WebGLRenderer, Scene, PerspectiveCamera, Group, Mesh, MeshStandardMaterial,
+  CylinderGeometry, TorusGeometry, ExtrudeGeometry, BoxGeometry, Shape, CanvasTexture, EquirectangularReflectionMapping,
   HemisphereLight, DirectionalLight, NeutralToneMapping, SRGBColorSpace, MathUtils,
 } from "three";
-import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 
 const TIERS = {
   gold:   { metal: 0xffbf2e, face: 0xffd65c, emblem: 0xffe680, ribbon: [0xdf1b72, 0xffffff, 0xdf1b72], rough: 0.32, metalness: 0.85 },
@@ -47,9 +46,10 @@ function strap(cols, mats) {
 
 function build(tier) {
   const T = TIERS[tier] || TIERS.gold, root = new Group();
-  const metal = new MeshPhysicalMaterial({ color: T.metal, metalness: T.metalness, roughness: T.rough, clearcoat: 0.6, clearcoatRoughness: 0.25 });
-  const face = new MeshPhysicalMaterial({ color: T.face, metalness: T.metalness - 0.1, roughness: T.rough + 0.08, clearcoat: 0.4 });
-  const emblem = new MeshPhysicalMaterial({ color: T.emblem, metalness: 0.6, roughness: 0.22, clearcoat: 1, clearcoatRoughness: 0.1 });
+  // standard (not physical) materials: one small shader to compile, which matters on a phone
+  const metal = new MeshStandardMaterial({ color: T.metal, metalness: T.metalness, roughness: T.rough });
+  const face = new MeshStandardMaterial({ color: T.face, metalness: T.metalness - 0.3, roughness: T.rough + 0.1 });   // less of a mirror: its own colour shows
+  const emblem = new MeshStandardMaterial({ color: T.emblem, metalness: 0.6, roughness: 0.2 });
   const cloth = (c) => new MeshStandardMaterial({ color: c, roughness: 0.75, metalness: 0 });
 
   // the ribbon: two straps in a V, meeting behind the top of the medal
@@ -79,6 +79,18 @@ function build(tier) {
   return root;
 }
 
+// What the metal reflects: a tiny painted studio (a bright top with two softboxes, a warm cream middle, a soft grey
+// floor). Small on purpose: three.js turns it into reflections in a few milliseconds (a rendered room took seconds).
+function studio() {
+  const c = document.createElement("canvas"); c.width = 128; c.height = 64;
+  const g = c.getContext("2d"), gr = g.createLinearGradient(0, 0, 0, 64);
+  gr.addColorStop(0, "#ffffff"); gr.addColorStop(0.4, "#fff7ec"); gr.addColorStop(0.62, "#f6e7d6"); gr.addColorStop(1, "#c3c4dc");
+  g.fillStyle = gr; g.fillRect(0, 0, 128, 64);
+  g.fillStyle = "#ffffff"; g.fillRect(18, 8, 24, 14); g.fillRect(82, 5, 20, 10);
+  const t = new CanvasTexture(c); t.mapping = EquirectangularReflectionMapping; t.colorSpace = SRGBColorSpace;
+  return t;
+}
+
 function ensure() {
   if (renderer) return true;
   try {
@@ -88,8 +100,7 @@ function ensure() {
   renderer.toneMapping = NeutralToneMapping; renderer.toneMappingExposure = 1.0;   // keeps the golds and pinks saturated
   renderer.setClearColor(0x000000, 0);
   scene = new Scene();
-  const pm = new PMREMGenerator(renderer); envTex = pm.fromScene(new RoomEnvironment(), 0.04).texture; pm.dispose();
-  scene.environment = envTex;
+  scene.environment = envTex = studio();
   scene.add(new HemisphereLight(0xfff6e6, 0x8fa0e8, 0.9));
   const key = new DirectionalLight(0xffffff, 1.6); key.position.set(2.5, 3, 4); scene.add(key);
   const rim = new DirectionalLight(0xffd6ec, 0.8); rim.position.set(-3, 1, -2); scene.add(rim);
@@ -174,4 +185,18 @@ function snapshot(tier, w, h) {
   return out;
 }
 
-window.TFF_MEDAL3D = { mount, unmount, snapshot, tiers: Object.keys(TIERS) };
+// The slow part of a first medal is setting up WebGL and compiling its shaders. warm() does that ahead of time (the game
+// calls it while the title screen is idle), one tier per idle moment, so the result screen only has to draw.
+function warm(done, busy) {
+  const tiers = Object.keys(TIERS), idle = window.requestIdleCallback || ((f) => setTimeout(f, 50));
+  const step = (i) => {
+    if (busy && busy()) { setTimeout(() => step(i), 2000); return; }   // a game started: wait for it to end
+    if (i === 0 && !ensure()) { if (done) done(false); return; }
+    if (i >= tiers.length || box) { if (done) done(true); return; }   // a live medal already: leave it alone
+    setTier(tiers[i]); rest(); size(32, 40); renderer.compile(scene, camera); renderer.render(scene, camera);
+    idle(() => step(i + 1));
+  };
+  step(0);
+}
+
+window.TFF_MEDAL3D = { mount, unmount, snapshot, warm, tiers: Object.keys(TIERS) };
