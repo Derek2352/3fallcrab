@@ -6,11 +6,14 @@
 (function (root) {
 "use strict";
 
+// at: the floor the stage starts on. Raised on 4 Nov 2026 from 3F / 6F / 10F, when every player in the all-time top 10
+// was retiring: First Job a little later, Family and Retirement much later. (server/api.js still accepts a stage worked
+// out with the old floors for a while, for pages loaded before the change.)
 const STAGES = [
   {at:0, en:"University", zh:"大學"},
-  {at:3, en:"First Job", zh:"第一份工"},
-  {at:6, en:"Family", zh:"成家"},
-  {at:10, en:"Retirement", zh:"退休"}
+  {at:4, en:"First Job", zh:"第一份工"},
+  {at:10, en:"Family", zh:"成家"},
+  {at:15, en:"Retirement", zh:"退休"}
 ];
 
 // eff: what a Fall does, in the 3 Falls panel; hit: the same as two short lines (English, Cantonese) for the card

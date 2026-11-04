@@ -37,7 +37,7 @@ const {STAGES, TRAPS, CARDS, QUIZ, HABITS} = window.TFF_CONTENT;   // src/conten
 const QUIPS = window.TFF_CONTENT.QUIPS || {};
 const TITLES = window.TFF_CONTENT.TITLES || [];   // 稱號: the verdict title for each game
 let CHAL = null;   // a friend's challenge this visit came with: {s: score, n: nickname, v: title} (see "a friend's challenge")
-const TOP_AT = 14;
+const TOP_AT = 22;   // the top of the Retirement bar in the directory (Retirement starts at 15F)
 
 const SHOCKS = [
   ["Laid off for two months","失業兩個月"],
@@ -2866,7 +2866,7 @@ const TITLE_TEST = {
   zero: st => st.falls.spend + st.falls.scam + st.falls.delay === 0 && st.wise >= 3,
   retire: st => st.stage === STAGES.length - 1,
   lucky: st => st.jpAt >= 0,
-  stacker: st => st.best / FLOOR >= 8,
+  stacker: st => st.best / FLOOR >= 12,   // between Family (10F) and Retirement (15F)
   tycoon: st => st.score >= 30000,
   steady: st => st.score > 0,
   moonlight: () => true

@@ -92,7 +92,7 @@ const SCENES = {
     const cols = ["#4CC36A", "#3A9BF0", "#FF7B35", "#8B6CF2", "#FFC83D", "#20C1B3", "#FF5FA2", "#F2463E"], tx = w * 0.62, bw = Math.min(w * 0.2, 120), base = h * 0.98;
     let y = base; const bh = (h * 0.8) / cols.length;
     cols.forEach((c, i) => { const ww = bw * (1 - (i % 3) * 0.12), x = tx + ((i % 2) ? 6 : -6); K.blob(g, K.slab(x, y - bh / 2, ww, bh - 3, 6, {lump: 0.6, seed: i + 3}), c, {depth: 2.4, soft: 3.6}); y -= bh; });
-    const stages = [["University 大學", 0.12], ["First Job 第一份工", 0.36], ["Family 成家", 0.6], ["Retirement 退休", 0.86]];
+    const stages = [["University 大學", 0.1], ["First Job 第一份工", 0.3], ["Family 成家", 0.6], ["Retirement 退休", 0.88]];
     g.textBaseline = "middle"; g.font = "800 " + Math.round(Math.max(11, Math.min(15, w * 0.03))) + "px " + F.zh;
     for (const [t, f] of stages){ const yy = base - h * 0.8 * f, tw = g.measureText(t).width, right = tx + bw * 0.62, x = right + tw + 20 <= w ? right : tx - bw * 0.62 - tw - 16;   // the side with room
       g.fillStyle = "rgba(37,49,122,.92)"; g.beginPath(); g.roundRect ? g.roundRect(x, yy - 12, tw + 16, 24, 10) : g.rect(x, yy - 12, tw + 16, 24); g.fill();

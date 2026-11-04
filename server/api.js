@@ -245,22 +245,28 @@ function tally(choices) {
   }
   return t;
 }
-const stageOf = (floors) => STAGES.reduce((s, st, i) => (floors >= st.at ? i : s), 0);
+const stageOf = (floors, at = STAGES.map((st) => st.at)) => at.reduce((s, a, i) => (floors >= a ? i : s), 0);
+// The stages started at 3F / 6F / 10F until 4 Nov 2026. A page loaded before then (a tab left open, or a game waiting on
+// a device to be sent) works its stage out that way, so until OLD_STAGES_UNTIL that is accepted too. The stage plays no
+// part in the score limit, so this can't raise a score.
+export const OLD_STAGE_AT = [0, 3, 6, 10];
+export const OLD_STAGES_UNTIL = Date.parse("2026-12-01T00:00:00+08:00");
+const stageFits = (stage, height, at) => stage === stageOf(height, at) || stage === stageOf(height - 0.05, at);
 // A game the rules make impossible is refused, so an edited request can't top the board. Every rule holds for every
 // version of the game page released so far:
 // - every gain (Math.round(x * rate / 10) * 10, x1.5 or x2 in jackpot time) and loss (all or 1000 / 5000 of it) and the
 //   jackpot windfall are multiples of 10;
 // - points need an item resting on the platform, which sets the height (height is rounded to 0.1 floor), except the
 //   jackpot windfall, which comes the moment the crab appears;
-// - the life stage is worked out from the height;
+// - the life stage is worked out from the height (with the stage floors of the time: see OLD_STAGE_AT);
 // - an item pays at most 500 x the savings boost, a new floor 2000 x the boost, and the boost starts at x1, grows
 //   only with wise answers (+0.2 each) and stops at x2; with no item count, the most items a game can place is used;
 // - a game with the Jackpot crab (the page says so) also has its windfall, and up to FRENZY_ITEMS items and every floor
 //   paid a second time (the most jackpot time has ever paid). Older pages never send it: their limit is unchanged.
-function implausible(v, wise, items) {
+export function implausible(v, wise, items, now = Date.now()) {
   if (v.score % 10 !== 0) return "score_step";
   if (v.score > 0 && v.height <= 0 && !(v.jackpot === 1 && v.score <= JACKPOT_BONUS)) return "no_height";   // the windfall needs no tower
-  if (v.stage !== stageOf(v.height) && v.stage !== stageOf(v.height - 0.05)) return "stage";
+  if (!stageFits(v.stage, v.height) && !(now < OLD_STAGES_UNTIL && stageFits(v.stage, v.height, OLD_STAGE_AT))) return "stage";
   const boost = Math.min(2, 1 + 0.2 * wise), floors = Math.floor(v.height + 0.05), placed = items ?? MAX_ITEMS;
   const jackpot = v.jackpot === 1 ? JACKPOT_BONUS + (FRENZY_X - 1) * boost * (500 * Math.min(placed, FRENZY_ITEMS) + 2000 * floors) : 0;
   if (v.score > boost * (500 * placed + 2000 * floors) + jackpot) return "score";
