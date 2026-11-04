@@ -1376,3 +1376,4 @@ html.fs.title .ts-fs{top:calc(max(12px, env(safe-area-inset-top)) + var(--iab-h,
 html.fs.title .ts-sound .ts-silent{display:block;margin-top:2px;font-size:11px;font-weight:700;color:var(--red-d)}
 html.fs.title .ts-sound .ts-silent[hidden]{display:none}
 html.iab-tight.fs.title .ts-sign{display:none}   /* a short screen with the tip showing: the title keeps Start, the pills and the options */
+.kind.lock{background:#B8860B;color:#fff;margin-left:4px}   /* the fixed-deposit lock, by the vine chip */

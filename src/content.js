@@ -106,6 +106,7 @@ const HABITS = [
 const QUIPS = {
   start:     [["Let's build your future!", "一齊疊出你嘅未來！"], ["Flat things at the bottom. Trust me.", "扁嘅放最底，信我！"], ["Three minutes. No pressure!", "得三分鐘，唔使驚！"]],
   startPb:   [["Your best is {n}. Beat it!", "你最高分係{n}，今次破紀錄！"]],
+  netCatch:  [["Caught! That's what insurance is for.", "接住咗！保險就係用喺呢度。"], ["Saved by the net. Back to you!", "張網救返你，再嚟過！"]],
   jackpot:   [["My cousin brought a windfall! Save it!", "我表哥帶住橫財嚟！記得儲起佢！"], ["Lucky! Bank it while it lasts.", "好運到！趁住有，快啲儲！"],
               ["Money from the sky! Bank it, don't blow it.", "天降橫財！存起佢，唔好洗晒！"]],
   frenzyEnd: [["That was {n} of luck. Bank it!", "幸運咗{n}，記得存起佢！"], ["Luck runs out. Steady saving doesn't.", "好運會完，穩定儲蓄先係王道。"]],

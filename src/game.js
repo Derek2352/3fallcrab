@@ -124,7 +124,8 @@ function newState(){
     mood:{type:"idle", until:0}, lastImpact:new Map(), grabs:[], leaves:[], habit:null, rec:null,
     said:new Set(), streak:0, wiseRun:0, afterCard:null, overKey:null, pb:0, items:0, realMs:0, endAt:0, prior:0, quizDone:false,
     jpAt:-1, frenzyUntil:0, frenzySec:0, jpExtra:0, pops:[], hand:null,
-    troll:{investAt:0, ticketAt:0, invest:0, tickets:0, ticketSeen:0, revive:0, reviveSeen:0, scamSaid:0}, offer:null, pf:null, revive:null, lost:[]};   // jackpot: when it appeared, end of jackpot time, extra it paid
+    troll:{investAt:0, ticketAt:0, invest:0, tickets:0, ticketSeen:0, revive:0, reviveSeen:0, scamSaid:0}, offer:null, pf:null, revive:null, lost:[],
+    net:null, netWob:null, rescues:[], afterNet:false, lockSaid:false, netSaid:false};   // jackpot: when it appeared, end of jackpot time, extra it paid
 }
 function makeEngine(){
   engine = Engine.create({enableSleeping:true});
@@ -166,12 +167,14 @@ function genItem(){
   let it, guard = 0;
   do { it = pool[Math.floor(Math.random() * pool.length)]; } while (pool.length > 1 && it.id === S.lastId && guard++ < 10);
   S.lastId = it.id;
-  return it.kind !== "scam" && Math.random() < VINE_RARE ? vineOf(it) : it;
+  if (it.kind === "scam") return it;
+  const r = Math.random(); return r < VINE_RARE ? vineOf(it) : r < VINE_RARE + LOCK_RARE ? lockOf(it) : it;
 }
 function refill(){ while (S.queue.length < 3) S.queue.push(genItem()); }
 function spawn(def){
   S.active = addItem(def, W/2, S.camTop + 85, true); S.targetAngle = 0; A.sfx("spawn");
   if (def.vine){ A.sfx("vineGet"); stamp("Vine-wrapped: it sticks!", "藤蔓：一掂就黐", "good"); }
+  if (def.lock){ A.sfx("vineGet"); stamp("Fixed deposit: it locks where it lands", "定期鎖：一停低就鎖死", "good"); wantSprite(lockedOf(def), 0, 1); }
   if (def.jackpot){ if (S.jpAt < 0) jackpotHit(); else stamp("Its claws catch what lands", "對鉗接住跌落嚟嘅嘢", "gold"); }   // back from hold: no second windfall
 }
 function nextPiece(){ refill(); const it = S.queue.shift(); refill(); spawn(it); S.canHold = true; drawPreviews(); prewarm(); }
@@ -262,7 +265,7 @@ function worldStep(){
   }
 }
 function physicsStep(){
-  snap(); control();
+  snap(); control(); if (S.net) netTick();
   if (S.play < S.quakeUntil){
     const k = Math.sin(S.play / 65);
     for (const b of engine.world.bodies){
@@ -274,6 +277,7 @@ function physicsStep(){
   let h = 0;
   for (const b of engine.world.bodies.slice()){
     if (!b.tff) continue;
+    if (b.position.y > NET_Y && b.velocity.y > 0 && !b.isStatic && netUp() && membersOf(b).some(m => m.tff.player)){ catchNet(b); continue; }
     if (b.position.y > WATER_Y + 40){
       Composite.remove(engine.world, b);
       S.splashes.push({x: b.position.x, t: 0, big: b.mass > 8});
@@ -294,6 +298,7 @@ function physicsStep(){
     if (b === S.active || !b.tff.released) continue;
     const still = b.speed < 0.35 && b.angularSpeed < 0.03 && b.position.y < 5;
     b.tff.restN = still ? (b.tff.restN || 0) + 1 : 0;
+    if (!b.isStatic && b.tff.restN >= LOCK_REST && membersOf(b).some(m => m.tff.def.lock)) lockIn(b);
     const resting = b.tff.restN >= 30;
     for (const m of membersOf(b)){
       if (!m.tff.player || m.tff.settled || !resting || S.play - m.tff.at <= 450) continue;
@@ -321,6 +326,7 @@ function physicsStep(){
       A.sfx(ns === STAGES.length - 1 ? "win" : "stage", {stage: ns}); A.stage(ns);
       stamp(st.en, st.zh, "gold"); quip("stage" + ns, 3);
       crab("Welcome to " + st.en + ". Items fall faster from here.", "去到「" + st.zh + "」喇！由而家起，啲嘢會跌得快啲。");
+      setTimeout(() => { if (S && S.mode === "playing" && S.stage === ns) raiseNet("New stage, new cover: insurance net", "新階段，新保障：保險網"); }, 1100);
     }
     updateHUD();
   }
@@ -347,6 +353,102 @@ function vineOf(def){
   }
   return v;
 }
+// ---------- helpers: the fixed-deposit lock and the insurance net ----------
+// The lock (a fixed deposit) is an item in gold chain with an open padlock: once it comes to rest on the tower it
+// locks where it is (a static body: nothing knocks it off, quakes don't shake it), a ledge for the rest of the game.
+// It comes now and then, and as the reward for a wise answer on a "putting off saving" card. The insurance net is
+// strung across the harbour for a while (a wise answer on a scam card, and each new life stage): what falls off the
+// tower lands in it and comes back as the next item, with no drop and no loss.
+const LOCK_RARE = 0.04, LOCK_REST = 12, NET_MS = 25000, NET_CATCHES = 3, NET_Y = WATER_Y - 16;
+const lockDefs = new Map();
+function lockOf(def, closed){
+  if (!def || def.vine || def.jackpot || def.kind === "debt") return def;
+  const base = def.base || def, key = base.id + (closed ? "~locked" : "~lock");
+  if (base.lock && !closed) return def;
+  let v = lockDefs.get(key);
+  if (!v){
+    v = Object.create(base);
+    Object.assign(v, {id: key, lock: !closed, locked: !!closed, base,
+      en: (closed ? "Locked " : "Fixed-deposit ") + (/^[A-Z][a-z]/.test(base.en) ? base.en[0].toLowerCase() + base.en.slice(1) : base.en),
+      zh: "定期" + base.zh,
+      draw(g){ base.draw(g); drawLockWrap(g, base, closed); }});
+    lockDefs.set(key, v);
+  }
+  return v;
+}
+const lockedOf = def => lockOf(def, true);
+function lockIn(b){   // b: a released body (or a fused group) with a fixed-deposit item, at rest
+  Body.setStatic(b, true);
+  let at = null;
+  for (const m of membersOf(b)){ m.tff.locked = true; if (m.tff.def.lock){ m.tff.def = lockedOf(m.tff.def); at = at || poseOf(m); } }
+  at = at || {x: b.position.x, y: b.position.y};
+  burst(at.x, at.y, ["#FFD23F", "#F2B51C", "#FFF1A8"], "255,200,50");
+  A.sfx("lock", {pan: clamp(at.x / W * 2 - 1, -1, 1)}); mood("happy", 1500);
+  stamp("Locked in!", "鎖定！", "gold");
+  if (!S.lockSaid){ S.lockSaid = true; crab("Locked in, like a fixed deposit: money you can't spend on a whim stays put.", "好似定期存款咁鎖住咗：唔可以心血來潮拎嚟使，就企得穩。"); }
+}
+const netUp = () => !!(S && S.net && S.play < S.net.until && S.net.left > 0);
+function raiseNet(en, zh){
+  S.net = {until: S.play + NET_MS, left: NET_CATCHES, fade: 0, goneSaid: false}; S.netWob = null;
+  A.sfx("shield"); stamp(en, zh, "good");
+  if (!S.netSaid){ S.netSaid = true; crab("Insurance doesn't stop the fall, but it catches you. Get it before you need it.", "保險唔會令你唔跌，但會接住你。要喺出事之前買。"); }
+}
+function catchNet(b){   // b fell off the tower with the net up: caught, and back as the next item
+  Composite.remove(engine.world, b);
+  if (b === S.active){ S.active = null; S.spawnAt = S.play + 300; }
+  const back = membersOf(b).filter(m => m.tff.player).map(m => m.tff.def).slice(0, 2);
+  S.queue.unshift(...back);
+  S.net.left--; S.netWob = {x: b.position.x, t: 0};
+  for (const d of back) S.rescues.push({def: d, x: clamp(b.position.x, 20, W - 20), y: NET_Y, t: 0});
+  A.sfx("netCatch", {pan: clamp(b.position.x / W * 2 - 1, -1, 1)}); setTimeout(() => A.sfx("rescue"), 200);
+  stamp("Caught by insurance!", "保險接住咗！" + (S.net.left ? "（仲有" + S.net.left + "次）" : ""), "good"); mood("happy", 1400); quip("netCatch", 2);
+  drawPreviews(true); prewarm(); updateHUD();
+}
+function netTick(){   // the net's end: when its time or its catches run out
+  const N = S.net; if (!N || N.goneSaid || netUp()) return;
+  N.goneSaid = true; stamp("Net's gone", "保險網收咗", "info");
+}
+// the net, strung across the harbour just above the water: a rope with floats, a mesh into the water, and a
+// lifebuoy for each catch left. It sags where it catches, and blinks in its last 4 seconds.
+function drawNet(c, f){
+  const N = S.net; if (!N) return;
+  const up = netUp(); if (!up){ N.fade += f; if (N.fade > 24) return; }
+  const blink = up && N.until - S.play < 4000 ? 0.55 + 0.45 * Math.cos(S.play / 110) : 1;
+  const wob = S.netWob; if (wob){ wob.t += f; if (wob.t > 90) S.netWob = null; }
+  const yAt = x => { let y = NET_Y + Math.sin(x / 38 + S.play / 900) * 1.2;
+    if (wob){ const d = (x - wob.x) / 46; y += Math.exp(-d * d) * 14 * Math.exp(-wob.t / 22) * Math.cos(wob.t / 3.2); } return y; };
+  const x0 = -XV - 12, x1 = W + XV + 12;
+  const a0 = (up ? 1 : 1 - N.fade / 24) * blink;
+  c.save(); c.globalAlpha = a0; c.lineCap = "round"; c.lineJoin = "round";
+  const glow = c.createLinearGradient(0, NET_Y - 16, 0, WATER_Y);   // a soft band of cover over the water
+  glow.addColorStop(0, "rgba(160,230,255,0)"); glow.addColorStop(1, "rgba(160,230,255,0.45)");
+  c.fillStyle = glow; c.fillRect(x0, NET_Y - 16, x1 - x0, WATER_Y - NET_Y + 16);
+  c.strokeStyle = "rgba(120,78,36,0.75)"; c.lineWidth = 1.5; c.beginPath();
+  for (let x = x0; x < x1; x += 14){ const y = yAt(x), y2 = yAt(x + 14); c.moveTo(x, y); c.lineTo(x + 7, y + 14); c.lineTo(x + 14, y2); }
+  c.stroke();
+  c.beginPath(); for (let x = x0; x <= x1; x += 8){ const y = yAt(x); if (x === x0) c.moveTo(x, y); else c.lineTo(x, y); }
+  c.strokeStyle = "#7A4B22"; c.lineWidth = 5; c.stroke(); c.strokeStyle = "#F2D49B"; c.lineWidth = 2.6; c.stroke();
+  if (L.float) for (let x = x0 + 22; x < x1; x += 46) c.drawImage(L.float, x - 7, yAt(x) - 7, 14, 14);
+  if (L.buoy) for (let i = 0; i < NET_CATCHES; i++){ const x = W - 76 + i * 30; c.globalAlpha = a0 * (i < N.left ? 1 : 0.28); c.drawImage(L.buoy, x - 14, yAt(x) - 15, 28, 28); }   // a lifebuoy for each catch left, clear of the crab
+  c.restore(); needDraw = true;
+}
+// a caught item floats up out of the net in a bubble, and pops
+function drawRescues(c, f){
+  if (!S.rescues.length) return;
+  for (const r of S.rescues){
+    r.t += f; const k = Math.min(1, r.t / 60), e = 1 - Math.pow(1 - k, 2);
+    const y = reduceMotion ? r.y - 34 : r.y - 22 - e * 190, x = r.x + (reduceMotion ? 0 : Math.sin(r.t / 9) * 4), R = 24;
+    c.save(); c.globalAlpha = k < 0.82 ? 1 : (1 - k) / 0.18;
+    const sp = spriteNear(r.def, 0, true), sc = Math.min(1, (R * 1.45) / Math.max(sp.w, sp.h, 1));
+    c.save(); c.translate(x, y); c.scale(sc, sc); c.drawImage(sp.img, sp.x0, sp.y0, sp.w, sp.h); c.restore();
+    c.fillStyle = "rgba(190,235,255,0.3)"; c.beginPath(); c.arc(x, y, R, 0, 7); c.fill();
+    c.strokeStyle = "rgba(255,255,255,0.92)"; c.lineWidth = 2; c.stroke();
+    c.fillStyle = "rgba(255,255,255,0.8)"; c.beginPath(); c.ellipse(x - R * 0.38, y - R * 0.42, R * 0.22, R * 0.1, -0.6, 0, 7); c.fill();
+    if (k > 0.82){ const q = (k - 0.82) / 0.18; c.globalAlpha = 1 - q; c.beginPath(); c.arc(x, y, R * (1 + q * 0.6), 0, 7); c.stroke(); }
+    c.restore();
+  }
+  S.rescues = S.rescues.filter(r => r.t < 60); needDraw = true;
+}
 function ownParts(b){ return b.parts.length > 1 ? b.parts.slice(1) : [b]; }
 function membersOf(body){ return (body.tff && body.tff.members) || [body]; }
 function hostOf(item){ return item.tff.hostBody || item; }
@@ -371,7 +473,7 @@ function processGrabs(){
     const vm = g.ia.tff.vine ? g.ia : g.ib, other = vm === g.ia ? g.ib : g.ia;
     if (other.tff.def.kind === "debt") continue;                       // vines can't hold the iron debt ball
     const HA = hostOf(g.ia), HB = hostOf(g.ib);
-    if (HA === HB || HA === S.active || HB === S.active) continue;
+    if (HA === HB || HA === S.active || HB === S.active || HA.isStatic || HB.isStatic) continue;   // a locked block is already anchored
     if (!engine.world.bodies.includes(HA) || !engine.world.bodies.includes(HB)) continue;
     if ((vm.tff.grabs || 0) >= VINE_GRABS || membersOf(HA).length + membersOf(HB).length > MAX_FUSED) continue;
     vm.tff.grabs = (vm.tff.grabs || 0) + 1;
@@ -419,12 +521,12 @@ function addMark(m, x, y){
   (m.tff.marks = m.tff.marks || []).push({x: lx, y: ly, dir: Math.atan2(-ly, -lx), born: S.steps, seed: (S.steps * 7 + m.id * 13) % 997});
   if (m.tff.marks.length > 4) m.tff.marks.shift();
 }
-function burst(x, y){
-  S.leaves.push({ring: true, x, y, t: 0});
+function burst(x, y, cols, ring){
+  S.leaves.push({ring: true, x, y, t: 0, rgb: ring});
   if (reduceMotion) return;
   for (let i = 0; i < 10; i++){
     const a = Math.random() * Math.PI * 2, v = 1.2 + Math.random() * 2.2;
-    S.leaves.push({x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 1.2, a: Math.random() * 6.3, va: (Math.random() - 0.5) * 0.3, t: 0, col: i % 3 ? "#4CC36A" : "#B5E04A"});
+    S.leaves.push({x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 1.2, a: Math.random() * 6.3, va: (Math.random() - 0.5) * 0.3, t: 0, col: cols ? cols[i % cols.length] : i % 3 ? "#4CC36A" : "#B5E04A"});
   }
 }
 function drawLeaf(c, x, y, ang, len, col){
@@ -508,7 +610,7 @@ function drawLeaves(c, f){   // f: this frame's length in 60 Hz steps
   if (!S.leaves.length) return;
   for (const q of S.leaves){
     q.t += f;
-    if (q.ring){ const k = Math.min(1, q.t / 16); c.strokeStyle = "rgba(76,195,106," + (1 - k).toFixed(3) + ")"; c.lineWidth = 3 * (1 - k) + 0.5; c.beginPath(); c.arc(q.x, q.y, 4 + 18 * k, 0, 7); c.stroke(); continue; }
+    if (q.ring){ const k = Math.min(1, q.t / 16); c.strokeStyle = "rgba(" + (q.rgb || "76,195,106") + "," + (1 - k).toFixed(3) + ")"; c.lineWidth = 3 * (1 - k) + 0.5; c.beginPath(); c.arc(q.x, q.y, 4 + 18 * k, 0, 7); c.stroke(); continue; }
     q.vy += 0.09 * f; q.vx *= Math.pow(0.98, f); q.x += q.vx * f; q.y += q.vy * f; q.a += q.va * f;
     c.globalAlpha = Math.max(0, 1 - q.t / 42); drawLeaf(c, q.x, q.y, q.a, 5, q.col); c.globalAlpha = 1;
   }
@@ -552,6 +654,28 @@ function drawVineWrap(g, def){
       drawLeaf(g, x, y, ang, len, r() < 0.7 ? "#4CC36A" : "#9AD84A"); g.restore();
     }
   }
+}
+
+// the fixed-deposit wrap on a lock item's sprite: a gold chain across it and a padlock, open until it locks
+function drawLockWrap(g, def, closed){
+  const V = vineShape(def), cx = V.x0 + V.w / 2, cy = V.y0 + V.h / 2;
+  const clip = new Path2D();
+  for (const P of V.polys){ P.forEach((q, i) => i ? clip.lineTo(q.x, q.y) : clip.moveTo(q.x, q.y)); clip.closePath(); }
+  const tall = V.h > V.w * 1.25, a = tall ? [V.x0 + V.w * 0.25, V.y0 - 2] : [V.x0 - 2, V.y0 + V.h * 0.32], b = tall ? [V.x0 + V.w * 0.75, V.y0 + V.h + 2] : [V.x0 + V.w + 2, V.y0 + V.h * 0.68];
+  const L = Math.hypot(b[0] - a[0], b[1] - a[1]), ang = Math.atan2(b[1] - a[1], b[0] - a[0]), n = Math.max(3, Math.round(L / 7.5));
+  g.save(); g.clip(clip);
+  for (let i = 0; i <= n; i++){
+    const t = i / n, x = a[0] + (b[0] - a[0]) * t, y = a[1] + (b[1] - a[1]) * t, flat = i % 2 === 0;
+    g.save(); g.translate(x, y); g.rotate(ang); g.beginPath(); g.ellipse(0, 0, 4.4, flat ? 2.6 : 1.1, 0, 0, 7);
+    g.lineWidth = 2.6; g.strokeStyle = "#A8740A"; g.stroke(); g.lineWidth = 1.3; g.strokeStyle = "#FFD966"; g.stroke(); g.restore();
+  }
+  g.restore();
+  const s = clamp(Math.min(V.w, V.h * 1.4) * 0.42, 11, 20), bw = s, bh = s * 0.78, by = cy + s * 0.12;
+  const shY = closed ? by - bh * 0.5 : by - bh * 0.5 - s * 0.28, shX = closed ? 0 : s * 0.16;   // the shackle: lifted and turned when open
+  K.blob(g, K.tube([[cx - bw * 0.3 + shX, by - bh * 0.3], [cx - bw * 0.3 + shX, shY - s * 0.18], [cx + shX, shY - s * 0.42], [cx + bw * 0.3 + shX, shY - s * 0.18], [cx + bw * 0.3 + shX, closed ? by - bh * 0.3 : shY + s * 0.02]], s * 0.17), "#C9CED8", {depth: 1, soft: 1.4, sheen: false, rim: 0.6});
+  K.blob(g, K.slab(cx, by, bw, bh, s * 0.2, {lump: 0.3, seed: 5}), "#F2B51C", {depth: 1.6, soft: 2.2});
+  K.press(g, K.ball(cx, by - bh * 0.08, s * 0.11, s * 0.11, {lump: 0.05}), "black", {sheen: false, texture: 0});
+  K.press(g, K.slab(cx, by + bh * 0.16, s * 0.08, bh * 0.28, 1, {lump: 0.05}), "black", {sheen: false, texture: 0});
 }
 
 // ---------- life events ----------
@@ -619,8 +743,9 @@ function choose(kind){
     S.forced = {type: "wise", n: 4};
     S.wiseRun++; S.afterCard = S.rate >= 2 && !S.said.has("boost") ? (S.said.add("boost"), "boost") : S.wiseRun === 3 ? "wise3" : "wise";
     head.className = "oc-head good"; head.appendChild(svgUse("i-good")); txt.textContent = "Good call! 揀得好！";
-    en = "Next 4 items are stable, the first wrapped in vines · boost ×" + S.rate.toFixed(1) + " · emergency fund +1";
-    zh = "之後4件平穩，第一件纏住藤蔓·加成×" + S.rate.toFixed(1) + "·應急錢+1";
+    const rw = c.trap === "delay" ? ["the first locked in like a fixed deposit", "第一件定期鎖"] : c.trap === "scam" ? null : ["the first wrapped in vines", "第一件纏住藤蔓"];
+    en = (rw ? "Next 4 items are stable, " + rw[0] : "Next 4 items are stable · insurance net for " + NET_MS / 1000 + " s") + " · boost ×" + S.rate.toFixed(1) + " · emergency fund +1";
+    zh = (rw ? "之後4件平穩，" + rw[1] : "之後4件平穩·保險網" + NET_MS / 1000 + "秒") + "·加成×" + S.rate.toFixed(1) + "·應急錢+1";
     $("ocEffect").style.color = "var(--green-t)"; A.sfx("wise");
   } else {
     const trap = kind === "risky" ? c.trap : "delay";
@@ -652,7 +777,10 @@ function choose(kind){
   $("cardChoices").hidden = true; $("cardOutcome").hidden = false; requestAnimationFrame(() => fitLine(txt));   // after its Chinese is marked
   $("cardContinue").focus({preventScroll:true});
   S.queue = []; refill();
-  if (kind === "wise"){ S.queue[0] = vineOf(S.queue[0]); setTimeout(() => A.sfx("vineGet"), 380); }
+  if (kind === "wise"){   // the reward fits the card: vines for spending, a fixed deposit for saving early, insurance for scams
+    if (c.trap === "scam") S.afterNet = true;
+    else { S.queue[0] = c.trap === "delay" ? lockOf(S.queue[0]) : vineOf(S.queue[0]); setTimeout(() => A.sfx("vineGet"), 380); }
+  }
   drawPreviews(); updateHUD(); prewarm();
 }
 function closeCard(){
@@ -662,6 +790,7 @@ function closeCard(){
     S.mode = "playing"; S.nextEvent = S.play + CARD_GAP;
     S.fastOn = S.play < S.speedUntil; A.mode(musicMode());
     while (S.pendingDebt > 0){ S.pendingDebt--; dropDebt(); }
+    if (S.afterNet){ S.afterNet = false; raiseNet("Insurance net: falls get caught", "保險網：跌落嚟都接得住"); }
     if (S.afterCard){ quip(S.afterCard, 2); S.afterCard = null; }
     if (S.falls.delay && S.fastOn) stamp("Time flies!", "時間加速", "info");
   }
@@ -1846,6 +1975,12 @@ function buildLayers(soft, only){
     duskTint(g, sw, 220, "255,150,120", 0.24);   // the harbour reflects the sunset
   });
   // platform + pillar
+  // the insurance net's floats and lifebuoys
+  make.float = () => layer(10, 10, g => K.blob(g, K.ball(5, 5, 4.2, 4.2, {lump: 0.2, seed: 3}), "red", {depth: 1, soft: 1.4, sheen: {x: 3.6, y: 3.4, rx: 1.4, ry: 0.8}}));
+  make.buoy = () => layer(24, 24, g => {
+    const ring = a0 => { const pts = []; for (let i = 0; i <= 10; i++){ const a = a0 + i / 10 * Math.PI / 2; pts.push([12 + Math.cos(a) * 8, 12 + Math.sin(a) * 8]); } return pts; };
+    for (let q = 0; q < 4; q++) K.blob(g, K.tube(ring(q * Math.PI / 2 + 0.06), 6), q % 2 ? "white" : "red", {depth: 1, soft: 1.4, sheen: false, rim: 0.5});
+  });
   make.plat = () => layer(PW + 40, 200, g => {
     K.blob(g, K.slab(PW/2 + 20, 120, 74, 190, 8, {lump:0.8, seed:2}), "#3A3F9E", {depth:5, soft:8});
     for (let y = 50; y < 200; y += 22) K.groove(g, K.poly([[PW/2 - 14, y], [PW/2 + 54, y]], false), 1.2);
@@ -2166,6 +2301,8 @@ function draw(dt){
   if (S.pops.length) drawPops(c, f);
   if (!bare) drawLabels(c);
   if (S.revive) drawGhosts(c, k);   // drawn before the harbour: they rise out of it
+  if (S.net) drawNet(c, f);
+  if (S.rescues.length) drawRescues(c, f);
   // harbour in front (anything below the surface sinks behind it)
   const off = (T * 0.35) % 60;
   c.drawImage(L.sea, -60 - XV - off, WATER_Y - 6, W + 120 + 2 * XV, 220);
@@ -2279,6 +2416,7 @@ function nameInto(el, def, empty){
   chip.textContent = def.jackpot ? "Jackpot 大獎" : def.kind === "wise" ? "Stable 穩陣" : def.kind === "risky" ? "Risky 高危" : "Scam 騙局";
   el.appendChild(chip);
   if (def.vine){ const v = document.createElement("span"); v.className = "kind vine"; v.textContent = "Vine 藤蔓"; el.appendChild(v); }
+  if (def.lock){ const v = document.createElement("span"); v.className = "kind lock"; v.textContent = "Lock 定期鎖"; el.appendChild(v); }
 }
 let lastPrev = "";
 function drawPreviews(force){
