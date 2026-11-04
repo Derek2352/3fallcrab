@@ -197,5 +197,33 @@ const TROLLS = {
   }
 };
 
-root.TFF_CONTENT = {STAGES, TRAPS, CARDS, QUIZ, HABITS, QUIPS, TROLLS};
+// ---------- money types: like a personality test, four axes read from how the game was played ----------
+// Each axis has two poles; the code is one letter per axis (e.g. SGPC). game.js scores the axes; the result step and
+// the result card show the type, and the game record keeps the code (mtype) for the team's analysis.
+const TYPE_AXES = [
+  {id: "spend", a: ["S", "Saver", "先儲後使"], b: ["Y", "YOLO", "及時行樂"]},
+  {id: "risk",  a: ["G", "Guarded", "防騙醒目"], b: ["D", "Daring", "膽粗粗"]},
+  {id: "time",  a: ["P", "Planner", "未雨綢繆"], b: ["L", "Last-minute", "臨急抱佛腳"]},
+  {id: "build", a: ["C", "Calm", "沉着冷靜"], b: ["H", "Hasty", "心急"]}
+];
+const TYPES = {
+  SGPC: {en: "The Vault", zh: "萬能夾萬", d: ["Saves first, sees through scams, plans ahead and builds calmly. Rock solid.", "先儲後使、識破騙局、早早計劃、冷靜疊塔，穩如泰山。"]},
+  SGPH: {en: "The Busy Bee", zh: "勤力小蜜蜂", d: ["Saves, plans and dodges scams, just in a hurry. Slow down a little and you're unstoppable.", "識儲錢又識防騙，計劃周詳，就係心急咗啲。慢少少，冇得輸。"]},
+  SGLC: {en: "The Slow Cooker", zh: "老火湯", d: ["Careful with money and scams, but starts late. Begin sooner and time does the work.", "對錢對騙局都好小心，不過成日遲起步。早啲開始，時間會幫你。"]},
+  SGLH: {en: "The Deadline Hero", zh: "死線英雄", d: ["Thrifty and sharp, but everything happens at the last second.", "慳家又醒目，但乜都要等到最後一秒先郁。"]},
+  SDPC: {en: "The Explorer", zh: "探險家", d: ["Saves and plans, but likes a gamble. Check before you leap.", "識儲又識計，但鍾意博一博。跳之前，先查清楚。"]},
+  SDPH: {en: "The Rocket", zh: "火箭", d: ["Fast, bold and organised. Watch out for anything \u201cguaranteed\u201d.", "快、狠、有計劃。小心任何「保證回報」。"]},
+  SDLC: {en: "The Lucky Cat", zh: "招財貓", d: ["Saves, but trusts luck a bit too much and starts late.", "有儲錢，但太信運氣，又遲遲未開始。"]},
+  SDLH: {en: "The Roller Coaster", zh: "過山車", d: ["Saves, then risks it, then rushes. A wild ride: add a plan.", "儲完又去博，博完又趕住疊。旅程刺激，加個計劃啦。"]},
+  YGPC: {en: "The Happy Planner", zh: "快樂計劃家", d: ["Enjoys life with a plan and never falls for scams. Save first and you're set.", "識享受又有計劃，仲唔會中伏。記住先儲後使就得。"]},
+  YGPH: {en: "The Speed Shopper", zh: "閃購達人", d: ["Plans and spots scams, but spends and builds fast.", "有計劃又識防騙，不過使錢同疊塔都好快手。"]},
+  YGLC: {en: "The Chill Spender", zh: "佛系使家", d: ["Relaxed about money and time. At least the scammers can't get you.", "對錢對時間都好佛系，起碼騙徒呃唔到你。"]},
+  YGLH: {en: "The Last-Minute Shopper", zh: "臨急購物狂", d: ["Spends now, saves \u201clater\u201d, rushes the rest, but scam-proof.", "照使先、遲啲先儲、手忙腳亂，但騙徒奈你唔何。"]},
+  YDPC: {en: "The High Roller", zh: "豪賭客", d: ["Plans big, bets big, stays cool. Make sure the odds are real.", "計得大、賭得大、夠冷靜。睇清楚個機會係咪真。"]},
+  YDPH: {en: "The Hype Chaser", zh: "潮流追擊者", d: ["Fast, bold and into the latest thing. Hype fades; savings stay.", "快、大膽、追潮流。潮流會過，儲蓄會留低。"]},
+  YDLC: {en: "The Dreamer", zh: "發夢家", d: ["Treats now, luck later, saving \u201cnext year\u201d. Wake up and start today!", "今日享受、靠運氣、儲錢等明年。醒醒，今日就開始！"]},
+  YDLH: {en: "The Firework", zh: "煙花", d: ["Bright, fast and over too soon. Save first next time!", "好靚、好快，但一下就散。下次記住先儲後使！"]}
+};
+
+root.TFF_CONTENT = {STAGES, TRAPS, CARDS, QUIZ, HABITS, QUIPS, TROLLS, TYPE_AXES, TYPES};
 })(typeof window !== "undefined" ? window : globalThis);

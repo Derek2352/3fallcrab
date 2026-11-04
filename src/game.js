@@ -35,6 +35,7 @@ const MAX_DROPS = 3;
 
 const {STAGES, TRAPS, CARDS, QUIZ, HABITS} = window.TFF_CONTENT;   // src/content.js
 const QUIPS = window.TFF_CONTENT.QUIPS || {};
+const {TYPE_AXES, TYPES} = window.TFF_CONTENT;   // money types (like a personality test)
 const TOP_AT = 14;
 
 const SHOCKS = [
@@ -77,8 +78,8 @@ function lsSet(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(
 const mmss = ms => { const s = Math.floor(ms / 1000); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
 // Screen readers read Chinese with an English voice unless it's marked, so every run of Chinese text on the page
 // is wrapped in lang="zh-HK" as it appears. Numbers and short codes inside a Chinese phrase (HK$3,600, 18222)
-// stay with it; English words don't.
-const ZH_RUN = /\p{Script=Han}(?:[\p{Script=Han}、。「」『』（）！？：；，～…]|(?:[0-9$%.,:/+×~\- ]|[A-Za-z](?![A-Za-z]{2})){1,14}(?=[\p{Script=Han}「『（！？。，、：；」』）]))*[、。」』）！？：；，～…]*/gu;
+// stay with it, and so does an opening 「 before it; English words don't.
+const ZH_RUN = /[「『（]*\p{Script=Han}(?:[\p{Script=Han}、。「」『』（）！？：；，～…]|(?:[0-9$%.,:/+×~\- ]|[A-Za-z](?![A-Za-z]{2})){1,14}(?=[\p{Script=Han}「『（！？。，、：；」』）]))*[、。」』）！？：；，～…]*/gu;
 const HAS_HAN = /\p{Script=Han}/u;
 function markZh(root){
   if (!root || (root.nodeType !== 1 && root.nodeType !== 11)) return;
@@ -611,7 +612,7 @@ function choose(kind){
   const c = S.card.c; S.card.flip = true; S.card.flipAt = S.card.t;
   S.choices.push({card: c.id, pick: kind});
   const head = $("ocHead"); head.replaceChildren();
-  const txt = document.createElement("span");
+  const txt = document.createElement("span"); txt.dataset.fit = 15;
   let en, zh, loss = 0;
   if (kind === "wise"){
     S.wise++; S.rate = Math.min(2, +(S.rate + 0.2).toFixed(1)); S.fund = Math.min(3, S.fund + 1); S.hand = "piggy";
@@ -648,7 +649,7 @@ function choose(kind){
   const tip = $("ocTip"); tip.replaceChildren(document.createTextNode(c.tip[0]));
   const tz = document.createElement("small"); tz.textContent = c.tip[1]; tip.appendChild(tz);
   crab(c.tip[0], c.tip[1]);
-  $("cardChoices").hidden = true; $("cardOutcome").hidden = false;
+  $("cardChoices").hidden = true; $("cardOutcome").hidden = false; requestAnimationFrame(() => fitLine(txt));   // after its Chinese is marked
   $("cardContinue").focus({preventScroll:true});
   S.queue = []; refill();
   if (kind === "wise"){ S.queue[0] = vineOf(S.queue[0]); setTimeout(() => A.sfx("vineGet"), 380); }
@@ -724,7 +725,7 @@ function openOffer(kind){
   A.sfx("offerPop"); A.mode("card");
   const sh = $("offerSheet"); sh.className = "sheet offer " + (kind === "ticket" ? "lucky" : "ad");
   offerStep(kind === "fee" ? "fee" : "pitch");
-  $("offerModal").hidden = false; modalOpen(true);
+  $("offerModal").hidden = false; modalOpen(true); fitLine($("offerTitle"));
   sh.style.animation = "none"; void sh.offsetWidth; sh.style.animation = "";
   sh.focus({preventScroll: true});
 }
@@ -762,6 +763,7 @@ function offerStep(step){
       if (T.tickets){ S.falls.spend++; S.hand = "bags"; updateHUD(); A.sfx("risky"); }
     }
   }
+  fitLine($("offerTitle"));
   const one = $("offerNo").hidden;   // a single button: Enter, 1 or 2 all press it
   $("offerHint").textContent = one ? "Press Enter to continue." : "Press 1 for the first button or 2 (or Esc) for the second" + (root.classList.contains("gamepad") ? "; on the controller, X or Y." : ".");
   if (!$("offerModal").hidden){ const f = !$("offerYes").hidden && !$("offerYes").disabled ? $("offerSheet") : !$("offerNo").hidden ? $("offerNo") : $("offerSheet"); if (one && !$("offerYes").hidden) $("offerYes").focus({preventScroll: true}); else f.focus({preventScroll: true}); }
@@ -1135,7 +1137,7 @@ function startGame(){
   hush(); S.pb = lsGet("tff_pb", 0); quip(S.pb > 0 ? "startPb" : "start", 2, fmt(S.pb));
   nextPiece();   // last: a Jackpot crab as the very first item gets its own words in
   updateHUD(); setPauseUI(); $("board").focus({preventScroll:true});
-  updateAvatar(true);
+  outfitKey = ""; prevLook = null; avFx.clear(); updateAvatar(true);   // a new game starts in the first outfit, no transition
 }
 function endGame(reason){
   if (S.mode === "over") return;
@@ -1303,13 +1305,15 @@ const AV = window.TFF_AVATAR, AV_IDS = ["hudAvatar", "cardAvatar"];
 const ssGet = k => { try { return sessionStorage.getItem(k); } catch(e){ return null; } }, ssSet = (k, v) => { try { sessionStorage.setItem(k, v); } catch(e){} };
 let WHO = lsGet("tff_who", "jack") === "jackie" ? "jackie" : "jack", whoPicked = ssGet("tff_picked") === "1", pickSel = WHO;   // asked once per tab: a reload doesn't ask again
 const avKeys = new Map();
-let lookKey = "", outfitKey = "", avTick = 0;
+let lookKey = "", outfitKey = "", avTick = 0, prevLook = null;
+const avFx = new Map();   // canvas -> its running outfit transition
 function lookNow(){
   const sc = S.score, tier = sc < 2000 && S.play > 25000 ? 0 : sc < 20000 ? 1 : sc < 60000 ? 2 : 3;
   const md = S.mode === "over" ? (S.over === "drops" ? "worried" : "happy") : S.mood.until > S.play ? (S.mood.type === "happy" ? "happy" : S.mood.type === "idle" ? "idle" : "worried") : "idle";
   return {who: WHO, stage: S.stage, tier, hand: S.hand, mood: md, drops: Math.min(2, S.drops), boost: S.rate >= 2};
 }
 function paintAvatar(c, look){
+  if (avFx.has(c)) return;   // mid-transition: it paints the new look when it ends
   const r = c.getBoundingClientRect(); if (!r.width) return;
   const dpr = Math.min(2, window.devicePixelRatio || 1), w = Math.round(r.width * dpr), h = Math.round(r.height * dpr), key = AV.keyOf(look) + "|" + w + "x" + h;
   if (avKeys.get(c) === key) return; avKeys.set(c, key);
@@ -1321,12 +1325,63 @@ function updateAvatar(force){
   if (!S || !AV) return;
   const L = lookNow(), k = AV.keyOf(L);
   if (k === lookKey && !force) return; lookKey = k;
-  for (const id of AV_IDS) paintAvatar($(id), L);
   const ok = [L.who, L.stage, L.tier, L.hand, L.drops, L.boost].join();   // the clothes and props, not the face
-  if (ok !== outfitKey){
-    if (outfitKey && !reduceMotion) for (const id of AV_IDS){ const c = $(id); c.classList.remove("pop"); void c.offsetWidth; c.classList.add("pop"); }
-    outfitKey = ok;
+  if (ok !== outfitKey && outfitKey && prevLook && !reduceMotion){
+    const kind = L.stage > prevLook.stage ? "level" : L.tier > prevLook.tier ? "rich" : (L.tier < prevLook.tier || L.drops > prevLook.drops) ? "down" : "swap";
+    for (const id of AV_IDS) avTransition($(id), prevLook, L, kind);
+    avBurst($("hudAvatar"), kind, L);
   }
+  if (ok !== outfitKey){ outfitKey = ok; prevLook = {...L}; }
+  for (const id of AV_IDS) paintAvatar($(id), L);
+}
+// A change of clothes or props (a new life stage, more or less money, something new in hand, a fall) is a little
+// show: the old look flashes white and flips away, a puff of clay smoke, and the new look flips in with sparkles.
+// A new life stage also gets "Level up!" over the dashboard. With reduced motion the look just changes.
+const easeBack = p => 1 + 2.2 * Math.pow(p - 1, 3) + 1.2 * Math.pow(p - 1, 2);
+function avTransition(c, from, to, kind){
+  const r = c.getBoundingClientRect(); if (!r.width || !r.height) return;
+  const dpr = Math.min(2, window.devicePixelRatio || 1), w = Math.round(r.width * dpr), h = Math.round(r.height * dpr);
+  const shot = (look, white) => { const o = document.createElement("canvas"); o.width = w; o.height = h; const g = o.getContext("2d"), s = Math.min(w / AV.W, h / AV.H);
+    g.setTransform(s, 0, 0, s, (w - AV.W * s) / 2, h - AV.H * s); AV.draw(g, look);
+    if (white){ g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = "source-atop"; g.fillStyle = "#fff"; g.fillRect(0, 0, w, h); } return o; };
+  const A0 = shot(from), W0 = shot(from, true), A1 = shot(to), W1 = shot(to, true);
+  if (c.width !== w || c.height !== h){ c.width = w; c.height = h; }
+  const fx = {t0: performance.now(), dur: kind === "level" ? 1000 : 720}; avFx.set(c, fx);
+  const g = c.getContext("2d"), cx = w / 2, cy = h * 0.5, gold = kind === "level" || kind === "rich";
+  const sparks = Array.from({length: 8}, (_, i) => ({a: i / 8 * Math.PI * 2 + 0.3, v: 0.7 + (i % 3) * 0.2}));
+  const flip = (img, wimg, sx, white) => { g.save(); g.translate(cx, 0); g.scale(Math.max(0.03, sx), 1); g.translate(-cx, 0); g.drawImage(img, 0, 0); if (white > 0){ g.globalAlpha = white; g.drawImage(wimg, 0, 0); } g.restore(); };
+  const star = (x, y, rr) => { g.beginPath(); for (let i = 0; i < 8; i++){ const a = i * Math.PI / 4, q = i % 2 ? rr * 0.38 : rr; g.lineTo(x + Math.cos(a) * q, y + Math.sin(a) * q); } g.closePath(); g.fill(); };
+  const frame = now => {
+    if (avFx.get(c) !== fx) return;
+    const t = Math.min(1, (now - fx.t0) / fx.dur);
+    g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, w, h);
+    if (t < 0.42){ const p = t / 0.42; flip(A0, W0, Math.cos(p * Math.PI / 2), Math.min(1, p * 1.7)); }
+    else { const p = Math.min(1, (t - 0.42) / 0.45); flip(A1, W1, easeBack(p), Math.max(0, 1 - p * 1.6)); }
+    if (t > 0.3 && t < 0.8){   // the puff
+      const p = (t - 0.3) / 0.5; g.globalAlpha = 0.9 * (1 - p); g.fillStyle = kind === "down" ? "#C9CED8" : "#fff";
+      for (let i = 0; i < 7; i++){ const a = i / 7 * Math.PI * 2, d = w * (0.12 + 0.32 * p); g.beginPath(); g.arc(cx + Math.cos(a) * d, cy + Math.sin(a) * d * 1.5, w * (0.17 - 0.08 * p), 0, Math.PI * 2); g.fill(); }
+      g.globalAlpha = 1; }
+    if (t > 0.4 && kind !== "down"){   // the sparkles
+      const p = (t - 0.4) / 0.6; g.globalAlpha = 1 - p * p; g.fillStyle = gold ? "#FFD23F" : "#FFFFFF";
+      for (const s of sparks){ const d = w * (0.1 + 0.42 * p * s.v); star(cx + Math.cos(s.a) * d, cy + Math.sin(s.a) * d * 1.6, w * 0.085 * (1 - 0.4 * p)); }
+      g.globalAlpha = 1; }
+    if (t < 1) requestAnimationFrame(frame);
+    else { avFx.delete(c); avKeys.delete(c); paintAvatar(c, S ? lookNow() : to); }
+  };
+  requestAnimationFrame(frame);
+}
+// ...and around the dashboard, where the canvas can't reach: a glow ring, a few stars and, for a new life stage or more
+// money, a word that floats up. Decoration only (hidden from screen readers, which hear the stage change already).
+function avBurst(c, kind, look){
+  const r = c.getBoundingClientRect(); if (!r.width || kind === "swap") return;
+  const d = document.createElement("div"); d.className = "avfx " + kind; d.setAttribute("aria-hidden", "true");
+  const cx = r.left + r.width / 2; d.style.left = cx + "px"; d.style.top = (r.top + r.height / 2) + "px"; d.style.setProperty("--s", Math.max(r.width, r.height * 0.6) + "px");
+  d.style.setProperty("--dx", Math.max(0, 60 - cx) + "px");   // the words stay on screen when the player is at its edge
+  d.appendChild(document.createElement("i"));
+  for (let i = 0; i < 6; i++){ const s = document.createElement("b"); s.style.setProperty("--a", (i * 60 + 15) + "deg"); d.appendChild(s); }
+  const words = kind === "level" ? ["Level up!", "升級！"] : kind === "rich" ? ["Richer!", "身家升咗！"] : null;
+  if (words){ const t = document.createElement("span"); t.className = "avfx-t"; t.textContent = words[0]; const z = document.createElement("small"); z.textContent = words[1]; t.appendChild(z); d.appendChild(t); }
+  document.body.appendChild(d); setTimeout(() => d.remove(), 1500);
 }
 function setPick(who){
   pickSel = who;
@@ -1335,6 +1390,7 @@ function setPick(who){
 }
 function openPicker(){
   $("pickModal").hidden = false; modalOpen(true); setPick(WHO);
+  fitLine($("pickTitle"));
   document.querySelector('#pickModal .who[aria-checked="true"]').focus({preventScroll: true});
 }
 function closePicker(){ if ($("pickModal").hidden) return; $("pickModal").hidden = true; modalOpen(false); }
@@ -1758,6 +1814,24 @@ function drawCrabs(){   // logo + panel crabs, at the size they show (full scree
 const FS_SIDE = 250, FS_ASPECT = 1.9;   // scenery kept either side of the play area for the status bar and the buttons, px; the widest view (width / height)
 const PREVIEWS = ["nextCv", "holdCv", "next2Cv", "hudNext", "hudHold"];
 let lastFit = "";
+// A short heading stays on one line: when its English is wider than the room it has, its font shrinks just enough
+// (down to the smallest size in its data-fit), instead of the phrase breaking in two. Refitted when the text or the
+// screen changes. The Chinese under it is a line of its own.
+function fitLine(el){
+  if (!el || !el.isConnected || el.closest("[hidden]")) return;
+  el.style.fontSize = "";
+  const tn = [...el.childNodes].filter(n => n.nodeType === 3 && n.data.trim()); if (!tn.length) return;
+  const cs = getComputedStyle(el), avail = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight); if (avail <= 0) return;
+  // the text's width on one line, measured on a hidden copy (layout widths: a pop-in scale or tilt doesn't change them)
+  const probe = document.createElement("span"); let need = 0;
+  probe.style.cssText = "position:absolute;left:0;top:0;visibility:hidden;white-space:nowrap;font:inherit;letter-spacing:inherit;text-transform:inherit";
+  el.appendChild(probe);
+  for (const n of tn){ probe.textContent = n.data.trim(); need = Math.max(need, probe.offsetWidth); }
+  probe.remove();
+  if (need > avail - 1){ const fs = parseFloat(cs.fontSize); el.style.fontSize = Math.max(+el.dataset.fit || 14, Math.floor(fs * (avail - 3) / need * 4) / 4) + "px"; }   // a little room to spare
+}
+const fitAll = () => document.querySelectorAll("[data-fit]").forEach(fitLine);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitAll);   // the web fonts change the widths
 function resize(){
   const narrow = matchMedia("(max-width: 899px)").matches, touch = matchMedia("(pointer: coarse)").matches;
   const wide = fsOn && !narrow, title = fsOn && root.classList.contains("title");
@@ -1805,8 +1879,9 @@ function resize(){
   for (const id of PREVIEWS) $(id)._sz = null;
   drawPreviews(true);
   avKeys.clear(); lookKey = "";
+  fitAll();
 }
-let rzT = 0; window.addEventListener("resize", () => { clearTimeout(rzT); rzT = setTimeout(resize, 220); });
+let rzT = 0; window.addEventListener("resize", () => { clearTimeout(rzT); rzT = setTimeout(() => { resize(); fitAll(); }, 220); });
 
 const camTarget = () => Math.min(-(H - 240), -S.height - 330);
 let skyDusk = -1, skyFill = null, duskStep = 0;
@@ -2229,7 +2304,7 @@ function stamp(en, zh, kind){
   else d.style.top = "calc(" + (frenzyOn() ? 64 : 10) + "px + " + (slot * 66) + "px)";   // under the jackpot-time badge
   d.style.setProperty("--r", ((stampN % 2 ? -1 : 1) * (1.5 + (stampN % 3) * 0.75)) + "deg");
   d.textContent = en; const z = document.createElement("small"); z.textContent = zh; d.appendChild(z);
-  box.appendChild(d); A.sfx("stamp"); setTimeout(() => d.remove(), 1800);
+  d.dataset.fit = 11; box.appendChild(d); fitLine(d); A.sfx("stamp"); setTimeout(() => d.remove(), 1800);
 }
 // ---------- the crab's speech bubble ----------
 // The crab by the harbour cheers good choices and teases bad ones (lines in content.js). Each moment has a priority:
@@ -2344,7 +2419,7 @@ function frameBody(now){
   if (++avTick % 8 === 0) updateAvatar();
   if (S){
     const side = SIDEWAYS.matches && (S.mode === "playing" || S.mode === "paused" || S.mode === "card" || S.mode === "offer");
-    if (side !== sideways){ sideways = side; $("turnOv").hidden = !side; if (side && S.mode === "playing") togglePause(); }
+    if (side !== sideways){ sideways = side; $("turnOv").hidden = !side; if (side) fitLine(document.querySelector("#turnOv h2")); if (side && S.mode === "playing") togglePause(); }
     let live = false;
     if (S.mode === "card" && S.card){
       if (!sideways) S.card.t += dt;
@@ -2478,6 +2553,16 @@ async function makeResultCard(){
     g.fillStyle = "#fff"; g.font = "700 30px " + F.zh; g.fillText(zh, bx + 85, by + 42); g.font = "900 34px " + F.display; g.fillText(S.falls[k] ? "×" + S.falls[k] : "✓", bx + 85, by + 86);
   });
   const nm = cardName(); g.fillStyle = "#25317A"; g.font = "800 30px " + F.sans; g.fillText((nm ? nm + " · " : "") + "as " + (WHO === "jackie" ? "Jackie" : "Jack"), cx, 975);
+  // the money type, on a ribbon under the card
+  const mt = S.mtype || moneyType(S);
+  g.save(); g.shadowColor = "rgba(37,49,122,0.3)"; g.shadowOffsetY = 10; rr(90, 1050, 900, 126, 40); g.fillStyle = "#25317A"; g.fill(); g.restore();
+  rr(120, 1028, 330, 44, 22); g.fillStyle = "#DF1B72"; g.fill();
+  g.fillStyle = "#fff"; g.font = "700 24px " + F.zh; g.fillText("理財性格 · MONEY TYPE", 285, 1059);
+  mt.code.split("").forEach((ch, i) => { const x = 122 + i * 74; rr(x, 1088, 64, 70, 16); g.fillStyle = TYPE_COL[ch]; g.fill(); g.fillStyle = "#fff"; g.font = "900 44px " + F.display; g.fillText(ch, x + 32, 1139); });
+  g.textAlign = "left"; let zf = 50; g.font = "700 " + zf + "px " + F.zh; while (g.measureText(mt.t.zh).width > 540 && zf > 30){ zf -= 2; g.font = "700 " + zf + "px " + F.zh; }
+  g.fillStyle = "#fff"; g.fillText(mt.t.zh, 432, 1122);
+  let ef = 30; g.font = "800 " + ef + "px " + F.sans; while (g.measureText(mt.t.en).width > 540 && ef > 20){ ef -= 1; g.font = "800 " + ef + "px " + F.sans; }
+  g.fillStyle = "#FFE7A0"; g.fillText(mt.t.en, 434, 1160); g.textAlign = "center";
   // where to play
   rr(250, 1186, 580, 96, 48); g.fillStyle = "rgba(255,253,247,0.96)"; g.fill();
   g.fillStyle = "#25317A"; g.font = "900 46px " + F.display; g.fillText("3fallcrab.com", CW / 2, 1250);
@@ -2501,9 +2586,48 @@ async function exportResult(share){
 $("saveImg").addEventListener("click", () => exportResult(false));
 $("shareImg").addEventListener("click", () => exportResult(true));
 
+// ---------- money type ----------
+// Like a personality test: four axes, each scored from what the player did this game, give one of 16 types (content.js).
+//   spend  Saver (wise picks) vs YOLO (risky picks, scratch cards bought)
+//   risk   Guarded (scam cards turned down, the "guaranteed" offer refused) vs Daring (scams fallen for, fees paid, tickets)
+//   time   Planner ("putting off" cards answered wisely, every card answered in time) vs Last-minute (put off, timed out)
+//   build  Calm (items placed) vs Hasty (items dropped in the harbour)
+// Each axis is the share for its first pole, 50% on a tie; a tie goes to the first pole.
+const TYPE_COL = {S: "#0E8C80", Y: "#D63A80", G: "#6E4FD8", D: "#D2541A", P: "#2873C4", L: "#A87400", C: "#2E8E4C", H: "#CF2E27"};
+function moneyType(st){
+  const T = st.troll, trapOf = id => (CARDS.find(c => c.id === id) || {}).trap;
+  const wiseOn = trap => st.choices.filter(x => x.pick === "wise" && trapOf(x.card) === trap).length;
+  const bought = T.ticketSeen ? T.tickets : 0, answered = st.wise + st.risky;
+  const pts = {
+    spend: [st.wise, st.risky + (bought ? 1 : 0)],
+    risk: [wiseOn("scam") + (T.invest === 1 ? 1 : 0) + (T.ticketSeen && !bought ? 1 : 0), st.falls.scam + (T.invest >= 3 ? 1 : 0) + (bought >= 2 ? 1 : 0)],
+    time: [wiseOn("delay") + (answered && !st.missed ? 1 : 0), st.falls.delay + st.missed],
+    build: [Math.min(4, st.items / 8), st.drops * 2]
+  };
+  const axes = TYPE_AXES.map(ax => { const [a, b] = pts[ax.id], share = Math.round(50 + 50 * (a - b) / (a + b + 1)); return {ax, share, pole: share >= 50 ? ax.a : ax.b}; });
+  const code = axes.map(x => x.pole[0]).join("");
+  return {code, axes, t: TYPES[code]};
+}
+function showType(mt){
+  const box = $("mtCode"); box.replaceChildren();
+  mt.code.split("").forEach((ch, i) => { const b = document.createElement("b"); b.textContent = ch; b.style.background = TYPE_COL[ch]; b.style.setProperty("--i", i); box.appendChild(b); });
+  $("mtSr").textContent = mt.code + ": " + mt.axes.map(x => x.pole[1]).join(", ") + ".";
+  const nm = $("mtName"), z = document.createElement("span"); z.className = "zh"; z.lang = "zh-HK"; z.textContent = mt.t.zh; nm.replaceChildren(mt.t.en, z);
+  bi($("mtDesc"), mt.t.d[0], mt.t.d[1]);
+  const ul = $("mtAxes"); ul.replaceChildren();
+  for (const x of mt.axes){
+    const li = document.createElement("li"), win = x.share >= 50;
+    const side = (pole, pct, on) => { const s = document.createElement("span"); s.className = "ax-p" + (on ? " on" : ""); const b = document.createElement("b"); b.textContent = pole[1] + " " + pct + "%"; const sm = document.createElement("small"); sm.lang = "zh-HK"; sm.textContent = pole[2]; s.append(b, sm); return s; };
+    const bar = document.createElement("span"); bar.className = "ax-bar"; bar.setAttribute("aria-hidden", "true");
+    bar.style.setProperty("--a", x.share + "%"); bar.style.setProperty("--ca", TYPE_COL[x.ax.a[0]]); bar.style.setProperty("--cb", TYPE_COL[x.ax.b[0]]);
+    li.append(side(x.ax.a, x.share, win), bar, side(x.ax.b, 100 - x.share, !win)); ul.appendChild(li);
+  }
+}
+
 // ---------- end screen ----------
 function showEnd(){
   const st = STAGES[S.stage];
+  S.mtype = moneyType(S); showType(S.mtype);
   const top = S.stage === STAGES.length - 1;
   $("stDate").textContent = "STATEMENT · " + new Date().toLocaleDateString("en-GB", {day:"2-digit", month:"short", year:"numeric"}).toUpperCase();
   $("endEyebrow").textContent = S.over === "drops" ? "整冧咗！ 3 items fell into the harbour" : "夠鐘！ Time's up";
@@ -2598,6 +2722,7 @@ function showEnd(){
   ps.textContent = live ? "Only your nickname and score will appear on the leaderboard. 排行榜只會顯示你的暱稱及分數。" : "Your score will be saved on this device only. 分數只會儲存在這部裝置。";
   $("endModal").hidden = false; $("stScroll").scrollTop = 0; endScroll = 0;
   S.flowDone = false; setStep(1, false); heroUp();
+  fitLine($("endTitle"));
   endShownAt = performance.now(); modalOpen(true);
   $("endTitle").focus({preventScroll:true});
   const game = S; game.rec = newRecord();
@@ -2677,6 +2802,7 @@ function recordBody(st){
     items: st.items, real_ms: Math.round(st.realMs), at: st.endAt || undefined, prior: st.prior,   // checked by the server; at buckets a late retry
     jackpot: st.jpAt >= 0 ? 1 : 0,   // its windfall and jackpot time raise the server's score limit
     avatar: WHO,   // Jack or Jackie
+    mtype: st.mtype ? st.mtype.code : undefined,   // the money type, e.g. SGPC
     troll_revive: st.troll.reviveSeen ? st.troll.revive : null, troll_invest: st.troll.invest, troll_tickets: st.troll.ticketSeen ? st.troll.tickets : null};
 }
 // Saves go out one at a time; each sends the latest state, and only if it changed since the last one.

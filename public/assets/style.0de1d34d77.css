@@ -4,20 +4,20 @@
    are the ones Google Fonts served, so --f-* below and clay.js (canvas lettering) stay as they are. */
 @font-face{font-family:"Gluten";font-style:normal;font-weight:400 900;font-display:swap;src:url(/assets/gluten.842f8cce6e.woff2) format("woff2")}
 /* Noto Sans HK is one variable file. Four faces, not one 400 900 range, so a weight-800 label still uses the 900 face, as before. */
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/noto-sans-hk.57b26e10fd.woff2) format("woff2")}
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:500;font-display:swap;src:url(/assets/noto-sans-hk.57b26e10fd.woff2) format("woff2")}
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/noto-sans-hk.57b26e10fd.woff2) format("woff2")}
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:900;font-display:swap;src:url(/assets/noto-sans-hk.57b26e10fd.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/noto-sans-hk.78be328d74.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:500;font-display:swap;src:url(/assets/noto-sans-hk.78be328d74.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/noto-sans-hk.78be328d74.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:900;font-display:swap;src:url(/assets/noto-sans-hk.78be328d74.woff2) format("woff2")}
 /* WenKai draws only Chinese (and the digits inside Chinese lines): its Latin is a thin handwriting, so English in a
    Chinese-font line falls through to Noto Sans HK and reads the same as everywhere else */
-@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/lxgw-wenkai-tc-regular.294134b2ed.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
-@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/lxgw-wenkai-tc-bold.a90f206728.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
+@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/lxgw-wenkai-tc-regular.966dc063ab.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
+@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/lxgw-wenkai-tc-bold.f43f3a9cc0.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
 /* Curly quotes, ‘ ’, × and · in Latin widths: Noto Sans HK draws them a whole Chinese character wide, which left holes
    in English ("to   “rent”", "pays ×1.5"). Source Sans 3 (the Latin Noto Sans HK is based on), 1 KB a weight. */
 @font-face{font-family:"TFF Punct";font-style:normal;font-weight:400 650;font-display:swap;src:url(/assets/source-sans-punct-400.f1e8c6c73b.woff2) format("woff2");unicode-range:U+00B7,U+00D7,U+2018-201D}
 @font-face{font-family:"TFF Punct";font-style:normal;font-weight:651 850;font-display:swap;src:url(/assets/source-sans-punct-700.54c4ee4dfe.woff2) format("woff2");unicode-range:U+00B7,U+00D7,U+2018-201D}
 @font-face{font-family:"TFF Punct";font-style:normal;font-weight:851 900;font-display:swap;src:url(/assets/source-sans-punct-900.622c4a765b.woff2) format("woff2");unicode-range:U+00B7,U+00D7,U+2018-201D}
-@font-face{font-family:"DotGothic16";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/dotgothic16.45846b9328.woff2) format("woff2")}
+@font-face{font-family:"DotGothic16";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/dotgothic16.419740c1f9.woff2) format("woff2")}
 
 /* Layout: a clay tabletop set — passbook + 3 Falls | the diorama board | tickets, building directory, leaderboard.
    One light (top-left) everywhere: CSS shadows fall down-right like the canvas clay. Single bright theme by design. */
@@ -1229,3 +1229,81 @@ html.fs.wide .hud .mini{grid-column:2 / -1}
   html.fs #endModal .statement{max-width:none;width:100%;height:100vh;height:100dvh;max-height:none;margin:0;border-radius:0}
 }
 @media (prefers-reduced-motion: reduce){ .st-body.enter > :not(.steps){animation:none} }
+
+/* ---------- line breaks: whole phrases at any screen size ----------
+   Chinese breaks between phrases (after ，。、 or a space), never inside one, unless a phrase is longer than the
+   line. In a line of English then Chinese only the Chinese is kept whole, so it moves down as a whole instead of
+   taking the last English word with it ("Too good to be / true 太好…"). A block in one language wraps into even lines (a
+   line of English and a line of Chinese keep the plain wrap, which already breaks between them). */
+body{text-wrap:pretty}
+:lang(zh-HK), .zh, .zl{word-break:keep-all;overflow-wrap:anywhere}
+.bubble :lang(zh-HK), .bubble small{word-break:normal;overflow-wrap:break-word}   /* the crab's narrow bubble: plain Chinese breaks */
+.tag b, .tag small, .esec h4, .oc-head, .pbs .k, .chip small, .dir .nm b, .kind{word-break:normal;overflow-wrap:break-word}   /* English and Chinese side by side: only the Chinese is kept whole */
+.esec h4 .zh, #infoTitle .zh{margin-left:0}
+.esec h4 .zh::before, #infoTitle .zh::before{content:" "}
+h1, h2, h3, .qopt, .choice b, .choice small, .habit span, .stamp, .ticket .nm, .bubble, .bubble small, .ctl li{text-wrap:balance}
+#infoTitle, .esec h4, .btn, label, .ticket .nm small, .fallrep li > span, .fallrep small, .falls small, .tag b, .oc-head, .ov-chip{text-wrap:wrap}
+.st-eyebrow, .ts-sign span{text-wrap:balance}
+/* phones: in a row of English then Chinese, the Chinese takes the next line, so the English has the width */
+@media (max-width: 480px){ .fallrep li > span > [lang="zh-HK"], .fallrep small > [lang="zh-HK"], .falls small > [lang="zh-HK"], .oc-head [lang="zh-HK"]{display:block}
+  .fallrep li > span, .fallrep small, .falls small, .oc-head{text-wrap:balance} }
+.ticket .nm small [lang="zh-HK"]{display:block}   /* the hold hint: its Chinese on a line of its own */
+/* a paragraph of English then Chinese, put together in the game: the Chinese starts its own line */
+#endSub [lang="zh-HK"], .gate [lang="zh-HK"], .post-status [lang="zh-HK"], .card-rank [lang="zh-HK"], .lb-note [lang="zh-HK"]{display:block}
+#endSub, .gate, .post-status, .card-rank, .lb-note, .falls-note, .pick-note, .esec-note{text-wrap:balance}
+@media (max-width: 600px){ .statement .endactions .btn{font-size:clamp(14px, 4.4vw, 16px)} }
+/* the 4 steps: labels shrink with the sheet, so "Leaderboard" and "Your card" never meet */
+.steps{container-type:inline-size}
+.steps li{font-size:clamp(10px, calc((100cqi - 12px) / 24.5), 11.5px)}
+/* a narrow list of choices (small phones): smaller key and picture, so the words get the room */
+.choices{container-type:inline-size}
+@container (max-width: 270px){
+  .choice{grid-template-columns:30px 1fr 40px;gap:8px;padding:10px}
+  .choice .key{width:30px;height:30px;font-size:16px;border-radius:10px}
+  .choice .thumb{width:40px;height:40px}
+}
+.bubble .say{display:block}
+.then, .crabcard p, .oc-tip{text-wrap:balance}
+.btn.go .zh{white-space:nowrap}
+/* a very short board (a phone held sideways, page view): the start card keeps the title and Start; the chips wait */
+@container (max-height: 200px){ #startOv .ov-card .ov-opts{display:none} }
+
+/* ---------- money type (result step) ---------- */
+.mtype{margin:2px 0 16px;padding:14px 16px 12px;border-radius:20px;background:linear-gradient(160deg,#FFFDF7,#F3ECFF);
+  box-shadow:inset 2px 2px 1px rgba(255,255,255,.9), inset -3px -4px 8px rgba(60,20,90,.1), 0 3px 0 #E4D8F6}
+.mt-eye{margin:0 0 8px;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.mt-eye .zh{margin-left:6px;font-family:var(--f-zh);letter-spacing:0;text-transform:none}
+.mt-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.mt-code{display:flex;gap:4px;margin:0}
+.mt-code b{display:grid;place-items:center;width:34px;height:40px;border-radius:10px;color:#fff;font-family:var(--f-display);font-weight:900;font-size:22px;
+  box-shadow:inset 2px 2px 1px rgba(255,255,255,.35), inset -2px -3px 4px rgba(0,0,0,.18);animation:mtflip .5s calc(.35s + var(--i) * .12s) both cubic-bezier(.2,.9,.3,1.4)}
+@keyframes mtflip{from{transform:rotateX(90deg) scale(.6);opacity:0}to{transform:none;opacity:1}}
+.mt-name{margin:0;font-family:var(--f-display);font-weight:900;font-size:21px;line-height:1.15;color:var(--ink)}
+.mt-name .zh{display:block;margin-top:2px;font-family:var(--f-zh);font-size:17px;font-weight:700;color:#6E4FD8}
+.mt-d{margin:10px 0 10px;font-size:13.5px;line-height:1.45;color:var(--ink)}
+.mt-d .zl{font-size:13px}
+.mt-axes{list-style:none;margin:0;padding:0;display:grid;gap:7px}
+.mt-axes li{display:grid;grid-template-columns:minmax(max-content,1fr) minmax(40px,.9fr) minmax(max-content,1fr);align-items:center;gap:8px}
+.ax-p{display:flex;flex-direction:column;font-size:11.5px;line-height:1.15;color:var(--ink-2)}
+.ax-p b{font-weight:800;white-space:nowrap} .ax-p small{font-family:var(--f-zh);font-size:11px;white-space:nowrap}
+.ax-p:last-child{text-align:right}
+.ax-p.on{color:var(--ink)} .ax-p.on b{font-weight:900}
+.ax-bar{position:relative;height:10px;border-radius:999px;background:linear-gradient(to right, var(--ca) 0 var(--a), var(--cb) var(--a) 100%);opacity:.9}
+.ax-bar::after{content:"";position:absolute;top:50%;left:var(--a);width:14px;height:14px;border-radius:50%;background:#fff;transform:translate(-50%,-50%);box-shadow:0 1px 3px rgba(0,0,0,.35)}
+@media (prefers-reduced-motion: reduce){ .mt-code b{animation:none} }
+
+/* ---------- the dashboard player's change of clothes ---------- */
+.avfx{position:fixed;z-index:60;width:0;height:0;pointer-events:none}
+.avfx i{position:absolute;left:calc(var(--s) * -.9);top:calc(var(--s) * -.9);width:calc(var(--s) * 1.8);height:calc(var(--s) * 1.8);border-radius:50%;
+  background:radial-gradient(circle, rgba(255,226,120,.75) 0 30%, rgba(255,210,63,.35) 50%, rgba(255,210,63,0) 70%);animation:avring .9s ease-out forwards}
+.avfx.down i{background:radial-gradient(circle, rgba(200,206,216,.7) 0 30%, rgba(200,206,216,0) 70%)}
+.avfx b{position:absolute;left:-6px;top:-6px;width:12px;height:12px;background:#FFD23F;clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%);
+  animation:avstar .9s .25s ease-out both}
+.avfx.down b{display:none}
+.avfx-t{position:absolute;left:var(--dx, 0px);top:calc(var(--s) * -.7);transform:translate(-50%,0);white-space:nowrap;padding:3px 10px 4px;border-radius:12px;background:var(--hot);color:#fff;
+  font-family:var(--f-display);font-weight:900;font-size:14px;line-height:1.1;text-align:center;box-shadow:0 3px 0 rgba(0,0,0,.15);animation:avword 1.4s .3s cubic-bezier(.2,.9,.3,1.3) both}
+.avfx.rich .avfx-t{background:#1F9E4A}
+.avfx-t small{display:block;font-family:var(--f-zh);font-size:11.5px;font-weight:700}
+@keyframes avring{from{transform:scale(.3);opacity:1}to{transform:scale(1.25);opacity:0}}
+@keyframes avstar{from{transform:rotate(var(--a)) translateX(4px) scale(.4);opacity:1}to{transform:rotate(var(--a)) translateX(calc(var(--s) * 1.1)) scale(1.1) rotate(90deg);opacity:0}}
+@keyframes avword{0%{transform:translate(-50%,10px) scale(.6);opacity:0}25%{transform:translate(-50%,0) scale(1.08);opacity:1}75%{transform:translate(-50%,-8px) scale(1);opacity:1}100%{transform:translate(-50%,-22px);opacity:0}}

@@ -25,8 +25,8 @@
 <meta property="og:image:alt" content="3 Fall Fun: a clay tower of everyday items on a Hong Kong harbour pier">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preload" href="/assets/gluten.842f8cce6e.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="/assets/noto-sans-hk.57b26e10fd.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/assets/style.3e359b2094.css">
+<link rel="preload" href="/assets/noto-sans-hk.78be328d74.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/style.0de1d34d77.css">
 </head>
 <body>
 <noscript><p style="margin:0;padding:16px;background:#2E2838;color:#fff;font:16px/1.5 system-ui,sans-serif;text-align:center">3 Fall Fun needs JavaScript to run. 請開啟 JavaScript 先玩到。</p></noscript>
@@ -119,7 +119,7 @@
               <p class="word ts-word"><span>3</span><span>F</span><span>a</span><span>l</span><span>l</span><span>F</span><span>u</span><span>n</span></p>
               <p class="ts-zh" lang="zh-HK">人生跌塔</p></div>
             <p class="ts-only ts-sign"><b lang="zh-HK">每週同每月最高分有獎！</b><span>Top scorers each week and month win prizes!</span></p>
-            <h2>Stack your life</h2>
+            <h2 data-fit="10">Stack your life</h2>
             <p class="zh" lang="zh-HK">疊出你嘅人生</p>
             <p class="desc">Reach Retirement in 3&nbsp;minutes. Drop 3 and it's over. <span class="zh" lang="zh-HK">3分鐘疊到退休，跌3件就玩完。</span></p>
             <ul class="ctl kb-only" aria-label="Keyboard controls">
@@ -234,7 +234,7 @@
 
 <div class="turnov" id="turnOv" role="status" hidden>
   <div class="ov-card"><svg viewBox="0 0 48 48" width="56" height="56" aria-hidden="true"><rect x="15" y="6" width="18" height="32" rx="4" fill="#fff" stroke="#2E2838" stroke-width="3"/><circle cx="24" cy="33" r="2" fill="#2E2838"/><path d="M8 30a16 16 0 0 0 10 12" fill="none" stroke="#DF1B72" stroke-width="3" stroke-linecap="round"/><path d="M13 42l5 0.5-1-5" fill="none" stroke="#DF1B72" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    <h2>Turn your phone upright</h2><p class="zh" lang="zh-HK">請將手機轉返直</p><p>The game is paused while your phone is sideways.<span class="zl" lang="zh-HK">手機打橫時遊戲會暫停。</span></p></div>
+    <h2 data-fit="15">Turn your phone upright</h2><p class="zh" lang="zh-HK">請將手機轉返直</p><p>The game is paused while your phone is sideways.<span class="zl" lang="zh-HK">手機打橫時遊戲會暫停。</span></p></div>
 </div>
 
 <div class="modal" id="cardModal" role="dialog" aria-modal="true" aria-labelledby="cardTitle cardTitleZh" aria-describedby="cardHint" hidden>
@@ -261,7 +261,7 @@
   <div class="sheet offer" id="offerSheet" tabindex="-1">
     <div class="of-band"><span class="of-tag" id="offerTag"></span><span class="of-clock" id="offerClock" aria-hidden="true"><i id="offerBar"></i><b id="offerSec"></b></span></div>
     <div class="of-body">
-      <h3 id="offerTitle"></h3>
+      <h3 id="offerTitle" data-fit="15"></h3>
       <p class="zh of-zh" lang="zh-HK" id="offerTitleZh"></p>
       <div class="of-art" id="offerArt" aria-hidden="true" hidden></div>
       <p class="of-pitch" id="offerPitch"></p>
@@ -288,7 +288,7 @@
 
 <div class="modal pickm" id="pickModal" role="dialog" aria-modal="true" aria-labelledby="pickTitle" aria-describedby="pickNote" hidden>
   <div class="sheet picksheet" id="pickSheet" tabindex="-1">
-    <h2 id="pickTitle">Choose your player<span class="zh" lang="zh-HK">揀你嘅角色</span></h2>
+    <h2 id="pickTitle" data-fit="18">Choose your player<span class="zh" lang="zh-HK">揀你嘅角色</span></h2>
     <div class="picks" role="radiogroup" aria-labelledby="pickTitle">
       <button class="who" id="pickJack" type="button" role="radio" aria-checked="true" data-who="jack"><canvas width="240" height="460" aria-hidden="true"></canvas><b>Jack</b></button>
       <button class="who" id="pickJackie" type="button" role="radio" aria-checked="false" data-who="jackie"><canvas width="240" height="460" aria-hidden="true"></canvas><b>Jackie</b></button>
@@ -319,10 +319,16 @@
           <p class="st-eyebrow" id="endEyebrow"></p>
           <p class="sh-cong" id="heroCong"></p>
           <p class="sh-amt"><span id="heroAmt" aria-hidden="true"></span><span class="sr" id="rNw"></span></p>
-          <h3 id="endTitle" tabindex="-1"></h3>
+          <h3 id="endTitle" tabindex="-1" data-fit="13"></h3>
         </div>
         <i class="spk s1" aria-hidden="true"></i><i class="spk s2" aria-hidden="true"></i><i class="spk s3" aria-hidden="true"></i><i class="spk s4" aria-hidden="true"></i>
       </div>
+      <section class="mtype" id="mType" data-s="1" aria-labelledby="mtEye mtName">
+        <p class="mt-eye" id="mtEye">Your money type<span class="zh" lang="zh-HK">你的理財性格</span></p>
+        <div class="mt-top"><p class="mt-code" id="mtCode" aria-hidden="true"></p><span class="sr" id="mtSr"></span><h4 class="mt-name" id="mtName"></h4></div>
+        <p class="mt-d" id="mtDesc"></p>
+        <ul class="mt-axes" id="mtAxes" aria-label="How you played 你點樣玩"></ul>
+      </section>
       <p class="sub" id="endSub" data-s="1"></p>
       <ul class="rows" data-s="1">
         <li><span class="lab">Life stage<small>人生階段</small></span><span class="dots"></span><span class="val" id="rStage"></span></li>
@@ -382,8 +388,8 @@
 <script src="/assets/risky-b.5057bd2b53.js"></script>
 <script src="/assets/scam.05ff1a07ff.js"></script>
 <script src="/assets/jackpot.993fa050bf.js"></script>
-<script src="/assets/content.845ef86df6.js"></script>
+<script src="/assets/content.56b218147d.js"></script>
 <script src="/assets/avatar.2a84cc27be.js"></script>
-<script src="/assets/game.d39da86b5b.js"></script>
+<script src="/assets/game.beda7dd7dc.js"></script>
 </body>
 </html>

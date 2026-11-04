@@ -24,7 +24,7 @@
 
 import "../src/content.js"; // quiz, habits and cards, shared with the game page (sets globalThis.TFF_CONTENT)
 
-const { QUIZ, HABITS: HABIT_LIST, CARDS, STAGES, TRAPS } = globalThis.TFF_CONTENT;
+const { QUIZ, HABITS: HABIT_LIST, CARDS, STAGES, TRAPS, TYPES: MTYPES } = globalThis.TFF_CONTENT;
 const NAME_DEFAULT = "Anonymous crab 匿名蟹";
 const MAX_SCORE = 500000;
 const MAX_BODY = 4096;
@@ -108,6 +108,7 @@ export const ADDED = [
   ["troll_invest", "INTEGER"], // 0 = no investment pop-up, 1 = declined, 2 = invested HK$3,000 (the scam), 3 = also paid the HK$1,000 fee (newer game pages)
   ["troll_tickets", "INTEGER"], // null = no scratch-card offer, else 0..5 = how many HK$500 scratch cards were bought (newer game pages)
   ["avatar", "TEXT"], // "jack" | "jackie": the character the player chose (newer game pages)
+  ["mtype", "TEXT"], // the player's 4-letter money type, e.g. "SGPC" (a key of TFF_CONTENT.TYPES; newer game pages)
 ];
 const SCHEMA_2 = [
   `CREATE UNIQUE INDEX IF NOT EXISTS idx_scores_gid ON scores (gid)`,
@@ -462,6 +463,7 @@ async function post(request, env, db) {
     troll_invest: Number.isInteger(b.troll_invest) && b.troll_invest >= 0 && b.troll_invest <= 3 ? b.troll_invest : null,
     troll_tickets: Number.isInteger(b.troll_tickets) && b.troll_tickets >= 0 && b.troll_tickets <= 5 ? b.troll_tickets : null,
     avatar: b.avatar === "jack" || b.avatar === "jackie" ? b.avatar : null,
+    mtype: typeof b.mtype === "string" && /^[SY][GD][PL][CH]$/.test(b.mtype) && Object.hasOwn(MTYPES, b.mtype) ? b.mtype : null, // never looked at by implausible()
     ip_hash: null,
   };
   if (implausible(values, counts.wise, items)) return fail("implausible", 422);
@@ -540,7 +542,7 @@ async function authorised(request, env) {
   return diff === 0;
 }
 
-const ADMIN_COLS = "id, name, email, posted, score, stage, height, drops, wise, risky, missed, fall_spend, fall_scam, fall_delay, choices, habit, quiz, quiz_answered, quiz_answers, ended, week, month, created_at, updated_at, hidden, items, real_ms, quiz_prior, jackpot, troll_revive, troll_invest, troll_tickets, avatar";
+const ADMIN_COLS = "id, name, email, posted, score, stage, height, drops, wise, risky, missed, fall_spend, fall_scam, fall_delay, choices, habit, quiz, quiz_answered, quiz_answers, ended, week, month, created_at, updated_at, hidden, items, real_ms, quiz_prior, jackpot, troll_revive, troll_invest, troll_tickets, avatar, mtype";
 
 // ?week=2026-W41 or ?month=2026-10 narrows a view; neither means every game.
 function period(url) {
@@ -579,10 +581,11 @@ async function summary(db, p) {
     q(`SELECT stage AS k, COUNT(*) AS n FROM scores s WHERE ${where} GROUP BY stage`),
     q(`SELECT week AS k, ${TREND} FROM scores s WHERE ${where} GROUP BY week ORDER BY week`),
     q(`SELECT month AS k, ${TREND} FROM scores s WHERE ${where} GROUP BY month ORDER BY month`),
+    q(`SELECT mtype AS k, COUNT(*) AS n FROM scores s WHERE ${where} AND mtype IS NOT NULL GROUP BY mtype`),
     db.prepare("SELECT DISTINCT week AS k FROM scores ORDER BY week DESC"),
     db.prepare("SELECT DISTINCT month AS k FROM scores WHERE month IS NOT NULL ORDER BY month DESC"),
   ]);
-  const [ov, qa, qs, hb, cd, st, wk, mo, weeks, months] = res.map((r) => r.results || []);
+  const [ov, qa, qs, hb, cd, st, wk, mo, mt, weeks, months] = res.map((r) => r.results || []);
   const o = ov[0] || {};
   const pct = (a, b) => (b ? Math.round((1000 * (a || 0)) / b) / 10 : null);
   const count = (rows, test) => rows.filter(test).reduce((s, r) => s + (r.n || 0), 0);
@@ -598,7 +601,8 @@ async function summary(db, p) {
     period: { type: p.type, key: p.key },
     periods: { weeks: weeks.map((r) => r.k).filter(Boolean), months: months.map((r) => r.k).filter(Boolean) },
     overview: {
-      games, jack: o.jack || 0, jackie: o.jackie || 0, posted: o.posted || 0, anonymous: games - (o.posted || 0), emails: o.emails || 0,
+      games, types: Object.fromEntries(mt.filter((r) => Object.hasOwn(MTYPES, r.k)).map((r) => [r.k, r.n])),
+      jack: o.jack || 0, jackie: o.jackie || 0, posted: o.posted || 0, anonymous: games - (o.posted || 0), emails: o.emails || 0,
       quizQuestions: QUIZ.length, quizPassMark: QUIZ_PASS, quizTargetPct: 70,
       quizStarted: o.quizStarted || 0, quizTakers: o.quizTakers || 0, quizLegacy: o.quizLegacy || 0,
       quizPass: o.quizPass || 0, quizPassPct: pct(o.quizPass, o.quizTakers), quizPerfect: o.quizPerfect || 0,
@@ -683,7 +687,7 @@ async function admin(path, request, env, db) {
     const asked = period(url), p = asked.key ? asked : { type: "week", key: current.week, where: "week = ?1" };
     const limit = int(url.searchParams.get("limit") || 20, 1, 100);
     const { results } = await db
-      .prepare(`SELECT id, name, email, score, height, stage, created_at, week, month, drops, wise, ended, items, real_ms, jackpot, troll_revive, troll_invest, troll_tickets, avatar FROM scores
+      .prepare(`SELECT id, name, email, score, height, stage, created_at, week, month, drops, wise, ended, items, real_ms, jackpot, troll_revive, troll_invest, troll_tickets, avatar, mtype FROM scores
         WHERE posted = 1 AND hidden = 0 AND ${p.where} ORDER BY score DESC, id ASC LIMIT ?2`)
       .bind(p.key, limit)
       .all();
