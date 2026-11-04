@@ -1124,6 +1124,7 @@ function rainFrame(now){
 // ---------- flow ----------
 function startGame(){
   A.unlock(); A.sfx("go"); closeInfo(true); closePicker(true);
+  if (!$("iabTip").hidden){ $("iabTip").hidden = true; root.style.setProperty("--iab-h", "0px"); root.classList.remove("iab-tight"); lastFit = ""; }   // the tip is for the start
   if (root.classList.contains("title")){ played = true; root.classList.remove("title"); enterBrowserFs(); lastFit = ""; resize(); }
   played = true;
   flushRecord(S);   // the last game's quiz answers or habit may still be waiting to be saved
@@ -1184,6 +1185,23 @@ function toggleMute(){ A.unlock(); A.toggle(); setMuteUI(); A.sfx("uiToggle"); s
 // it can (iPhones can't: there, Add to Home Screen does it), and either way the page hides everything but the game
 // and the board grows to fill the screen. A phone is held upright while full screen, where the browser allows it.
 const root = document.documentElement;
+// ---------- in-app browsers ----------
+// A shared result card is mostly opened inside Instagram, Facebook, Threads, LINE, WeChat or TikTok. Their built-in
+// browsers can't download a file, rarely go truly full screen, and on an iPhone follow the silent switch. There the
+// game saves the picture by press-and-hold, offers the way out to the phone's own browser, and says how to get sound.
+const UA = navigator.userAgent || "";
+const IOS = /iPhone|iPad|iPod/.test(UA) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const ANDROID = /Android/i.test(UA);
+const IAB = (() => {
+  const apps = [["Instagram", /Instagram/i], ["Threads", /Barcelona/], ["Messenger", /Messenger|FBAN\/Messenger/], ["Facebook", /FBAN|FBAV|FB_IAB|FBIOS|FB4A/],
+    ["LINE", /\bLine\//i], ["WeChat", /MicroMessenger/i], ["TikTok", /musical_ly|BytedanceWebview|TikTok/i], ["Snapchat", /Snapchat/i], ["LinkedIn", /LinkedInApp/i],
+    ["X", /Twitter/i], ["Pinterest", /Pinterest/i], ["KakaoTalk", /KAKAOTALK/i], ["Weibo", /Weibo/i], ["Xiaohongshu", /xhsdiscover|XiaoHongShu/i]];
+  for (const [n, re] of apps) if (re.test(UA)) return n;
+  if (ANDROID && /; wv\)/.test(UA)) return "app";                    // an app's own web view
+  if (IOS && !/Safari\//.test(UA) && !/CriOS|FxiOS|EdgiOS/.test(UA)) return "app";
+  return "";
+})();
+if (IAB) root.classList.add("inapp");
 const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement || null;
 const fsApi = !!(root.requestFullscreen || root.webkitRequestFullscreen);
 // Full screen is the default (the page opens in it); ⛶ switches to the page view and back, and that choice is
@@ -1590,7 +1608,32 @@ document.addEventListener("pointerdown", e => { const t = e.target.closest && e.
 // Sound from the first touch: a page may make sound only after a tap or a key, so the first one anywhere (the title
 // included) switches it on, with the theme playing softer as menu music until a game starts. The title says so.
 let audioOn = false;
-function soundHint(){ const h = $("tsSound"); if (h) h.hidden = audioOn || A.muted(); }
+function soundHint(){ const h = $("tsSound"); if (h) h.hidden = audioOn || A.muted(); const z = $("tsSilent"); if (z) z.hidden = !IOS; }
+// The tip in an app's browser, on the start: open the game in the phone's own browser (Android: straight to Chrome;
+// LINE: its own switch; elsewhere the app's ··· menu), or copy the link. Closed, it stays closed for the visit.
+function iabTip(){
+  const tip = $("iabTip"); if (!IAB || ssGet("tff_iab_x")){ tip.hidden = true; root.style.setProperty("--iab-h", "0px"); root.classList.remove("iab-tight"); return; }
+  const url = location.origin + location.pathname, name = IAB === "app" ? "this app" : IAB, zh = IAB === "app" ? "呢個App" : IAB;
+  let how = null;
+  if (IAB === "LINE") how = () => { location.href = url + "?openExternalBrowser=1"; };
+  else if (ANDROID && IAB !== "WeChat") how = () => { location.href = "intent://" + location.host + location.pathname + "#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=" + encodeURIComponent(url) + ";end"; };
+  const t = $("iabText"), dest = IAB === "LINE" ? ["your phone's browser", "手機瀏覽器"] : ["Chrome", "Chrome"];
+  if (how) bi(t, "Best in " + dest[0] + ": full screen, sound, and saving your result.", "用" + dest[1] + "玩最好：全螢幕、有聲，仲儲到結果圖。");
+  else bi(t, "Best in your browser: tap ··· (top right), then open in browser.", "用瀏覽器玩最好：撳右上角「···」，揀用瀏覽器開啟。");
+  tip.setAttribute("aria-label", "You're in " + name + "'s browser 你而家用緊" + zh + "嘅瀏覽器");
+  const ob = $("iabOpen"); ob.hidden = !how; if (how){ label(ob, IAB === "LINE" ? ["Open in browser", "用瀏覽器開"] : ["Open in Chrome", "用Chrome開"]); ob.onclick = how; }
+  tip.hidden = false;
+  requestAnimationFrame(() => { root.style.setProperty("--iab-h", tip.offsetHeight + "px"); root.classList.toggle("iab-tight", innerHeight - tip.offsetHeight < 640); });   // short screen: the title drops its prize sign
+}
+$("iabClose").addEventListener("click", () => { ssSet("tff_iab_x", "1"); A.sfx("uiClose"); iabTip(); lastFit = ""; resize(); });
+$("iabCopy").addEventListener("click", async () => {
+  const u = location.origin + "/", st = $("iabStatus"); let done = false;
+  try { await navigator.clipboard.writeText(u); done = true; } catch(e){
+    const t = document.createElement("textarea"); t.value = u; t.setAttribute("readonly", ""); t.style.cssText = "position:fixed;top:0;opacity:0";
+    document.body.appendChild(t); t.select(); try { done = document.execCommand("copy"); } catch(_){} t.remove(); }
+  st.textContent = done ? "Link copied. Paste it in your browser. 已複製，貼去瀏覽器開啟。" : u;
+  if (done) A.sfx("uiDone");
+});
 function firstSound(){
   A.unlock();
   if (audioOn) return; audioOn = true; soundHint();
@@ -1598,7 +1641,8 @@ function firstSound(){
 }
 function menuMusic(){ A.stage(0); A.mode("menu"); A.start(); }
 for (const ev of ["pointerdown", "pointerup", "touchend", "keydown", "click"]) document.addEventListener(ev, firstSound, {capture: true, passive: true});
-soundHint();
+soundHint(); iabTip();
+setTimeout(resize, 800);   // an app's browser may settle its bars after the page loads
 $("muteBtn").addEventListener("click", toggleMute);
 $("fsBtn").addEventListener("click", () => toggleFs());
 $("fsStartBtn").addEventListener("click", () => { toggleFs(true); beginGame(); });
@@ -2554,8 +2598,10 @@ async function showCard(){
   const img = $("cardImg"), ps = $("postStatus");
   $("cardRank").textContent = S.posted ? ps.textContent : "";
   img.alt = "Your result card: " + fmt(S.score) + ", " + (S.stage === STAGES.length - 1 ? "made it to Retirement" : "reached " + STAGES[S.stage].en) + ". 你的結果卡";
-  $("shareImg").hidden = !canShareFiles();
-  try { const b = await readyCard(); if (img._url) URL.revokeObjectURL(img._url); img._url = URL.createObjectURL(b); img.src = img._url; } catch(e){}
+  $("shareImg").hidden = !canShareFiles(); $("iabSave").hidden = !IAB;
+  try { const b = await readyCard();
+    if (IAB) img.src = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(b); });   // press-and-hold can save it
+    else { if (img._url) URL.revokeObjectURL(img._url); img._url = URL.createObjectURL(b); img.src = img._url; } } catch(e){}
 }
 $("stNext").addEventListener("click", () => { if (S.step < 4 && !(S.step === 2 && !surveyDone())) setStep(S.step + 1); });
 $("stBack").addEventListener("click", () => { if (S.step > 1) setStep(S.step - 1); });
@@ -2627,6 +2673,11 @@ async function exportResult(share){
   if (share && canShareFiles()){
     try { await navigator.share({files: [file], title: "3 Fall Fun 人生跌塔", text: "我喺《3 Fall Fun 人生跌塔》儲到 " + fmt(S.score) + "！你又得唔得？ " + location.origin}); out.textContent = "Shared 已分享"; A.sfx("uiDone"); return; }
     catch(e){ if (e && e.name === "AbortError"){ out.textContent = ""; return; } }   // closed the share sheet: nothing more to do
+  }
+  if (IAB){   // an app's browser drops downloads: the picture is saved by pressing and holding it
+    out.textContent = "Press and hold the picture, then choose Save. 長按圖片，揀「儲存圖片」。";
+    const img = $("cardImg"); img.scrollIntoView({block: "center", behavior: reduceMotion ? "auto" : "smooth"});
+    img.classList.remove("hint"); void img.offsetWidth; img.classList.add("hint"); return;
   }
   const a = document.createElement("a"), url = URL.createObjectURL(blob);
   a.href = url; a.download = "3fallfun-result.jpg"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000);

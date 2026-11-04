@@ -42,6 +42,15 @@
 </svg>
 
 <div class="set">
+<div class="iab" id="iabTip" role="region" aria-label="Open in your browser 用瀏覽器開啟" hidden>
+  <p class="iab-t" id="iabText"></p>
+  <div class="iab-acts">
+    <button class="btn" id="iabOpen" type="button" hidden></button>
+    <button class="btn alt" id="iabCopy" type="button">Copy link<span class="zh" lang="zh-HK">複製連結</span></button>
+  </div>
+  <p class="iab-st" id="iabStatus" aria-live="polite"></p>
+  <button class="iab-x" id="iabClose" type="button" aria-label="Close this tip 關閉提示"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+</div>
   <header class="mast">
     <div class="logo">
       <canvas id="crabLogo" width="140" height="112" aria-hidden="true"></canvas>
@@ -147,10 +156,10 @@
               <div class="ov-chip ctime" role="radiogroup" aria-labelledby="ctStartK"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V9.8M9.5 2.6h5M12 2.6V6M18.2 6.8l1.6-1.6"/></svg><span class="k" id="ctStartK">Card timer<span class="zh" lang="zh-HK">揀答案時間</span></span>
                 <label><input type="radio" name="ctStart" value="10"><span>10<span aria-hidden="true">s</span><span class="sr"> seconds</span></span></label><label><input type="radio" name="ctStart" value="30"><span>30<span aria-hidden="true">s</span><span class="sr"> seconds</span></span></label></div>
             </div>
+            <p class="ts-only ts-sound" id="tsSound" hidden><span aria-hidden="true">♪ </span>Tap anywhere for music<span class="zh" lang="zh-HK">輕觸任何地方播放音樂</span><small class="ts-silent" id="tsSilent" hidden>iPhone: turn off silent mode<span lang="zh-HK"> 請關閉靜音模式</span></small></p>
           </div>
           <button class="ts-only ts-priv" id="tsPriv" type="button">Privacy<span class="zh" lang="zh-HK">私隱聲明</span></button>
           <button class="iconbtn ts-only ts-mute" id="tsMute" type="button" aria-pressed="false" aria-label="Mute sound"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="#2E2838"/><path class="w" d="M16 8.5c1.6 1.8 1.6 5.2 0 7M18.6 6c3 3.2 3 8.8 0 12" fill="none" stroke="#FF5FA2" stroke-width="2.2" stroke-linecap="round"/><path class="x" d="M16.5 9.5l5 5M21.5 9.5l-5 5" stroke="#F2463E" stroke-width="2.4" stroke-linecap="round"/></svg></button>
-          <p class="ts-only ts-sound" id="tsSound" hidden><span aria-hidden="true">♪ </span>Tap anywhere for music<span class="zh" lang="zh-HK">輕觸任何地方播放音樂</span></p>
         </div>
         <div class="overlay seeov" id="seeOv" hidden><button class="btn alt" id="resultsBtn" aria-label="Back to results">Results<span class="zh" lang="zh-HK">睇返結算</span></button><button class="btn" id="againBtn2">Play again<span class="zh" lang="zh-HK">再玩</span></button></div>
         <div class="overlay" id="pauseOv" hidden>
@@ -368,6 +377,7 @@
           <button class="btn teal" id="saveImg" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10.5l5 5 5-5M5 19h14"/></svg>Save image<span class="zh" lang="zh-HK">下載圖片</span></button>
           <button class="btn alt" id="shareImg" type="button" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="M8.2 10.8l7.6-4M8.2 13.2l7.6 4"/></svg>Share<span class="zh" lang="zh-HK">分享</span></button>
         </div>
+        <p class="iab-save" id="iabSave" hidden>In this app, press and hold the picture to save it.<span class="zl" lang="zh-HK">喺呢個App入面，長按圖片就可以儲存。</span></p>
         <p class="sh-status" id="shareStatus" aria-live="polite"></p>
       </div>
     </div>
