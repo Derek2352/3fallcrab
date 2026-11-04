@@ -1772,7 +1772,7 @@ function firstSound(){
 function menuMusic(){ A.stage(0); A.mode("menu"); A.start(); }
 for (const ev of ["pointerdown", "pointerup", "touchend", "keydown", "click"]) document.addEventListener(ev, firstSound, {capture: true, passive: true});
 soundHint(); iabTip();
-window.TFF_ART = {crab: crabArt, sound: firstSound, sfx: n => A.sfx(n)};   // for the opening story (src/intro.js)
+window.TFF_ART = {crab: crabArt, sound: firstSound, sfx: n => A.sfx(n), fs: () => { if (fsOn) enterBrowserFs(); }};   // for the opening story (src/intro.js)
 setTimeout(resize, 800);   // an app's browser may settle its bars after the page loads
 $("muteBtn").addEventListener("click", toggleMute);
 $("fsBtn").addEventListener("click", () => toggleFs());

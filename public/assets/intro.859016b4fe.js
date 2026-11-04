@@ -149,10 +149,15 @@ function onKey(e){
   else if (k === "Enter" || k === " " || k === "ArrowRight"){ if (e.target && e.target.id === "introSkip" && k !== "ArrowRight") return; next(); }
   else return;
   if (ART.sound) ART.sound();   // a key is a first touch too: sound on
+  askFs();
   e.preventDefault(); e.stopImmediatePropagation();
 }
 window.addEventListener("keydown", onKey, true);
-el.addEventListener("click", e => { if (e.target.closest("#introSkip")) end(); else next(); });
+// The first tap or key on the story also asks for the browser's own full screen (a page may only ask on a tap or a
+// key), so the title is already free of the browser's bars. Left untouched, it waits for Start as before.
+let fsAsked = false;
+function askFs(){ if (fsAsked) return; fsAsked = true; try { if (ART.fs) ART.fs(); } catch(e){} }
+el.addEventListener("click", e => { askFs(); if (e.target.closest("#introSkip")) end(); else next(); });
 let rz = 0; window.addEventListener("resize", () => { if (done) return; clearTimeout(rz); rz = setTimeout(() => pages.forEach(p => { if (!p.hidden) paintPage(p); }), 200); });
 window.TFF_INTRO = {on: () => !done, next, skip: end};
 try { paintPage(pages[0]); requestAnimationFrame(() => go(0)); $skipFocus(); } catch(e){ end(); }
