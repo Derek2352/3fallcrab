@@ -24,7 +24,8 @@
 
 import "../src/content.js"; // quiz, habits and cards, shared with the game page (sets globalThis.TFF_CONTENT)
 
-const { QUIZ, HABITS: HABIT_LIST, CARDS, STAGES, TRAPS, TYPES: MTYPES, TITLES } = globalThis.TFF_CONTENT;
+const { QUIZ, HABITS: HABIT_LIST, CARDS, STAGES, TRAPS, TYPES: MTYPES, TITLES, PERSONAS = { bg: {}, pe: {} } } = globalThis.TFF_CONTENT;
+const PERSONA_KEYS = new Set(Object.keys(PERSONAS.bg).flatMap((b) => Object.keys(PERSONAS.pe).map((p) => b + "+" + p)));
 const TITLE_IDS = new Set(TITLES.map((t) => t.id));
 export const NAME_DEFAULT = "Anonymous crab 匿名蟹";
 const MAX_SCORE = 500000;
@@ -112,6 +113,7 @@ export const ADDED = [
   ["mtype", "TEXT"], // the player's 4-letter money type, e.g. "SGPC" (a key of TFF_CONTENT.TYPES; earlier game pages; the title replaced it)
   ["via", "TEXT"], // how the player arrived: 'c' = a friend's challenge link (newer game pages)
   ["title", "TEXT"], // the game's 稱號, a TFF_CONTENT.TITLES id such as "zero" (newer game pages)
+  ["persona", "TEXT"], // the type rolled before the game, family money + personality, e.g. "sub+grind" (newer game pages)
 ];
 const SCHEMA_2 = [
   `CREATE UNIQUE INDEX IF NOT EXISTS idx_scores_gid ON scores (gid)`,
@@ -487,6 +489,7 @@ async function post(request, env, db) {
     mtype: typeof b.mtype === "string" && /^[SY][GD][PL][CH]$/.test(b.mtype) && Object.hasOwn(MTYPES, b.mtype) ? b.mtype : null, // never looked at by implausible()
     via: b.via === "c" ? "c" : null, // never looked at by implausible()
     title: typeof b.title === "string" && TITLE_IDS.has(b.title) ? b.title : null, // never looked at by implausible()
+    persona: typeof b.persona === "string" && PERSONA_KEYS.has(b.persona) ? b.persona : null, // never looked at by implausible()
     ip_hash: null,
   };
   if (implausible(values, counts.wise, items)) return fail("implausible", 422);
@@ -565,7 +568,7 @@ async function authorised(request, env) {
   return diff === 0;
 }
 
-const ADMIN_COLS = "id, name, email, posted, score, stage, height, drops, wise, risky, missed, fall_spend, fall_scam, fall_delay, choices, habit, quiz, quiz_answered, quiz_answers, ended, week, month, created_at, updated_at, hidden, items, real_ms, quiz_prior, jackpot, troll_revive, troll_invest, troll_tickets, avatar, mtype, via, title";
+const ADMIN_COLS = "id, name, email, posted, score, stage, height, drops, wise, risky, missed, fall_spend, fall_scam, fall_delay, choices, habit, quiz, quiz_answered, quiz_answers, ended, week, month, created_at, updated_at, hidden, items, real_ms, quiz_prior, jackpot, troll_revive, troll_invest, troll_tickets, avatar, mtype, via, title, persona";
 
 // ?week=2026-W41 or ?month=2026-10 narrows a view; neither means every game.
 function period(url) {
@@ -607,10 +610,11 @@ async function summary(db, p) {
     q(`SELECT mtype AS k, COUNT(*) AS n FROM scores s WHERE ${where} AND mtype IS NOT NULL GROUP BY mtype`),
     q(`SELECT COUNT(*) AS n FROM scores s WHERE ${where} AND via = 'c'`),
     q(`SELECT title AS k, COUNT(*) AS n FROM scores s WHERE ${where} AND title IS NOT NULL GROUP BY title`),
+    q(`SELECT persona AS k, COUNT(*) AS n FROM scores s WHERE ${where} AND persona IS NOT NULL GROUP BY persona`),
     db.prepare("SELECT DISTINCT week AS k FROM scores ORDER BY week DESC"),
     db.prepare("SELECT DISTINCT month AS k FROM scores WHERE month IS NOT NULL ORDER BY month DESC"),
   ]);
-  const [ov, qa, qs, hb, cd, st, wk, mo, mt, vc, tt, weeks, months] = res.map((r) => r.results || []);
+  const [ov, qa, qs, hb, cd, st, wk, mo, mt, vc, tt, ps, weeks, months] = res.map((r) => r.results || []);
   const o = ov[0] || {};
   const pct = (a, b) => (b ? Math.round((1000 * (a || 0)) / b) / 10 : null);
   const count = (rows, test) => rows.filter(test).reduce((s, r) => s + (r.n || 0), 0);
@@ -628,6 +632,7 @@ async function summary(db, p) {
     overview: {
       games, via_c: (vc[0] && vc[0].n) || 0, types: Object.fromEntries(mt.filter((r) => Object.hasOwn(MTYPES, r.k)).map((r) => [r.k, r.n])),
       titles: Object.fromEntries(tt.filter((r) => TITLE_IDS.has(r.k)).map((r) => [r.k, r.n])),
+      personas: Object.fromEntries(ps.filter((r) => PERSONA_KEYS.has(r.k)).map((r) => [r.k, r.n])),
       jack: o.jack || 0, jackie: o.jackie || 0, posted: o.posted || 0, anonymous: games - (o.posted || 0), emails: o.emails || 0,
       quizQuestions: QUIZ.length, quizPassMark: QUIZ_PASS, quizTargetPct: 70,
       quizStarted: o.quizStarted || 0, quizTakers: o.quizTakers || 0, quizLegacy: o.quizLegacy || 0,
@@ -657,7 +662,7 @@ async function summary(db, p) {
       const c = CARDS.find((x) => x.id === id), rows = cd.filter((r) => r.card === id);
       const wise = count(rows, (r) => r.pick === "wise"), risky = count(rows, (r) => r.pick === "risky"), none = count(rows, (r) => r.pick === "none");
       const n = wise + risky + none;
-      return { id, en: c ? c.tag[0] : id, zh: c ? c.tag[1] : "", stage: c ? c.st : null, trap: c ? c.trap : null, n, wise, risky, none,
+      return { id, en: c ? c.tag[0] : id, zh: c ? c.tag[1] : "", stage: c ? c.st : null, trap: c ? c.trap : null, who: (c && c.who) || null, n, wise, risky, none,
         wisePct: pct(wise, n), riskyPct: pct(risky, n), nonePct: pct(none, n) };
     }),
     stages: STAGES.map((s, i) => ({ stage: i, en: s.en, zh: s.zh, n: count(st, (r) => r.k === i) })),
@@ -713,7 +718,7 @@ async function admin(path, request, env, db) {
     const asked = period(url), p = asked.key ? asked : { type: "week", key: current.week, where: "week = ?1" };
     const limit = int(url.searchParams.get("limit") || 20, 1, 100);
     const { results } = await db
-      .prepare(`SELECT id, name, email, score, height, stage, created_at, week, month, drops, wise, ended, items, real_ms, jackpot, troll_revive, troll_invest, troll_tickets, avatar, mtype, via, title FROM scores
+      .prepare(`SELECT id, name, email, score, height, stage, created_at, week, month, drops, wise, ended, items, real_ms, jackpot, troll_revive, troll_invest, troll_tickets, avatar, mtype, via, title, persona FROM scores
         WHERE posted = 1 AND hidden = 0 AND ${p.where} ORDER BY score DESC, id ASC LIMIT ?2`)
       .bind(p.key, limit)
       .all();

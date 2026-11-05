@@ -135,6 +135,7 @@
     <div class="center">
       <div class="hud" aria-label="Game status">
         <canvas class="hav" id="hudAvatar" width="60" height="115" aria-hidden="true"></canvas>
+        <p class="hwho" id="hudWho" hidden></p>
         <div class="hs"><span class="k">Time</span><span class="v" id="hudTime">3:00</span></div>
         <div class="hs nw"><span class="k">Net worth</span><span class="v" id="hudNw">HK$0</span></div>
         <div class="hs"><span class="k">Height</span><span class="v" id="hudH">0.0F</span></div>
@@ -232,6 +233,7 @@
       <ol class="how">
           <li>Steer each item, then let go: it slides, rolls and bounces.<small>移好位就放手，物件會滑、會碌、會彈。</small></li>
           <li>The taller your tower, the further through life you get.<small>塔疊得越高，人生就行得越遠。</small></li>
+          <li>Each game, roll who you are: your family money and personality decide which life events you meet.<small>每局先抽身份：你嘅家底同性格，決定你會遇到咩人生事件。</small></li>
           <li>Life Event cards: wise answers bring stable, sticky items; risky ones bring awkward shapes and a Fall.<small>人生事件卡：揀得明智就有平穩、黐實嘅物件；揀高危就有怪形狀，仲會中伏。</small></li>
           <li>No emergency fund? Job losses and medical bills shake your tower.<small>冇應急錢，失業、醫藥費會令座塔震。</small></li>
           <li>Helpers: vine items stick, a fixed-deposit lock freezes where it lands, and the insurance net catches what falls.<small>幫手：藤蔓物件一掂就黐，定期鎖一停低就鎖死，保險網接住跌落嚟嘅嘢。</small></li>
@@ -287,6 +289,7 @@
     <div class="lc-body">
       <div class="timer" aria-hidden="true"><i id="cardBar"></i></div>
       <p class="sr" id="cardHint"></p>
+      <p class="lc-for" id="cardFor" hidden></p>
       <p class="lc-tag" id="cardTag"></p>
       <h3 id="cardTitle"></h3>
       <p class="zh" lang="zh-HK" id="cardTitleZh"></p>
@@ -342,6 +345,25 @@
   </div>
 </div>
 
+<div class="modal rollm" id="rollModal" role="dialog" aria-modal="true" aria-labelledby="rollTitle" aria-describedby="rollNote" hidden>
+  <div class="sheet rollsheet" id="rollSheet" tabindex="-1">
+    <h2 id="rollTitle" data-fit="18">Roll your uni life<span class="zh" lang="zh-HK">抽你嘅大學人生</span></h2>
+    <p class="roll-note" id="rollNote">Like being born: who you are decides the money choices life throws at you. No re-rolls!<span class="zl" lang="zh-HK">好似投胎咁：你係咩人，決定人生會遇到咩理財抉擇。冇得重抽！</span></p>
+    <div class="reels">
+      <canvas class="roll-av" id="rollAvatar" width="120" height="230" aria-hidden="true"></canvas>
+      <div class="reel" id="reelBg"><span class="rk">Family money<span class="zh" lang="zh-HK">家底</span></span><div class="rwin" aria-hidden="true"><div class="rstrip" id="stripBg"></div></div></div>
+      <div class="reel" id="reelPe"><span class="rk">Personality<span class="zh" lang="zh-HK">性格</span></span><div class="rwin" aria-hidden="true"><div class="rstrip" id="stripPe"></div></div></div>
+    </div>
+    <div class="roll-res" id="rollRes" hidden>
+      <p class="rr-name" id="rrName"></p>
+      <p class="rr-nick" id="rrNick"></p>
+      <p class="rr-line" id="rrLine"></p>
+    </div>
+    <p class="sr" id="rollSay" aria-live="assertive"></p>
+    <button class="btn go" id="rollGo" type="button">Roll<span class="zh" lang="zh-HK">抽！</span></button>
+  </div>
+</div>
+
 <div class="modal infom" id="infoModal" role="dialog" aria-modal="true" aria-labelledby="infoTitle" hidden>
   <div class="sheet infosheet" id="infoSheet" tabindex="-1">
     <div class="is-head"><h2 id="infoTitle"></h2><button class="iconbtn" id="infoClose" type="button" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="#2E2838" stroke-width="2.6" stroke-linecap="round"/></svg></button></div>
@@ -364,6 +386,7 @@
           <p class="sh-cong" id="heroCong"></p>
           <p class="sh-amt"><span id="heroAmt" aria-hidden="true"></span><span class="sr" id="rNw"></span></p>
           <h3 id="endTitle" tabindex="-1" data-fit="13"></h3>
+          <p class="sh-who" id="heroWho" hidden></p>
         </div>
         <div class="sh-verdict" id="heroVerdict" hidden><span class="sv-medal" id="svMedal" aria-hidden="true"></span>
           <p class="sv-name"><span class="sr">Your title 你的稱號: </span><span id="svName"></span></p><p class="sv-line" id="svLine"></p></div>

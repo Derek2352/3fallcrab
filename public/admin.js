@@ -128,6 +128,18 @@
     return t;
   }
 
+  // the rolled types (family money + personality) played most in this period
+  const personaName = (k) => { const P = C.PERSONAS || { bg: {}, pe: {} }, [b, p] = String(k || "").split("+"); return P.bg[b] && P.pe[p] ? { zh: P.bg[b].zh + P.pe[p].zh, en: P.bg[b].en + " × " + P.pe[p].en } : null; };
+  function personas(o) {
+    const all = Object.entries(o.personas || {}).filter(([k]) => personaName(k)), total = all.reduce((n, [, v]) => n + v, 0);
+    const top = all.sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).slice(0, 3);
+    const big = el("b", "", top.length ? personaName(top[0][0]).zh : "–"); if (top.length) big.lang = "zh-HK";
+    const t = el("div", "tile", el("span", "tl", "Rolled as ", zh("抽到嘅身份")), big);
+    if (!top.length) t.append(el("span", "ts", "no data yet"));
+    for (const [k, n] of top) t.append(el("span", "ts", zh(personaName(k).zh), ` ${personaName(k).en} · ${fmt(n)} (${pc(Math.round(1000 * n / total) / 10)})`));
+    return t;
+  }
+
   // top 3 稱號 (titles, names from content.js) among the games in this period
   function titles(o) {
     const T = new Map((C.TITLES || []).map((t) => [t.id, t])), all = Object.entries(o.titles || {}).filter(([k]) => T.has(k)), total = all.reduce((n, [, v]) => n + v, 0);
@@ -160,6 +172,7 @@
       tile("Games", fmt(o.games), "games saved"),
       tile("Jack / Jackie", `${fmt(o.jack || 0)} / ${fmt(o.jackie || 0)}`, ratio(o.jackie || 0, (o.jack || 0) + (o.jackie || 0), "who chose")),
       titles(o),
+      personas(o),
       ...(Object.keys(o.types || {}).length ? [moneyTypes(o)] : []),
       fromLinks(o),
       tile("On the board", fmt(o.posted), fmt(o.anonymous) + " saved anonymously"),
@@ -213,11 +226,15 @@
       s.stages.map((x) => { const p = share(x.n, o.games); return { cells: [[x.en, x.zh && zh(x.zh)], fmt(x.n), [pc(p), meter(p)]] }; }), "sm"));
     const stage = (i) => (s.stages.find((x) => x.stage === i) || {}).en || "–";
     const trap = (id) => (s.traps.find((x) => x.id === id) || {}).en || "–";
-    const sorted = s.cards.slice().sort((a, b) => (b.riskyPct ?? -1) - (a.riskyPct ?? -1) || b.n - a.n);
+    // the 16 general cards always; a rolled type's cards once they've come up (132 of them, mostly unseen at first)
+    const unseen = s.cards.filter((c) => c.who && !c.n).length;
+    const sorted = s.cards.filter((c) => !c.who || c.n).sort((a, b) => (b.riskyPct ?? -1) - (a.riskyPct ?? -1) || b.n - a.n);
+    const P = C.PERSONAS || { bg: {}, pe: {} }, whoLabel = (w) => w.split("+").map((k) => (P.bg[k] || P.pe[k] || { zh: k }).zh).join("");   // a card for a rolled type: 劏房, 卷王 or 劏房卷王
     $("cardBox").replaceChildren(table(
       [{ h: "#", c: "num" }, { h: "Card", c: "t" }, { h: "Life stage", c: "hide-sm" }, { h: "Trap", c: "hide-sm" }, { h: "Shown", c: "num", t: "Times the card was shown" }, { h: "Wise %", c: "num" }, { h: "Risky %", c: "num" }, { h: "Missed %", c: "num", t: "The timer ran out" }],
-      sorted.map((c, i) => ({ cells: [i + 1, [c.en, c.zh && zh(c.zh), el("span", "meta", `${stage(c.stage)} · ${trap(c.trap)}`)], stage(c.stage), trap(c.trap), fmt(c.n), pc(c.wisePct),
+      sorted.map((c, i) => ({ cells: [i + 1, [c.en, c.zh && zh(c.zh), el("span", "meta", `${stage(c.stage)} · ${trap(c.trap)}` + (c.who ? ` · for ${whoLabel(c.who)}` : ""))], stage(c.stage), trap(c.trap), fmt(c.n), pc(c.wisePct),
         [el("b", "", pc(c.riskyPct)), c.riskyPct != null && meter(c.riskyPct, "pink")], pc(c.nonePct)] })), "mid cards"));
+    if (unseen) $("cardBox").append(el("p", "msg", `${fmt(unseen)} cards for rolled types haven't come up in this period yet.`));
   }
 
   function trendTable(rows, name, label, sel, o) {
@@ -315,7 +332,7 @@
     const pass = Math.ceil((QN * 2) / 3); // same rule as the server: 2 of 3
     const head = ["game_id", "saved_hkt", "week", "month", "on_board", "hidden", "nickname", "email", "score", "floors", "life_stage", "ended", "items_dropped",
       "wise_picks", "risky_picks", "missed_picks", "fall_overspending", "fall_scams", "fall_putting_off_saving", "habit_id", "habit", "quiz_answered", "quiz_correct", "quiz_2plus",
-      ...C.QUIZ.flatMap((q) => ["q_" + q.id, "q_" + q.id + "_correct"]), ...C.CARDS.map((c) => "card_" + c.id), "items_placed", "seconds_played", "quizzes_before", "jackpot", "troll_revive", "troll_invest", "troll_tickets", "player", "money_type", "money_type_name", "via", "title", "title_name"];
+      ...C.QUIZ.flatMap((q) => ["q_" + q.id, "q_" + q.id + "_correct"]), ...C.CARDS.map((c) => "card_" + c.id), "items_placed", "seconds_played", "quizzes_before", "jackpot", "troll_revive", "troll_invest", "troll_tickets", "player", "money_type", "money_type_name", "via", "title", "title_name", "persona", "persona_name"];
     return csv(head, rows.map((r) => {
       const answers = new Map(list(r.quiz_answers).map((a) => [a.q, a])), picks = new Map();
       for (const c of list(r.choices)) if (!picks.has(c.card)) picks.set(c.card, choice(c));
@@ -324,7 +341,7 @@
         r.wise, r.risky, r.missed, r.fall_spend, r.fall_scam, r.fall_delay, r.habit, (C.HABITS.find((h) => h.id === r.habit) || {}).en,
         r.quiz_answered, r.quiz, done ? (r.quiz >= pass ? 1 : 0) : "",
         ...C.QUIZ.flatMap((q) => { const a = answers.get(q.id); return a ? [(q.o[a.pick] || [])[0], (a.ok ?? a.pick === q.a) ? 1 : 0] : ["", ""]; }),
-        ...C.CARDS.map((c) => picks.get(c.id)), r.items, r.real_ms == null ? "" : Math.round(r.real_ms / 1000), r.quiz_prior, r.jackpot ?? "", r.troll_revive ?? "", r.troll_invest ?? "", r.troll_tickets ?? "", r.avatar ?? "", r.mtype ?? "", ((C.TYPES || {})[r.mtype] || {}).en ?? "", r.via ?? "", r.title ?? "", ((C.TITLES || []).find((t) => t.id === r.title) || {}).en ?? ""];
+        ...C.CARDS.map((c) => picks.get(c.id)), r.items, r.real_ms == null ? "" : Math.round(r.real_ms / 1000), r.quiz_prior, r.jackpot ?? "", r.troll_revive ?? "", r.troll_invest ?? "", r.troll_tickets ?? "", r.avatar ?? "", r.mtype ?? "", ((C.TYPES || {})[r.mtype] || {}).en ?? "", r.via ?? "", r.title ?? "", ((C.TITLES || []).find((t) => t.id === r.title) || {}).en ?? "", r.persona ?? "", (personaName(r.persona) || {}).en ?? ""];
     }));
   }
   function answersCsv(rows) {

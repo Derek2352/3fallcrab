@@ -680,11 +680,18 @@ function drawLockWrap(g, def, closed){
 }
 
 // ---------- life events ----------
+// The next Life Event card: one for this life stage, never one already seen this game. Cards of the rolled type (`who`
+// in content.js) come first, about 3 in 4; the general ones fill in. Other types' cards never come up.
+const OWN_SHARE = 0.75;
+const ownCard = k => { const p = S.persona; return !!p && !!k.who && (k.who === p.bg || k.who === p.pe || k.who === p.bg + "+" + p.pe); };
 function pickCard(){
-  let c = CARDS.filter(k => k.st === S.stage && !S.used.has(k.id));
-  if (!c.length) c = CARDS.filter(k => !S.used.has(k.id));
-  if (!c.length){ S.used.clear(); c = CARDS.filter(k => k.st === S.stage); }
-  return c[Math.floor(Math.random() * c.length)];
+  const free = CARDS.filter(k => !S.used.has(k.id) && (!k.who || ownCard(k)));
+  let at = free.filter(k => k.st === S.stage);
+  if (!at.length) at = free.filter(k => k.st <= S.stage);   // this stage's all seen: an earlier one
+  if (!at.length) at = free.length ? free : CARDS.filter(k => !k.who);
+  const own = at.filter(ownCard), general = at.filter(k => !k.who);
+  const pool = own.length && (!general.length || Math.random() < OWN_SHARE) ? own : general.length ? general : at;
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 // The next card and the items pictured on its two choices are picked a few seconds before it opens, so their
 // pictures are made in spare time and the card deals in smoothly.
@@ -709,6 +716,9 @@ function openCard(){
   $("cardStage").textContent = st.en + " · " + st.zh;
   $("cardTitle").textContent = c.en; $("cardTitleZh").textContent = c.zh;
   $("cardTag").textContent = c.tag ? c.tag[0] + " · " + c.tag[1] : "";   // shown instead of the question once it's answered
+  const forT = c.who && S.persona ? c.who.split("+").map(k => PERSONAS.bg[k] || PERSONAS.pe[k]).filter(Boolean) : [], fr = $("cardFor");   // which part of who you are brought it
+  fr.hidden = !forT.length;
+  if (forT.length){ const z = document.createElement("span"); z.lang = "zh-HK"; z.textContent = "為你而設 · " + forT.map(t => t.zh).join(" × "); fr.replaceChildren(z, "For you"); fr.title = "For you: " + forT.map(t => t.en).join(" × "); }
   const box = $("cardChoices"); box.replaceChildren(); box.hidden = false;
   S.card.order.forEach((k, i) => {
     const b = document.createElement("button"); b.className = "choice"; b.type = "button";
@@ -1253,12 +1263,13 @@ function rainFrame(now){
 
 // ---------- flow ----------
 function startGame(){
-  A.unlock(); A.sfx("go"); closeInfo(true); closePicker(true);
+  A.unlock(); A.sfx("go"); closeInfo(true); closePicker(true); closeRoll(true);
   if (!$("iabTip").hidden){ $("iabTip").hidden = true; root.style.setProperty("--iab-h", "0px"); root.classList.remove("iab-tight"); lastFit = ""; }   // the tip is for the start
   if (root.classList.contains("title")){ played = true; root.classList.remove("title"); enterBrowserFs(); lastFit = ""; resize(); }
   played = true;
   flushRecord(S);   // the last game's quiz answers or habit may still be waiting to be saved
   S = newState(); S.camTop = camTarget(); makeEngine(); S.mode = "playing"; frenzyUI(); $("jpBan").hidden = true;
+  S.persona = ROLL; rollKept = false; showWho();   // who this life is (rolled just before)
   if (firstQueue){ S.queue = firstQueue; S.lastId = firstQueue[2].id; S.jackpot = firstQueue.some(d => d.jackpot); firstQueue = null; }
   $("startOv").hidden = true; $("pauseOv").hidden = true; $("endModal").hidden = true; $("cardModal").hidden = true; $("seeOv").hidden = true; modalOpen(false);
   $("offerModal").hidden = true; $("reviveModal").hidden = true; $("pfChip").hidden = true; $("boardWrap").classList.remove("glitch"); planTrolls();
@@ -1366,6 +1377,10 @@ for (const ev of ["fullscreenchange", "webkitfullscreenchange"]) document.addEve
 let endShownAt = 0;
 document.addEventListener("keydown", e => {
   if (!S) return;
+  if (!$("rollModal").hidden){   // the roll: Enter or Space on its button, Esc goes back (the roll is kept)
+    if (e.key === "Escape"){ closeRoll(); e.preventDefault(); }
+    return;
+  }
   if (!$("pickModal").hidden){   // choosing the player: arrows switch, Enter or Space on the Go button (or a player) goes, Esc goes back
     const k = e.key;
     if (k === "ArrowLeft" || k === "ArrowRight" || k === "ArrowUp" || k === "ArrowDown"){ setPick(pickSel === "jack" ? "jackie" : "jack"); document.querySelector('#pickModal .who[aria-checked="true"]').focus(); e.preventDefault(); }
@@ -1412,7 +1427,7 @@ document.addEventListener("keydown", e => {
   }
   if (S.mode === "idle" && S.viewing && !$("seeOv").hidden && (k === "Escape" || k === "r" || k === "R")){ openResults(); e.preventDefault(); return; }
   const onControl = !!(e.target && e.target.closest && e.target.closest("button, a, label, [role=tab]"));   // it does its own thing
-  if (S.mode === "idle" && (k === "Enter" || k === " ") && !onControl && (!$("startOv").hidden || !$("seeOv").hidden)){ if (!$("startOv").hidden) beginGame(); else if (S.flowDone) startGame(); else openResults(); e.preventDefault(); return; }
+  if (S.mode === "idle" && (k === "Enter" || k === " ") && !onControl && (!$("startOv").hidden || !$("seeOv").hidden)){ if (!$("startOv").hidden) beginGame(); else if (S.flowDone) newLife(); else openResults(); e.preventDefault(); return; }
   if (k === "p" || k === "P" || k === "Escape"){ if (S.mode === "playing" || S.mode === "paused"){ togglePause(); e.preventDefault(); } return; }
   if (S.mode !== "playing") return;
   switch (k){
@@ -1545,17 +1560,116 @@ function openPicker(){
   document.querySelector('#pickModal .who[aria-checked="true"]').focus({preventScroll: true});
 }
 function closePicker(quiet){ if ($("pickModal").hidden) return; if (!quiet) A.sfx("uiClose"); $("pickModal").hidden = true; modalOpen(false); }
-function pickGo(){ WHO = pickSel; lsSet("tff_who", WHO); whoPicked = true; ssSet("tff_picked", "1"); closePicker(true); startGame(); }
+function pickGo(){ WHO = pickSel; lsSet("tff_who", WHO); whoPicked = true; ssSet("tff_picked", "1"); closePicker(true); newLife(); }
 // Start from the title or the start card: the player is chosen first (once a visit); Play again goes straight on
 function beginGame(){
   if (root.classList.contains("title")) enterBrowserFs();   // on the tap itself: browsers allow it only then
-  if (whoPicked) startGame(); else openPicker();
+  if (whoPicked) newLife(); else openPicker();
 }
 for (const b of document.querySelectorAll("#pickModal .who")){
   b.addEventListener("click", () => setPick(b.dataset.who));
   b.addEventListener("dblclick", pickGo);
 }
 $("pickGo").addEventListener("click", pickGo);
+
+// ---------- who you are: the roll ----------
+// Before every game (after Jack or Jackie, the first time), two reels decide what kind of uni student this life is:
+// 家底 family money × 性格 personality (PERSONAS in content.js), 24 combinations, like being born in 80億分之1. The type
+// only changes which Life Event cards come up (pickCard); the scoring is the same for all of them. There are no re-rolls:
+// a roll is kept until it's played, even if the sheet is closed. ?roll=0 (or sessionStorage tff_roll_auto = "1") rolls
+// quietly and starts straight away, for tests and booth staff in a hurry.
+const PERSONAS = window.TFF_CONTENT.PERSONAS || {bg: {}, pe: {}, combos: {}};
+const BG_KEYS = Object.keys(PERSONAS.bg), PE_KEYS = Object.keys(PERSONAS.pe), REPS = 6;
+const ROLL_AUTO = /[?&]roll=0(&|$)/.test(location.search) || ssGet("tff_roll_auto") === "1";
+let ROLL = null, rollKept = false, rollPhase = "", rollTimers = [];
+const rnd = n => Math.floor(Math.random() * n);
+const personaKey = p => p ? p.bg + "+" + p.pe : "";
+function personaOf(p){
+  if (!p || !PERSONAS.bg[p.bg] || !PERSONAS.pe[p.pe]) return null;
+  const b = PERSONAS.bg[p.bg], e = PERSONAS.pe[p.pe], c = PERSONAS.combos[personaKey(p)] || {en: "", zh: "", line: ["", ""]};
+  return {key: personaKey(p), zh: b.zh + e.zh, en: b.en + " × " + e.en, b, e, c};
+}
+const rollDice = () => ({bg: BG_KEYS[rnd(BG_KEYS.length)], pe: PE_KEYS[rnd(PE_KEYS.length)]});
+function newLife(){   // every game starts here: roll who you are, then play
+  if (!BG_KEYS.length || !PE_KEYS.length){ ROLL = null; startGame(); return; }
+  if (ROLL_AUTO){ if (!rollKept) ROLL = rollDice(); startGame(); return; }
+  openRoll();
+}
+function buildStrip(strip, keys, set){
+  if (strip.children.length) return;
+  for (let r = 0; r < REPS; r++) for (const k of keys){
+    const t = document.createElement("div"); t.className = "rtile"; t.dataset.k = k;
+    const cv = document.createElement("canvas"); cv.width = cv.height = 104;
+    const tx = document.createElement("span"), b = document.createElement("b"), sm = document.createElement("small");
+    b.lang = "zh-HK"; b.textContent = set[k].zh; sm.textContent = set[k].en; tx.append(b, sm); t.append(cv, tx); strip.appendChild(t);
+  }
+}
+const tileH = strip => strip.firstElementChild ? strip.firstElementChild.getBoundingClientRect().height : 84;
+function placeStrip(strip, keys, k, cycle){ strip.style.transition = "none"; strip.style.transform = "translateY(" + (-(cycle * keys.length + keys.indexOf(k)) * tileH(strip)) + "px)"; }
+function openRoll(){
+  closeInfo(true); closePicker(true);
+  buildStrip($("stripBg"), BG_KEYS, PERSONAS.bg); buildStrip($("stripPe"), PE_KEYS, PERSONAS.pe);
+  const m = $("rollModal"); m.hidden = false; modalOpen(true); A.sfx("uiOpen");
+  paintAvatar($("rollAvatar"), {who: WHO, stage: 0, tier: 1, hand: null, mood: "happy", drops: 0, boost: false});
+  for (const cv of m.querySelectorAll(".rtile canvas")){ const k = cv.parentNode.dataset.k, it = (PERSONAS.bg[k] || PERSONAS.pe[k] || {}).item, def = DEFS.find(d => d.id === it); if (def) previewInto(cv, def); }
+  fitLine($("rollTitle"));
+  if (rollKept && ROLL) showRollResult(true);   // rolled already and not played yet: the same life, no re-roll
+  else {
+    rollPhase = "ready"; $("rollRes").hidden = true; $("rollSay").textContent = "";
+    for (const id of ["reelBg", "reelPe"]) $(id).classList.remove("landed");
+    placeStrip($("stripBg"), BG_KEYS, BG_KEYS[rnd(BG_KEYS.length)], 0); placeStrip($("stripPe"), PE_KEYS, PE_KEYS[rnd(PE_KEYS.length)], 0);
+    label($("rollGo"), ["Roll", "抽！"]);
+  }
+  $("rollGo").focus({preventScroll: true});
+}
+function closeRoll(quiet){
+  if ($("rollModal").hidden) return;
+  if (rollPhase === "spinning") rollFinish(true);   // closing mid-spin still keeps the roll
+  if (!quiet) A.sfx("uiClose"); $("rollModal").hidden = true; modalOpen(false);
+}
+function spinReel(reel, strip, keys, k, ms){
+  const target = (REPS - 1) * keys.length + keys.indexOf(k), y = -target * tileH(strip);
+  if (!ms){ placeStrip(strip, keys, k, REPS - 1); return; }
+  void strip.offsetWidth; strip.style.transition = "transform " + ms + "ms cubic-bezier(.12,.72,.18,1)"; strip.style.transform = "translateY(" + y + "px)";
+  let t = 0; for (let gap = 45; t < ms - 120; gap = Math.min(220, gap * 1.09)){ t += gap; rollTimers.push(setTimeout(() => A.sfx("reel"), t)); }   // ticks that slow down
+  rollTimers.push(setTimeout(() => { reel.classList.add("landed"); A.sfx("reelStop"); }, ms));
+}
+function rollSpin(){
+  if (rollPhase !== "ready") return;
+  rollPhase = "spinning"; ROLL = rollDice(); rollKept = true;
+  label($("rollGo"), ["Rolling…", "抽緊…"]);
+  const ms = reduceMotion ? 0 : 1;
+  spinReel($("reelBg"), $("stripBg"), BG_KEYS, ROLL.bg, ms && 1300); spinReel($("reelPe"), $("stripPe"), PE_KEYS, ROLL.pe, ms && 2100);
+  rollTimers.push(setTimeout(() => showRollResult(), ms ? 2350 : 0));
+}
+function rollFinish(quiet){   // a tap while spinning: stop the reels now
+  rollTimers.forEach(clearTimeout); rollTimers = [];
+  placeStrip($("stripBg"), BG_KEYS, ROLL.bg, REPS - 1); placeStrip($("stripPe"), PE_KEYS, ROLL.pe, REPS - 1);
+  $("reelBg").classList.add("landed"); $("reelPe").classList.add("landed");
+  if (quiet){ rollPhase = "done"; return; }
+  A.sfx("reelStop"); showRollResult();
+}
+function showRollResult(again){
+  rollTimers.forEach(clearTimeout); rollTimers = [];
+  rollPhase = "done"; const P = personaOf(ROLL); if (!P) return;
+  if (again){ placeStrip($("stripBg"), BG_KEYS, ROLL.bg, REPS - 1); placeStrip($("stripPe"), PE_KEYS, ROLL.pe, REPS - 1); $("reelBg").classList.add("landed"); $("reelPe").classList.add("landed"); }
+  $("rrName").textContent = P.zh; $("rrName").lang = "zh-HK";
+  const nz = document.createElement("span"); nz.className = "zh"; nz.lang = "zh-HK"; nz.textContent = P.c.zh; $("rrNick").replaceChildren(P.c.en || P.en, nz);
+  bi($("rrLine"), P.c.line[0], P.c.line[1]);
+  $("rollRes").hidden = false;
+  $("rollSay").textContent = "You rolled " + P.en + ": " + P.zh + ", " + (P.c.en || "") + ". " + P.c.line[0];
+  label($("rollGo"), ["Start my life", "開始人生"]);
+  if (!again) A.sfx("rival");
+  $("rollGo").focus({preventScroll: true});
+}
+$("rollGo").addEventListener("click", () => {
+  if (rollPhase === "ready") rollSpin(); else if (rollPhase === "spinning") rollFinish(); else if (rollPhase === "done") startGame();
+});
+$("rollModal").addEventListener("click", e => { if (e.target === e.currentTarget) closeRoll(); });
+// who this life is, while it's played: the laptop status card
+function showWho(){
+  const P = personaOf(S && S.persona), w = $("hudWho"); w.hidden = !P; if (P){ w.textContent = P.zh; w.title = P.en; }
+}
 $("pickModal").addEventListener("click", e => { if (e.target === e.currentTarget) closePicker(); });
 
 // ---------- the title screen's sheets ----------
@@ -1630,7 +1744,11 @@ function pollPad(now){
     if (nav) padMove($("endModal"), nav);
     if (hit("a") && performance.now() - endShownAt > 900) padPress($("endModal"));
     if (hit("b")) $("closeEnd").click();
-    else if (hit("start")){ if (S.step < 4){ if (!$("stNext").disabled) $("stNext").click(); } else startGame(); }
+    else if (hit("start")){ if (S.step < 4){ if (!$("stNext").disabled) $("stNext").click(); } else newLife(); }
+    return;
+  }
+  if (!$("rollModal").hidden){   // the roll: A or Start rolls (then starts); B: back
+    if (hit("a") || hit("start")) $("rollGo").click(); else if (hit("b")) closeRoll();
     return;
   }
   if (!$("pickModal").hidden){   // left/right: Jack or Jackie; A or Start: go; B: back
@@ -1670,7 +1788,7 @@ function pollPad(now){
   if (S.mode === "idle"){
     const box = !$("seeOv").hidden ? $("seeOv") : !$("startOv").hidden ? $("startOv") : null;
     if (!box) return;
-    const go = box.id === "startOv" ? beginGame : S.flowDone ? startGame : openResults;
+    const go = box.id === "startOv" ? beginGame : S.flowDone ? newLife : openResults;
     if (hit("start")) go();
     else if (box.id === "seeOv" && hit("b")) openResults();
     else { if (nav) padMove(box, nav); if (hit("a") && !padPress(box)) go(); }
@@ -1733,7 +1851,7 @@ const endDrag = e => {
 cv.addEventListener("pointerup", endDrag); cv.addEventListener("pointercancel", endDrag);
 // Every press answers. What has a sound of its own (Start, steps, sheets, toggles, picks, the game's own moves) plays
 // it where it happens, so keys and a controller get it too; any other button gets a tap. A locked button says no.
-const OWN_SOUND = "#startBtn,#pickGo,#againBtn,#againBtn2,#stNext,#stBack,#tsLb,#tsHow,#tsPriv,#infoClose,.who,#tsMute,#muteBtn,#fsBtn,#tsFs,#fsStartBtn,#pauseBtn,#resumeBtn,#resultsBtn,#closeEnd,.choice,.qopt,.pad button,#hudHoldBtn,label.habit,.ctime label";
+const OWN_SOUND = "#startBtn,#pickGo,#rollGo,#againBtn,#againBtn2,#stNext,#stBack,#tsLb,#tsHow,#tsPriv,#infoClose,.who,#tsMute,#muteBtn,#fsBtn,#tsFs,#fsStartBtn,#pauseBtn,#resumeBtn,#resultsBtn,#closeEnd,.choice,.qopt,.pad button,#hudHoldBtn,label.habit,.ctime label";
 document.addEventListener("click", e => { const t = e.target.closest && e.target.closest(".btn,.tab,.iconbtn,.ov-chip,.hbtn,button,[role=tab]"); if (t && !t.disabled && !t.closest(OWN_SOUND)) A.sfx("click"); });
 document.addEventListener("pointerdown", e => { const t = e.target.closest && e.target.closest("button:disabled,[aria-disabled=true]"); if (t){ A.unlock(); A.sfx("uiNope"); } });
 // Sound from the first touch: a page may make sound only after a tap or a key, so the first one anywhere (the title
@@ -1784,7 +1902,7 @@ $("hudHoldBtn").addEventListener("click", () => act("hold"));
 $("startBtn").addEventListener("click", beginGame);
 $("resumeBtn").addEventListener("click", togglePause);
 $("cardContinue").addEventListener("click", e => { if (!(S.card && tapTooSoon(e, S.card.flipAt))) closeCard(); });
-$("againBtn").addEventListener("click", startGame);
+$("againBtn").addEventListener("click", newLife);
 // "See tower" hides the statement without resetting it; "Back to results" (or Esc / R) brings it back as it was.
 let endScroll = 0;
 function openResults(){
@@ -1796,7 +1914,7 @@ function openResults(){
 }
 $("resultsBtn").addEventListener("click", openResults);
 $("closeEnd").addEventListener("click", () => { A.sfx("uiClose"); endScroll = $("stScroll").scrollTop; $("endModal").hidden = true; modalOpen(false); S.viewing = true; S.mode = "idle"; S.queue = []; S.hold = null; drawPreviews(true); $("seeOv").hidden = false; setPauseUI(); $("againBtn2").hidden = !S.flowDone; ($("againBtn2").hidden ? $("resultsBtn") : $("againBtn2")).focus(); if (S.overKey) quip(S.overKey, 3); });
-$("againBtn2").addEventListener("click", startGame);
+$("againBtn2").addEventListener("click", newLife);
 cv.tabIndex = 0;
 
 // ---------- rendering: sprites ----------
@@ -2750,7 +2868,7 @@ async function showCard(){
 $("stNext").addEventListener("click", () => { if (S.step < 4 && !(S.step === 2 && !surveyDone())) setStep(S.step + 1); });
 $("stBack").addEventListener("click", () => { if (S.step > 1) setStep(S.step - 1); });
 async function readyCard(){
-  const k = [S.endAt, Math.round(S.score), cardName(), WHO, S.pct, S.verdict && S.verdict.id, S.chal && S.chal.beat].join("|");
+  const k = [S.endAt, Math.round(S.score), cardName(), WHO, S.pct, S.verdict && S.verdict.id, S.chal && S.chal.beat, personaKey(S.persona)].join("|");
   if (cardBlob && cardKey === k) return cardBlob;
   const b = await makeResultCard(); cardBlob = b; cardKey = k; return b;
 }
@@ -2801,7 +2919,9 @@ async function makeResultCard(){
     const bx = 445 + i * 182, by = 860 + dy * 0.6; rr(bx, by, 170, 104, 26); g.fillStyle = col; g.fill();
     g.fillStyle = "#fff"; g.font = "700 30px " + F.zh; g.fillText(zh, bx + 85, by + 42); g.font = "900 34px " + F.display; g.fillText(S.falls[k] ? "×" + S.falls[k] : "✓", bx + 85, by + 86);
   });
-  g.fillStyle = "#25317A"; g.font = "800 28px " + F.sans; g.fillText("Played as " + (WHO === "jackie" ? "Jackie" : "Jack"), 247, 990);
+  const who = WHO === "jackie" ? "Jackie" : "Jack", Pc = personaOf(S.persona);   // the player, and who they rolled
+  if (Pc){ g.fillStyle = "#25317A"; g.font = fitFont(who + " · " + Pc.zh, 300, 30, 20, 700, F.zh); g.fillText(who + " · " + Pc.zh, 247, 990); }
+  else { g.fillStyle = "#25317A"; g.font = "800 28px " + F.sans; g.fillText("Played as " + who, 247, 990); }
   // a friend's challenge, beaten: a sticker on the corner
   if (S.chal && S.chal.beat){
     const who = CHAL.n || "my friend";
@@ -2957,7 +3077,8 @@ function challengeUrl(){
 // Threads the replies are what spread it.
 function shareText(){
   const v = S.verdict || verdictOf(S), p = S.pct, c = S.chal;
-  const out = ["我喺《3 Fall Fun 人生跌塔》儲到 " + fmt(S.score) + " 🦀", "稱號：「" + v.zh + "」— " + v.line[1]];
+  const Pw = personaOf(S.persona);
+  const out = [(Pw ? "我抽到「" + Pw.zh + "」，" : "我") + "喺《3 Fall Fun 人生跌塔》儲到 " + fmt(S.score) + " 🦀", "稱號：「" + v.zh + "」— " + v.line[1]];
   const who = c && CHAL.n ? CHAL.n : "我朋友";
   if (c && c.beat) out.push("我贏咗" + zhIn(who) + " 😎 下一個係你");
   else if (c) out.push("仲差 " + fmt(c.gap) + " 先贏到" + zhIn(who) + "…邊個幫我報仇？");
@@ -3081,6 +3202,8 @@ function showEnd(){
   ps.textContent = live ? "Only your nickname and score will appear on the leaderboard. 排行榜只會顯示你的暱稱及分數。" : "Your score will be saved on this device only. 分數只會儲存在這部裝置。";
   $("endModal").hidden = false; $("stScroll").scrollTop = 0; endScroll = 0;
   S.flowDone = false; setStep(1, false); heroUp(); showVerdict(S.verdict); showChal();
+  const P = personaOf(S.persona), hw = $("heroWho"); hw.hidden = !P;   // who you rolled
+  if (P){ const z = document.createElement("span"); z.lang = "zh-HK"; z.textContent = "你抽到：" + P.zh; hw.replaceChildren(z, P.c.en || P.en); }
   fitLine($("endTitle"));
   endShownAt = performance.now(); modalOpen(true);
   $("endTitle").focus({preventScroll:true});
@@ -3199,6 +3322,7 @@ function recordBody(st){
     avatar: WHO,   // Jack or Jackie
     title: st.verdict ? st.verdict.id : undefined,   // the 稱號 (title) id, e.g. "zero"
     via: CHAL ? "c" : undefined,   // came from a friend's challenge link
+    persona: st.persona ? personaKey(st.persona) : undefined,   // the rolled type, e.g. "sub+grind"
     troll_revive: st.troll.reviveSeen ? st.troll.revive : null, troll_invest: st.troll.invest, troll_tickets: st.troll.ticketSeen ? st.troll.tickets : null};
 }
 // Saves go out one at a time; each sends the latest state, and only if it changed since the last one.
