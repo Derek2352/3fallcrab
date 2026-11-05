@@ -1499,7 +1499,7 @@ html.fs.title .chal{max-width:380px;align-self:center;width:100%;background:rgba
 .rtile > span{min-width:0;max-width:100%}
 .rtile canvas{flex:none;width:34px;height:34px}
 .rtile b{display:block;font-family:var(--f-zh);font-weight:700;font-size:19px;line-height:1.1;white-space:nowrap}
-.rtile small{display:block;font-size:10.5px;font-weight:800;line-height:1.1;color:#FFE7A0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rtile small{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;font-size:10.5px;font-weight:800;line-height:1.3;color:#FFE7A0;overflow:hidden;overflow-wrap:normal;text-wrap:balance}
 .reel.landed .rwin{box-shadow:inset 0 0 0 4px #FF5FA2, inset 0 6px 14px rgba(0,0,0,.45), 0 4px 0 #B42A6A}
 .reel.landed .rstrip{animation:reelthunk .32s cubic-bezier(.2,.9,.3,1.6)}
 @keyframes reelthunk{0%{translate:0 -8px}100%{translate:0 0}}
