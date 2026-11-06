@@ -27,7 +27,7 @@ const A = {
 // ---------- world ----------
 const W = 440, H = 700, PW = 270, FLOOR = 50, WATER_Y = 120;
 const GAME_MS = 180000, CARD_MS = 10000, FIRST_CARD = 25000, CARD_GAP = 24000;
-const SLOW_CARD_MS = 30000, RESULT_MS = 12000;   // Extra reading time: 30 s per card, results wait for Continue
+const SLOW_CARD_MS = 30000, RESULT_MS = 16000;   // Extra reading time: 30 s per card, results wait for Continue (16 s: there is a story to read)
 const STEP = 1000 / 60;
 const FALL = [1.5, 1.8, 2.1, 2.4];
 const WARMUP_MS = 45000, WARMUP_FROM = 0.65;   // a gentle start: items fall at 65% speed, easing up to full over the first 45 s
@@ -36,6 +36,8 @@ const MAX_DROPS = 3;
 const {STAGES, TRAPS, CARDS, QUIZ, HABITS} = window.TFF_CONTENT;   // src/content.js
 const QUIPS = window.TFF_CONTENT.QUIPS || {};
 const TITLES = window.TFF_CONTENT.TITLES || [];   // 稱號: the verdict title for each game
+const LATER_NONE = window.TFF_CONTENT.LATER_NONE || [], ENDINGS = window.TFF_CONTENT.ENDINGS || [];   // the story: a timed-out card, and how a life ends
+const CARD_BY = new Map(CARDS.map(c => [c.id, c]));
 let CHAL = null;   // a friend's challenge this visit came with: {s: score, n: nickname, v: title} (see "a friend's challenge")
 const TOP_AT = 22;   // the top of the Retirement bar in the directory (Retirement starts at 15F)
 
@@ -67,6 +69,11 @@ const fmt = n => (n < 0 ? "−" : "") + "HK$" + Math.abs(Math.round(n)).toLocale
 const fmtShort = n => Math.abs(Math.round(n)).toLocaleString("en-US");
 // heights the way a Hong Kong building counts them: G/F, then 1F, 2F... (the floor reached; 4.6 floors is 4F)
 const floorTxt = f => f < 1 ? "G/F" : Math.floor(f + 1e-6) + "F";
+// a story line about the player: {name} is Jack or Jackie, and in English {he} {him} {his} follow them (the Chinese says 佢)
+const PRON = {jack: {name:"Jack", he:"he", He:"He", him:"him", his:"his", His:"His"}, jackie: {name:"Jackie", he:"she", He:"She", him:"her", his:"her", His:"Her"}};
+const tell = (s, extra) => String(s).replace(/\{(\w+)\}/g, (m, k) => extra && k in extra ? extra[k] : (PRON[WHO] || PRON.jack)[k] ?? m);
+// what happened next after a pick: the card's own line for wise or risky, or one of the timed-out lines (the nth card in the game)
+const laterOf = (c, pick, n) => pick === "none" ? (LATER_NONE.length ? LATER_NONE[n % LATER_NONE.length] : null) : (c.later && c.later[pick === "wise" ? "w" : "r"]) || null;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 function isoWeek(d){
   const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
@@ -784,10 +791,14 @@ function choose(kind){
   });
   else { const z = document.createElement("small"); z.lang = "zh-HK"; z.textContent = fxZh.join(" · "); eff.append(fxEn.join(" · "), z); }
   $("cardSheet").classList.add("done");
+  const later = laterOf(c, kind, S.choices.length - 1), os = $("ocStory"); os.hidden = !later; os.replaceChildren();   // what happened to Jack or Jackie next
+  if (later){ const lab = document.createElement("b"); lab.className = "os-lab"; lab.textContent = "Later ";
+    const lz = document.createElement("span"); lz.lang = "zh-HK"; lz.textContent = "後來"; lab.appendChild(lz);
+    const z = document.createElement("small"); z.lang = "zh-HK"; z.textContent = tell(later[1]); os.append(lab, tell(later[0]), z); }
   const tip = $("ocTip"); tip.replaceChildren(document.createTextNode(c.tip[0]));
   const tz = document.createElement("small"); tz.textContent = c.tip[1]; tip.appendChild(tz);
   crab(c.tip[0], c.tip[1]);
-  $("cardChoices").hidden = true; $("cardOutcome").hidden = false; requestAnimationFrame(() => fitLine(txt));   // after its Chinese is marked
+  $("cardChoices").hidden = true; $("cardOutcome").hidden = false; fitOutcome(); requestAnimationFrame(() => { fitLine(txt); fitOutcome(); });   // after its Chinese is marked
   $("cardContinue").focus({preventScroll:true});
   S.queue = []; refill();
   if (kind === "wise"){   // the reward fits the card: vines for spending, a fixed deposit for saving early, insurance for scams
@@ -796,6 +807,16 @@ function choose(kind){
   }
   drawPreviews(); updateHUD(); prewarm();
 }
+// The answered card fits the screen: when its result (story, effects, tip) is too tall, that part scrolls inside the card
+// and Continue stays in view at the bottom (style.css keeps a rough cap for the moment before this runs)
+function fitOutcome(){
+  const oc = $("cardOutcome"); if (oc.hidden) return;
+  oc.style.maxHeight = "none";
+  const pad = parseFloat(getComputedStyle($("cardModal")).paddingTop) || 16;
+  const over = $("cardSheet").offsetHeight - (innerHeight - 2 * pad - 8);   // the modal's padding, and a little for the card's tilt
+  oc.style.maxHeight = over > 0 ? Math.max(150, oc.offsetHeight - over) + "px" : "none";
+}
+addEventListener("resize", () => { if (S && S.card && S.card.flip) fitOutcome(); });
 function closeCard(){
   if (!S.card) return;
   $("cardModal").hidden = true; S.card = null; modalOpen(false);
@@ -3110,6 +3131,36 @@ $("threadsBtn").addEventListener("click", () => {
 });
 
 // ---------- end screen ----------
+// Jack's or Jackie's life story: what happened after each Life Event, in the order they came, and how it all ended
+const FALL_BG = {spend: "var(--orange)", scam: "var(--purple)", delay: "var(--blue)"};
+function renderStory(){
+  const name = (PRON[WHO] || PRON.jack).name, ol = $("storyList"); ol.replaceChildren();
+  $("storyHead").firstChild.textContent = name + "'s story";
+  S.choices.forEach((ch, n) => {
+    const c = CARD_BY.get(ch.card), later = c && laterOf(c, ch.pick, n); if (!later) return;
+    const trap = ch.pick === "wise" ? null : ch.pick === "risky" ? c.trap : "delay";
+    const li = document.createElement("li"); li.className = trap ? "bad" : "good";
+    const ic = svgUse(trap ? ICON[trap] : "i-good"); if (trap){ ic.style.background = FALL_BG[trap]; ic.style.borderRadius = "8px"; ic.style.padding = "2px"; }
+    const st = STAGES[c.st] || STAGES[0], b = document.createElement("div");
+    const h = document.createElement("span"); h.className = "sl-h";
+    const sg = document.createElement("small"); sg.textContent = st.en + " " + st.zh + " · " + (trap ? (ch.pick === "none" ? "Put off 拖咗" : TRAPS[trap].en + " " + TRAPS[trap].zh) : "Wise 明智");
+    const tg = document.createElement("b"); tg.textContent = c.tag ? c.tag[0] : c.en; const tz = document.createElement("span"); tz.lang = "zh-HK"; tz.textContent = c.tag ? c.tag[1] : c.zh; tg.append(" ", tz);
+    h.append(sg, tg);
+    const p = document.createElement("p"); p.textContent = tell(later[0]); const pz = document.createElement("small"); pz.lang = "zh-HK"; pz.textContent = tell(later[1]); p.appendChild(pz);
+    b.append(h, p); li.append(ic, b); ol.appendChild(li);
+  });
+  ol.hidden = !ol.children.length;
+  // the ending: the life stage reached × how the picks went (mostly wise, mixed, mostly not)
+  const E = ENDINGS[S.stage], end = $("storyEnd"), picks = S.wise + S.risky + S.missed, share = picks ? S.wise / picks : 0.5;
+  const k = share >= 0.7 ? "good" : share >= 0.4 ? "mixed" : "rough", P = personaOf(S.persona);
+  end.hidden = !(E && E[k]); end.replaceChildren();
+  if (E && E[k]){
+    const lab = document.createElement("b"); lab.className = "os-lab"; lab.textContent = "The end "; const lz = document.createElement("span"); lz.lang = "zh-HK"; lz.textContent = "結局"; lab.appendChild(lz);
+    const z = document.createElement("small"); z.lang = "zh-HK"; z.textContent = tell(E[k][1], {nick: P && P.c.zh ? "「" + P.c.zh + "」" : ""});
+    end.append(lab, tell(E[k][0], {nick: P && P.c.en ? ", “" + P.c.en + "”," : ""}), z);
+  }
+  $("storySec").hidden = ol.hidden && end.hidden;
+}
 function showEnd(){
   const st = STAGES[S.stage];
   S.verdict = verdictOf(S); S.chal = CHAL ? {beat: Math.round(S.score) > CHAL.s, gap: Math.max(10, CHAL.s - Math.round(S.score))} : null;   // a tie still needs 10 more
@@ -3157,6 +3208,7 @@ function showEnd(){
     trow("i-scam", "var(--purple)", lost ? RP.investLost : RP.investDodged, lost ? "−" + fmt(lost) : "✓", lost, {n: fmt(lost)}); }
   if (T.ticketSeen) trow("i-spend", "var(--orange)", T.tickets ? RP.tickets : RP.ticketDodged, T.tickets ? "−" + fmt(T.tickets * TICKET) : "✓", T.tickets, {n: fmt(T.tickets * TICKET), k: T.tickets});
   $("trollSec").hidden = !tr.children.length;
+  renderStory();
   // Quiz: each answer is marked right or wrong the moment it's tapped, with the reason, and then locked.
   const qz = $("quiz"); qz.replaceChildren(); S.quiz = QUIZ.map(() => null);
   const quizScore = () => { $("quizScore").textContent = S.quiz.filter(x => x && x.ok).length + "/" + QUIZ.length; };
