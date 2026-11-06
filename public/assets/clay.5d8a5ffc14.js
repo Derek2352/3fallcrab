@@ -18,7 +18,7 @@
     display: '"Gluten","Arial Rounded MT Bold","Trebuchet MS",sans-serif',
     zh:      '"LXGW WenKai TC","TFF Punct","Noto Sans HK","PingFang HK","Microsoft JhengHei",sans-serif',
     sans:    '"TFF Punct","Noto Sans HK","PingFang HK","Microsoft JhengHei",sans-serif',
-    dot:     '"DotGothic16","Courier New",monospace'
+    dot:     '"TFF Punct","Noto Sans HK","PingFang HK",system-ui,sans-serif'
   };
   const col = c => C[c] || c;
 

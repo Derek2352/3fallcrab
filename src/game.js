@@ -65,6 +65,8 @@ if (!POOLS.scam.length) POOLS.scam = POOLS.risky.slice();
 const $ = id => document.getElementById(id);
 const fmt = n => (n < 0 ? "−" : "") + "HK$" + Math.abs(Math.round(n)).toLocaleString("en-US");
 const fmtShort = n => Math.abs(Math.round(n)).toLocaleString("en-US");
+// heights the way a Hong Kong building counts them: G/F, then 1F, 2F... (the floor reached; 4.6 floors is 4F)
+const floorTxt = f => f < 1 ? "G/F" : Math.floor(f + 1e-6) + "F";
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 function isoWeek(d){
   const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
@@ -2454,13 +2456,16 @@ function draw(dt){
 }
 function drawRuler(c){
   c.save();
-  c.font = "13px " + K.FONTS.dot; c.textBaseline = "middle";
+  c.font = "700 12px " + K.FONTS.dot; c.textBaseline = "middle";
   for (let f = 1; f <= 30; f++){
     const y = -f * FLOOR; if (y < S.camTop - 20 || y > S.camTop + H + YB + 20) continue;   // not up behind the header
     const st = STAGES.find(s => s.at === f);
     if (st){
       c.strokeStyle = "rgba(255,255,255,0.85)"; c.lineWidth = 2; c.setLineDash([8, 7]);
       c.beginPath(); c.moveTo(XV ? -XV : 44, y); c.lineTo(W + XV, y); c.stroke(); c.setLineDash([]);
+    }
+    if (!st && f % 5){   // in between: a small tick, not a number on every floor (that read like a chart's axis)
+      c.fillStyle = skyDusk >= .5 ? "rgba(37,49,122,0.55)" : "rgba(37,49,122,0.32)"; roundRect(c, 19, y - 2, 12, 4, 2); c.fill(); continue;
     }
     c.fillStyle = st ? "#FFE45C" : skyDusk >= .5 ? "rgba(37,49,122,0.8)" : "rgba(37,49,122,0.55)";
     roundRect(c, 8, y - 10, 34, 20, 8); c.fill();
@@ -2482,7 +2487,7 @@ function drawLabels(c){
     c.fillStyle = "#FFE45C"; c.textAlign = "left"; c.fillText(label, W - tw - 14, ly + 10.5);
   }
   if (S.best > 8 && S.mode !== "idle"){
-    const y = -S.best, txt = "BEST " + (S.best / FLOOR).toFixed(1) + "F";
+    const y = -S.best, txt = "Best " + floorTxt(S.best / FLOOR);
     const dn = STAGES.some(st => st.at && y - -st.at * FLOOR > 0 && y - -st.at * FLOOR < 34) ? 26 : 0;   // a stage line just above: flag hangs below
     c.font = "800 12px " + K.FONTS.display; const tw = c.measureText(txt).width;
     c.fillStyle = "#FF5FA2"; c.beginPath(); c.moveTo(48, y - 22 + dn); c.lineTo(48, y + 2 + dn * 0.1); c.lineTo(44, y + 2 + dn * 0.1); c.lineTo(44, y - 22 + dn); c.fill();
@@ -2625,7 +2630,7 @@ function updateHUD(){
   $("hudNw").textContent = (window.innerWidth < 430 && S.score >= 10000) ? "HK$" + (S.score / 1000).toFixed(S.score >= 100000 ? 0 : 1) + "K" : fmt(S.score);
   $("rateVal").textContent = "×" + S.rate.toFixed(1);
   const fl = S.best / FLOOR;
-  $("heightVal").textContent = fl.toFixed(1) + "F"; $("hudH").textContent = fl.toFixed(1) + "F";
+  $("heightVal").textContent = floorTxt(fl); $("hudH").textContent = floorTxt(fl);
   $("hudDrops").textContent = S.drops + "/" + MAX_DROPS; $("hudDrops").classList.toggle("hit", S.drops > 0);
   [...$("fundCoins").children].forEach((p, i) => p.classList.toggle("on", i < S.fund));
   [...$("dropCoins").children].forEach((p, i) => p.classList.toggle("hit", i < S.drops));
@@ -2914,7 +2919,7 @@ async function makeResultCard(){
     g.restore(); g.textAlign = "center";
   }
   g.fillStyle = "#25317A"; g.font = "700 42px " + F.zh; g.fillText(top ? "成功退休！" : "去到「" + st.zh + "」", cx, 784 + dy);
-  g.fillStyle = "#5B516C"; g.font = "800 28px " + F.sans; g.fillText((top ? "Made it to Retirement" : "Reached " + st.en) + " · " + (S.best / FLOOR).toFixed(1) + "F", cx, 826 + dy);
+  g.fillStyle = "#5B516C"; g.font = "800 28px " + F.sans; g.fillText((top ? "Made it to Retirement" : "Reached " + st.en) + " · " + floorTxt(S.best / FLOOR), cx, 826 + dy);
   [["spend", "#E8661F", "過度消費"], ["scam", "#7B5BE8", "騙局"], ["delay", "#2F86D6", "拖延"]].forEach(([k, col, zh], i) => {
     const bx = 445 + i * 182, by = 860 + dy * 0.6; rr(bx, by, 170, 104, 26); g.fillStyle = col; g.fill();
     g.fillStyle = "#fff"; g.font = "700 30px " + F.zh; g.fillText(zh, bx + 85, by + 42); g.font = "900 34px " + F.display; g.fillText(S.falls[k] ? "×" + S.falls[k] : "✓", bx + 85, by + 86);
@@ -3109,7 +3114,7 @@ function showEnd(){
   const st = STAGES[S.stage];
   S.verdict = verdictOf(S); S.chal = CHAL ? {beat: Math.round(S.score) > CHAL.s, gap: Math.max(10, CHAL.s - Math.round(S.score))} : null;   // a tie still needs 10 more
   const top = S.stage === STAGES.length - 1;
-  $("stDate").textContent = "STATEMENT · " + new Date().toLocaleDateString("en-GB", {day:"2-digit", month:"short", year:"numeric"}).toUpperCase();
+  $("stDate").textContent = "Statement · " + new Date().toLocaleDateString("en-GB", {day:"numeric", month:"short", year:"numeric"});
   $("endEyebrow").textContent = S.over === "drops" ? "整冧咗！ 3 items fell into the harbour" : "夠鐘！ Time's up";
   $("endTitle").textContent = top ? "You made it to Retirement" : "You reached " + st.en;
   const etz = document.createElement("span"); etz.className = "zh"; etz.textContent = top ? "成功退休！" : "去到「" + st.zh + "」"; $("endTitle").appendChild(etz);
@@ -3117,8 +3122,8 @@ function showEnd(){
   $("endSub").textContent = ft === 0 ? "No money traps at all! 一次都冇中伏！" : "You fell into " + ft + " money trap" + (ft > 1 ? "s" : "") + ". 中咗" + ft + "次伏。";
   const rz = document.createElement("span"); rz.className = "zh"; rz.lang = "zh-HK"; rz.textContent = st.zh; $("rStage").replaceChildren(rz, st.en);
   $("rNw").textContent = fmt(S.score);
-  $("rHeight").textContent = (S.best / FLOOR).toFixed(1) + "F";
-  const picks = S.wise + S.risky + S.missed; $("rWise").textContent = picks ? S.wise + "/" + picks : "—";
+  $("rHeight").textContent = floorTxt(S.best / FLOOR);
+  const picks = S.wise + S.risky + S.missed; $("rWise").textContent = picks ? S.wise + " of " + picks : "—";
   $("rJpRow").hidden = S.jpAt < 0;   // the windfall plus what jackpot time added
   if (S.jpAt >= 0){ $("rJp").textContent = "+" + fmt(JACKPOT_BONUS + S.jpExtra); $("rJpRow").title = fmt(JACKPOT_BONUS) + " windfall + " + fmt(S.jpExtra) + " from jackpot time · 意外之財加大獎時間收入"; }
   const fr = $("fallRep"); fr.replaceChildren();
@@ -3463,7 +3468,7 @@ function lbRow(e, rank, mine){
   const li = document.createElement("li"); if (mine) li.className = "me";
   const r = document.createElement("span"); r.className = "r"; r.textContent = rank;
   const n = document.createElement("span"); n.className = "n"; n.textContent = sanitizeName(e.name);
-  const f = document.createElement("span"); f.className = "fl"; f.textContent = typeof e.height === "number" ? e.height.toFixed(1) + "F" : "";
+  const f = document.createElement("span"); f.className = "fl"; f.textContent = typeof e.height === "number" ? floorTxt(e.height) : "";
   const s = document.createElement("span"); s.className = "s"; s.textContent = fmt(Number(e.score) || 0);
   li.append(r, n, f, s); return li;
 }
@@ -3481,13 +3486,23 @@ function lbRows(list, extra){
   }
   body.appendChild(ol);
 }
+// "2026-W45" as the dates people know: ["2–8 Nov", "11月2日至8日"]
+function weekDates(key){
+  const m = /^(\d{4})-W(\d{1,2})$/.exec(key || ""); if (!m) return null;
+  const jan4 = Date.UTC(+m[1], 0, 4), dow = (new Date(jan4).getUTCDay() + 6) % 7, mon = new Date(jan4 - dow * 864e5 + (+m[2] - 1) * 7 * 864e5), sun = new Date(mon.getTime() + 6 * 864e5);
+  const en = d => d.getUTCDate() + " " + d.toLocaleString("en-GB", {month: "short", timeZone: "UTC"});
+  const zh = (d, withMonth) => (withMonth ? (d.getUTCMonth() + 1) + "月" : "") + d.getUTCDate() + "日";
+  const same = mon.getUTCMonth() === sun.getUTCMonth();
+  return [(same ? mon.getUTCDate() : en(mon)) + "–" + en(sun), zh(mon, true) + "至" + zh(sun, !same)];
+}
 function renderLB(){
   const note = $("lbNote");
   if (tab === "insights"){ lbSig = ""; renderInsights(); return; }
   let list, txt;
   if (db){ list = tab === "week" ? lbWeek : lbAll;
     if (!dbWritable) list = list.concat(localList());
-    txt = tab === "week" ? "Week " + curWeek().split("-W")[1] + " · resets every Monday 逢星期一重新計算" : "All-time, every player 所有玩家總排名"; }
+    const wd = weekDates(curWeek());
+    txt = tab === "week" ? "This week" + (wd ? ", " + wd[0] : "") + " · a new board every Monday 本週" + (wd ? "（" + wd[1] + "）" : "") + "，逢星期一重新計算" : "All-time, every player 所有玩家總排名"; }
   else { list = localList(); txt = "Scores on this device 本機紀錄"; }
   list = list.slice().sort((a, b) => (b.score || 0) - (a.score || 0));
   const extra = db && tab === "week" && myPost && myPost.week === curWeek() && myPost.rank > 0 && !list.slice(0, 10).some(e => e._id === myPost.id) ? myPost : null;

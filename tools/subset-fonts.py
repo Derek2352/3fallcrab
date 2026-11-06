@@ -3,7 +3,7 @@
 
     npm run fonts          (the same as: python3 tools/subset-fonts.py)
 
-Gluten, Noto Sans HK, LXGW WenKai TC and DotGothic16 used to come from Google Fonts: about 3.8 MB of font slices on a
+Gluten, Noto Sans HK and LXGW WenKai TC used to come from Google Fonts: about 3.8 MB of font slices on a
 first visit, to show roughly 600 different Chinese characters. This keeps only the glyphs the game uses and writes
 small WOFF2 files to src/fonts/ (tools/build.mjs fingerprints them into public/assets/):
 
@@ -64,8 +64,6 @@ FONTS = [
      "4fcc5aec11cbbf737b0cfab7b63796f7f280087a7a656b2f13342cd5e5318d95", {}),
     ("lxgw-wenkai-tc-bold.woff2", "lxgwwenkaitc", "LXGWWenKaiTC-Bold.ttf",
      "5c9feadfd928f3ae3860e7d001ad3d0d0c55b0157fff08cd4d51b51aca677f23", {}),
-    ("dotgothic16.woff2", "dotgothic16", "DotGothic16-Regular.ttf",
-     "3ad9af88726d42b40f7f365f0dcac785af73cf20ea6f1d5b44e57cc21150b8f1", {}),
 ]
 
 # (family name, upstream folder, SHA-256 of its OFL.txt, files made from it)
@@ -74,7 +72,6 @@ LICENCES = [
     ("Noto Sans HK", "notosanshk", "1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9", "noto-sans-hk.woff2"),
     ("LXGW WenKai TC", "lxgwwenkaitc", "4fff27d35db0e22cd81d58da6f20e09f415cf354a3338e3cf1fc0eb9222c7174",
      "lxgw-wenkai-tc-regular.woff2, lxgw-wenkai-tc-bold.woff2"),
-    ("DotGothic16", "dotgothic16", "b6630c61ea078cacd7fabe37d14ffe557a0b45b06683374a9aa9e24262993e33", "dotgothic16.woff2"),
 ]
 
 # Always included, whatever the sources say: printable ASCII (names, numbers), a no-break space, and the punctuation an

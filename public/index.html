@@ -24,9 +24,9 @@
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="3 Fall Fun: a clay tower of everyday items on a Hong Kong harbour pier">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="preload" href="/assets/gluten.3668d18030.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="/assets/noto-sans-hk.99e8cc5fd8.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/assets/style.fcb488c951.css">
+<link rel="preload" href="/assets/gluten.5b0fb221b0.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/noto-sans-hk.249c39885d.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/style.de6ef511e3.css">
 <meta name="tff-medal3d" content="/assets/medal3d.5c312c1b7e.js">
 </head>
 <body>
@@ -120,7 +120,7 @@
           <div class="pbs"><span class="k">Time left<i>剩餘時間</i></span><span class="v" id="timeVal">3:00</span></div>
           <div class="pbs"><span class="k">Savings boost<i>儲蓄加成</i></span><span class="v" id="rateVal">×1.0</span></div>
           <div class="pbs"><span class="k">Emergency fund<i>應急錢</i></span><div class="coins" id="fundCoins" role="img" aria-label="0 of 3"><i class="coin"></i><i class="coin"></i><i class="coin"></i></div></div>
-          <div class="pbs"><span class="k">Dropped · 3 = out<i>跌落海</i></span><div class="coins" id="dropCoins" role="img" aria-label="0 of 3"><i class="coin"></i><i class="coin"></i><i class="coin"></i></div></div>
+          <div class="pbs"><span class="k">Dropped · out at 3<i>跌落海</i></span><div class="coins" id="dropCoins" role="img" aria-label="0 of 3"><i class="coin"></i><i class="coin"></i><i class="coin"></i></div></div>
         </div>
       </section>
 
@@ -129,17 +129,17 @@
         <ul class="chips" id="fallsChips"></ul>
       </section>
 
-      <section class="crabcard clay" aria-live="polite"><canvas class="cav" id="cardAvatar" width="104" height="200" aria-hidden="true"></canvas><canvas id="crabSay" width="88" height="72" aria-hidden="true"></canvas><p id="crabMsg"></p></section>
+      <section class="crabcard clay" aria-live="polite" tabindex="0" aria-label="The crab says 蟹仔話你知"><canvas class="cav" id="cardAvatar" width="104" height="200" aria-hidden="true"></canvas><canvas id="crabSay" width="88" height="72" aria-hidden="true"></canvas><p id="crabMsg"></p></section>
     </aside>
 
     <div class="center">
       <div class="hud" aria-label="Game status">
         <canvas class="hav" id="hudAvatar" width="60" height="115" aria-hidden="true"></canvas>
         <p class="hwho" id="hudWho" hidden></p>
-        <div class="hs"><span class="k">Time</span><span class="v" id="hudTime">3:00</span></div>
-        <div class="hs nw"><span class="k">Net worth</span><span class="v" id="hudNw">HK$0</span></div>
-        <div class="hs"><span class="k">Height</span><span class="v" id="hudH">0.0F</span></div>
-        <div class="hs dr"><span class="k">Drop</span><span class="v" id="hudDrops">0/3</span></div>
+        <div class="hs"><span class="k"><svg class="hi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4.2l2.8 1.8M9.5 2.8h5"/></svg><span class="sr">Time</span></span><span class="v" id="hudTime">3:00</span></div>
+        <div class="hs nw"><span class="k"><svg class="hi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M14.6 9.2c-.5-1-1.5-1.5-2.7-1.5-1.5 0-2.6.8-2.6 2s1.1 1.7 2.6 2 2.8.8 2.8 2.1-1.2 2.1-2.8 2.1c-1.3 0-2.3-.6-2.8-1.6M12 6v1.7M12 16.3V18"/></svg><span class="sr">Net worth</span></span><span class="v" id="hudNw">HK$0</span></div>
+        <div class="hs"><span class="k"><svg class="hi" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V8l7-4.5L19 8v13M3 21h18M9 21v-4h6v4M9 10.5h1.5M13.5 10.5H15M9 14h1.5M13.5 14H15"/></svg><span class="sr">Height</span></span><span class="v" id="hudH">G/F</span></div>
+        <div class="hs dr"><span class="k"><svg class="hi" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5s-6 6.6-6 10.6a6 6 0 0 0 12 0c0-4-6-10.6-6-10.6z"/></svg><span class="sr">Drops</span></span><span class="v" id="hudDrops">0/3</span></div>
         <div class="mini">
           <button class="hbtn" id="hudHoldBtn" aria-label="Hold item"><canvas id="hudHold" width="88" height="88" data-slot="+"></canvas><span>Hold</span></button>
           <div class="hbtn" aria-label="Next item"><canvas id="hudNext" width="88" height="88"></canvas><span>Next</span></div>
@@ -367,7 +367,7 @@
 <div class="modal infom" id="infoModal" role="dialog" aria-modal="true" aria-labelledby="infoTitle" hidden>
   <div class="sheet infosheet" id="infoSheet" tabindex="-1">
     <div class="is-head"><h2 id="infoTitle"></h2><button class="iconbtn" id="infoClose" type="button" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="#2E2838" stroke-width="2.6" stroke-linecap="round"/></svg></button></div>
-    <div class="is-body" id="infoBody"></div>
+    <div class="is-body" id="infoBody" tabindex="0" role="region" aria-labelledby="infoTitle"></div>
   </div>
 </div>
 
@@ -448,7 +448,7 @@
 </div>
 
 <script src="/assets/matter-0.19.0.min.bdf68e297d.js"></script>
-<script src="/assets/clay.2fed28cf2b.js"></script>
+<script src="/assets/clay.5d8a5ffc14.js"></script>
 <script src="/assets/audio.4738078784.js"></script>
 <script src="/assets/wise.483e521ff6.js"></script>
 <script src="/assets/risky-a.5a67e884e5.js"></script>
@@ -457,7 +457,7 @@
 <script src="/assets/jackpot.993fa050bf.js"></script>
 <script src="/assets/content.f9070067f8.js"></script>
 <script src="/assets/avatar.2a84cc27be.js"></script>
-<script src="/assets/game.7eba8a9640.js"></script>
+<script src="/assets/game.d9abc231ec.js"></script>
 <script src="/assets/intro.001bb55009.js"></script>
 </body>
 </html>

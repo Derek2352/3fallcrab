@@ -15,9 +15,6 @@ Noto Sans HK  (noto-sans-hk.woff2)
 LXGW WenKai TC  (lxgw-wenkai-tc-regular.woff2, lxgw-wenkai-tc-bold.woff2)
   Copyright 2024 The LXGW WenKai Project Authors (https://github.com/lxgw/LxgwWenkaiTC)
 
-DotGothic16  (dotgothic16.woff2)
-  Copyright 2020 The DotGothic16 Project Authors (https://github.com/fontworks-fonts/DotGothic16)
-
 
 -----------------------------------------------------------
 SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007
