@@ -1630,8 +1630,10 @@ function buildStrip(strip, keys, set){
 }
 const tileH = strip => strip.firstElementChild ? strip.firstElementChild.getBoundingClientRect().height : 84;
 function placeStrip(strip, keys, k, cycle){ strip.style.transition = "none"; strip.style.transform = "translateY(" + (-(cycle * keys.length + keys.indexOf(k)) * tileH(strip)) + "px)"; }
+let rollFromEnd = false;   // the roll was opened by Play again on the statement: closing it without playing goes back there
 function openRoll(){
   closeInfo(true); closePicker(true);
+  rollFromEnd = !$("endModal").hidden; $("endModal").hidden = true;   // the statement makes way (it was left on top of the roll)
   buildStrip($("stripBg"), BG_KEYS, PERSONAS.bg); buildStrip($("stripPe"), PE_KEYS, PERSONAS.pe);
   const m = $("rollModal"); m.hidden = false; modalOpen(true); A.sfx("uiOpen");
   paintAvatar($("rollAvatar"), {who: WHO, stage: 0, tier: 1, hand: null, mood: "happy", drops: 0, boost: false});
@@ -1650,6 +1652,8 @@ function closeRoll(quiet){
   if ($("rollModal").hidden) return;
   if (rollPhase === "spinning") rollFinish(true);   // closing mid-spin still keeps the roll
   if (!quiet) A.sfx("uiClose"); $("rollModal").hidden = true; modalOpen(false);
+  if (rollFromEnd && !quiet && S && S.mode === "over"){ $("endModal").hidden = false; modalOpen(true); $("againBtn").focus({preventScroll: true}); }
+  rollFromEnd = false;
 }
 function spinReel(reel, strip, keys, k, ms){
   const target = (REPS - 1) * keys.length + keys.indexOf(k), y = -target * tileH(strip);
@@ -1753,7 +1757,8 @@ function clipLoad(v){
 }
 function clipSync(v, asked){   // play if it's wanted and on screen (and no game is on, unless the player asked for it)
   if (!(v.__want && (v.__vis || !clipIO) && (asked || !gameOn()))){ if (!v.paused) v.pause(); return; }
-  clipLoad(v).then(() => { if (v.src && v.__want && v.paused) v.play().catch(() => { v.__want = false; clipUI(v); }); });
+  clipLoad(v).then(() => { if (v.src && v.__want && v.paused) v.play().catch(e => {   // a play cut short by a pause (scrolled away) isn't a "no"
+    if (e && e.name === "NotAllowedError"){ v.__want = false; clipUI(v); } }); });   // the browser won't autoplay (e.g. iPhone Low Power Mode): wait for a tap
 }
 const clipsSync = () => clipVids.forEach(v => clipSync(v));
 document.querySelectorAll(".howto .clip").forEach(clipAdd);
