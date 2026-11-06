@@ -1303,6 +1303,7 @@ function startGame(){
   nextPiece();   // last: a Jackpot crab as the very first item gets its own words in
   updateHUD(); setPauseUI(); $("board").focus({preventScroll:true});
   outfitKey = ""; prevLook = null; avFx.clear(); updateAvatar(true);   // a new game starts in the first outfit, no transition
+  clipsSync();   // How to play's clips rest while a game is on
 }
 function endGame(reason){
   if (S.mode === "over") return;
@@ -1313,7 +1314,7 @@ function endGame(reason){
   if (S.offer){ $("offerModal").hidden = true; S.offer = null; modalOpen(false); }
   if (S.pf){ $("pfChip").hidden = true; S.pf = null; }
   if (S.troll.invest >= 2 && !S.troll.scamSaid){ S.troll.scamSaid = 1; S.falls.scam++; }   // the game ended before the scam showed itself
-  A.mode("over"); setPauseUI();
+  A.mode("over"); setPauseUI(); clipsSync();
   A.sfx(reason === "drops" ? "gameOver" : (S.stage === STAGES.length - 1 ? "win" : "timeUp"));
   mood(reason === "drops" ? "cover" : "happy", 4000);
   S.overKey = reason === "drops" ? "overDrops" : "over" + S.stage; quip(S.overKey, 3);
@@ -1721,6 +1722,41 @@ $("infoModal").addEventListener("click", e => { if (e.target === e.currentTarget
 for (const [id, kind] of [["tsLb", "lb"], ["tsHow", "how"], ["tsPriv", "priv"]]) $(id).addEventListener("click", e => openInfo(kind, e.currentTarget));
 $("tsMute").addEventListener("click", toggleMute);
 $("tsFs").addEventListener("click", () => toggleFs(false));
+
+// ---------- How to play: a short clip of each move, filmed from the game itself ----------
+// tools/clips.mjs films them from real play (src/clips/). A clip loads when it first comes on screen, and whole (fetched
+// into a blob): the host answers a range request with the full file, and Safari won't play a video from a server that
+// does. It plays muted, on a loop, while it's on screen, and stops when it's off screen or a game is being played (so
+// it never costs the game frames). With reduced motion it shows its still until played. Each has a pause / play button
+// (moving pictures: WCAG 2.2.2); the clip's text is beside it, so the video itself is hidden from screen readers.
+const gameOn = () => !!(S && (S.mode === "playing" || S.mode === "card" || S.mode === "offer"));
+const clipIO = "IntersectionObserver" in window ? new IntersectionObserver(es => es.forEach(e => { e.target.__vis = e.isIntersecting; clipSync(e.target); }), {rootMargin: "80px"}) : null;
+const clipVids = [];
+function clipAdd(box){
+  const v = box.querySelector("video"), b = document.createElement("button"); b.type = "button"; b.className = "clip-pp";
+  b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-pause" d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/><path class="i-play" d="M8 5.5v13l10.5-6.5z"/></svg>';
+  b.addEventListener("click", () => { v.__want = !box.dataset.playing; v.__vis = true; clipSync(v, true); });
+  v.addEventListener("click", () => b.click());
+  for (const ev of ["play", "playing", "pause", "ended"]) v.addEventListener(ev, () => clipUI(v));
+  box.appendChild(b); v.__want = !reduceMotion; clipVids.push(v); clipUI(v);
+  if (clipIO) clipIO.observe(v);
+}
+function clipUI(v){
+  const box = v.parentNode, on = !v.paused && !v.ended, b = box.querySelector(".clip-pp");
+  if (on) box.dataset.playing = "1"; else delete box.dataset.playing;
+  b.setAttribute("aria-label", (on ? "Pause the clip: " : "Play the clip: ") + box.dataset.label);
+}
+function clipLoad(v){
+  if (!v.__load) v.__load = fetch(v.dataset.src).then(r => { if (!r.ok) throw new Error(r.status); return r.blob(); })
+    .then(b => { v.src = URL.createObjectURL(b); }).catch(() => { v.parentNode.classList.add("still"); });
+  return v.__load;
+}
+function clipSync(v, asked){   // play if it's wanted and on screen (and no game is on, unless the player asked for it)
+  if (!(v.__want && (v.__vis || !clipIO) && (asked || !gameOn()))){ if (!v.paused) v.pause(); return; }
+  clipLoad(v).then(() => { if (v.src && v.__want && v.paused) v.play().catch(() => { v.__want = false; clipUI(v); }); });
+}
+const clipsSync = () => clipVids.forEach(v => clipSync(v));
+document.querySelectorAll(".howto .clip").forEach(clipAdd);
 
 // ---------- game controller ----------
 // Any standard pad (Xbox, PlayStation, Switch Pro and most others). In play: the D-pad or left stick moves, down (or
@@ -2603,6 +2639,12 @@ function buildStatic(){
     const ef = document.createElement("em"); ef.className = "eff"; const cut = t.eff.search(/\p{Script=Han}/u);   // the Cantonese on its own line
     if (cut > 0) bi(ef, "In the game: " + t.eff.slice(0, cut).trim(), t.eff.slice(cut)); else ef.textContent = "In the game: " + t.eff;
     tx.append(b, sm, ef); li.append(svgUse(ICON[k]), tx); fl.appendChild(li);
+    if (fl.dataset["clip" + k[0].toUpperCase() + k.slice(1)]){   // its clip, filmed from the game (How to play, above)
+      const K = k[0].toUpperCase() + k.slice(1), box = document.createElement("span"); box.className = "clip"; box.dataset.label = t.en + " in the game";
+      const v = document.createElement("video"); v.className = "clipv"; v.muted = true; v.loop = true; v.playsInline = true; v.preload = "none";
+      v.width = 360; v.height = 584; v.setAttribute("aria-hidden", "true"); v.setAttribute("disablepictureinpicture", ""); v.setAttribute("disableremoteplayback", "");
+      v.poster = fl.dataset["still" + K]; v.dataset.src = fl.dataset["clip" + K]; box.appendChild(v); li.appendChild(box);
+    }
     const c = document.createElement("li"); c.className = "chip " + k; c.title = t.en + " " + t.zh;
     const n = document.createElement("span"); n.className = "n"; n.id = "fall_" + k; n.textContent = "0";
     const lab = document.createElement("small"); for (const t of SHORT[k]){ const sp = document.createElement("span"); sp.textContent = t; lab.appendChild(sp); }
@@ -3671,6 +3713,7 @@ function sampleTower(){
 }
 fsOn = !!lsGet("tff_fs", true); root.classList.toggle("fs", fsOn); root.classList.toggle("title", fsOn); $("fsBtn").setAttribute("aria-pressed", String(fsOn));   // full screen by default
 buildStatic(); sampleTower(); resize(); drawCrabs(); updateHUD(); renderLedger(); setMuteUI(); planFirst();
+document.querySelectorAll(".falls .clip").forEach(clipAdd);
 markZh(document.body); zhWatch.observe(document.body, ZH_WATCH);
 // Card timer, 10 s or 30 s: the same choice on the start and pause cards
 const syncTimer = () => document.querySelectorAll(".ctime input").forEach(r => { r.checked = r.value === (slowRead ? "30" : "10"); });

@@ -1605,3 +1605,24 @@ html.fs.title .ts-sound .ts-silent{color:var(--ink-2);font-weight:700}
 @media (max-height: 700px){ .lifecard.done .lc-body{padding-bottom:12px} .lifecard.done .lc-body::after{display:none}
   .oc-head{font-size:18px} .oc-head svg{width:28px;height:28px} .oc-effect .fx{padding:3px 9px 4px;font-size:12px} .oc-effect .fx small{font-size:11px} }
 @media (max-height: 700px){ #cardModal{padding:10px} }
+/* How to play: a clip of each move, filmed from the game (tools/clips.mjs), with a pause / play button */
+.clip{position:relative;display:block;aspect-ratio:360/584;border-radius:12px;overflow:hidden;background:#9ED3F2;
+  box-shadow:0 0 0 2px #fff, 0 3px 0 2px rgba(46,40,56,.12)}
+.clip video{display:block;width:100%;height:100%;object-fit:cover;cursor:pointer}
+.clip-pp{position:absolute;right:6px;bottom:6px;width:32px;height:32px;padding:0;border:0;border-radius:50%;display:grid;place-items:center;cursor:pointer;
+  background:rgba(255,253,247,.95);color:var(--ink);box-shadow:0 2px 0 rgba(46,40,56,.3)}
+.clip-pp svg{width:15px;height:15px;fill:currentColor}
+.clip-pp .i-pause, .clip[data-playing] .clip-pp .i-play{display:none}
+.clip[data-playing] .clip-pp .i-pause{display:inline}
+.clip.still .clip-pp{display:none}
+/* the steps: the clip on top with the step's number on its corner, the words under it */
+.howto .how{grid-template-columns:repeat(auto-fit,minmax(118px,1fr))}
+.howto .how li{padding:8px 8px 12px}
+.howto .how li .clip{margin:0 0 10px}
+.howto .how li::before{left:14px;top:14px;z-index:1;width:26px;height:26px;font-size:15px}
+/* the 3 Falls: the clip on the right of each */
+.falls .tag{grid-template-columns:34px 1fr 96px}
+.falls .tag .clip{width:96px;border-radius:10px;box-shadow:0 0 0 2px rgba(255,255,255,.85)}
+.falls .tag .clip-pp{width:28px;height:28px;right:4px;bottom:4px}
+.falls .tag .clip-pp svg{width:13px;height:13px}
+.is-body .howto .how{grid-template-columns:repeat(auto-fit,minmax(118px,1fr))}   /* in the sheet too: two clips side by side on a phone */
