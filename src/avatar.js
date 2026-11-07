@@ -12,6 +12,21 @@
 (function(){
 "use strict";
 const K = window.CLAY;
+// The cast as photographed clay puppets (GPT Image 2 model sheets, cut out by tools/cast.py into src/art/cast.webp):
+// once that image has loaded, the figure and the crab are drawn from it, with the game's extras (what's in hand,
+// plasters, sparkles, a worried sweat drop, sunglasses) on top. Until then, or if it can't load, they're drawn in clay.
+// <cast> made by tools/cast.py from art/cards/: each figure's place in src/art/cast.webp (px), and its head
+// (top, centre cx, width hw, neck) and right hand (hx, hy) in the avatar's 120 x 230 box
+const CAST = {"k":2.4,"fig":{"jack":[{"x":0,"y":0,"w":288,"h":552,"top":21.7,"cx":60.2,"hw":52.9,"neck":59.6,"hx":84.2,"hy":143.8},{"x":288,"y":0,"w":288,"h":552,"top":21.2,"cx":58.8,"hw":66.7,"neck":59.2,"hx":84.2,"hy":152.5},{"x":576,"y":0,"w":288,"h":552,"top":21.2,"cx":58.1,"hw":67.9,"neck":59.2,"hx":82.9,"hy":152.9},{"x":864,"y":0,"w":288,"h":552,"top":23.3,"cx":57.1,"hw":67.5,"neck":60.8,"hx":90.4,"hy":153.3}],"jackie":[{"x":1152,"y":0,"w":288,"h":552,"top":31.3,"cx":60.4,"hw":50.8,"neck":67.1,"hx":82.9,"hy":137.9},{"x":1440,"y":0,"w":288,"h":552,"top":32.1,"cx":59.2,"hw":68.3,"neck":67.9,"hx":83.3,"hy":152.5},{"x":1728,"y":0,"w":288,"h":552,"top":32.1,"cx":60.0,"hw":66.7,"neck":67.9,"hx":86.7,"hy":154.2},{"x":2016,"y":0,"w":288,"h":552,"top":31.7,"cx":56.9,"hw":62.9,"neck":67.5,"hx":86.7,"hy":156.2}]},"crab":{"idle":{"x":0,"y":552,"w":240,"h":192},"happy":{"x":240,"y":552,"w":240,"h":192},"worried":{"x":480,"y":552,"w":240,"h":192}}};
+// </cast>
+const castMeta = document.querySelector('meta[name="tff-cast"]'), castWait = [];
+let castImg = null;
+if (CAST && castMeta && castMeta.content){
+  const im = new Image(); im.decoding = "async";
+  im.onload = () => { castImg = im; castWait.splice(0).forEach(f => { try { f(); } catch(e){} }); };
+  im.src = castMeta.content;
+}
+const onCast = f => { if (castImg) f(); else castWait.push(f); };   // run f once the photographed cast is ready
 const SKIN = "#F7D2B3", HAIR = "#2E2530", GREY = "#C8CAD2";
 const OUTFIT = {   // [top, sleeves, bottom, shoes]
   jack:   [["#CDB79C", "#F4F1EA", "#3B302E", "sneaker"], ["#F7F7F2", "#F7F7F2", "#2C3566", "black"], ["#2F8F87", "#2F8F87", "#C49A6C", "brown"], ["#9C3D4A", "#9C3D4A", "#7C7F8C", "brown"]],
@@ -22,9 +37,53 @@ const P = (g, path, color, o) => K.press(g, path, color, Object.assign({sheen: f
 const line = (g, pts, w, o) => K.groove(g, K.poly(pts, false), w || 1.4, o);
 const mirror = pts => pts.map(([x, y]) => [120 - x, y]);
 
+// what's in hand (the last money decision): a piggy bank (saved), shopping bags (overspent), a phone (scammed) or an
+// hourglass (put it off), round the hand at (hx, hy)
+function held(g, hold, hx, hy){
+  if (hold === "piggy"){
+    B(g, K.ball(hx - 2, hy - 6, 14, 11, {lump: 0.3}), "pink", {sheen: {x: hx - 8, y: hy - 12, rx: 4, ry: 2}});
+    P(g, K.ball(hx - 15, hy - 6, 4.5, 4), "#FF8FC0"); P(g, K.poly([[hx - 2, hy - 16], [hx + 4, hy - 22], [hx + 5, hy - 13]]), "pink");
+    line(g, [[hx - 4, hy - 16], [hx + 2, hy - 16]], 1.2);
+    P(g, K.ball(hx - 1, hy - 21, 3.6), "#FFC83D");
+    for (const x of [-9, 5]) P(g, K.slab(hx + x, hy + 4, 4, 5, 1), "pink");
+  } else if (hold === "bags"){
+    B(g, K.slab(hx - 6, hy + 14, 16, 18, 2), "orange"); B(g, K.slab(hx + 9, hy + 18, 14, 15, 2), "purple");
+    line(g, [[hx - 11, hy + 6], [hx - 6, hy], [hx - 1, hy + 6]], 1.3); line(g, [[hx + 4, hy + 11], [hx + 9, hy + 5], [hx + 14, hy + 11]], 1.3);
+    P(g, K.ball(hx - 6, hy + 15, 2.6), "white");
+  } else if (hold === "phone"){
+    B(g, K.slab(hx, hy - 6, 13, 22, 3), "#2E2838", {depth: 1.4}); P(g, K.slab(hx, hy - 7, 9, 16, 2), "#7FD3FF", {depth: 0.6});
+    P(g, K.ball(hx + 10, hy - 22, 6.5), "red"); K.text(g, "!", hx + 10, hy - 22, {size: 9, color: "white", weight: 900});
+  } else if (hold === "hourglass"){
+    P(g, K.slab(hx, hy - 20, 16, 3.5, 1.5), "#9A6440"); P(g, K.slab(hx, hy + 4, 16, 3.5, 1.5), "#9A6440");
+    P(g, K.poly([[hx - 6, hy - 18], [hx + 6, hy - 18], [hx, hy - 8], [hx + 6, hy + 2], [hx - 6, hy + 2], [hx, hy - 8]]), "#CFEFFF", {depth: 0.8});
+    P(g, K.poly([[hx - 4, hy], [hx + 4, hy], [hx, hy - 5]]), "#FFC83D", {depth: 0.6});
+  }
+}
+// the savings boost: sparkles round the figure
+function sparkles(g){
+  for (const [x, y, r] of [[14, 40, 6], [104, 30, 7], [108, 96, 5]]) P(g, K.poly(Array.from({length: 8}, (_, i) => { const a = i * Math.PI / 4 - Math.PI / 2, q = i % 2 ? r * 0.4 : r; return [x + Math.cos(a) * q, y + Math.sin(a) * q]; })), "#FFE45C", {rim: 0.5});
+}
 function keyOf(L){ return [L.who, L.stage, L.tier, L.hand || "-", L.mood, L.drops, L.boost ? 1 : 0].join("|"); }
 
+// The photographed figure: the outfit for the life stage, then the game's extras placed by its head and hand
+function drawPhoto(g, L){
+  const she = L.who === "jackie", st = Math.max(0, Math.min(3, L.stage | 0)), f = CAST.fig[she ? "jackie" : "jack"][st];
+  g.save(); g.fillStyle = "rgba(40,30,60,0.18)"; g.beginPath(); g.ellipse(60, 222, 30, 4.5, 0, 0, Math.PI * 2); g.fill(); g.restore();
+  g.drawImage(castImg, f.x, f.y, f.w, f.h, 0, 0, 120, 230);
+  const hw = f.hw, cx = f.cx, top = f.top, face = top + hw * 0.62;   // the eyes sit about here under the fringe
+  if (L.hand) held(g, L.hand, f.hx + 2, f.hy - 4);
+  if (L.mood === "worried") P(g, K.blobPoly([[cx + hw * 0.56, top + hw * 0.32], [cx + hw * 0.56 + 4, top + hw * 0.32 + 8], [cx + hw * 0.56, top + hw * 0.32 + 12], [cx + hw * 0.56 - 4, top + hw * 0.32 + 8]], {lump: 0.1}), "sky", {rim: 0.4});
+  if (L.tier === 3){   // gold-rimmed sunglasses pushed up on the hair
+    for (const s of [-1, 1]){ const x = cx + s * hw * 0.2, y = top + hw * 0.16; P(g, K.slab(x, y, 15, 8, 4), "#FFC83D", {depth: 0.8}); P(g, K.slab(x, y, 11, 5, 3), "#5D7FB8", {depth: 0.6}); }
+    P(g, K.slab(cx, top + hw * 0.16 - 1, 7, 2.2, 1), "#FFC83D", {depth: 0.5});
+  }
+  const plaster = (x, y, a) => { g.save(); g.translate(x, y); g.rotate(a); P(g, K.slab(0, 0, 11, 4.6, 2), "#F2D2A0"); line(g, [[-2, -1], [-2, 1]], 0.8); line(g, [[2, -1], [2, 1]], 0.8); g.restore(); };
+  if (L.drops >= 1) plaster(cx + hw * 0.27, face + hw * 0.16, -0.35);
+  if (L.drops >= 2) plaster(cx - hw * 0.29, face + hw * 0.12, 0.3);
+  if (L.boost) sparkles(g);
+}
 function draw(g, L){
+  if (castImg && CAST){ drawPhoto(g, L); return; }
   const she = L.who === "jackie", st = Math.max(0, Math.min(3, L.stage | 0)), [top, sleeve, bottom, shoes] = OUTFIT[she ? "jackie" : "jack"][st];
   const hair = st === 3 ? GREY : HAIR, skirt = she && st <= 2, longSkirt = she && st === 3;
   const hold = L.hand || null, hx = 82, hy = 132;   // the right hand, raised, when it holds something (or makes a peace sign)
@@ -100,24 +159,7 @@ function draw(g, L){
   if (L.tier >= 2){ P(g, K.slab(27, 146, 13, 5.5, 2), L.tier === 3 ? "#FFC83D" : "#C9CBD3"); P(g, K.ball(27, 146, 2.2), "white", {rim: 0.4}); }
   arm([[89, 106], [96, 124], [hx + 4, hy + 2]], mirror([[29, 104], [44, 99], [41, 128], [22, 127]]));   // the right arm, raised
   // the item in hand, then the hand
-  if (hold === "piggy"){
-    B(g, K.ball(hx - 2, hy - 6, 14, 11, {lump: 0.3}), "pink", {sheen: {x: hx - 8, y: hy - 12, rx: 4, ry: 2}});
-    P(g, K.ball(hx - 15, hy - 6, 4.5, 4), "#FF8FC0"); P(g, K.poly([[hx - 2, hy - 16], [hx + 4, hy - 22], [hx + 5, hy - 13]]), "pink");
-    line(g, [[hx - 4, hy - 16], [hx + 2, hy - 16]], 1.2);
-    P(g, K.ball(hx - 1, hy - 21, 3.6), "#FFC83D");
-    for (const x of [-9, 5]) P(g, K.slab(hx + x, hy + 4, 4, 5, 1), "pink");
-  } else if (hold === "bags"){
-    B(g, K.slab(hx - 6, hy + 14, 16, 18, 2), "orange"); B(g, K.slab(hx + 9, hy + 18, 14, 15, 2), "purple");
-    line(g, [[hx - 11, hy + 6], [hx - 6, hy], [hx - 1, hy + 6]], 1.3); line(g, [[hx + 4, hy + 11], [hx + 9, hy + 5], [hx + 14, hy + 11]], 1.3);
-    P(g, K.ball(hx - 6, hy + 15, 2.6), "white");
-  } else if (hold === "phone"){
-    B(g, K.slab(hx, hy - 6, 13, 22, 3), "#2E2838", {depth: 1.4}); P(g, K.slab(hx, hy - 7, 9, 16, 2), "#7FD3FF", {depth: 0.6});
-    P(g, K.ball(hx + 10, hy - 22, 6.5), "red"); K.text(g, "!", hx + 10, hy - 22, {size: 9, color: "white", weight: 900});
-  } else if (hold === "hourglass"){
-    P(g, K.slab(hx, hy - 20, 16, 3.5, 1.5), "#9A6440"); P(g, K.slab(hx, hy + 4, 16, 3.5, 1.5), "#9A6440");
-    P(g, K.poly([[hx - 6, hy - 18], [hx + 6, hy - 18], [hx, hy - 8], [hx + 6, hy + 2], [hx - 6, hy + 2], [hx, hy - 8]]), "#CFEFFF", {depth: 0.8});
-    P(g, K.poly([[hx - 4, hy], [hx + 4, hy], [hx, hy - 5]]), "#FFC83D", {depth: 0.6});
-  }
+  held(g, hold, hx, hy);
   B(g, K.ball(hx + 3, hy + 2, 6, 6.5), SKIN, {depth: 1.4});
   if (!hold){   // a peace sign, as in the photo
     B(g, K.tube([[hx + 1, hy - 2], [hx - 2, hy - 15]], 4.2), SKIN, {depth: 1, soft: 1.4, rim: 0.6});
@@ -154,7 +196,13 @@ function draw(g, L){
   }
   if (L.drops >= 1) { P(g, K.slab(82, 76, 12, 5, 2), "#F2D2A0"); line(g, [[80, 75], [80, 77]], 0.8); line(g, [[84, 75], [84, 77]], 0.8); }
   if (L.drops >= 2) { P(g, K.slab(38, 46, 11, 5, 2), "#F2D2A0"); line(g, [[36, 45], [36, 47]], 0.8); line(g, [[40, 45], [40, 47]], 0.8); }
-  if (L.boost) for (const [x, y, r] of [[14, 40, 6], [104, 30, 7], [108, 96, 5]]) P(g, K.poly(Array.from({length: 8}, (_, i) => { const a = i * Math.PI / 4 - Math.PI / 2, q = i % 2 ? r * 0.4 : r; return [x + Math.cos(a) * q, y + Math.sin(a) * q]; })), "#FFE45C", {rim: 0.5});
+  if (L.boost) sparkles(g);
 }
-window.TFF_AVATAR = {draw, keyOf, W: 120, H: 230};
+// the photographed crab in an 80 x 64 layer drawn round (40, 30), as crabArt in game.js; false until it's ready
+function crab(g, mood){
+  if (!castImg || !CAST) return false;
+  const c = CAST.crab[mood === "happy" ? "happy" : mood === "worried" || mood === "cover" ? "worried" : "idle"];
+  g.drawImage(castImg, c.x, c.y, c.w, c.h, -40, -30, 80, 64); return true;
+}
+window.TFF_AVATAR = {draw, keyOf, W: 120, H: 230, onCast, crab};
 })();

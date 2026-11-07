@@ -2072,6 +2072,7 @@ function sampleSea(){
 }
 function layer(w, h, fn){ const k = SC * DPR; const c = document.createElement("canvas"); c.width = Math.ceil(w * k); c.height = Math.ceil(h * k); const g = c.getContext("2d"); g.setTransform(k, 0, 0, k, 0, 0); fn(g); return c; }
 function crabArt(g, mood){
+  if (AV && AV.crab && AV.crab(g, mood)) return;   // the photographed crab, once its picture has loaded (avatar.js)
   // a clay crab centred on (0,0), ~64×46 units
   const shell = K.ball(0, 6, 24, 15, {lump:0.6, seed:9});
   const claw = (sx) => {
@@ -3718,6 +3719,13 @@ function sampleTower(){
 }
 fsOn = !!lsGet("tff_fs", true); root.classList.toggle("fs", fsOn); root.classList.toggle("title", fsOn); $("fsBtn").setAttribute("aria-pressed", String(fsOn));   // full screen by default
 buildStatic(); sampleTower(); resize(); drawCrabs(); updateHUD(); renderLedger(); setMuteUI(); planFirst();
+if (AV && AV.onCast) AV.onCast(() => {   // the photographed cast has loaded: everything drawn in clay so far, again
+  avKeys.clear(); buildLayers(false, "crab"); drawCrabs(); talk.mood = null; needDraw = true;
+  if (S && S.mode !== "idle") updateAvatar(true);
+  if (!$("pickModal").hidden) setPick(pickSel, true);
+  if (!$("rollModal").hidden) paintAvatar($("rollAvatar"), {who: WHO, stage: 0, tier: 1, hand: null, mood: "happy", drops: 0, boost: false});
+  if (!$("endModal").hidden) paintAvatar($("endAvatar"), lookNow());
+});
 document.querySelectorAll(".falls .clip").forEach(clipAdd);
 markZh(document.body); zhWatch.observe(document.body, ZH_WATCH);
 // Card timer, 10 s or 30 s: the same choice on the start and pause cards
