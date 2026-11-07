@@ -1626,3 +1626,5 @@ html.fs.title .ts-sound .ts-silent{color:var(--ink-2);font-weight:700}
 .falls .tag .clip-pp{width:28px;height:28px;right:4px;bottom:4px}
 .falls .tag .clip-pp svg{width:13px;height:13px}
 .is-body .howto .how{grid-template-columns:repeat(auto-fit,minmax(118px,1fr))}   /* in the sheet too: two clips side by side on a phone */
+/* the result card is a 1080 x 1920 poster (or 1080 x 1350 without its poster): keep its own shape, not too tall to see */
+.card-img{aspect-ratio:auto 1080 / 1920;max-width:min(290px, 100%)}
