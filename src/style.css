@@ -1355,73 +1355,131 @@ html.fs.title .ts-sound .ts-silent[hidden]{display:none}
 html.iab-tight.fs.title .ts-sign{display:none}   /* a short screen with the tip showing: the title keeps Start, the pills and the options */
 .kind.lock{background:#8A6400;color:#fff;margin-left:4px}   /* the fixed-deposit lock, by the vine chip (a deep gold: white text at 5.4:1) */
 
-/* ---------- the opening manga: Jack and Jackie, Year 1 at HSUHK (src/intro.js) ---------- */
-.intro{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
-  padding:max(14px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
-  background:#FFF8EA radial-gradient(circle, rgba(46,40,56,.12) 1.1px, transparent 1.7px) 0 0 / 9px 9px;transition:opacity .45s ease;color:#1E1A24}
+/* ---------- the opening film: Jack and Jackie, Year 1 at HSUHK (src/intro.js, pictures in src/film/) ---------- */
+.intro{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:var(--fpad-t, 0px) 0 var(--fpad-b, 0px);background:#09080C;color:#F6F0E2;transition:opacity .6s ease;overflow:hidden}
 .intro[hidden]{display:none}
 .intro.out{opacity:0;pointer-events:none}
-.mbook{position:relative;width:min(100%, 1000px);flex:1 1 auto;min-height:0}
-.mpage{position:absolute;inset:0;display:grid;gap:12px;padding:4px 6px 8px}
-.mpage[hidden]{display:none}
-.mpage.turn{animation:mturn .55s cubic-bezier(.2,.9,.3,1.1)}
-@keyframes mturn{from{transform:translateX(36%) rotate(5deg);opacity:0}to{transform:none;opacity:1}}
-.p1{grid-template-rows:1.2fr 1fr} .p2{grid-template-rows:repeat(3, 1fr)} .p3{grid-template-rows:1fr}
-@media (min-aspect-ratio: 6/5){ .p1{grid-template-rows:1fr;grid-template-columns:1.35fr 1fr} .p2{grid-template-rows:1fr;grid-template-columns:repeat(3, 1fr)} }
-.mpanel{position:relative;overflow:hidden;min-height:0;border:4px solid #1E1A24;border-radius:7px;background:#fff;box-shadow:6px 7px 0 rgba(30,26,36,.88);
-  opacity:0;transform:scale(.9) rotate(calc(var(--tilt, 0deg) * 4))}
-.mpanel:nth-child(1){--tilt:-.5deg} .mpanel:nth-child(2){--tilt:.7deg} .mpanel:nth-child(3){--tilt:-.35deg}
-.mpanel.on{opacity:1;transform:rotate(var(--tilt, 0deg));transition:opacity .3s ease, transform .55s cubic-bezier(.2,.9,.3,1.35)}
-.mpanel canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
-.mpanel.on canvas.art:not(.tower){animation:mpan 7s ease-out both}
-@keyframes mpan{from{transform:scale(1.08)}to{transform:scale(1)}}
-.mpanel.lines::after, .mpanel.burst::before{content:"";position:absolute;inset:-60%;pointer-events:none;z-index:1;
-  background:repeating-conic-gradient(from 0deg at 50% 50%, rgba(30,26,36,.09) 0 1.6deg, transparent 1.6deg 8deg)}
-.mpanel.burst{background:radial-gradient(circle at 50% 60%, #FFF6C8 0 22%, #FFD86B 60%, #FFB84A)}
-.mpanel.burst::before{z-index:0;background:repeating-conic-gradient(from 0deg at 50% 60%, rgba(255,255,255,.55) 0 4deg, transparent 4deg 12deg)}
-.mcap, .mbal, .mtag, .msfx{position:absolute;margin:0;z-index:2}
-.mcap{left:10px;top:10px;max-width:72%;padding:6px 11px 7px;background:#FFE45C;border:2.5px solid #1E1A24;box-shadow:3px 3px 0 #1E1A24;
-  font-weight:800;font-size:clamp(12px, 2.4vmin, 16px);line-height:1.25}
-.mtag{left:8px;top:8px;padding:4px 9px 5px;border:2.5px solid #1E1A24;border-radius:10px;color:#fff;font-weight:800;font-size:clamp(11px, 2.1vmin, 14px);line-height:1.2;box-shadow:2px 2px 0 #1E1A24}
-.mtag .zl, .mcap .zl, .mbal .zl{color:inherit}
-.spend .mtag{background:#D2541A} .scam .mtag{background:#6E4FD8} .delay .mtag{background:#2873C4}
-.mbal{max-width:min(64%, 300px);padding:8px 13px 9px;background:#fff;border:2.5px solid #1E1A24;border-radius:20px;font-weight:800;font-size:clamp(12.5px, 2.6vmin, 17px);line-height:1.25;
-  opacity:0;transform:scale(.55);transform-origin:var(--to, 20% 100%)}
-.mpanel.on .mbal{opacity:1;transform:none;transition:opacity .2s .45s, transform .4s .45s cubic-bezier(.2,.9,.3,1.6)}
-.mbal::after{content:"";position:absolute;width:16px;height:16px;background:#fff;border-right:2.5px solid #1E1A24;border-bottom:2.5px solid #1E1A24;bottom:-9px;left:var(--tail, 26px);transform:rotate(45deg) skew(10deg, 10deg)}
-.b1{right:7%;top:16%;--tail:28px} .b2{left:6%;top:9%;--tail:70%} .b3{left:var(--sx);top:var(--sy);width:var(--sw);height:var(--sh);max-width:none;padding:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
-  background:none;border:0;border-radius:0;color:#E8418B;font-family:var(--f-display);font-weight:900;font-size:clamp(11px, 2.4vmin, 16px);line-height:1.15}   /* the ad, on the phone's screen */
-.b3::after{display:none} .b3 .zl{font-family:var(--f-zh);color:#D2541A;margin-top:3px;white-space:nowrap;font-size:.92em}
-.mpanel.on .mbal.b3{animation:adblink 1.2s .9s ease-in-out 2}
-@keyframes adblink{50%{filter:brightness(1.35);transform:scale(1.06)}} .b4{right:4%;top:22%;--tail:68%;background:#F0E9FF}
-.b4::after{background:#F0E9FF}
-.b5{right:5%;top:20%;--tail:22%;border-radius:26px;border-style:dashed}   /* a thought, half asleep */
-.b6{left:50%;top:7%;translate:-50% 0;max-width:min(80%, 420px);text-align:center;--tail:42%;font-size:clamp(14px, 3vmin, 20px);--to:50% 100%}
-.msfx{right:6%;bottom:9%;font-family:var(--f-display);font-weight:900;font-size:clamp(24px, 6.5vmin, 46px);color:#FFC83D;-webkit-text-stroke:2.2px #1E1A24;paint-order:stroke fill;
-  text-shadow:3px 3px 0 #1E1A24;transform:rotate(-12deg) scale(0)}
-.mpanel.on .msfx{transform:rotate(-12deg) scale(1);transition:transform .45s .75s cubic-bezier(.2,.9,.3,1.8)}
-.mpanel .tower{transform:translateY(105%)}
-.mpanel.on .tower{transform:none;transition:transform 1.6s .3s cubic-bezier(.2,.8,.3,1)}
-.mpanel .crab{transform:scale(0) rotate(-20deg);transform-origin:30% 75%}
-.mpanel.on .crab{transform:none;transition:transform .55s .2s cubic-bezier(.2,.9,.3,1.6)}
-.mlogo{position:absolute;left:50%;bottom:7%;translate:-50% 0;z-index:3;margin:0;display:flex;flex-direction:column;align-items:center;gap:2px;opacity:0;transform:scale(.4);
-  background:rgba(255,253,247,.92);border:3px solid #1E1A24;border-radius:22px;padding:8px 22px 10px;box-shadow:5px 5px 0 #1E1A24}
-.mlogo.on{opacity:1;transform:none;transition:opacity .25s, transform .5s cubic-bezier(.2,.9,.3,1.6)}
-.mword{font-family:var(--f-display);font-weight:900;font-size:clamp(30px, 7.5vmin, 58px);line-height:1;-webkit-text-stroke:2px #fff;paint-order:stroke fill;letter-spacing:.01em}
+/* the screen: sized by intro.js (a 4:5 to 1.85:1 window on the square shots), black round it like a cinema */
+.fscreen{position:relative;flex:none;width:var(--fw, 100vw);height:var(--fh, 100vh)}
+.fframe{position:absolute;inset:0;overflow:hidden;background:#09080C}
+.fshot{position:absolute;inset:0;opacity:0;visibility:hidden;background:var(--bg, #09080C)}
+.fshot img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:var(--pos, 50% 45%);transform-origin:var(--fo, 50% 45%);opacity:0;transition:opacity .5s}
+.fshot img.ok{opacity:1}
+.fshot.on, .fshot.off{visibility:visible;opacity:1}
+.fshot.on{z-index:2} .fshot.off{z-index:1}
+/* each shot's colour (before its picture is in), where it sits in a crop, and its camera move */
+.fshot[data-shot="campus"]{--bg:linear-gradient(#9AD6FF, #E9D9B8);--fo:48% 40%;--kb:kbIn}
+.fshot[data-shot="pay"]{--bg:linear-gradient(#FFD99A, #C98F4E);--fo:55% 42%;--kb:kbIn}
+.fshot[data-shot="spend"]{--bg:linear-gradient(#5B2D6E, #2A1838);--pos:55% 40%;--fo:62% 32%;--kb:kbIn}
+.fshot[data-shot="scam"]{--bg:linear-gradient(#2C1F57, #120E22);--kb:kbPan}
+.fshot[data-shot="delay"]{--bg:linear-gradient(#18305E, #0E1A36);--pos:50% 50%;--fo:42% 48%;--kb:kbIn}
+.fshot[data-shot="tower"]{--bg:linear-gradient(#FFC2A8, #F2B35A);--pos:50% 30%;--fo:40% 40%;--kb:kbUp}
+.fshot[data-shot="title"]{--bg:linear-gradient(#BFDDF6, #FFC6C8 45%, #FFC870);--pos:82% 62%;--fo:70% 75%;--kb:kbOut}
+.intro.port .fshot[data-shot="title"]{--pos:84% 50%}
+.fshot.on img, .fshot.off img{animation:var(--kb) var(--dur, 4.5s) cubic-bezier(.3,.1,.3,1) both}
+@keyframes kbIn{from{transform:scale(1.02)}to{transform:scale(1.13)}}
+@keyframes kbOut{from{transform:scale(1.16)}to{transform:scale(1.01)}}
+@keyframes kbPan{from{transform:scale(1.14) translateX(3.2%)}to{transform:scale(1.14) translateX(-3.2%)}}
+@keyframes kbUp{from{transform:scale(1.1);object-position:50% 78%}to{transform:scale(1.04);object-position:50% 14%}}
+/* the cuts */
+.fshot.on.via-fade{animation:fIn 1.1s ease both}
+.fshot.on.via-dissolve{animation:fIn .75s ease both}
+.fshot.on.via-whip{animation:whipIn .42s cubic-bezier(.6,0,.2,1) both} .fshot.off.via-whip{animation:whipOut .42s cubic-bezier(.6,0,.2,1) both}
+@keyframes fIn{from{opacity:0}to{opacity:1}}
+@keyframes whipIn{from{transform:translateX(100%);filter:blur(16px)}to{transform:none;filter:none}}
+@keyframes whipOut{to{transform:translateX(-60%);filter:blur(16px);opacity:.4}}
+.fframe::before{content:"";position:absolute;left:0;right:0;bottom:0;height:34%;z-index:3;pointer-events:none;background:linear-gradient(transparent, rgba(6,5,9,.62))}   /* a wide screen: the subtitles' ground */
+.intro.port .fframe::before{display:none}
+.fflash{position:absolute;inset:0;z-index:4;background:#fff;opacity:0;pointer-events:none}
+.fflash.flash{animation:flash .7s ease-out both} .fflash.white{animation:whiteout 1.3s ease both}
+@keyframes flash{0%{opacity:0}8%{opacity:.95}20%{opacity:.25}28%{opacity:.8}100%{opacity:0}}
+@keyframes whiteout{0%{opacity:0}40%{opacity:1}100%{opacity:0}}
+.fscreen.hook .fshot.on img{filter:brightness(.42) saturate(.8) blur(2px);transition:filter 1s}
+/* film: grain, a soft vignette, a little flicker */
+.fgrain{position:absolute;inset:-50%;z-index:5;pointer-events:none;opacity:.16;mix-blend-mode:overlay;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation:grain .5s steps(5) infinite}
+.fframe::after{content:"";position:absolute;inset:0;z-index:5;pointer-events:none;background:radial-gradient(ellipse at 50% 48%, transparent 55%, rgba(5,4,8,.55) 100%);animation:flicker 3.7s steps(1) infinite}
+@keyframes grain{0%{transform:translate(0,0)}20%{transform:translate(-7%,4%)}40%{transform:translate(5%,-6%)}60%{transform:translate(-3%,8%)}80%{transform:translate(8%,2%)}}
+@keyframes flicker{0%,100%{opacity:1}31%{opacity:.86}33%{opacity:1}71%{opacity:.92}72%{opacity:1}}
+/* the words: a beat at a time */
+.fbeat{position:absolute;inset:0;z-index:6;pointer-events:none;visibility:hidden}
+.fbeat.on{visibility:visible}
+.fbeat p{margin:0}
+.fbeat [lang="zh-HK"]{font-family:var(--f-zh)}
+.fpresents{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;
+  font-weight:700;font-size:clamp(17px, 3.4vmin, 28px);letter-spacing:.12em;color:#F6F0E2;opacity:0}
+.fpresents small{font-family:var(--f-body);font-weight:600;font-size:.62em;letter-spacing:.38em;text-transform:uppercase;color:#C9B98F}
+.fbeat.on .fpresents{animation:credit 2s ease both}
+@keyframes credit{0%{opacity:0;transform:scale(.97)}25%,75%{opacity:1}100%{opacity:0;transform:scale(1.01)}}
+/* a place slug, typed in */
+.fslug{position:absolute;left:5%;top:6%;display:flex;flex-direction:column;gap:3px;font-weight:800;font-size:clamp(11px, 2.1vmin, 16px);letter-spacing:.22em;text-transform:uppercase;
+  color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.55), 0 0 12px rgba(0,0,0,.35);clip-path:inset(0 100% 0 0)}
+.fslug span{letter-spacing:.3em;font-size:1.15em}
+.fbeat.on .fslug{animation:type 1.1s .5s steps(26) both}
+@keyframes type{to{clip-path:inset(0 0 0 0)}}
+/* the chapter cards for the 3 Falls, stamped on */
+.fchap{position:absolute;left:4.5%;top:5.5%;display:grid;padding:7px 14px 8px 12px;border-left:6px solid var(--fc);background:rgba(10,8,14,.72);border-radius:4px;
+  font-weight:800;font-size:clamp(12px, 2.3vmin, 17px);line-height:1.3;color:#fff;box-shadow:0 6px 18px rgba(0,0,0,.35);opacity:0}
+.fchap b{font-family:var(--f-display);font-size:1.5em;line-height:1.05;color:var(--fc);letter-spacing:.04em}
+.fchap.f1{--fc:#FF7B35} .fchap.f2{--fc:#A88BFF} .fchap.f3{--fc:#5BB2FF}
+.fbeat.on .fchap{animation:stampIn .5s .3s cubic-bezier(.2,.9,.3,1.4) both}
+@keyframes stampIn{from{opacity:0;transform:scale(1.5) rotate(-4deg)}to{opacity:1;transform:none}}
+/* subtitles: over the picture's foot on a wide screen, under it on a phone */
+.fsub{position:absolute;left:50%;bottom:5.5%;translate:-50% 0;width:max-content;max-width:min(92%, 860px);display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center;
+  font-weight:700;font-size:clamp(14px, 2.5vmin, 21px);line-height:1.3;color:#F4EFE6;text-shadow:0 1px 3px #000, 0 0 14px rgba(0,0,0,.75);opacity:0}
+.fsub span{order:-1;font-size:1.22em;font-weight:700;color:#fff}
+.fsub .fwho{order:-2;font-family:var(--f-body);font-size:.66em;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#FFD86B}
+.fsub.ad .fwho{color:#FF8FC4} .fsub.ad span{color:#FFD3EA}
+.fsub.sly .fwho{color:#C7F55B}
+.fbeat.on .fsub{animation:subIn .45s .55s ease both}
+@keyframes subIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.intro.port .fsub{top:calc(100% + 16px);bottom:auto;max-width:94%}
+/* the title */
+.fbeat .mlogo{position:absolute;left:50%;top:30%;translate:-50% -50%;margin:0;display:flex;flex-direction:column;align-items:center;gap:4px;
+  background:none;border:0;box-shadow:none;padding:0;text-align:center}
+.intro.port .fbeat .mlogo{top:36%}
+.mword{display:flex;font-family:var(--f-display);font-weight:900;font-size:clamp(38px, 10vmin, 92px);line-height:1;-webkit-text-stroke:2.5px #fff;paint-order:stroke fill;letter-spacing:.01em;
+  filter:drop-shadow(0 6px 10px rgba(60,20,40,.35))}
+.mword span{display:inline-block;opacity:0}
 .mword span:nth-child(1){color:#FF5FA2;margin-right:.18em} .mword span:nth-child(2){color:#3A9BF0} .mword span:nth-child(3){color:#4CC36A} .mword span:nth-child(4){color:#FF7B35}
 .mword span:nth-child(5){color:#8B6CF2;margin-right:.18em} .mword span:nth-child(6){color:#F2463E} .mword span:nth-child(7){color:#20C1B3} .mword span:nth-child(8){color:#FF5FA2}
-.mlogo .zh{font-family:var(--f-zh);font-weight:700;font-size:clamp(20px, 4.6vmin, 34px);letter-spacing:.2em;color:#25317A}
-.mlogo small{font-weight:800;font-size:clamp(11px, 2vmin, 14px);color:var(--ink-2)}
-.mskip{position:absolute;bottom:max(6px, env(safe-area-inset-bottom));right:max(12px, env(safe-area-inset-right));z-index:5;font-size:14px;padding:6px 14px 7px}   /* by the page dots, clear of the panels */
-.mfoot{flex:none;display:flex;align-items:center;gap:14px;min-height:38px;padding-right:96px}
-.mdots{display:flex;gap:7px;margin:0;padding:0;list-style:none}
-.mdots li{width:9px;height:9px;border-radius:50%;background:rgba(30,26,36,.22)}
-.mdots li.on{background:#DF1B72;transform:scale(1.25)}
-.mhint{margin:0;font-size:12px;font-weight:800;color:var(--ink-2)}
+.fbeat.on .mword span{animation:drop .5s cubic-bezier(.3,1.5,.5,1) both}
+.mword span:nth-child(2){animation-delay:.08s !important} .mword span:nth-child(3){animation-delay:.16s !important} .mword span:nth-child(4){animation-delay:.24s !important}
+.mword span:nth-child(5){animation-delay:.32s !important} .mword span:nth-child(6){animation-delay:.4s !important} .mword span:nth-child(7){animation-delay:.48s !important} .mword span:nth-child(8){animation-delay:.56s !important}
+@keyframes drop{from{opacity:0;transform:translateY(-120%) rotate(-12deg)}60%{opacity:1}to{opacity:1;transform:none}}
+.mlogo .zh{font-family:var(--f-zh);font-weight:700;font-size:clamp(24px, 5.6vmin, 50px);letter-spacing:.3em;margin-right:-.3em;color:#25317A;-webkit-text-stroke:5px rgba(255,255,255,.85);paint-order:stroke fill}
+.mlogo small{font-weight:800;font-size:clamp(12px, 2.2vmin, 17px);letter-spacing:.18em;text-transform:uppercase;color:#4B3550}
+.mlogo .zh, .mlogo small{opacity:0}
+.fbeat.on .mlogo .zh{animation:fIn .6s .75s ease both} .fbeat.on .mlogo small{animation:fIn .6s 1s ease both}
+/* the hook */
+.fhook{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(10px, 2.4vmin, 20px);padding:0 6%;text-align:center}
+.fhook p{display:flex;flex-direction:column;gap:4px;opacity:0}
+.fhook-lead{font-weight:700;font-size:clamp(13px, 2.4vmin, 19px);letter-spacing:.06em;color:#E9E0CF}
+.fhook-ask{font-family:var(--f-display);font-weight:900;font-size:clamp(26px, 6.6vmin, 60px);line-height:1.08;color:#FFD86B;text-shadow:0 3px 0 #6B2148, 0 0 30px rgba(0,0,0,.5)}
+.fhook-ask span{font-weight:700;font-size:.62em;color:#fff;text-shadow:0 2px 6px #000}
+.fbeat.on .fhook-lead{animation:subIn .6s .3s ease both} .fbeat.on .fhook-ask{animation:askIn .7s 1.1s cubic-bezier(.2,.9,.3,1.3) both}
+@keyframes askIn{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:none}}
+.fgo{pointer-events:auto;font-size:clamp(16px, 2.6vmin, 20px);opacity:0}
+.fbeat.on .fgo{animation:fIn .5s 2s ease both}
+.fbeat:not(.on) .fgo{display:none}
+/* the controls */
+.mskip{position:absolute;bottom:max(10px, env(safe-area-inset-bottom));right:max(12px, env(safe-area-inset-right));z-index:9;font-size:14px;padding:6px 14px 7px;opacity:.85}
+.fsound{position:absolute;top:max(10px, env(safe-area-inset-top));right:max(12px, env(safe-area-inset-right));z-index:9;padding:6px 12px 7px;border:1.5px solid rgba(255,255,255,.55);border-radius:99px;
+  background:rgba(10,8,14,.55);color:#fff;font:800 13px var(--f-body);cursor:pointer;animation:fIn .4s 1s both}
+.fsound::before{content:"🔊 "} .fsound .zh{margin-left:.35em}
+.fsound[hidden]{display:none}
+.fbar{position:absolute;left:0;right:0;bottom:0;z-index:8;height:3px;background:rgba(255,255,255,.12)}
+.fbar i{display:block;height:100%;width:0;background:#DF1B72;transition:width .5s linear}
+.intro .mhint{position:absolute;left:max(12px, env(safe-area-inset-left));bottom:max(14px, env(safe-area-inset-bottom));z-index:9;margin:0;font-size:12px;font-weight:800;color:rgba(255,255,255,.6);transition:opacity .4s}
+.intro.tapped .mhint{opacity:0}
 @media (prefers-reduced-motion: reduce){
-  .mpanel, .mpanel.on, .mbal, .mpanel.on .mbal, .msfx, .mpanel.on .msfx, .mpanel .tower, .mpanel .crab, .mlogo, .mlogo.on{transform:none;transition:opacity .3s}
-  .msfx{transform:rotate(-12deg)} .mpanel.on .msfx{transform:rotate(-12deg)} .mpanel.on canvas.art:not(.tower), .mpage.turn{animation:none}
-  .msfx{opacity:0} .mpanel.on .msfx{opacity:1}
+  .fshot.on img, .fshot.off img, .fgrain, .fframe::after{animation:none !important}
+  .fshot.on.via-whip, .fshot.off.via-whip{animation:fIn .4s ease both}
+  .fflash.flash, .fflash.white{animation:none}
+  .fbeat.on .fslug{animation:none;clip-path:none}
+  .fbeat.on .fchap, .fbeat.on .mword span, .fbeat.on .fhook-ask{animation:fIn .3s ease both !important}
 }
 
 /* ---------- made for sharing: the 稱號 (title), the rank, a friend's challenge, Post to Threads ---------- */

@@ -1951,12 +1951,12 @@ $("iabCopy").addEventListener("click", async () => {
 function firstSound(){
   A.unlock();
   if (audioOn) return; audioOn = true; soundHint();
-  if (!S || S.mode !== "playing") menuMusic();
+  if ((!S || S.mode !== "playing") && !(window.TFF_INTRO && TFF_INTRO.on())) menuMusic();   // the opening film has its own score
 }
 function menuMusic(){ A.stage(0); A.mode("menu"); A.start(); }
 for (const ev of ["pointerdown", "pointerup", "touchend", "keydown", "click"]) document.addEventListener(ev, firstSound, {capture: true, passive: true});
 soundHint(); iabTip();
-window.TFF_ART = {crab: crabArt, sound: firstSound, sfx: n => A.sfx(n), fs: () => { if (fsOn) enterBrowserFs(); }};   // for the opening story (src/intro.js)
+window.TFF_ART = {sound: firstSound, music: () => { if (audioOn && (!S || S.mode !== "playing")) menuMusic(); }, fs: () => { if (fsOn) enterBrowserFs(); }};   // for the opening film (src/intro.js)
 setTimeout(resize, 800);   // an app's browser may settle its bars after the page loads
 $("muteBtn").addEventListener("click", toggleMute);
 $("fsBtn").addEventListener("click", () => toggleFs());

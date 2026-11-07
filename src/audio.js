@@ -649,6 +649,168 @@
     }
   };
   // per-sound output trim (calibrated by out/audiotest.js measurements)
+  // ------------------------------------------------------------------ the opening film's score and sound (src/intro.js)
+  // One cue per shot, all in D major so each runs on into the next: it starts as its shot cuts in, and fades out when
+  // the next one starts. Each is a little score (a pad and a motif) plus the shot's own sounds; VIA is the cut's sound.
+  function fPad(v, notes, t, dur, pk, cut, att) {          // warm analogue pad: two detuned saws a note, a soft lowpass
+    att = att || 0.6;
+    var g = v.gain(0, v.out), p = g.gain, peak = pk / notes.length;
+    p.setValueAtTime(0, t); p.linearRampToValueAtTime(peak, t + att); p.setValueAtTime(peak, t + dur - 0.8); p.linearRampToValueAtTime(0, t + dur);
+    var lp = v.filter("lowpass", cut || 1400, 0.6, g, t);
+    notes.forEach(function (m) { [-8, 8].forEach(function (d) { var o = v.osc("sawtooth", mtof(m), t, t + dur + 0.05, lp); o.detune.value = d; }); });
+    return lp;
+  }
+  function fPluck(v, m, t, pk, d) {                         // a harp-ish pluck
+    tone(v, "triangle", mtof(m), t, 0.003, pk, d || 0.6);
+    tone(v, "sine", mtof(m + 12), t, 0.002, pk * 0.3, (d || 0.6) * 0.5);
+  }
+  function fBox(v, m, t, pk, cents) {                       // a music-box tine
+    var a = tone(v, "sine", mtof(m), t, 0.002, pk, 1.1); a.o.detune.value = cents || 0;
+    var b = tone(v, "sine", mtof(m) * 3.98, t, 0.001, pk * 0.18, 0.25); b.o.detune.value = cents || 0;
+  }
+  function fWhoosh(v, t, dur, pk, f0, f1) {
+    var n = noiseHit(v, t, dur * 0.6, pk, dur * 0.4, "bandpass", f0, 1.1); n.f.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  }
+  function fBed(v, t, dur, pk, type, f, q, att) {           // a held noise bed (rain, sea, breeze)
+    var g = v.gain(0, v.out), p = g.gain; att = att || 0.4;
+    p.setValueAtTime(0, t); p.linearRampToValueAtTime(pk, t + att); p.setValueAtTime(pk, t + dur - 0.6); p.linearRampToValueAtTime(0, t + dur);
+    var fl = v.filter(type, f, q, g, t); v.noise(t, t + dur, fl); return fl;
+  }
+  function fChirp(v, t, f, pk) {                            // a small bird
+    var x = tone(v, "sine", f, t, 0.004, pk, 0.07); x.o.frequency.linearRampToValueAtTime(f * 1.35, t + 0.03); x.o.frequency.linearRampToValueAtTime(f * 0.92, t + 0.07);
+  }
+  function fGull(v, t, pk) {                                // a seagull: kee-ow
+    var g = v.gain(0, v.out), p = g.gain;
+    p.setValueAtTime(0, t); p.linearRampToValueAtTime(pk, t + 0.03); p.linearRampToValueAtTime(pk * 0.7, t + 0.2); p.linearRampToValueAtTime(0, t + 0.38);
+    var bp = v.filter("bandpass", 1600, 3, g, t), o = v.osc("sawtooth", 1500, t, t + 0.4, bp);
+    o.frequency.setValueAtTime(1300, t); o.frequency.linearRampToValueAtTime(1750, t + 0.06); o.frequency.exponentialRampToValueAtTime(1050, t + 0.36);
+    curveAt(o.detune, vibCurve(v.r, 0.36, 14, 40, 0.05), t, 0.36);
+  }
+  function fTok(v, t, m, pk) {                              // a wooden block landing
+    tone(v, "triangle", mtof(m), t, 0.002, pk, 0.14);
+    noiseHit(v, t, 0.001, pk * 0.5, 0.03, "bandpass", 1800, 1.5);
+    var k = tone(v, "sine", 180, t, 0.002, pk * 0.6, 0.08); k.o.frequency.exponentialRampToValueAtTime(70, t + 0.08);
+  }
+  function fBoom(v, t, pk) {
+    var k = tone(v, "sine", 150, t, 0.002, pk, 0.9); k.o.frequency.exponentialRampToValueAtTime(38, t + 0.25);
+    noiseHit(v, t, 0.002, pk * 0.3, 0.5, "lowpass", 300, 0.7);
+  }
+  var VIA = {
+    dissolve: function (v, t) { fWhoosh(v, t, 0.7, 0.05, 300, 1600); },
+    whip: function (v, t) { fWhoosh(v, t, 0.34, 0.42, 380, 4200); noiseHit(v, t + 0.3, 0.002, 0.12, 0.06, "highpass", 3000, 0.7); },
+    white: function (v, t) { var n = noiseHit(v, t, 0.5, 0.2, 0.5, "highpass", 3500, 0.7); n.f.frequency.linearRampToValueAtTime(7000, t + 0.5); },
+    hook: function (v, t) { fWhoosh(v, t, 0.6, 0.08, 2400, 300); }
+  };
+  var FILM = {
+    // the credit on black: the projector starts, a low drone swells, a chime
+    open: function (v, t) {
+      var r = v.r, g = v.gain(0, v.out), p = g.gain;
+      p.setValueAtTime(0, t); p.linearRampToValueAtTime(0.16, t + 0.25); p.setValueAtTime(0.16, t + 5); p.linearRampToValueAtTime(0, t + 6);
+      var gate = v.gain(0.5, g), lg = v.gain(0.5, gate.gain);
+      v.osc("square", 24, t, t + 6, lg);                                              // the shutter's clatter
+      v.noise(t, t + 6, v.filter("bandpass", 2600, 1.3, gate, t));
+      var hum = tone(v, "triangle", 50, t, 0.4, 0.08, 5.5); hum.o.frequency.linearRampToValueAtTime(60, t + 0.8);   // the motor
+      fPad(v, [38, 45, 50], t + 0.1, 5, 0.09, 700, 1.4);
+      bell(v, t + 0.55, mtof(86), 0.12, 1.6); bell(v, t + 0.55, mtof(93), 0.05, 1.2);
+    },
+    // Year 1: birds, a breeze, a typed place name, and the hopeful theme
+    campus: function (v, t) {
+      var r = v.r;
+      fPad(v, [50, 57, 62, 66, 69, 76], t, 6, 0.1, 1800, 0.9);
+      fBed(v, t, 5.5, 0.03, "lowpass", 700, 0.5, 1);
+      for (var k = 0; k < 18; k++) noiseHit(v, t + 0.55 + k * 0.045 + r.rand() * 0.015, 0.001, 0.12, 0.02, "bandpass", 2400 + r.rand() * 1600, 2);   // the slug typed in
+      [[0, 4300], [0.12, 4600], [1.4, 3900], [1.52, 4200], [1.6, 4500], [2.6, 5000]].forEach(function (c) { fChirp(v, t + 0.3 + c[0], c[1], 0.05); });
+      var mel = [74, 78, 81, 83, 81, 78, 76, 81, 86];
+      mel.forEach(function (m, i) { fPluck(v, m, t + 0.9 + i * 0.27, 0.12, 0.7); });
+      fPluck(v, 50, t + 0.9, 0.16, 1.4); fPluck(v, 57, t + 1.98, 0.12, 1.2);
+    },
+    // first pay: the till rings, coins pour, a little fanfare
+    pay: function (v, t) {
+      var r = v.r, P = [88, 90, 93, 95, 98, 100];
+      fPad(v, [43, 55, 59, 62, 71], t, 5.5, 0.1, 2200, 0.4);
+      noiseHit(v, t + 0.1, 0.002, 0.3, 0.12, "bandpass", 3200, 1.2);                     // the drawer: ch-
+      tone(v, "square", 2600, t + 0.1, 0.001, 0.08, 0.03);
+      bell(v, t + 0.18, mtof(98), 0.3, 1.1); bell(v, t + 0.3, mtof(103), 0.26, 1.3);      // -ching!
+      for (var j = 0; j < 22; j++) {
+        var tt = t + 0.35 + Math.pow(j / 22, 1.3) * 1.6 + r.rand() * 0.03;
+        coinTing(v, tt, mtof(P[Math.floor(r.rand() * P.length)]), (r.rand() - 0.5) * 40, 0.1 + r.rand() * 0.08, 0.16 * (1 - j / 30));
+      }
+      [[74, 0.55], [78, 0.68], [81, 0.81]].forEach(function (n) { brass(v, n[0], t + n[1], 0.1, 0.16); });
+      [[86, 0.24], [81, 0.16], [78, 0.14]].forEach(function (n) { brass(v, n[0], t + 0.96, 0.7, n[1]); });
+      fPluck(v, 43, t + 0.96, 0.16, 1.2);
+    },
+    // Fall 1: the phone's heavenly glow, then the receipt printing on and on
+    spend: function (v, t) {
+      var r = v.r;
+      fPad(v, [46, 58, 62, 65, 69], t, 6, 0.1, 2600, 0.35);                              // B-flat major 7: dreamy, a little off
+      [86, 90, 93, 98].forEach(function (m, i) {                                         // the "angels"
+        var x = toneH(v, "sine", mtof(m), t + 0.1 + i * 0.12, 0.35, 0.035, 2.2, 0.8); curveAt(x.o.detune, vibCurve(r, 2.6, 5.5, 14, 0.3), t + 0.1, 2.6);
+      });
+      for (var s = 0; s < 7; s++) coinTing(v, t + 0.2 + s * 0.16 + r.rand() * 0.05, mtof([93, 98, 100, 102, 105][s % 5]), 0, 0.15, 0.07);
+      noiseHit(v, t + 0.32, 0.002, 0.2, 0.08, "lowpass", 900, 0.8); tone(v, "square", 160, t + 0.32, 0.002, 0.12, 0.06);   // the chapter card stamps on
+      for (var i = 0; i < 46; i++) {                                                     // the receipt: brrrrt
+        var tt = t + 1.15 + i * 0.034;
+        tone(v, "square", 700 + (i % 3) * 140, tt, 0.001, 0.05, 0.014);
+        if (i % 2 === 0) noiseHit(v, tt, 0.001, 0.05, 0.012, "highpass", 4000, 0.7);
+      }
+      [[70, 1.2], [69, 1.5], [68, 1.8], [67, 2.1]].forEach(function (n) { fPluck(v, n[0], t + n[1], 0.1, 0.5); });   // and it slides down
+    },
+    // Fall 2: rain, thunder, a sly low walk, and the coins going down the drain
+    scam: function (v, t) {
+      var r = v.r;
+      fBed(v, t, 6, 0.09, "highpass", 1100, 0.5, 0.15);
+      var rumble = noiseHit(v, t + 0.05, 0.03, 0.75, 2.4, "lowpass", 220, 0.8); rumble.f.frequency.exponentialRampToValueAtTime(90, t + 2.2);
+      noiseHit(v, t, 0.001, 0.3, 0.3, "highpass", 1800, 0.7);                              // the crack
+      fPad(v, [38, 39, 50], t + 0.2, 5.5, 0.12, 480, 0.8);                                 // D and E-flat: something's wrong
+      noiseHit(v, t + 0.32, 0.002, 0.2, 0.08, "lowpass", 900, 0.8); tone(v, "square", 150, t + 0.32, 0.002, 0.12, 0.06);
+      [[50, 0.7], [53, 0.95], [56, 1.2], [55, 1.45], [50, 1.95], [53, 2.2], [57, 2.45], [56, 2.7]].forEach(function (n) { fPluck(v, n[0], t + n[1], 0.2, 0.22); });
+      for (var j = 0; j < 4; j++) coinTing(v, t + 1.3 + j * 0.28 + j * j * 0.04, mtof(98 - j * 4), -j * 30, 0.14, 0.12);
+      var gulp = tone(v, "sine", 320, t + 2.5, 0.01, 0.2, 0.25); gulp.o.frequency.exponentialRampToValueAtTime(70, t + 2.75);
+      for (var d = 0; d < 10; d++) noiseHit(v, t + r.rand() * 3, 0.001, 0.05, 0.02, "bandpass", 2500 + r.rand() * 3000, 6);
+    },
+    // Fall 3: a clock, a music box winding down, pages flying away
+    delay: function (v, t) {
+      var r = v.r;
+      fPad(v, [47, 54, 62, 66], t, 6, 0.09, 800, 1);
+      noiseHit(v, t + 0.32, 0.002, 0.2, 0.08, "lowpass", 900, 0.8); tone(v, "square", 140, t + 0.32, 0.002, 0.12, 0.06);
+      for (var i = 0; i < 9; i++) {                                                        // tick, tock
+        var tt = t + 0.15 + i * 0.5; tone(v, "square", i % 2 ? 1150 : 1500, tt, 0.001, 0.07, 0.02); noiseHit(v, tt, 0.001, 0.08, 0.015, "highpass", 4500, 0.7);
+      }
+      var mel = [83, 86, 90, 88, 86, 85, 83, 78], at = t + 0.6;
+      mel.forEach(function (m, i) { fBox(v, m, at, 0.13, -i * 9); at += 0.3 + i * 0.045; });   // slower and flatter, winding down
+      for (var p = 0; p < 6; p++) { var pt = t + 0.9 + p * 0.38 + r.rand() * 0.1;
+        for (var q = 0; q < 4; q++) noiseHit(v, pt + q * 0.03, 0.002, 0.05, 0.025, "bandpass", 1600 + r.rand() * 1400, 1.5); }
+    },
+    // the crab's tower: gulls and sea, a rising A major and a drum roll into the title
+    tower: function (v, t) {
+      var r = v.r;
+      var lp = fPad(v, [45, 52, 61, 64, 69], t + 0.3, 5, 0.12, 600, 0.6); lp.frequency.exponentialRampToValueAtTime(3200, t + 3.4);
+      var sea = fBed(v, t, 5.5, 0.07, "lowpass", 500, 0.6, 1); sea.frequency.linearRampToValueAtTime(900, t + 1.5); sea.frequency.linearRampToValueAtTime(450, t + 3.2);
+      fGull(v, t + 0.6, 0.05); fGull(v, t + 1.0, 0.04); fGull(v, t + 2.2, 0.035);
+      var w = tone(v, "triangle", 500, t + 0.9, 0.02, 0.1, 0.3); w.o.frequency.exponentialRampToValueAtTime(1100, t + 1.15);   // the crab: woo!
+      [[69, 0.9], [73, 1.15], [76, 1.4], [81, 1.65]].forEach(function (n) { brass(v, n[0], t + n[1], 0.18, 0.12); });
+      for (var i = 0; i < 34; i++) noiseHit(v, t + 1.9 + i * 0.045, 0.001, 0.04 + i * 0.006, 0.04, "bandpass", 1900, 0.8);   // the roll
+    },
+    // the title: a hit, the letters landing like blocks, the full theme
+    title: function (v, t) {
+      fBoom(v, t, 0.85);
+      noiseHit(v, t, 0.002, 0.24, 2.2, "highpass", 6000, 0.7);
+      [[62, 0.2], [66, 0.17], [69, 0.17], [74, 0.2], [50, 0.2]].forEach(function (n) { brass(v, n[0], t, 1.3, n[1]); });
+      fPad(v, [50, 57, 62, 66, 69, 74], t, 8.5, 0.14, 2600, 0.3);
+      for (var i = 0; i < 8; i++) fTok(v, t + 0.3 + i * 0.08, PENT[7 + i], 0.18);
+      bell(v, t + 0.8, mtof(81), 0.16, 1.6); bell(v, t + 0.8, mtof(86), 0.1, 1.4);
+      [74, 78, 81, 86].forEach(function (m, i) { fPluck(v, m, t + 1.2 + i * 0.22, 0.1, 0.9); });
+    },
+    // the hook: the music holds on a question
+    hook: function (v, t) {
+      fPad(v, [47, 55, 62, 69, 76], t, 7, 0.11, 1100, 1);
+      var a = tone(v, "sine", 62, t + 0.2, 0.004, 0.35, 0.14); a.o.frequency.exponentialRampToValueAtTime(42, t + 0.32);    // a heartbeat
+      var b = tone(v, "sine", 56, t + 0.38, 0.004, 0.26, 0.16); b.o.frequency.exponentialRampToValueAtTime(38, t + 0.52);
+      [[74, 1.1, 0.7], [78, 1.45, 0.7], [76, 1.8, 2.6]].forEach(function (n) { fPluck(v, n[0], t + n[1], 0.16, n[2]); });   // D, F#... E? (no answer yet)
+      bell(v, t + 1.8, mtof(88), 0.06, 2);
+    }
+  };
+
   var LEVEL = {
     uiOpen: 0.8, uiClose: 0.95, uiNext: 0.8, uiBack: 0.85, uiToggle: 1.0, uiSelect: 0.8, uiDone: 0.55, uiNope: 0.65, go: 0.85, lock: 0.85, netCatch: 0.9, rescue: 0.7, rival: 0.8, reel: 0.5, reelStop: 0.85,
     click: 0.7, spawn: 0.7, move: 1.35, rotate: 0.7, hold: 0.75, release: 0.7, harddrop: 0.85, deposit: 0.7,
@@ -872,6 +1034,7 @@
   var muted = readMuted(), musicVolume = 1, sfxVolume = 1;
   var wantMusic = false, mStage = 0, mMode = "normal", pauseAt = 0;
   var userSuspended = false, hidden = false, unlockedOnce = false;
+  var filmV = null, filmTok = 0;
   var lastSfx = {}, sfxEnds = [], impEnds = [], impTokens = 4, impLastT = 0, impLastMat = {};
 
   function readMuted() { try { return W.localStorage.getItem(STORE_KEY) === "1"; } catch (e) { return false; } }
@@ -938,6 +1101,27 @@
     rampTo(E.bus.gain, 0, Math.max(0.01, fade / 4));
     W.setTimeout(function () { E.dispose(); }, (fade + 0.8) * 1000);
   }
+  function filmFade(sec) {
+    var v = filmV; filmV = null;
+    if (!v || !ctx) return;
+    var t = ctx.currentTime;
+    try { v.out.gain.cancelScheduledValues(t); v.out.gain.setValueAtTime(v.out.gain.value, t); v.out.gain.linearRampToValueAtTime(0, t + sec); } catch (e) {}
+    for (var i = 0; i < v.n.length; i++) { var x = v.n[i]; if (x && typeof x.stop === "function") { try { x.stop(t + sec + 0.05); } catch (e) {} } }
+  }
+  function filmCue(name, o) {
+    if (!ctx || !rig || muted || !FILM[name]) return false;
+    var tok = ++filmTok;
+    var play = function () {
+      if (tok !== filmTok || !running() || muted) return;
+      filmFade(0.35);
+      var v = new Voice(rig, rig.sfxIn, 0.85, 0), t = ctx.currentTime + 0.01;
+      try { if (o && VIA[o.via]) VIA[o.via](v, t); FILM[name](v, t); } catch (e) {}
+      filmV = v;
+    };
+    if (ctx.state === "running") play();
+    else { try { var p = ctx.resume(); if (p && typeof p.then === "function") p.then(play, noop); } catch (e) {} }
+    return true;
+  }
   function onVisibility() { hidden = !!document.hidden; applyRun(); }
 
   // ------------------------------------------------------------------ offline rendering (tests)
@@ -955,6 +1139,11 @@
           var fn = SFX[parts[0]]; if (!fn) throw new Error("unknown sfx " + parts[0]);
           if (parts.length > 1 && SFX_OPT_KEY[parts[0]]) o[SFX_OPT_KEY[parts[0]]] = isNaN(+parts[1]) ? parts[1] : +parts[1];
           fn(new Voice(r, r.sfxIn, LEVEL[parts[0]] || 0.8, o.pan || 0), 0.01, o);
+        } else if (kind === "film") {
+          if (!FILM[parts[0]]) throw new Error("unknown film cue " + parts[0]);
+          var fv = new Voice(r, r.sfxIn, 0.85, 0);
+          if (VIA[o.via]) VIA[o.via](fv, 0.01);
+          FILM[parts[0]](fv, 0.01);
         } else if (kind === "impact") {
           playImpact(r, parts[0], clamp(parts.length > 1 ? +parts[1] : 0.6, 0, 1), o.pan || 0, 0.01);
         } else if (kind === "music") {
@@ -1040,6 +1229,12 @@
         var v = playImpact(rig, m, s, clamp(+pan || 0, -1, 1), t + 0.003);
         impEnds.push(v.end);
       } catch (e) {}
+    },
+    film: {                                       // the opening film (src/intro.js)
+      cue: function (name, o) { try { return filmCue(name, o); } catch (e) { return false; } },
+      stop: function (fade) { try { filmTok++; filmFade(fade == null ? 0.6 : fade); } catch (e) {} },
+      live: function () { return running() && !muted; },
+      cues: function () { return Object.keys(FILM); }
     },
     music: {
       start: function () { try { startMusic(); } catch (e) {} },
