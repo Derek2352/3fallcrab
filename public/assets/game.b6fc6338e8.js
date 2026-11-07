@@ -2977,78 +2977,98 @@ function loadPoster(key){   // starts as the game ends, so it's there by the tim
   }));
   return posterPics.get(key);
 }
-function drawPosterCard(g, img, key, medalPic){
+function drawPosterCard(g, img, key, medalPic, M){
   const F = K.FONTS, sp = POSTER_SPOT[key], v = S.verdict || verdictOf(S), st = STAGES[S.stage], top = S.stage === STAGES.length - 1;
   const P = personaOf(S.persona), who = WHO === "jackie" ? "Jackie" : "Jack", nm = cardName() || who, NAVY = "#25317A", PINK = "#DF1B72";
-  const round = (x, y, w, h, r) => { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); };   // (roundRect is newer than some phones)
-  const fit = (t, w, size, min, weight, fam) => { let f = size; g.font = weight + " " + f + "px " + fam; while (g.measureText(t).width > w && f > min){ f -= 1; g.font = weight + " " + f + "px " + fam; } return g.font; };
-  const say = (t, x, y, w, size, min, weight, fam, color, align) => { g.textAlign = align || "left"; g.fillStyle = color; g.font = fit(t, w, size, min, weight, fam); g.fillText(t, x, y); return g.measureText(t).width; };
   g.drawImage(img, 0, 0, 1080, 1350);
   // the credit, across the top
   g.save(); g.shadowColor = "rgba(10,10,30,0.75)"; g.shadowBlur = 8; g.fillStyle = "rgba(255,255,255,0.95)"; g.textAlign = "center";
   g.font = "700 21px " + F.zh; g.fillText("HSUHK 個人理財大使計劃 2026 · 3 Fall Crab 整冧咗team", 540, 34); g.restore();
-  // the ticket
+  // the ticket, in its own units round (0, 0): a box (480 x 360) for sky, a strip (1000 x 200) for floor
   const strip = sp.kind === "strip", TW = strip ? 1000 : 480, TH = strip ? 200 : 360, sc = Math.min(sp.w / TW, sp.h / TH);
-  g.save(); g.translate(sp.x + sp.w / 2, sp.y + sp.h / 2); g.rotate(sp.rot); g.scale(sc, sc);
-  const x0 = -TW / 2, y0 = -TH / 2, x1 = TW / 2, y1 = TH / 2, stub = 34, n = 12, sx = x0 + stub, r = 16;
-  const tk = new Path2D();   // a rounded ticket with a notch top and bottom where the stub tears off
-  tk.moveTo(x0 + r, y0); tk.lineTo(sx - n, y0); tk.arc(sx, y0, n, Math.PI, 0, true); tk.lineTo(x1 - r, y0); tk.arcTo(x1, y0, x1, y0 + r, r);
-  tk.lineTo(x1, y1 - r); tk.arcTo(x1, y1, x1 - r, y1, r); tk.lineTo(sx + n, y1); tk.arc(sx, y1, n, 0, Math.PI, true); tk.lineTo(x0 + r, y1);
-  tk.arcTo(x0, y1, x0, y1 - r, r); tk.lineTo(x0, y0 + r); tk.arcTo(x0, y0, x0 + r, y0, r); tk.closePath();
-  g.save(); g.shadowColor = "rgba(15,10,35,0.5)"; g.shadowBlur = 22; g.shadowOffsetY = 12;
-  const paper = g.createLinearGradient(0, y0, 0, y1); paper.addColorStop(0, "#FFFDF7"); paper.addColorStop(1, "#FFEBCB"); g.fillStyle = paper; g.fill(tk); g.restore();
-  g.save(); g.clip(tk); g.fillStyle = PINK; g.fillRect(x0, y0, stub, TH); g.restore();
-  g.save(); g.setLineDash([6, 7]); g.strokeStyle = "rgba(37,49,122,0.35)"; g.lineWidth = 2; g.beginPath(); g.moveTo(sx + 2, y0 + n + 6); g.lineTo(sx + 2, y1 - n - 6); g.stroke(); g.restore();
-  g.save(); g.translate(x0 + stub / 2, 0); g.rotate(-Math.PI / 2); g.fillStyle = "#fff"; g.textAlign = "center"; g.textBaseline = "middle";
-  g.font = "900 15px " + F.sans; g.fillText("ADMIT ONE · 入場券", 0, 1); g.restore(); g.textBaseline = "alphabetic";
-  const saved = S.score > 0, amt = fmt(S.score);
-  const stageTxt = (top ? "成功退休！" : "去到「" + st.zh + "」") + " · " + (top ? "Retired" : st.en) + " · " + floorTxt(S.best / FLOOR);
-  const header = (x, y, w) => { const lw = say("領銜主演 ", x, y, w, 23, 16, 700, F.zh, PINK); say(nm, x + lw, y, w - lw, 25, 16, 900, F.display, NAVY); };
-  const amount = (x, y, w, size) => { g.textAlign = "left"; g.font = fit(amt, w, size, 36, 900, F.display); g.lineJoin = "round"; g.strokeStyle = "#fff"; g.lineWidth = 9; g.strokeText(amt, x, y); g.fillStyle = "#1F9E4A"; g.fillText(amt, x, y); };
-  const falls = (x, y, rr) => [["spend", "#E8661F"], ["scam", "#7B5BE8"], ["delay", "#2F86D6"]].forEach(([k, col], i) => {   // the 3 Falls: a tick, or how many times
-    g.beginPath(); g.arc(x + i * (rr * 2 + 8), y, rr, 0, Math.PI * 2); g.fillStyle = col; g.fill();
-    g.fillStyle = "#fff"; g.textAlign = "center"; g.font = "900 " + Math.round(rr * 1.05) + "px " + F.display; g.fillText(S.falls[k] ? "×" + S.falls[k] : "✓", x + i * (rr * 2 + 8), y + rr * 0.38); });
-  const medal = (x, y, w) => { if (medalPic){ g.save(); g.shadowColor = "rgba(20,30,90,0.4)"; g.shadowBlur = 10; g.shadowOffsetY = 5; g.drawImage(medalPic, x, y, w, w * 282 / 240); g.restore(); } else flatMedal(g, x + w / 2, y + w * 0.62, w * 0.36, tierOf(v)); };
-  const pct = (x, y, rot) => { if (S.pct == null) return; g.save(); g.translate(x, y); g.rotate(rot); const zt = "贏咗 " + S.pct + "% 玩家", et = "Beat " + S.pct + "%";
-    g.font = "700 25px " + F.zh; const zw = g.measureText(zt).width; g.font = "900 19px " + F.sans; const ew = g.measureText(et).width, w = Math.max(zw, ew) + 34;
-    g.shadowColor = "rgba(37,49,122,0.3)"; g.shadowOffsetY = 5; round(-w / 2, -32, w, 64, 20); g.fillStyle = "#FFD23F"; g.fill(); g.shadowColor = "transparent"; g.lineWidth = 3; g.strokeStyle = "#fff"; g.stroke();
-    g.textAlign = "center"; g.fillStyle = NAVY; g.font = "700 25px " + F.zh; g.fillText(zt, 0, -3); g.fillStyle = "#5B3B00"; g.font = "900 19px " + F.sans; g.fillText(et, 0, 21); g.restore(); };
-  if (!strip){
-    const mx = sx + 22, rx = x1 - 22, cw = rx - mx;
-    header(mx, y0 + 46, cw - 96);
-    if (P) say(P.zh, mx, y0 + 80, cw - 96, 24, 16, 700, F.zh, NAVY);
-    say(v.zh, mx, y0 + 136, cw, 46, 24, 700, F.zh, NAVY);
-    say(v.en, mx, y0 + 166, cw, 22, 14, 800, F.sans, "#A86A00");
-    g.save(); g.setLineDash([3, 6]); g.strokeStyle = "rgba(37,49,122,0.3)"; g.lineWidth = 2; g.beginPath(); g.moveTo(mx, y0 + 186); g.lineTo(rx, y0 + 186); g.stroke(); g.restore();
-    say((saved ? "恭喜你儲到" : "我嘅淨資產") + " · " + (saved ? "I saved" : "My net worth"), mx, y0 + 216, cw - 128, 22, 15, 700, F.zh, "#5B516C");
-    amount(mx, y0 + 282, cw, 74);
-    say(stageTxt, mx, y0 + 316, cw, 24, 15, 700, F.zh, NAVY);
-    say("3fallcrab.com", mx, y0 + 349, cw - 150, 27, 18, 900, F.display, PINK);
-    falls(rx - 15 - 2 * 38, y0 + 208, 15);   // by "I saved": the corner is the "Beat" sticker's
-    medal(x1 - 112, y0 - 50, 124);
-    pct(x1 - 92, y1 + 4, -0.06);
-  } else {
-    const a0 = sx + 150, b0 = a0 + 322, c0 = b0 + 300, rx = x1 - 22;
-    medal(sx + 14, y0 + 24, 122);
-    header(a0, y0 + 50, 300);
-    if (P) say(P.zh, a0, y0 + 84, 300, 24, 16, 700, F.zh, NAVY);
-    say(v.zh, a0, y0 + 138, 300, 44, 24, 700, F.zh, NAVY);
-    say(v.en, a0, y0 + 170, 300, 22, 14, 800, F.sans, "#A86A00");
-    say((saved ? "恭喜你儲到" : "我嘅淨資產") + " · " + (saved ? "I saved" : "My net worth"), b0, y0 + 52, 280, 22, 15, 700, F.zh, "#5B516C");
-    amount(b0, y0 + 126, 280, 72);
-    say(stageTxt, b0, y0 + 166, 282, 24, 14, 700, F.zh, NAVY);
-    falls(c0 + 16, y0 + 46, 16);
-    if (S.pct != null){ g.textAlign = "left"; say("贏咗 " + S.pct + "% 玩家", c0, y0 + 104, rx - c0, 25, 16, 700, F.zh, NAVY); say("Beat " + S.pct + "% of players", c0, y0 + 130, rx - c0, 18, 12, 900, F.sans, "#5B3B00"); }
-    say("3fallcrab.com", c0, y0 + 178, rx - c0, 27, 16, 900, F.display, PINK);
+  const cx = sp.x + sp.w / 2, cy = sp.y + sp.h / 2, x0 = -TW / 2, y0 = -TH / 2, x1 = TW / 2, y1 = TH / 2, stub = 34, n = 12, sx = x0 + stub;
+  const kit = c => ({   // text helpers on a canvas
+    round: (x, y, w, h, r) => { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); },   // (roundRect is newer than some phones)
+    fit: (t, w, size, min, weight, fam) => { let f = size; c.font = weight + " " + f + "px " + fam; while (c.measureText(t).width > w && f > min){ f -= 1; c.font = weight + " " + f + "px " + fam; } return c.font; },
+  });
+  const pctText = ["贏咗 " + S.pct + "% 玩家", "Beat " + S.pct + "%"], chalBy = "Beat " + ((CHAL && CHAL.n) || "my friend");
+  const pctSticker = c => {   // where it ranks, a yellow sticker centred on (0, 0)
+    const {round} = kit(c); c.font = "700 25px " + F.zh; const zw = c.measureText(pctText[0]).width; c.font = "900 19px " + F.sans; const w = Math.max(zw, c.measureText(pctText[1]).width) + 34;
+    round(-w / 2, -32, w, 64, 20); c.fillStyle = "#FFD23F"; c.fill(); c.lineWidth = 3; c.strokeStyle = "#fff"; c.stroke();
+    c.textAlign = "center"; c.fillStyle = NAVY; c.font = "700 25px " + F.zh; c.fillText(pctText[0], 0, -3); c.fillStyle = "#5B3B00"; c.font = "900 19px " + F.sans; c.fillText(pctText[1], 0, 21); return w; };
+  const chalSticker = c => {   // a friend's challenge, beaten
+    const {round, fit} = kit(c); round(-118, -30, 236, 60, 18); c.fillStyle = PINK; c.fill(); c.lineWidth = 4; c.strokeStyle = "#fff"; c.stroke();
+    c.fillStyle = "#fff"; c.textAlign = "center"; c.font = "700 24px " + F.zh; c.fillText("挑戰成功！", 0, -3); c.font = fit(chalBy, 210, 19, 13, 900, F.sans); c.fillText(chalBy, 0, 21); };
+  // The print: paper, pink stub, perforation and the results. `flat` adds what the 3D ticket brings itself (its shadow,
+  // the medal, the stickers); otherwise the perforation is punched through (holes the light shows through).
+  const print = (c, flat) => {
+    const {fit} = kit(c);
+    const say = (t, x, y, w, size, min, weight, fam, color) => { c.textAlign = "left"; c.fillStyle = color; c.font = fit(t, w, size, min, weight, fam); c.fillText(t, x, y); return c.measureText(t).width; };
+    const r = 16, tk = new Path2D();   // a rounded ticket with a notch top and bottom where the stub tears off
+    tk.moveTo(x0 + r, y0); tk.lineTo(sx - n, y0); tk.arc(sx, y0, n, Math.PI, 0, true); tk.lineTo(x1 - r, y0); tk.arcTo(x1, y0, x1, y0 + r, r);
+    tk.lineTo(x1, y1 - r); tk.arcTo(x1, y1, x1 - r, y1, r); tk.lineTo(sx + n, y1); tk.arc(sx, y1, n, 0, Math.PI, true); tk.lineTo(x0 + r, y1);
+    tk.arcTo(x0, y1, x0, y1 - r, r); tk.lineTo(x0, y0 + r); tk.arcTo(x0, y0, x0 + r, y0, r); tk.closePath();
+    c.save(); if (flat){ c.shadowColor = "rgba(15,10,35,0.5)"; c.shadowBlur = 22; c.shadowOffsetY = 12; }
+    const paper = c.createLinearGradient(0, y0, 0, y1); paper.addColorStop(0, "#FFFDF7"); paper.addColorStop(1, "#FFEBCB"); c.fillStyle = paper; c.fill(tk); c.restore();
+    c.save(); c.clip(tk); c.fillStyle = PINK; c.fillRect(x0, y0, stub, TH); c.restore();
+    if (flat){ c.save(); c.setLineDash([6, 7]); c.strokeStyle = "rgba(37,49,122,0.35)"; c.lineWidth = 2; c.beginPath(); c.moveTo(sx + 2, y0 + n + 6); c.lineTo(sx + 2, y1 - n - 6); c.stroke(); c.restore(); }
+    else { c.save(); c.globalCompositeOperation = "destination-out"; for (let y = y0 + n + 9; y < y1 - n - 6; y += 11){ c.beginPath(); c.arc(sx + 1, y, 2.6, 0, Math.PI * 2); c.fill(); } c.restore(); }
+    c.save(); c.translate(x0 + stub / 2, 0); c.rotate(-Math.PI / 2); c.fillStyle = "#fff"; c.textAlign = "center"; c.textBaseline = "middle";
+    c.font = "900 15px " + F.sans; c.fillText("ADMIT ONE · 入場券", 0, 1); c.restore(); c.textBaseline = "alphabetic";
+    const saved = S.score > 0, amt = fmt(S.score);
+    const stageTxt = (top ? "成功退休！" : "去到「" + st.zh + "」") + " · " + (top ? "Retired" : st.en) + " · " + floorTxt(S.best / FLOOR);
+    const header = (x, y, w) => { const lw = say("領銜主演 ", x, y, w, 23, 16, 700, F.zh, PINK); say(nm, x + lw, y, w - lw, 25, 16, 900, F.display, NAVY); };
+    const amount = (x, y, w, size) => { c.textAlign = "left"; c.font = fit(amt, w, size, 36, 900, F.display); c.lineJoin = "round"; c.strokeStyle = "#fff"; c.lineWidth = 9; c.strokeText(amt, x, y); c.fillStyle = "#1F9E4A"; c.fillText(amt, x, y); };
+    const falls = (x, y, rr) => [["spend", "#E8661F"], ["scam", "#7B5BE8"], ["delay", "#2F86D6"]].forEach(([k, col], i) => {   // the 3 Falls: a tick, or how many times
+      c.beginPath(); c.arc(x + i * (rr * 2 + 8), y, rr, 0, Math.PI * 2); c.fillStyle = col; c.fill();
+      c.fillStyle = "#fff"; c.textAlign = "center"; c.font = "900 " + Math.round(rr * 1.05) + "px " + F.display; c.fillText(S.falls[k] ? "×" + S.falls[k] : "✓", x + i * (rr * 2 + 8), y + rr * 0.38); });
+    const medal = (x, y, w) => { if (!flat) return; if (medalPic){ c.save(); c.shadowColor = "rgba(20,30,90,0.4)"; c.shadowBlur = 10; c.shadowOffsetY = 5; c.drawImage(medalPic, x, y, w, w * 282 / 240); c.restore(); } else flatMedal(c, x + w / 2, y + w * 0.62, w * 0.36, tierOf(v)); };
+    if (!strip){
+      const mx = sx + 22, rx = x1 - 22, cw = rx - mx;
+      header(mx, y0 + 46, cw - 96);
+      if (P) say(P.zh, mx, y0 + 80, cw - 96, 24, 16, 700, F.zh, NAVY);
+      say(v.zh, mx, y0 + 136, cw, 46, 24, 700, F.zh, NAVY);
+      say(v.en, mx, y0 + 166, cw, 22, 14, 800, F.sans, "#A86A00");
+      c.save(); c.setLineDash([3, 6]); c.strokeStyle = "rgba(37,49,122,0.3)"; c.lineWidth = 2; c.beginPath(); c.moveTo(mx, y0 + 186); c.lineTo(rx, y0 + 186); c.stroke(); c.restore();
+      say((saved ? "恭喜你儲到" : "我嘅淨資產") + " · " + (saved ? "I saved" : "My net worth"), mx, y0 + 216, cw - 128, 22, 15, 700, F.zh, "#5B516C");
+      amount(mx, y0 + 282, cw, 74);
+      say(stageTxt, mx, y0 + 316, cw, 24, 15, 700, F.zh, NAVY);
+      say("3fallcrab.com", mx, y0 + 349, cw - 150, 27, 18, 900, F.display, PINK);
+      falls(rx - 15 - 2 * 38, y0 + 208, 15);   // by "I saved": the corner is the "Beat" sticker's
+      medal(x1 - 112, y0 - 50, 124);
+      if (flat && S.pct != null){ c.save(); c.translate(x1 - 92, y1 + 4); c.rotate(-0.06); c.shadowColor = "rgba(37,49,122,0.3)"; c.shadowOffsetY = 5; pctSticker(c); c.restore(); }
+    } else {
+      const a0 = sx + 150, b0 = a0 + 322, c0 = b0 + 300, rx = x1 - 22;
+      medal(sx + 14, y0 + 24, 122);
+      header(a0, y0 + 50, 300);
+      if (P) say(P.zh, a0, y0 + 84, 300, 24, 16, 700, F.zh, NAVY);
+      say(v.zh, a0, y0 + 138, 300, 44, 24, 700, F.zh, NAVY);
+      say(v.en, a0, y0 + 170, 300, 22, 14, 800, F.sans, "#A86A00");
+      say((saved ? "恭喜你儲到" : "我嘅淨資產") + " · " + (saved ? "I saved" : "My net worth"), b0, y0 + 52, 280, 22, 15, 700, F.zh, "#5B516C");
+      amount(b0, y0 + 126, 280, 72);
+      say(stageTxt, b0, y0 + 166, 282, 24, 14, 700, F.zh, NAVY);
+      falls(c0 + 16, y0 + 46, 16);
+      if (S.pct != null){ say(pctText[0], c0, y0 + 104, rx - c0, 25, 16, 700, F.zh, NAVY); say("Beat " + S.pct + "% of players", c0, y0 + 130, rx - c0, 18, 12, 900, F.sans, "#5B3B00"); }
+      say("3fallcrab.com", c0, y0 + 178, rx - c0, 27, 16, 900, F.display, PINK);
+    }
+    if (flat && S.chal && S.chal.beat){ c.save(); c.translate(x0 + 70, y0 - 6); c.rotate(-0.12); c.shadowColor = "rgba(37,49,122,0.3)"; c.shadowOffsetY = 6; chalSticker(c); c.restore(); }
+  };
+  // As a real object (three.js, in the medal's bundle): the print on curled card stock with the 3D medal pinned on and
+  // the stickers stuck on, lit like the poster, with its shadow. (Canvas angles turn clockwise, three.js's the other way.)
+  if (M && M.ticket){
+    const pic = (w, h, k, draw) => { const o = document.createElement("canvas"); o.width = Math.round(w * k); o.height = Math.round(h * k); const c = o.getContext("2d"); c.translate(o.width / 2, o.height / 2); c.scale(k, k); draw(c); return o; };
+    const face = pic(TW, TH, 2, c => print(c, false)), stickers = [];
+    if (!strip && S.pct != null){ const w = pctSticker(document.createElement("canvas").getContext("2d")) + 6; stickers.push({canvas: pic(w, 70, 2, pctSticker), u: (TW - 92) / TW, v: (TH + 4) / TH, size: w / TW, rot: 0.06}); }
+    if (S.chal && S.chal.beat) stickers.push({canvas: pic(242, 66, 2, chalSticker), u: 70 / TW, v: -6 / TH, size: 242 / TW, rot: 0.12});
+    const margin = [1.32, strip ? 1.75 : 1.6], ow = TW * sc * margin[0], oh = TH * sc * margin[1];
+    let out = null;
+    try {
+      out = M.ticket({face, light: key, tilt: -sp.rot, margin, px: [Math.round(ow * 2), Math.round(oh * 2)], stickers,
+        medal: strip ? {tier: tierOf(v), u: 109 / TW, v: 114 / TH, size: 0.11, rot: 0.1} : {tier: tierOf(v), u: (TW - 50) / TW, v: 40 / TH, size: 0.23, rot: -0.12}});
+    } catch(e){ out = null; }
+    if (out){ g.drawImage(out, cx - ow / 2, cy - oh / 2, ow, oh); return; }
   }
-  // a friend's challenge, beaten: a sticker on the ticket's corner
-  if (S.chal && S.chal.beat){
-    const by = CHAL.n || "my friend";
-    g.save(); g.translate(x0 + 70, y0 - 6); g.rotate(-0.12); g.shadowColor = "rgba(37,49,122,0.3)"; g.shadowOffsetY = 6;
-    round(-118, -30, 236, 60, 18); g.fillStyle = PINK; g.fill(); g.shadowColor = "transparent"; g.lineWidth = 4; g.strokeStyle = "#fff"; g.stroke();
-    g.fillStyle = "#fff"; g.textAlign = "center"; g.font = "700 24px " + F.zh; g.fillText("挑戰成功！", 0, -3); g.font = fit("Beat " + by, 210, 19, 13, 900, F.sans); g.fillText("Beat " + by, 0, 21); g.restore();
-  }
-  g.restore();
+  g.save(); g.translate(cx, cy); g.rotate(sp.rot); g.scale(sc, sc); print(g, true); g.restore();   // without WebGL: printed flat
 }
 async function readyCard(){
   const k = [S.endAt, Math.round(S.score), cardName(), WHO, S.pct, S.verdict && S.verdict.id, S.chal && S.chal.beat, personaKey(S.persona), posterFor(S)].join("|");
@@ -3062,7 +3082,7 @@ async function makeResultCard(){
   let medalPic = null; try { medalPic = M && M.snapshot(tierOf(S.verdict || verdictOf(S)), 240, 282); } catch(e){}
   const poster = await Promise.race([posterP, new Promise(r => setTimeout(() => r(null), 5000))]);
   const CW = 1080, CH = 1350, c = document.createElement("canvas"); c.width = CW; c.height = CH;
-  if (poster){ drawPosterCard(c.getContext("2d"), poster, pkey, medalPic); return await new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error("no image")), "image/jpeg", 0.9)); }
+  if (poster){ drawPosterCard(c.getContext("2d"), poster, pkey, medalPic, M); return await new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error("no image")), "image/jpeg", 0.9)); }
   const g = c.getContext("2d"), F = K.FONTS, st = STAGES[S.stage], top = S.stage === STAGES.length - 1;
   const rr = (x, y, w, h, r) => { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); };
   const outlined = (txt, x, y, font, fill, sw) => { g.font = font; g.textAlign = "center"; g.lineJoin = "round"; g.strokeStyle = "rgba(37,49,122,0.3)"; g.lineWidth = sw + 6; g.strokeText(txt, x + 5, y + 8); g.strokeStyle = "#fff"; g.lineWidth = sw; g.strokeText(txt, x, y); g.fillStyle = fill; g.fillText(txt, x, y); };
