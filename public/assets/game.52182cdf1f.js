@@ -2971,6 +2971,7 @@ function loadPoster(key){   // starts as the game ends, so it's there by the tim
   return posterPics.get(key);
 }
 const CARD_H = 1920, PANEL = 1350;   // the poster's height: the panel starts there
+const CARD_R = 60, NOTCH = 30;   // the ticket's rounded corners, and the notches where its stub tears off
 function drawPosterCard(g, img, medalPic){
   const F = K.FONTS, v = S.verdict || verdictOf(S), st = STAGES[S.stage], top = S.stage === STAGES.length - 1;
   const P = personaOf(S.persona), who = WHO === "jackie" ? "Jackie" : "Jack", nm = cardName() || who;
@@ -2978,45 +2979,63 @@ function drawPosterCard(g, img, medalPic){
   const fit = (t, w, size, min, font) => { let f = size; g.font = font(f); while (g.measureText(t).width > w && f > min){ f -= 1; g.font = font(f); } return g.font; };
   const say = (t, x, y, w, size, min, font, color, align) => { g.textAlign = align || "left"; g.fillStyle = color; g.font = fit(t, w, size, min, font); g.fillText(t, x, y); };
   const spaced = (px) => { if ("letterSpacing" in g) g.letterSpacing = px + "px"; };
-  const label = (t, x, y, align) => { spaced(4); say(t, x, y, 400, 21, 15, f => "800 " + f + "px " + F.sans, GOLD, align); spaced(0); };
+  const label = (t, x, y, align, w) => { spaced(4); say(t, x, y, w || 400, 21, 13, f => "800 " + f + "px " + F.sans, GOLD, align); spaced(0); };
   const zh = w => f => w + " " + f + "px " + F.zh, it = f => "italic 700 " + f + "px " + SERIF;
+  // the ticket's shape: rounded corners (the picture is a PNG, so they stay round when saved)
+  g.save(); g.beginPath(); g.moveTo(CARD_R, 0); g.arcTo(1080, 0, 1080, CARD_H, CARD_R); g.arcTo(1080, CARD_H, 0, CARD_H, CARD_R); g.arcTo(0, CARD_H, 0, 0, CARD_R); g.arcTo(0, 0, 1080, 0, CARD_R); g.closePath(); g.clip();
   g.drawImage(img, 0, 0, 1080, PANEL);   // the poster, untouched
-  // the panel: a deep night-blue, a fine film grain, a gold rule where the poster ends
+  // the stub: a deep night-blue, a fine film grain
   const bg = g.createLinearGradient(0, PANEL, 0, CARD_H); bg.addColorStop(0, "#171A33"); bg.addColorStop(1, "#0B0C17"); g.fillStyle = bg; g.fillRect(0, PANEL, 1080, CARD_H - PANEL);
   let seed = 11; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   for (let i = 0; i < 2600; i++){ g.fillStyle = "rgba(255,255,255," + (0.02 + rnd() * 0.05).toFixed(3) + ")"; g.fillRect(rnd() * 1080, PANEL + rnd() * (CARD_H - PANEL), 1.6, 1.6); }
-  g.fillStyle = GOLD; g.fillRect(0, PANEL, 1080, 4);
   const rule = y => { g.fillStyle = "rgba(201,163,90,0.45)"; g.fillRect(60, y, 960, 2); };
+  const tear = y => { g.save(); g.setLineDash([10, 9]); g.strokeStyle = "rgba(246,240,216,0.55)"; g.lineWidth = 3; g.beginPath(); g.moveTo(NOTCH + 14, y); g.lineTo(1080 - NOTCH - 14, y); g.stroke(); g.restore(); };
+  const p0 = PANEL, no = String(Math.abs(Math.round(S.endAt || Date.now())) % 10000000).padStart(7, "0");
+  tear(p0);
+  // the header: ADMIT ONE, the programme, the ticket's number
+  label("ADMIT ONE · 入場券", 60, p0 + 44);
+  say("HSUHK 個人理財大使計劃 2026 · 3 Fall Crab 整冧咗team", 548, p0 + 44, 400, 18, 12, zh(500), DIM, "center");
+  label("No. " + no, 1020, p0 + 44, "right", 200);
   // the 稱號 with its medal and roast
-  const p0 = PANEL;
-  if (medalPic){ g.save(); g.shadowColor = "rgba(0,0,0,0.5)"; g.shadowBlur = 16; g.shadowOffsetY = 6; g.drawImage(medalPic, 56, p0 + 30, 150, 176); g.restore(); }
-  else flatMedal(g, 131, p0 + 128, 52, tierOf(v));
-  label("我的稱號 · MY TITLE", 240, p0 + 64);
-  say(v.zh, 240, p0 + 132, 780, 66, 34, zh(700), CREAM);
-  say(v.en, 240, p0 + 174, 780, 32, 18, it, "#E8C98A");
-  say(v.line[1], 240, p0 + 214, 780, 27, 17, zh(500), DIM);
-  rule(p0 + 244);
+  if (medalPic){ g.save(); g.shadowColor = "rgba(0,0,0,0.5)"; g.shadowBlur = 16; g.shadowOffsetY = 6; g.drawImage(medalPic, 60, p0 + 64, 136, 160); g.restore(); }
+  else flatMedal(g, 128, p0 + 150, 48, tierOf(v));
+  label("我的稱號 · MY TITLE", 230, p0 + 94);
+  say(v.zh, 230, p0 + 152, 790, 58, 32, zh(700), CREAM);
+  say(v.en, 230, p0 + 190, 790, 29, 18, it, "#E8C98A");
+  say(v.line[1], 230, p0 + 225, 790, 24, 16, zh(500), DIM);
+  rule(p0 + 252);
   // 票房 (what was saved), 場次 (how far), the 3 Falls
   const saved = S.score > 0;
-  label(saved ? "票房 · SAVED" : "淨資產 · NET WORTH", 60, p0 + 290);
-  say(fmt(S.score), 60, p0 + 360, 360, 66, 36, f => "700 " + f + "px " + SERIF, "#FFD98A");
-  label("場次 · REACHED", 450, p0 + 290);
-  say(top ? "退休 Retirement" : st.zh + " " + st.en, 450, p0 + 348, 300, 40, 22, zh(700), CREAM);
-  say("最高 Best · " + floorTxt(S.best / FLOOR), 450, p0 + 386, 300, 24, 16, zh(500), DIM);
-  label("三大陷阱 · 3 FALLS", 780, p0 + 290);
+  label(saved ? "票房 · SAVED" : "淨資產 · NET WORTH", 60, p0 + 292);
+  say(fmt(S.score), 60, p0 + 354, 360, 62, 34, f => "700 " + f + "px " + SERIF, "#FFD98A");
+  label("場次 · REACHED", 450, p0 + 292);
+  say(top ? "退休 Retirement" : st.zh + " " + st.en, 450, p0 + 346, 300, 38, 22, zh(700), CREAM);
+  say("最高 Best · " + floorTxt(S.best / FLOOR), 450, p0 + 380, 300, 23, 16, zh(500), DIM);
+  label("三大陷阱 · 3 FALLS", 780, p0 + 292);
   [["spend", "#E8661F"], ["scam", "#7B5BE8"], ["delay", "#2F86D6"]].forEach(([k, col], i) => {   // a tick, or how many times
-    const x = 803 + i * 66, y = p0 + 342; g.beginPath(); g.arc(x, y, 23, 0, Math.PI * 2); g.fillStyle = col; g.fill(); g.lineWidth = 3; g.strokeStyle = "rgba(255,255,255,0.85)"; g.stroke();
-    g.fillStyle = "#fff"; g.textAlign = "center"; g.font = "900 24px " + F.display; g.fillText(S.falls[k] ? "×" + S.falls[k] : "✓", x, y + 9); });
-  rule(p0 + 420);
+    const x = 803 + i * 66, y = p0 + 338; g.beginPath(); g.arc(x, y, 22, 0, Math.PI * 2); g.fillStyle = col; g.fill(); g.lineWidth = 3; g.strokeStyle = "rgba(255,255,255,0.85)"; g.stroke();
+    g.fillStyle = "#fff"; g.textAlign = "center"; g.font = "900 23px " + F.display; g.fillText(S.falls[k] ? "×" + S.falls[k] : "✓", x, y + 8); });
+  rule(p0 + 404);
   // the billing: who starred, as what, how it ranks, a beaten challenge
   spaced(2);
-  say("領銜主演  " + nm + (P ? "  ·  " + P.zh + (P.c.en ? " " + P.c.en : "") : ""), 540, p0 + 458, 960, 29, 18, zh(700), CREAM, "center");
+  say("領銜主演  " + nm + (P ? "  ·  " + P.zh + (P.c.en ? " " + P.c.en : "") : ""), 540, p0 + 436, 960, 28, 18, zh(700), CREAM, "center");
   const extra = [S.pct != null ? "贏咗 " + S.pct + "% 玩家 · Beat " + S.pct + "% of players" : "", S.chal && S.chal.beat ? "挑戰成功！Beat " + ((CHAL && CHAL.n) || "my friend") : ""].filter(Boolean).join("   ·   ");
-  if (extra) say(extra, 540, p0 + 492, 960, 24, 16, zh(500), DIM, "center");
+  if (extra) say(extra, 540, p0 + 466, 960, 23, 15, zh(500), DIM, "center");
   spaced(0);
-  // where to play
-  say("3fallcrab.com", 540, p0 + 530, 600, 40, 28, f => "900 " + f + "px " + F.display, "#FF7AB4", "center");
-  say("HSUHK 個人理財大使計劃 2026 · 3 Fall Crab 整冧咗team", 540, p0 + 556, 960, 19, 14, zh(500), "rgba(181,175,196,0.85)", "center");
+  // the stub's foot: a barcode, where to play, the show's date and the seat
+  tear(p0 + 488);
+  let x = 62; seed = Number(no) + 7;
+  while (x < 290){ const w = 2 + Math.floor(rnd() * 4); if (rnd() > 0.35){ g.fillStyle = CREAM; g.fillRect(x, p0 + 504, w, 32); } x += w + 2; }
+  say(no.split("").join(" "), 175, p0 + 550, 230, 13, 10, f => "700 " + f + "px " + F.sans, DIM, "center");
+  say("3fallcrab.com", 540, p0 + 536, 360, 38, 26, f => "900 " + f + "px " + F.display, "#FF7AB4", "center");
+  const d = new Date(S.endAt || Date.now()), mon = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"][d.getMonth()];
+  label(String(d.getDate()).padStart(2, "0") + " " + mon + " " + d.getFullYear() + " · " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"), 1020, p0 + 518, "right", 300);
+  label("ROW " + ["U", "J", "F", "R"][Math.min(3, S.stage)] + " · SEAT " + floorTxt(S.best / FLOOR), 1020, p0 + 548, "right", 300);
+  g.restore();
+  // the notches at the tear line, cut right through
+  g.save(); g.globalCompositeOperation = "destination-out";
+  for (const cx of [0, 1080]){ g.beginPath(); g.arc(cx, p0, NOTCH, 0, Math.PI * 2); g.fill(); }
+  g.restore();
 }
 async function readyCard(){
   const k = [S.endAt, Math.round(S.score), cardName(), WHO, S.pct, S.verdict && S.verdict.id, S.chal && S.chal.beat, personaKey(S.persona), posterFor(S)].join("|");
@@ -3030,7 +3049,7 @@ async function makeResultCard(){
   let medalPic = null; try { medalPic = M && M.snapshot(tierOf(S.verdict || verdictOf(S)), 240, 282); } catch(e){}
   const poster = await Promise.race([posterP, new Promise(r => setTimeout(() => r(null), 5000))]);
   const CW = 1080, CH = 1350, c = document.createElement("canvas"); c.width = CW; c.height = poster ? CARD_H : CH;
-  if (poster){ drawPosterCard(c.getContext("2d"), poster, medalPic); return await new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error("no image")), "image/jpeg", 0.9)); }
+  if (poster){ drawPosterCard(c.getContext("2d"), poster, medalPic); return await new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error("no image")), "image/png")); }   // PNG: the round corners and notches stay see-through
   const g = c.getContext("2d"), F = K.FONTS, st = STAGES[S.stage], top = S.stage === STAGES.length - 1;
   const rr = (x, y, w, h, r) => { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); };
   const outlined = (txt, x, y, font, fill, sw) => { g.font = font; g.textAlign = "center"; g.lineJoin = "round"; g.strokeStyle = "rgba(37,49,122,0.3)"; g.lineWidth = sw + 6; g.strokeText(txt, x + 5, y + 8); g.strokeStyle = "#fff"; g.lineWidth = sw; g.strokeText(txt, x, y); g.fillStyle = fill; g.fillText(txt, x, y); };
@@ -3105,7 +3124,7 @@ async function exportResult(share){
   out.textContent = cardBlob ? "" : "Making your picture… 製作緊…";
   let blob;
   try { blob = await readyCard(); } catch(e){ out.textContent = "Couldn't make the picture. 整唔到圖片。"; return; }
-  const file = new File([blob], "3fallfun-result.jpg", {type: "image/jpeg"});
+  const file = new File([blob], blob.type === "image/png" ? "3fallfun-result.png" : "3fallfun-result.jpg", {type: blob.type || "image/jpeg"});
   if (share && canShareFiles()){
     try { await navigator.share({files: [file], title: "3 Fall Fun 人生跌塔", text: shareText() + "\n" + challengeUrl()}); out.textContent = "Shared 已分享"; A.sfx("uiDone"); return; }
     catch(e){ if (e && e.name === "AbortError"){ out.textContent = ""; return; } }   // closed the share sheet: nothing more to do
@@ -3116,7 +3135,7 @@ async function exportResult(share){
     img.classList.remove("hint"); void img.offsetWidth; img.classList.add("hint"); return;
   }
   const a = document.createElement("a"), url = URL.createObjectURL(blob);
-  a.href = url; a.download = "3fallfun-result.jpg"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000);
+  a.href = url; a.download = cardBlob && cardBlob.type === "image/png" ? "3fallfun-result.png" : "3fallfun-result.jpg"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000);
   out.textContent = "Saved to your device 已下載"; A.sfx("uiDone");
 }
 $("saveImg").addEventListener("click", () => exportResult(false));
@@ -3253,7 +3272,7 @@ $("threadsBtn").addEventListener("click", () => {
   const out = $("shareStatus");
   if (!IOS && !ANDROID && !IAB && cardBlob){
     const a = document.createElement("a"), url = URL.createObjectURL(cardBlob);
-    a.href = url; a.download = "3fallfun-result.jpg"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000);
+    a.href = url; a.download = cardBlob && cardBlob.type === "image/png" ? "3fallfun-result.png" : "3fallfun-result.jpg"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000);
     out.textContent = "Picture saved: add it to your post! 圖片已下載，記得一齊貼上！";
   } else out.textContent = "Add your card picture to the post for more likes! 記得加埋結果卡圖片，多啲like！";
 });

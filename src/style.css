@@ -1628,3 +1628,5 @@ html.fs.title .ts-sound .ts-silent{color:var(--ink-2);font-weight:700}
 .is-body .howto .how{grid-template-columns:repeat(auto-fit,minmax(118px,1fr))}   /* in the sheet too: two clips side by side on a phone */
 /* the result card is a 1080 x 1920 poster (or 1080 x 1350 without its poster): keep its own shape, not too tall to see */
 .card-img{aspect-ratio:auto 1080 / 1920;max-width:min(290px, 100%)}
+/* the poster card is a ticket with its own round corners and notches (a PNG): no frame, a shadow that follows its shape */
+.card-img[src]{background:none;border-radius:0;box-shadow:none;filter:drop-shadow(4px 10px 0 rgba(37,49,122,.18))}
