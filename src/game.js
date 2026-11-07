@@ -2942,22 +2942,24 @@ async function showCard(){
 $("stNext").addEventListener("click", () => { if (S.step < 4 && !(S.step === 2 && !surveyDone())) setStep(S.step + 1); });
 $("stBack").addEventListener("click", () => { if (S.step > 1) setStep(S.step - 1); });
 // ---------- the result card as a film poster ----------
-// One of seven posters (src/share/posters/, made with GPT Image 2 from the cast's model sheets), picked by how the game
-// went, the first that fits: three items in the harbour (the diver); Overspending twice or more (the trolley, 使少啲，
-// 笑多啲); two items in the harbour and carried on (the rooftop, 跌咗，再疊過); else the life stage reached: First Job
-// (the diner), Family (the studio portrait), Retirement (the ferry); and at University, Overspending once (the trolley),
-// a 劏房 or 公屋 roll (the estate, 一格一格) or otherwise (the rooftop). Every poster can come up (the kit's posters test
-// tries every case). The card is 1080 x 1920, an Instagram story's shape: the poster untouched on top, and under it a
+// One of seven posters (src/share/posters/, made with GPT Image 2 from the cast's model sheets), picked by where and how
+// the game ended: Overspending twice (or once at University) gets the trolley (使少啲，笑多啲) at any stage; else at
+// Retirement, the rooftop (跌咗，再疊過) after two or more items in the harbour, otherwise the ferry; at Family the
+// studio portrait; at First Job the diner; at University (out early, on the third item in the harbour) the estate for a
+// 劏房 or 公屋 roll, otherwise the diver. Every poster comes up in real play (the kit's posters test tries every way a
+// game can end). The card is 1080 x 1920, an Instagram story's shape: the poster untouched on top, and under it a
 // credits panel like a film poster's billing. Without the poster (offline, too slow) the card is drawn as before.
 const POSTER_URL = (() => { try { return JSON.parse((document.querySelector('meta[name="tff-posters"]') || {}).content || "{}"); } catch(e){ return {}; } })();
 function posterFor(s){
-  if (s.over === "drops") return "diver";
-  if (s.falls.spend >= 2) return "trolley";
-  if (s.drops >= 2) return "rooftop";
-  if (s.stage >= 1) return ["diner", "family", "ferry"][Math.min(3, s.stage) - 1];
-  if (s.falls.spend >= 1) return "trolley";
-  if (s.persona && (s.persona.bg === "sub" || s.persona.bg === "estate")) return "estate";
-  return "rooftop";
+  // A full 3-minute game ends at Retirement (with fewer than 3 items lost, the pile passes 15F), so the earlier stages are
+  // mostly games that ended on the third item in the harbour: each stage has its own posters, so every one comes up.
+  const uni = s.stage === 0, homely = !!(s.persona && (s.persona.bg === "sub" || s.persona.bg === "estate"));
+  if (s.falls.spend >= 2 || (uni && s.falls.spend >= 1)) return "trolley";   // 使少啲，笑多啲
+  if (s.stage >= 3) return s.drops >= 2 ? "rooftop" : "ferry";               // 跌咗，再疊過 / 疊咗一世，慢慢嘆
+  if (s.stage === 2) return "family";                                        // 成家，就係一齊疊
+  if (s.stage === 1) return "diner";                                         // 第一份糧，先儲兩成
+  if (homely) return "estate";                                               // 一格一格，疊出人生
+  return s.over === "drops" ? "diver" : "rooftop";                           // 跌落海，笑住浮返上嚟
 }
 const posterPics = new Map();
 function loadPoster(key){   // starts as the game ends, so it's there by the time the card is made
@@ -3129,7 +3131,7 @@ $("shareImg").addEventListener("click", () => exportResult(true));
 //   a challenge: the link /c?s=score&n=nickname&v=title. A friend who opens it sees the challenge on the title
 //   screen, a bubble when they pass the score, and on their result whether they beat it (see "a friend's challenge").
 const TITLE_TEST = {
-  diver: st => st.over === "drops",
+  diver: st => st.over === "drops" && st.stage === 0,   // out on the third item before First Job (later, how they played names it)
   scamvip: st => st.falls.scam >= 2,
   believer: st => st.troll.invest >= 2,
   future: st => st.falls.spend >= 2,
