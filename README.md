@@ -233,9 +233,10 @@ All game source lives in `src/`. After any change, run `npm run build`, which fi
 | `src/clay.js` | Clay rendering kit (palette, lighting, materials) |
 | `src/audio.js` | Synthesised music and sound effects, with no audio files |
 | `src/style.css`, `src/index.html` | Page layout |
+| `src/share/` | `og.jpg`, the link-preview picture (1200×630, made with GPT Image 2 from the house-style prompt; fingerprinted by the build, so apps that cache previews fetch a new one when it changes). |
 | `src/clips/` | How to play's clips (MP4 and a WebP still each), filmed from the game by `npm run clips` (`tools/clips.mjs`, scenes in `tools/clips-scenes.mjs`; needs Playwright with Chromium and ffmpeg). |
 | `src/fonts/` | The fonts, cut down to the characters the game uses. After adding Chinese text anywhere in `src/`, run `npm run fonts` (needs Python 3 and, once, `pip install fonttools brotli`) and commit `src/fonts/`. Until then `npm run build` warns, and the new characters show in the visitor's system Chinese font. `source-sans-punct-*.woff2` are separate, fixed 1 KB files: curly quotes, ×, and · from Source Sans 3, so English text isn't spaced by Noto Sans HK's full-width versions of them. |
-| `src/static/` | Copied as-is: icons (`og.jpg` is the link-preview picture), 404, admin, poster, `_headers` (security and cache headers) |
+| `src/static/` | Copied as-is: icons, 404, admin, poster, `_headers` (security and cache headers) |
 | `server/api.js` | Leaderboard API (validation, rate limit, admin) |
 | `server/worker.js` | Worker entry point: `/api/*` goes to the API, everything else is static |
 
