@@ -123,25 +123,46 @@ const CARDS = [
 ];
 
 // Shown at the end of every game. id: stable key stored with each answer; a: index of the right option;
-// why: shown straight after the player answers.
+// why: shown straight after the player answers. was: the earlier question it replaced, and where each of that
+// question's options goes (its answers count on this one in the results), with its wording for the downloads.
 const QUIZ = [
-  {id:"mule", q:["Someone offers HK$3,000 to “rent” your bank account. This is…","有人出HK$3,000「租」你個銀行戶口，呢個係…"],
-   o:[["Easy side income","輕鬆外快"],["Money laundering. You could go to prison","洗黑錢，隨時要坐監"],["Fine if it's a friend","朋友嘅話冇問題"]], a:1,
-   why:["Lending your account makes you a money mule, even for a friend. Money laundering carries up to 14 years in prison.","借出戶口即係做「傀儡戶口」，就算係朋友都唔得。洗黑錢最高可判監14年。"]},
-  {id:"minpay", q:["If you only pay the minimum on your credit card…","如果信用卡只還最低還款額…"],
-   o:[["Interest keeps growing on the rest","未還嘅錢會繼續滾利息"],["You pay no interest","唔使畀利息"],["Your credit score improves","信貸評分會變好"]], a:0,
-   why:["Card interest often runs above 30% a year on everything you haven't paid off, so even a small balance can drag on for years.","信用卡實際年利率好多時超過30%，未還嘅錢全部計息，細數都可以拖成幾年。"]},
-  {id:"early", q:["The best time to start saving is…","最好幾時開始儲錢？"],
-   o:[["After your first promotion","第一次升職之後"],["When MPF starts","有強積金先算"],["Now, even a small amount","而家，少少都好"]], a:2,
-   why:["The earlier you start, the longer your money has to grow. A little now beats a lot “someday”.","越早開始，啲錢就有越長時間增值。而家儲少少，好過等「第日」先儲一大筆。"]}
+  {id:"fakeapp", was:{id:"mule", pick:[0, 1, 2], q:"Someone offers HK$3,000 to “rent” your bank account. This is…", o:["Easy side income", "Money laundering. You could go to prison", "Fine if it's a friend"]},
+   q:["An Instagram “mentor” shows you an app where your HK$5,000 has grown to HK$20,000 in a month. To withdraw, you must first pay a 15% “tax”. What now?","有個IG「導師」話你喺佢個App投資嘅HK$5,000，一個月變咗HK$20,000，但要提款就要先交15%「稅」。點做？"],
+   o:[["Pay the 15%: it's still a big profit","交咗15%佢，都仲係大賺"],["Pay nothing more: the balance is fake. Check the SFC register, call 18222","唔好再畀錢，個餘額係假嘅。查證監會紀錄冊，打18222"],["Ask them to take the fee out of the profit","叫佢喺利潤度扣"]], a:1,
+   why:["A classic investment scam: the “profit” is just numbers on a fake app, and every fee is one more loss. Check any platform on the SFC's public register; the police Anti-Scam Helpline is 18222.","典型投資騙案：所謂「利潤」只係假App上面嘅數字，每畀一次「費用」就蝕多一次。投資平台要先喺證監會公眾紀錄冊查清楚；警方防騙熱線係18222。"]},
+  {id:"flatrate", was:{id:"minpay", pick:[1, 0, 2], q:"If you only pay the minimum on your credit card…", o:["Interest keeps growing on the rest", "You pay no interest", "Your credit score improves"]},
+   q:["A phone plan: “HK$12,000 over 12 months, only 10% flat rate” (HK$1,100 a month). The real yearly rate (APR) is about…","手機分期：「HK$12,000分12期，平息只係10%」（每月HK$1,100）。實際年利率大約係…"],
+   o:[["10%, as it says","就係10%"],["About 18%","大約18%"],["About 5%: you owe less each month","大約5%，因為每月欠少咗"]], a:1,
+   why:["A flat rate charges interest on the full HK$12,000 all year, though you pay it down every month. On what you actually owe, that's about 18% a year. Lenders must also quote the APR: compare that, not the flat rate.","平息成年都用成筆HK$12,000計息，但其實你每月都還緊本金。按實際欠款計，年利率大約18%。貸款要列明實際年利率，比較要睇呢個，唔好睇平息。"]},
+  {id:"ming", was:{id:"early", pick:[1, 2, 0], q:"The best time to start saving is…", o:["After your first promotion", "When MPF starts", "Now, even a small amount"]},
+   q:["Ming saves HK$2,000 a month from 22 to 32, then stops (HK$240,000 in). Kit saves HK$2,000 a month from 32 to 62 (HK$720,000 in). Both earn 7% a year. At 62, who has more?","阿明22至32歲每月儲HK$2,000，之後停手（共放入HK$240,000）；阿傑32至62歲每月儲HK$2,000（共放入HK$720,000）。兩個都有7%年回報，62歲邊個多啲？"],
+   o:[["Ming","阿明"],["Kit: he put in three times as much","阿傑，佢放入多三倍"],["About the same","差唔多"]], a:0,
+   why:["Ming's money had 30 more years to compound: about HK$2.8 million at 62, against Kit's HK$2.4 million. Time beats amount, so start early.","阿明啲錢多咗30年複息滾存：62歲時大約有HK$280萬，阿傑就大約HK$240萬。時間贏過本金，越早開始越好。"]}
 ];
 
+// The habit pledge. was: the earlier habit it replaced (its pledges count under this one in the results).
 const HABITS = [
-  {id:"save20", en:"Save 20% of my pay on payday", zh:"出糧先儲20%"},
-  {id:"payfull", en:"Pay my credit card in full every month", zh:"每月找清卡數"},
-  {id:"check", en:"Never lend my account; check before I invest", zh:"唔借戶口，投資前先查證"},
-  {id:"track", en:"Track my spending for 30 days", zh:"記賬30日"}
+  {id:"buffer", was:"save20", en:"Auto-transfer on payday until I have 6 months' expenses saved", zh:"出糧自動轉賬，儲夠6個月開支做緊急錢"},
+  {id:"apr", was:"payfull", en:"Pay my card in full, and check the APR before any instalment plan", zh:"每月找清卡數，分期前先睇實際年利率"},
+  {id:"sfc", was:"check", en:"Check the SFC register before I invest, and never lend my account", zh:"投資前先查證監會紀錄冊，唔借戶口"},
+  {id:"budget", was:"track", en:"Track every dollar for 30 days, then set a budget I can keep", zh:"記賬30日，再定個做得到嘅預算"}
 ];
+
+// Earlier quiz questions and habits, grouped into the current ones when results are counted: an earlier question's
+// answer counts on the question that replaced it (was.pick maps its options: right to right, wrong to wrong).
+const QUIZ_WAS = Object.fromEntries(QUIZ.filter(q => q.was).map(q => [q.was.id, q]));
+const HABIT_WAS = Object.fromEntries(HABITS.filter(h => h.was).map(h => [h.was, h.id]));
+// {q, pick} (current or earlier) -> {q, pick, ok, earlier} on the current quiz, or null for an unknown question
+function answerNow(a){
+  if (!a || typeof a.q !== "string") return null;
+  const cur = QUIZ.find(q => q.id === a.q);
+  if (cur) return {q: cur.id, pick: a.pick, ok: a.pick === cur.a ? 1 : 0, earlier: false};
+  const nq = QUIZ_WAS[a.q];
+  if (!nq || !Number.isInteger(a.pick) || nq.was.pick[a.pick] == null) return null;
+  const pick = nq.was.pick[a.pick];
+  return {q: nq.id, pick, ok: pick === nq.a ? 1 : 0, earlier: true};
+}
+const habitNow = id => HABITS.some(h => h.id === id) ? id : (HABIT_WAS[id] || null);
 
 // What the crab by the harbour says in its speech bubble during a game: it cheers good choices and teases bad ones.
 // Keep lines short (it's a bubble). One key per moment; a line is picked at random, not the same twice in a row.
@@ -888,5 +909,5 @@ const PERSONA_CARDS = [
 // </personas>
 CARDS.push(...PERSONA_CARDS);
 
-root.TFF_CONTENT = {STAGES, TRAPS, CARDS, QUIZ, HABITS, QUIPS, TROLLS, TYPE_AXES, TYPES, TITLES, PERSONAS, LATER_NONE, ENDINGS};
+root.TFF_CONTENT = {STAGES, TRAPS, CARDS, QUIZ, HABITS, QUIZ_WAS, HABIT_WAS, answerNow, habitNow, QUIPS, TROLLS, TYPE_AXES, TYPES, TITLES, PERSONAS, LATER_NONE, ENDINGS};
 })(typeof window !== "undefined" ? window : globalThis);

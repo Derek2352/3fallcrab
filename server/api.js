@@ -24,7 +24,7 @@
 
 import "../src/content.js"; // quiz, habits and cards, shared with the game page (sets globalThis.TFF_CONTENT)
 
-const { QUIZ, HABITS: HABIT_LIST, CARDS, STAGES, TRAPS, TYPES: MTYPES, TITLES, PERSONAS = { bg: {}, pe: {} } } = globalThis.TFF_CONTENT;
+const { QUIZ, HABITS: HABIT_LIST, answerNow, habitNow, CARDS, STAGES, TRAPS, TYPES: MTYPES, TITLES, PERSONAS = { bg: {}, pe: {} } } = globalThis.TFF_CONTENT;
 const PERSONA_KEYS = new Set(Object.keys(PERSONAS.bg).flatMap((b) => Object.keys(PERSONAS.pe).map((p) => b + "+" + p)));
 const TITLE_IDS = new Set(TITLES.map((t) => t.id));
 export const NAME_DEFAULT = "Anonymous crab 匿名蟹";
@@ -291,9 +291,10 @@ export function cleanAnswers(list) {
   const out = [];
   if (!Array.isArray(list)) return out;
   for (const a of list.slice(0, 20)) {
-    const q = a && typeof a.q === "string" ? QUIZ_BY_ID.get(a.q) : undefined;
-    if (!q || out.some((x) => x.q === q.id) || !Number.isInteger(a.pick) || a.pick < 0 || a.pick >= q.o.length) continue;
-    out.push({ q: q.id, pick: a.pick, ok: a.pick === q.a ? 1 : 0 });
+    // an earlier question (a page opened before the quiz changed) is saved as the question that replaced it
+    const n = Number.isInteger(a && a.pick) ? answerNow(a) : null, q = n ? QUIZ_BY_ID.get(n.q) : undefined;
+    if (!q || out.some((x) => x.q === q.id) || n.pick < 0 || n.pick >= q.o.length) continue;
+    out.push({ q: q.id, pick: n.pick, ok: n.ok });
   }
   return out;
 }
@@ -304,8 +305,13 @@ function mergeAnswers(saved, add) {
   const at = (a) => (QUIZ_BY_ID.get(a.q) || { i: 99 }).i;
   return out.sort((x, y) => at(x) - at(y));
 }
+// A game's saved answers, on the current quiz (an answer to an earlier question becomes one to its replacement, so an
+// edit from a page opened before the quiz changed can't count the same question twice)
 function savedAnswers(text) {
-  try { const v = JSON.parse(text || "[]"); return Array.isArray(v) ? v.filter((a) => a && typeof a.q === "string") : []; }
+  try {
+    const v = JSON.parse(text || "[]");
+    return Array.isArray(v) ? v.filter((a) => a && typeof a.q === "string").map((a) => { const m = answerNow(a); return m ? { q: m.q, pick: m.pick, ok: m.ok } : a; }) : [];
+  }
   catch { return []; }
 }
 const quizRight = (answers) => (answers.length ? answers.filter((a) => a.ok).length : null);
@@ -381,7 +387,7 @@ let statsMemo = null;
 async function stats(db) {
   if (statsMemo && Date.now() - statsMemo.at < 30000) return json(statsMemo.body);
   const v = (col) => `COALESCE(SUM(CASE WHEN hidden = 0 THEN ${col} END), 0)`;
-  const habitCols = HABITS.map((h, i) => `COALESCE(SUM(hidden = 0 AND habit = '${h}'), 0) AS h${i}`).join(", ");
+  const habitCols = HABIT_LIST.map((h, i) => `COALESCE(SUM(hidden = 0 AND habit IN ('${h.id}'${h.was ? `, '${h.was}'` : ""})), 0) AS h${i}`).join(", ");   // an earlier habit counts as its replacement
   const r = (await db.prepare(`SELECT COUNT(*) AS scanned, COALESCE(SUM(hidden = 0), 0) AS games, ${v("wise")} AS wise, ${v("risky")} AS risky,
       ${v("missed")} AS missed, ${v("fall_spend")} AS spend, ${v("fall_scam")} AS scam, ${v("fall_delay")} AS delay,
       ${v(`CASE WHEN ${QUIZ_TAKER} THEN quiz END`)} AS quizSum, ${v(`${QUIZ_TAKER}`)} AS quizN,
@@ -436,7 +442,7 @@ async function post(request, env, db) {
     if (!gid || !key) return fail("bad_key", 400);
   }
   const answers = cleanAnswers(b.answers);
-  const habit = HABITS.includes(b.habit) ? b.habit : null;
+  const habit = typeof b.habit === "string" ? habitNow(b.habit) : null;   // an earlier habit counts as the one that replaced it
   const now = new Date(), tz = timeZone(env);
   const change = { key, board, name: b.name, email, answers, habit, now, tz };
   if (gid) {
@@ -533,7 +539,7 @@ async function update(db, saved, c) {
   // goes on this week's board, so a finished week's or month's winners never change afterwards.
   let week = saved.week, month = saved.month;
   if (!saved.posted && c.board) { week = isoWeek(c.now, c.tz); month = monthKey(c.now, c.tz); }
-  const same = JSON.stringify(answers) === (saved.quiz_answers || "[]") && habit === saved.habit && posted === saved.posted && email === saved.email;
+  const same = JSON.stringify(answers) === JSON.stringify(mergeAnswers(savedAnswers(saved.quiz_answers), [])) && habit === saved.habit && posted === saved.posted && email === saved.email;
   if (!same) {
     if (saved.edits >= MAX_EDITS || Date.now() - Date.parse(saved.created_at) > EDIT_HOURS * 3600000) return fail("locked", 409);
     await db
@@ -619,9 +625,12 @@ async function summary(db, p) {
   const pct = (a, b) => (b ? Math.round((1000 * (a || 0)) / b) / 10 : null);
   const count = (rows, test) => rows.filter(test).reduce((s, r) => s + (r.n || 0), 0);
   const trend = (r) => ({ ...r, quizPassPct: pct(r.quizPass, r.quizTakers), wisePct: pct(r.wise, r.wise + r.risky + r.missed) });
+  // answers to an earlier question count on the one that replaced it (right to right, wrong to a wrong option)
+  const qaNow = qa.map((r) => { const m = answerNow({ q: r.q, pick: r.pick }); return m ? { ...r, q: m.q, pick: m.pick, ok: m.ok, earlier: m.earlier } : r; });
   const question = (id, en, zh, options, answer) => {
-    const rows = qa.filter((r) => r.q === id), n = count(rows, () => true), right = count(rows, (r) => r.ok === 1);
-    return { id, en, zh, answer, n, right, pct: pct(right, n),
+    const rows = qaNow.filter((r) => r.q === id), n = count(rows, () => true), right = count(rows, (r) => r.ok === 1);
+    return { id, en, zh, answer, n, right, pct: pct(right, n), earlier: count(rows, (r) => r.earlier),
+      was: (QUIZ_BY_ID.get(id) || {}).was ? QUIZ_BY_ID.get(id).was.id : null,
       options: options.map((opt, i) => ({ en: opt[0], zh: opt[1], right: i === answer, n: count(rows, (r) => r.pick === i) })) };
   };
   const cardIds = [...new Set([...CARDS.map((c) => c.id), ...cd.map((r) => r.card)])];
@@ -647,12 +656,12 @@ async function summary(db, p) {
     // per question: answers given, how many right, and how the answers split across the options
     quiz: [
       ...QUIZ.map((x) => question(x.id, x.q[0], x.q[1], x.o, x.a)),
-      ...[...new Set(qa.map((r) => r.q))].filter((id) => !QUIZ_BY_ID.has(id)).map((id) => ({ ...question(id, id + " (no longer in the quiz)", "", [], -1) })),
+      ...[...new Set(qaNow.map((r) => r.q))].filter((id) => !QUIZ_BY_ID.has(id)).map((id) => ({ ...question(id, id + " (no longer in the quiz)", "", [], -1) })),
     ],
     quizScores: Array.from({ length: QUIZ.length + 1 }, (_, k) => ({ score: k, n: count(qs, (r) => r.k === k) })),
     habits: [
-      ...HABIT_LIST.map((h) => ({ id: h.id, en: h.en, zh: h.zh, n: count(hb, (r) => r.k === h.id) })),
-      { id: null, en: "No habit picked", zh: "冇揀", n: count(hb, (r) => r.k == null) },
+      ...HABIT_LIST.map((h) => ({ id: h.id, en: h.en, zh: h.zh, was: h.was || null, n: count(hb, (r) => r.k != null && habitNow(r.k) === h.id), earlier: count(hb, (r) => r.k === h.was) })),
+      { id: null, en: "No habit picked", zh: "冇揀", n: count(hb, (r) => r.k == null || !habitNow(r.k)) },
     ],
     traps: Object.keys(TRAPS).map((k) => {
       const g = o["g" + k[0].toUpperCase() + k.slice(1)] || 0;

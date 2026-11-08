@@ -193,7 +193,8 @@
 
     const qrows = [];
     s.quiz.forEach((q, i) => {
-      qrows.push({ cls: "q", span: true, cells: [[el("b", "", `${i + 1}. ${q.en}`), q.zh && zh(q.zh), el("span", "qs", `${fmt(q.n)} answered · `, el("b", "", q.pct == null ? "–" : pc(q.pct) + " right"))]] });
+      qrows.push({ cls: "q", span: true, cells: [[el("b", "", `${i + 1}. ${q.en}`), q.zh && zh(q.zh), el("span", "qs", `${fmt(q.n)} answered · `, el("b", "", q.pct == null ? "–" : pc(q.pct) + " right"),
+        q.earlier ? ` · includes ${fmt(q.earlier)} ${q.earlier === 1 ? "answer" : "answers"} to the earlier question (${q.was}), grouped right to right, wrong to wrong` : "")]] });
       for (const op of q.options) {
         const p = share(op.n, q.n);
         qrows.push({ cls: "opt" + (op.right ? " right" : ""), cells: [
@@ -213,7 +214,7 @@
         : "No one has finished the quiz yet."));
 
     $("habitBox").replaceChildren(table([{ h: "Habit", c: "t" }, { h: "Players", c: "num" }, { h: "% of games", c: "num" }],
-      s.habits.map((h) => { const p = share(h.n, o.games); return { cls: h.id ? "" : "dim", cells: [[h.en, h.zh && zh(h.zh)], fmt(h.n), [pc(p), meter(p, h.id ? "" : "dim")]] }; }), "sm"));
+      s.habits.map((h) => { const p = share(h.n, o.games); return { cls: h.id ? "" : "dim", cells: [[h.en, h.zh && zh(h.zh), h.earlier ? el("span", "qs", ` includes ${fmt(h.earlier)} for the earlier pledge (${h.was})`) : ""], fmt(h.n), [pc(p), meter(p, h.id ? "" : "dim")]] }; }), "sm"));
   }
 
   function renderDecisions(s) {
@@ -331,24 +332,30 @@
   function gamesCsv(rows) {
     const pass = Math.ceil((QN * 2) / 3); // same rule as the server: 2 of 3
     const head = ["game_id", "saved_hkt", "week", "month", "on_board", "hidden", "nickname", "email", "score", "floors", "life_stage", "ended", "items_dropped",
-      "wise_picks", "risky_picks", "missed_picks", "fall_overspending", "fall_scams", "fall_putting_off_saving", "habit_id", "habit", "quiz_answered", "quiz_correct", "quiz_2plus",
+      "wise_picks", "risky_picks", "missed_picks", "fall_overspending", "fall_scams", "fall_putting_off_saving", "habit_id", "habit", "quiz_answered", "quiz_correct", "quiz_2plus", "quiz_version",
       ...C.QUIZ.flatMap((q) => ["q_" + q.id, "q_" + q.id + "_correct"]), ...C.CARDS.map((c) => "card_" + c.id), "items_placed", "seconds_played", "quizzes_before", "jackpot", "troll_revive", "troll_invest", "troll_tickets", "player", "money_type", "money_type_name", "via", "title", "title_name", "persona", "persona_name"];
     return csv(head, rows.map((r) => {
-      const answers = new Map(list(r.quiz_answers).map((a) => [a.q, a])), picks = new Map();
+      // answers to an earlier question are grouped onto the one that replaced it (right to right, wrong to wrong)
+      const raw = list(r.quiz_answers), answers = new Map(raw.map((a) => { const m = C.answerNow(a); return m ? [m.q, m] : [a.q, a]; })), picks = new Map();
+      const version = !raw.length ? "" : raw.some((a) => C.QUIZ_WAS[a.q]) ? "earlier" : "current";
       for (const c of list(r.choices)) if (!picks.has(c.card)) picks.set(c.card, choice(c));
       const done = r.quiz_answered === QN || (r.quiz_answered == null && r.quiz != null); // older games kept only the score
       return [...lead(r), r.hidden ? 1 : 0, r.posted ? r.name : "", r.email, r.score, r.height, stageName(r.stage), r.ended, r.drops,
-        r.wise, r.risky, r.missed, r.fall_spend, r.fall_scam, r.fall_delay, r.habit, (C.HABITS.find((h) => h.id === r.habit) || {}).en,
-        r.quiz_answered, r.quiz, done ? (r.quiz >= pass ? 1 : 0) : "",
+        r.wise, r.risky, r.missed, r.fall_spend, r.fall_scam, r.fall_delay, r.habit, (C.HABITS.find((h) => h.id === C.habitNow(r.habit)) || {}).en,
+        r.quiz_answered, r.quiz, done ? (r.quiz >= pass ? 1 : 0) : "", version,
         ...C.QUIZ.flatMap((q) => { const a = answers.get(q.id); return a ? [(q.o[a.pick] || [])[0], (a.ok ?? a.pick === q.a) ? 1 : 0] : ["", ""]; }),
         ...C.CARDS.map((c) => picks.get(c.id)), r.items, r.real_ms == null ? "" : Math.round(r.real_ms / 1000), r.quiz_prior, r.jackpot ?? "", r.troll_revive ?? "", r.troll_invest ?? "", r.troll_tickets ?? "", r.avatar ?? "", r.mtype ?? "", ((C.TYPES || {})[r.mtype] || {}).en ?? "", r.via ?? "", r.title ?? "", ((C.TITLES || []).find((t) => t.id === r.title) || {}).en ?? "", r.persona ?? "", (personaName(r.persona) || {}).en ?? ""];
     }));
   }
   function answersCsv(rows) {
-    const head = ["game_id", "saved_hkt", "week", "month", "on_board", "question_no", "question_id", "question", "answer_no", "answer", "correct", "hidden"];
+    const head = ["game_id", "saved_hkt", "week", "month", "on_board", "question_no", "question_id", "question", "answer_no", "answer", "correct", "hidden", "grouped_question_no", "grouped_answer"];
     return csv(head, rows.flatMap((r) => list(r.quiz_answers).map((a) => {
       const i = C.QUIZ.findIndex((q) => q.id === a.q), q = C.QUIZ[i];
-      return [...lead(r), i < 0 ? "" : i + 1, a.q, q ? q.q[0] : "", Number.isInteger(a.pick) ? a.pick + 1 : "", q && q.o[a.pick] ? q.o[a.pick][0] : "", (a.ok ?? (q && a.pick === q.a)) ? 1 : 0, r.hidden ? 1 : 0];
+      // where it's grouped on the current quiz
+      const m = C.answerNow(a), gi = m ? C.QUIZ.findIndex((x) => x.id === m.q) : -1, g = C.QUIZ[gi];
+      const w = !q && C.QUIZ_WAS[a.q] ? C.QUIZ_WAS[a.q].was : null;   // an earlier question: its own wording
+      return [...lead(r), i < 0 ? "" : i + 1, a.q, q ? q.q[0] : w ? w.q : "", Number.isInteger(a.pick) ? a.pick + 1 : "", q && q.o[a.pick] ? q.o[a.pick][0] : w && w.o[a.pick] ? w.o[a.pick] : "", (a.ok ?? (q && a.pick === q.a)) ? 1 : 0, r.hidden ? 1 : 0,
+        gi < 0 ? "" : gi + 1, g && g.o[m.pick] ? g.o[m.pick][0] : ""];
     })));
   }
   function eventsCsv(rows) {

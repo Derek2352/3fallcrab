@@ -3724,7 +3724,7 @@ function aggregate(games){
   games.forEach(gm => {
     a.wise += +gm.wise || 0; a.risky += +gm.risky || 0; a.missed += +gm.missed || 0;
     if (gm.falls) for (const kk in a.falls) a.falls[kk] += +gm.falls[kk] || 0;
-    if (gm.habit) a.habits[gm.habit] = (a.habits[gm.habit] || 0) + 1;
+    const hb = gm.habit && (window.TFF_CONTENT.habitNow(gm.habit) || gm.habit); if (hb) a.habits[hb] = (a.habits[hb] || 0) + 1;   // an earlier pledge counts as its replacement
     const done = Array.isArray(gm.answers) ? gm.answers.length === QUIZ.length : typeof gm.quiz === "number";
     if (done && typeof gm.quiz === "number"){ a.quizSum += gm.quiz; a.quizN++; if (gm.quiz >= 2) a.quizPass++; }
   });
