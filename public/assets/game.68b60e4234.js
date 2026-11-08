@@ -26,7 +26,7 @@ const A = {
 
 // ---------- world ----------
 const W = 440, H = 700, PW = 270, FLOOR = 50, WATER_Y = 120;
-const GAME_MS = 180000, CARD_MS = 10000, FIRST_CARD = 25000, CARD_GAP = 24000;
+const GAME_MS = 180000, CARD_MS = 10000, FIRST_CARD = 5000, CARD_GAP = 26000;   // the first card in the first seconds, so it is always Act I (University); 7 cards at most (an 8th would need 187 s)
 const SLOW_CARD_MS = 30000, RESULT_MS = 16000;   // Extra reading time: 30 s per card, results wait for Continue (16 s: there is a story to read)
 const STEP = 1000 / 60;
 const FALL = [1.5, 1.8, 2.1, 2.4];

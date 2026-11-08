@@ -42,7 +42,7 @@ const MAX_EDITS = 60;
 const PICKS = ["wise", "risky", "none"];
 const TRAP_OF = new Map(CARDS.map((c) => [c.id, c.trap]));
 // Limits that no real game can pass, from the game's rules (src/game.js):
-const MAX_CARDS = 7;   // cards open at 15 s of play, then 24 s after each one closes (play stops while a card is open): an 8th would need 183 s of a 180 s game
+const MAX_CARDS = 7;   // cards open at 5 s of play, then 26 s after each one closes (play stops while a card is open): an 8th would need 187 s of a 180 s game
 const MAX_ITEMS = 430; // the next item arrives 420 ms after one is let go: at most 180 s / 420 ms + 1 items can be placed
 // The Jackpot crab (at most one a game) pays a windfall when it appears, then every item and floor pays more for a short
 // while ("jackpot time"). The limit covers the most any released page has paid, so a page still open from then keeps
