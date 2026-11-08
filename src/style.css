@@ -440,10 +440,9 @@ button{font-family:inherit;color:inherit}
 .pad .drop{background:#E8418B;box-shadow:inset 2px 2px 1px rgba(255,255,255,.45), inset -3px -4px 6px rgba(0,0,0,.18), 0 4px 0 #B42A6A}
 #startOv{align-items:flex-start;padding-top:12%}
 .ov-card h2{font-size:clamp(22px,7vw,28px)}
-.seeov{align-items:flex-end;padding-bottom:22px;pointer-events:none}
-/* back to the statement: a small pill in the top-left corner, clear of the tower and the Play again button */
-.seeov #resultsBtn{position:absolute;top:12px;left:12px;font-size:14px;padding:8px 13px 9px;white-space:nowrap}
-.seeov #resultsBtn .zh{font-size:12.5px}
+.seeov{align-items:flex-end;gap:12px;flex-wrap:wrap;padding-bottom:22px;pointer-events:none}
+/* back to the statement: beside Play again at the foot of the tower view, clear of the tower and the stage labels */
+.seeov #resultsBtn{position:relative;z-index:1;white-space:nowrap}
 .seeov .btn{pointer-events:auto}
 /* Chinese never breaks mid-word */
 .tag b, .tag small, .pbs .k, .esec h4, .oc-head, .chip small, .h .zh, .dir .nm b, .stamp small, .kind, .rows .lab small{word-break:keep-all;overflow-wrap:break-word}
@@ -861,8 +860,6 @@ html.jp-end .fzglow{animation-duration:.35s}
 .ticket .perf::before{content:"";position:absolute;top:-6px;width:14px;height:14px;border-radius:50%;background:var(--set);box-shadow:inset 2px 2px 3px rgba(120,62,12,.25)}
 .ticket.next .perf::before{left:-15px} .ticket.hold .perf::before{right:-15px}
 .kind{margin-right:4px} .kind.vine{margin-left:0;background:#B5E04A;color:var(--ink)}
-/* See tower: the Results pill on the right (the floor ruler is on the left) */
-.seeov #resultsBtn{left:auto;right:12px}
 /* start card: a light veil so the scene behind reads as background */
 #startOv{background:rgba(255,253,247,.18)}
 .ov-opts{gap:8px}
@@ -1322,8 +1319,6 @@ html.fs.title .ts-sound:not([hidden]){display:block;margin:0;padding:6px 12px 7p
 html.fs.title .ts-sound .zh{display:block;font-family:var(--f-zh);font-weight:700;font-size:11.5px;color:var(--ink-2)}
 @keyframes hintbob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
 @media (prefers-reduced-motion: reduce){ html.fs.title .ts-sound{animation:none} }
-/* the tower view's Results button: at the play area's top-right corner, clear of the screen's own buttons */
-html.fs:not(.title) .seeov #resultsBtn{right:calc(var(--xv, 0px) + 12px)}
 
 /* ---------- in an app's browser (Instagram, Facebook, LINE...) ---------- */
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%}   /* no automatic text enlarging */
@@ -1369,10 +1364,10 @@ html.iab-tight.fs.title .ts-sign{display:none}   /* a short screen with the tip 
 .fshot.on, .fshot.off{visibility:visible;opacity:1}
 .fshot.on{z-index:2} .fshot.off{z-index:1}
 /* each shot's colour (before its picture is in), where it sits in a crop, and its camera move */
-.fshot[data-shot="campus"]{--bg:linear-gradient(#9AD6FF, #E9D9B8);--fo:48% 40%;--kb:kbIn}
-.fshot[data-shot="pay"]{--bg:linear-gradient(#FFD99A, #C98F4E);--fo:55% 42%;--kb:kbIn}
-.fshot[data-shot="spend"]{--bg:linear-gradient(#5B2D6E, #2A1838);--pos:55% 40%;--fo:62% 32%;--kb:kbIn}
-.fshot[data-shot="scam"]{--bg:linear-gradient(#2C1F57, #120E22);--kb:kbPan}
+.fshot[data-shot="campus"]{--bg:linear-gradient(#9AD6FF, #E9D9B8);--pos:50% 20%;--fo:48% 26%;--kb:kbIn}
+.fshot[data-shot="pay"]{--bg:linear-gradient(#FFD99A, #C98F4E);--pos:50% 22%;--fo:55% 30%;--kb:kbIn}
+.fshot[data-shot="spend"]{--bg:linear-gradient(#5B2D6E, #2A1838);--pos:55% 12%;--fo:60% 22%;--kb:kbIn}
+.fshot[data-shot="scam"]{--bg:linear-gradient(#2C1F57, #120E22);--pos:50% 14%;--fo:50% 22%;--kb:kbPan}
 .fshot[data-shot="delay"]{--bg:linear-gradient(#18305E, #0E1A36);--pos:50% 50%;--fo:42% 48%;--kb:kbIn}
 .fshot[data-shot="tower"]{--bg:linear-gradient(#FFC2A8, #F2B35A);--pos:50% 30%;--fo:40% 40%;--kb:kbUp}
 .fshot[data-shot="title"]{--bg:linear-gradient(#BFDDF6, #FFC6C8 45%, #FFC870);--pos:82% 62%;--fo:70% 75%;--kb:kbOut}
