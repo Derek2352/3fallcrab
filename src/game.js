@@ -33,7 +33,7 @@ const FALL = [1.5, 1.8, 2.1, 2.4];
 const WARMUP_MS = 45000, WARMUP_FROM = 0.65;   // a gentle start: items fall at 65% speed, easing up to full over the first 45 s
 const MAX_DROPS = 3;
 
-const {STAGES, TRAPS, CARDS, QUIZ, HABITS} = window.TFF_CONTENT;   // src/content.js
+const {STAGES, TRAPS, CARDS, QUIZ, HABITS, ACTS, ACT_OF_STAGE} = window.TFF_CONTENT;   // src/content.js
 const QUIPS = window.TFF_CONTENT.QUIPS || {};
 const TITLES = window.TFF_CONTENT.TITLES || [];   // 稱號: the verdict title for each game
 const LATER_NONE = window.TFF_CONTENT.LATER_NONE || [], ENDINGS = window.TFF_CONTENT.ENDINGS || [];   // the story: a timed-out card, and how a life ends
@@ -718,10 +718,11 @@ function openCard(){
   S.cardCount++;
   S.card = {c, t:0, flip:false, flipAt:0, order: plan.order, lastTick:4};
   S.mode = "card"; softHeld = false; keys.left = keys.right = false; S.dragX = null;
-  A.sfx("cardOpen"); A.mode("card");
-  const st = STAGES[S.stage];
-  $("cardNo").textContent = "No." + String(S.cardCount).padStart(2, "0");
-  document.querySelector(".lc-body").dataset.no = "人生事件 No." + String(S.cardCount).padStart(2, "0");
+  A.sfx("cardOpen"); setTimeout(() => A.sfx("clap"), 300); A.mode("card");
+  const st = STAGES[S.stage], act = ACTS[ACT_OF_STAGE[S.stage] || 0], sc = String(S.cardCount).padStart(2, "0");   // the slate: act (by life stage), scene, take
+  $("cardSlate").replaceChildren("ACT " + act.n + " · SCENE ", Object.assign(document.createElement("b"), {id: "cardNo", textContent: sc}), " · TAKE " + takes);
+  $("cardSlateZh").textContent = act.z + " · 第" + S.cardCount + "場";
+  document.querySelector(".lc-body").dataset.no = act.z + " 第" + S.cardCount + "場";
   $("cardStage").textContent = st.en + " · " + st.zh;
   $("cardTitle").textContent = c.en; $("cardTitleZh").textContent = c.zh;
   $("cardTag").textContent = c.tag ? c.tag[0] + " · " + c.tag[1] : "";   // shown instead of the question once it's answered
@@ -742,7 +743,7 @@ function openCard(){
     box.appendChild(b);
   });
   $("cardOutcome").hidden = true; $("cardBar").style.transform = "scaleX(1)";
-  $("cardHint").textContent = "Life Event card. Choose within " + cardMs() / 1000 + " seconds: press 1 or 2" + (root.classList.contains("gamepad") ? ", or X or Y on the controller" : ", or tap a choice") + "." +
+  $("cardHint").textContent = "Life Event card: Act " + act.n + ", scene " + S.cardCount + ". Choose within " + cardMs() / 1000 + " seconds: press 1 or 2" + (root.classList.contains("gamepad") ? ", or X or Y on the controller" : ", or tap a choice") + "." +
     (slowRead ? "" : " For more time on later cards, pause the game and set the card timer to 30 seconds.");
   $("cardModal").hidden = false;
   const sheet = $("cardSheet"); sheet.classList.remove("done"); sheet.style.animation = "none"; void sheet.offsetWidth; sheet.style.animation = "";
@@ -1292,6 +1293,7 @@ function startGame(){
   played = true;
   flushRecord(S);   // the last game's quiz answers or habit may still be waiting to be saved
   S = newState(); S.camTop = camTarget(); makeEngine(); S.mode = "playing"; frenzyUI(); $("jpBan").hidden = true;
+  takes++;   // the slate's TAKE: this visit's game number
   S.persona = ROLL; rollKept = false; showWho();   // who this life is (rolled just before)
   if (firstQueue){ S.queue = firstQueue; S.lastId = firstQueue[2].id; S.jackpot = firstQueue.some(d => d.jackpot); firstQueue = null; }
   $("startOv").hidden = true; $("pauseOv").hidden = true; $("endModal").hidden = true; $("cardModal").hidden = true; $("seeOv").hidden = true; modalOpen(false);
@@ -2887,7 +2889,7 @@ function tick(dt){
 // what they reached. "Save image" makes a 1080 x 1350 JPEG card of it (the game's own sky, city and harbour, the
 // player, the amount, the stage, the 3 Falls, the address); "Share" hands it to the phone's share sheet (Instagram,
 // WhatsApp...) where the browser can share files. The card is made in advance: a share must happen right on the tap.
-let cardBlob = null, cardKey = "", heroRun = 0;
+let cardBlob = null, cardKey = "", heroRun = 0, takes = 0;
 const canShareFiles = () => { try { return !!(navigator.share && navigator.canShare && navigator.canShare({files: [new File([new Uint8Array([255, 216, 255])], "x.jpg", {type: "image/jpeg"})]})); } catch(e){ return false; } };
 // The nickname on the result card: the board's version once posted (its filter may have hidden it), otherwise
 // whatever the player typed (it's their own picture).
@@ -3030,7 +3032,7 @@ function drawPosterCard(g, img, medalPic){
   say("3fallcrab.com", 540, p0 + 536, 360, 38, 26, f => "900 " + f + "px " + F.display, "#FF7AB4", "center");
   const d = new Date(S.endAt || Date.now()), mon = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"][d.getMonth()];
   label(String(d.getDate()).padStart(2, "0") + " " + mon + " " + d.getFullYear() + " · " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"), 1020, p0 + 518, "right", 300);
-  label("ROW " + ["U", "J", "F", "R"][Math.min(3, S.stage)] + " · SEAT " + floorTxt(S.best / FLOOR), 1020, p0 + 548, "right", 300);
+  label("ACT " + ACTS[ACT_OF_STAGE[Math.min(3, S.stage)]].n + " · SEAT " + floorTxt(S.best / FLOOR), 1020, p0 + 548, "right", 300);
   g.restore();
   // the notches at the tear line, cut right through
   g.save(); g.globalCompositeOperation = "destination-out";
@@ -3281,8 +3283,13 @@ $("threadsBtn").addEventListener("click", () => {
 // Jack's or Jackie's life story: what happened after each Life Event, in the order they came, and how it all ended
 const FALL_BG = {spend: "var(--orange)", scam: "var(--purple)", delay: "var(--blue)"};
 function renderStory(){
-  const name = (PRON[WHO] || PRON.jack).name, ol = $("storyList"); ol.replaceChildren();
+  const name = (PRON[WHO] || PRON.jack).name, list = $("storyList"); list.replaceChildren();
   $("storyHead").firstChild.textContent = name + "'s story";
+  const acts = [];   // the story in the film's three acts: one heading and list per act with events
+  const actList = ai => { if (acts[ai]) return acts[ai];
+    const sec = document.createElement("section"); sec.className = "story-act";
+    const h = document.createElement("h5"); const a = ACTS[ai]; h.textContent = "Act " + a.n + " · " + a.en + " "; const hz = document.createElement("span"); hz.lang = "zh-HK"; hz.textContent = a.zh; h.appendChild(hz);
+    const ol = document.createElement("ol"); ol.className = "story"; sec.append(h, ol); list.appendChild(sec); return (acts[ai] = ol); };
   S.choices.forEach((ch, n) => {
     const c = CARD_BY.get(ch.card), later = c && laterOf(c, ch.pick, n); if (!later) return;
     const trap = ch.pick === "wise" ? null : ch.pick === "risky" ? c.trap : "delay";
@@ -3294,15 +3301,17 @@ function renderStory(){
     const tg = document.createElement("b"); tg.textContent = c.tag ? c.tag[0] : c.en; const tz = document.createElement("span"); tz.lang = "zh-HK"; tz.textContent = c.tag ? c.tag[1] : c.zh; tg.append(" ", tz);
     h.append(sg, tg);
     const p = document.createElement("p"); p.textContent = tell(later[0]); const pz = document.createElement("small"); pz.lang = "zh-HK"; pz.textContent = tell(later[1]); p.appendChild(pz);
-    b.append(h, p); li.append(ic, b); ol.appendChild(li);
+    b.append(h, p); li.append(ic, b); actList(ACT_OF_STAGE[c.st] || 0).appendChild(li);
   });
-  ol.hidden = !ol.children.length;
+  if (acts.length && !acts[2]){   // out before Retirement: the film never got to its last act
+    const nf = document.createElement("p"); nf.className = "story-nf"; nf.textContent = "Act III never filmed "; const z = document.createElement("span"); z.lang = "zh-HK"; z.textContent = "第三幕未開拍"; nf.appendChild(z); list.appendChild(nf); }
+  list.hidden = !acts.length; const ol = list;
   // the ending: the life stage reached × how the picks went (mostly wise, mixed, mostly not)
   const E = ENDINGS[S.stage], end = $("storyEnd"), picks = S.wise + S.risky + S.missed, share = picks ? S.wise / picks : 0.5;
   const k = share >= 0.7 ? "good" : share >= 0.4 ? "mixed" : "rough", P = personaOf(S.persona);
   end.hidden = !(E && E[k]); end.replaceChildren();
   if (E && E[k]){
-    const lab = document.createElement("b"); lab.className = "os-lab"; lab.textContent = "The end "; const lz = document.createElement("span"); lz.lang = "zh-HK"; lz.textContent = "結局"; lab.appendChild(lz);
+    const lab = document.createElement("b"); lab.className = "os-lab"; lab.textContent = "THE END "; const lz = document.createElement("span"); lz.lang = "zh-HK"; lz.textContent = "劇終"; lab.appendChild(lz);
     const z = document.createElement("small"); z.lang = "zh-HK"; z.textContent = tell(E[k][1], {nick: P && P.c.zh ? "「" + P.c.zh + "」" : ""});
     end.append(lab, tell(E[k][0], {nick: P && P.c.en ? ", “" + P.c.en + "”," : ""}), z);
   }

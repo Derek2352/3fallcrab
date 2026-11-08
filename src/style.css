@@ -260,12 +260,24 @@ button{font-family:inherit;color:inherit}
 .lifecard{animation:deal .32s cubic-bezier(.2,.9,.3,1.3)}
 @keyframes deal{from{transform:translateY(30px) rotate(-4deg) scale(.9);opacity:0}to{transform:none;opacity:1}}
 .lc-band{background:var(--pink);color:#fff;padding:12px 18px 10px;display:flex;justify-content:space-between;align-items:center;gap:10px}
-.lc-band .no{font-family:var(--f-zh);font-weight:700;font-size:16px;letter-spacing:1px}
-.lc-band .no b{font-family:var(--f-display);font-weight:900;font-size:20px;margin-left:4px}
+.lc-band .no{display:flex;flex-direction:column;gap:4px;min-width:0;width:100%}
+.lc-band .sub{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.lc-band .stg{white-space:nowrap}
+.lc-band .slate{font-family:var(--f-display);font-weight:900;font-size:clamp(13px, 4vw, 15px);letter-spacing:.05em;white-space:nowrap}
+.lc-band .slate b{font-size:17px}
+.lc-band .no small{font-family:var(--f-zh);font-weight:700;font-size:12px;letter-spacing:.12em;opacity:.92}
+/* the clapperboard: a striped stick on the band that swings shut as the card opens (with the clap sound) */
+.lc-band{position:relative;padding-top:24px !important}
+.lc-band::before{content:"";position:absolute;left:0;right:0;top:0;height:14px;transform-origin:8px 100%;
+  background:repeating-linear-gradient(-55deg, #1E1A24 0 13px, #FFFDF7 13px 26px);box-shadow:0 2px 0 rgba(0,0,0,.25);animation:clap .42s cubic-bezier(.5,0,.75,0) both}
+@keyframes clap{0%{transform:rotate(-16deg)}70%{transform:rotate(-16deg)}100%{transform:none}}
 .lc-band .stg{font-size:12px;font-weight:800;background:rgba(255,255,255,.22);padding:3px 10px;border-radius:999px}
 .lc-body{padding:16px 20px 20px}
-.timer{height:12px;border-radius:8px;background:#EEDCC0;overflow:hidden;margin-bottom:14px;box-shadow:inset 1px 2px 3px rgba(0,0,0,.18)}
-.timer i{display:block;height:100%;width:100%;border-radius:8px;background:var(--orange);transform-origin:left;box-shadow:inset 1px 1px 0 rgba(255,255,255,.5)}
+/* the countdown as a strip of film: sprocket holes along both edges, running out to the left */
+.timer{height:16px;border-radius:3px;background:#EEDCC0;overflow:hidden;margin-bottom:14px;box-shadow:inset 1px 2px 3px rgba(0,0,0,.18)}
+.timer i{display:block;height:100%;width:100%;border-radius:3px;transform-origin:left;
+  background:radial-gradient(circle at 5px 3.5px, #FFF4E2 1.6px, transparent 2.2px) 0 0 / 11px 100% repeat-x,
+    radial-gradient(circle at 5px 12.5px, #FFF4E2 1.6px, transparent 2.2px) 0 0 / 11px 100% repeat-x, linear-gradient(#2E2838, #2E2838) 0 6px / 100% 4px no-repeat, var(--orange)}
 .lifecard h3{margin:0;font-size:20px;line-height:1.3;text-wrap:balance}
 .lifecard .zh{margin:4px 0 16px;font-family:var(--f-zh);font-size:17px;color:var(--ink-2)}
 .choices{display:grid;gap:12px}
@@ -405,7 +417,7 @@ button{font-family:inherit;color:inherit}
 }
 @media (pointer: coarse) and (min-width: 900px){ .pad{display:grid} .touchhint{display:block} }
 @media (prefers-reduced-motion: reduce){
-  .stamp{animation:fadeonly 1.7s forwards} .lifecard{animation:none} .tag .n.hit{animation:none} .chip .n.hit{animation:none} .ledger tr.new td{animation:none}
+  .stamp{animation:fadeonly 1.7s forwards} .lifecard{animation:none} .lc-band::before{animation:none} .tag .n.hit{animation:none} .chip .n.hit{animation:none} .ledger tr.new td{animation:none}
   @keyframes fadeonly{0%,80%{opacity:1;transform:translate(-50%,0) rotate(var(--r,0deg))}100%{opacity:0;transform:translate(-50%,0) rotate(var(--r,0deg))}}
 }
 
@@ -1574,7 +1586,7 @@ html.fs.title .chal{max-width:380px;align-self:center;width:100%;background:rgba
 .lifecard.done .lc-for{display:none}
 /* short screens (360 x 640 phones): a slightly tighter card, so even the longest events fit with both choices on screen */
 @media (max-height: 700px){
-  .lc-band{padding:9px 16px 8px}
+  .lc-band{padding:9px 16px 8px;padding-top:20px !important} .lc-band::before{height:11px}
   .lc-body{padding:13px 16px 26px}
   .lifecard h3{font-size:18px;line-height:1.28}
   .lifecard .zh{margin:3px 0 11px;font-size:15.5px}
@@ -1583,7 +1595,7 @@ html.fs.title .chal{max-width:380px;align-self:center;width:100%;background:rgba
   .choice small{font-size:13.5px}
 }
 @media (max-height: 600px){   /* 320 x 568 */
-  .lc-band{padding:7px 14px 6px}
+  .lc-band{padding:7px 14px 6px;padding-top:16px !important} .lc-band::before{height:9px} .lc-band .no small{display:none} .lc-band .no{gap:3px} .lc-band .stg{font-size:11px;padding:1px 8px}
   .lc-body{padding:12px 14px 22px}
   .lifecard h3{font-size:16.5px;line-height:1.25}
   .lifecard .zh{margin:2px 0 9px;font-size:14.5px}
@@ -1632,6 +1644,13 @@ html.fs.title .ts-sound .ts-silent{color:var(--ink-2);font-weight:700}
 .oc-story{margin:0;font-size:14.5px;font-weight:600;line-height:1.45;text-wrap:pretty}
 .oc-story small{display:block;margin-top:3px;font-family:var(--f-zh);font-size:14px;font-weight:500;color:var(--ink-2)}
 .story-sec{margin-bottom:16px}
+/* the story in the film's three acts */
+.story-acts{display:flex;flex-direction:column;gap:14px}
+.story-acts[hidden]{display:none}
+.story-act h5{margin:0 0 8px;padding:3px 10px 4px;display:inline-block;border-radius:4px;background:#1E1A24;color:#FFF4E2;font-family:var(--f-display);font-weight:900;font-size:12.5px;letter-spacing:.05em}
+.story-act h5 span{font-family:var(--f-zh);font-weight:700;margin-left:4px;color:#FFD86B}
+.story-nf{margin:0;font-size:12.5px;font-weight:800;color:var(--ink-2);font-style:italic}
+.story-nf span{font-family:var(--f-zh);font-style:normal;margin-left:4px}
 .story{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
 .story li{display:grid;grid-template-columns:26px 1fr;gap:10px;align-items:start;position:relative}
 .story li:not(:last-child)::before{content:"";position:absolute;left:12px;top:30px;bottom:-10px;width:2px;border-radius:2px;background:var(--cream-d)}   /* the thread from one event to the next */

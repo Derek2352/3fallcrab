@@ -909,5 +909,10 @@ const PERSONA_CARDS = [
 // </personas>
 CARDS.push(...PERSONA_CARDS);
 
-root.TFF_CONTENT = {STAGES, TRAPS, CARDS, QUIZ, HABITS, QUIZ_WAS, HABIT_WAS, answerNow, habitNow, QUIPS, TROLLS, TYPE_AXES, TYPES, TITLES, PERSONAS, LATER_NONE, ENDINGS};
+// The film's three acts: a Life Event card's act follows the life stage (University sets up, First Job and Family are
+// the confrontation, Retirement resolves). A card's slate and the result's story say the act.
+const ACTS = [{n:"I", en:"The Setup", zh:"第一幕：開端", z:"第一幕"}, {n:"II", en:"The Confrontation", zh:"第二幕：衝突", z:"第二幕"}, {n:"III", en:"The Resolution", zh:"第三幕：結局", z:"第三幕"}];
+const ACT_OF_STAGE = [0, 1, 1, 2];
+
+root.TFF_CONTENT = {ACTS, ACT_OF_STAGE, STAGES, TRAPS, CARDS, QUIZ, HABITS, QUIZ_WAS, HABIT_WAS, answerNow, habitNow, QUIPS, TROLLS, TYPE_AXES, TYPES, TITLES, PERSONAS, LATER_NONE, ENDINGS};
 })(typeof window !== "undefined" ? window : globalThis);

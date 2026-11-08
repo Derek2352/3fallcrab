@@ -439,6 +439,12 @@
       tone(v, "pulse12", mtof(K(v.r, 86)), t + 0.09, 0.003, 0.2, 0.15);
       tone(v, "pulse12", mtof(K(v.r, 93)), t + 0.16, 0.003, 0.2, 0.19);
     },
+    clap: function (v, t) {                                // the clapperboard snaps shut: a sharp wooden clack
+      noiseHit(v, t, 0.001, 0.9, 0.035, "bandpass", 2300, 1.1);
+      noiseHit(v, t, 0.001, 0.5, 0.012, "highpass", 5000, 0.7);
+      tone(v, "square", 820, t, 0.001, 0.22, 0.03);
+      var k = tone(v, "triangle", 260, t, 0.001, 0.35, 0.06); k.o.frequency.exponentialRampToValueAtTime(140, t + 0.06);
+    },
     cardTick: function (v, t, o) {
       var n = clamp(Math.round(+o.n || +o.remaining || 3), 1, 3), f = [2400, 2000, 1700][n - 1];
       tone(v, "sine", f, t, 0.001, 0.6, 0.06);
@@ -814,7 +820,7 @@
   var LEVEL = {
     uiOpen: 0.8, uiClose: 0.95, uiNext: 0.8, uiBack: 0.85, uiToggle: 1.0, uiSelect: 0.8, uiDone: 0.55, uiNope: 0.65, go: 0.85, lock: 0.85, netCatch: 0.9, rescue: 0.7, rival: 0.8, reel: 0.5, reelStop: 0.85,
     click: 0.7, spawn: 0.7, move: 1.35, rotate: 0.7, hold: 0.75, release: 0.7, harddrop: 0.85, deposit: 0.7,
-    floor: 0.8, stage: 0.95, splash: 0.85, cardOpen: 0.8, cardTick: 0.75, wise: 0.9, risky: 0.5, stamp: 0.9,
+    floor: 0.8, stage: 0.95, splash: 0.85, cardOpen: 0.8, clap: 0.8, cardTick: 0.75, wise: 0.9, risky: 0.5, stamp: 0.9,
     debt: 0.8, scam: 0.45, quake: 1.0, shield: 0.9, timeWarn: 0.75, timeUp: 0.9, gameOver: 0.52, win: 1.0, post: 0.85,
     vine: 0.85, vineGet: 0.8, jackpot: 1.0, frenzyTick: 1.0, frenzyEnd: 0.8,
     offerPop: 0.8, profitTick: 0.7, scratch: 0.7, nearMiss: 0.55, heartbeat: 1.0, reviveFail: 0.6
