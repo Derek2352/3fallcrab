@@ -4,14 +4,14 @@
    are the ones Google Fonts served, so --f-* below and clay.js (canvas lettering) stay as they are. */
 @font-face{font-family:"Gluten";font-style:normal;font-weight:400 900;font-display:swap;src:url(/assets/gluten.5b0fb221b0.woff2) format("woff2")}
 /* Noto Sans HK is one variable file. Four faces, not one 400 900 range, so a weight-800 label still uses the 900 face, as before. */
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/noto-sans-hk.eb0574e132.woff2) format("woff2")}
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:500;font-display:swap;src:url(/assets/noto-sans-hk.eb0574e132.woff2) format("woff2")}
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/noto-sans-hk.eb0574e132.woff2) format("woff2")}
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:900;font-display:swap;src:url(/assets/noto-sans-hk.eb0574e132.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/noto-sans-hk.7231a6562d.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:500;font-display:swap;src:url(/assets/noto-sans-hk.7231a6562d.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/noto-sans-hk.7231a6562d.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:900;font-display:swap;src:url(/assets/noto-sans-hk.7231a6562d.woff2) format("woff2")}
 /* WenKai draws only Chinese (and the digits inside Chinese lines): its Latin is a thin handwriting, so English in a
    Chinese-font line falls through to Noto Sans HK and reads the same as everywhere else */
-@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/lxgw-wenkai-tc-regular.c7fa1170c4.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
-@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/lxgw-wenkai-tc-bold.e4efd41b86.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
+@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/lxgw-wenkai-tc-regular.aa2a2e63d4.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
+@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/lxgw-wenkai-tc-bold.50d8e9a705.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
 /* Curly quotes, ‘ ’, × and · in Latin widths: Noto Sans HK draws them a whole Chinese character wide, which left holes
    in English ("to   “rent”", "pays ×1.5"). Source Sans 3 (the Latin Noto Sans HK is based on), 1 KB a weight. */
 @font-face{font-family:"TFF Punct";font-style:normal;font-weight:400 650;font-display:swap;src:url(/assets/source-sans-punct-400.f1e8c6c73b.woff2) format("woff2");unicode-range:U+00B7,U+00D7,U+2018-201D}
@@ -1427,7 +1427,7 @@ html.iab-tight.fs.title .ts-sign{display:none}   /* a short screen with the tip 
 .fbeat.on .fslug{animation:type 1.1s .5s steps(26) both}
 @keyframes type{to{clip-path:inset(0 0 0 0)}}
 /* the chapter cards for the 3 Falls, stamped on */
-.fchap{position:absolute;left:4.5%;top:5.5%;display:grid;padding:7px 14px 8px 12px;border-left:6px solid var(--fc);background:rgba(10,8,14,.72);border-radius:4px;
+.fchap{position:absolute;left:4.5%;top:calc(6% + 3.6em);display:grid;padding:7px 14px 8px 12px;border-left:6px solid var(--fc);background:rgba(10,8,14,.72);border-radius:4px;
   font-weight:800;font-size:clamp(12px, 2.3vmin, 17px);line-height:1.3;color:#fff;box-shadow:0 6px 18px rgba(0,0,0,.35);opacity:0}
 .fchap b{font-family:var(--f-display);font-size:1.5em;line-height:1.05;color:var(--fc);letter-spacing:.04em}
 .fchap.f1{--fc:#FF7B35} .fchap.f2{--fc:#A88BFF} .fchap.f3{--fc:#5BB2FF}
@@ -1440,7 +1440,9 @@ html.iab-tight.fs.title .ts-sign{display:none}   /* a short screen with the tip 
 .fsub .fwho{order:-2;font-family:var(--f-body);font-size:.66em;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#FFD86B}
 .fsub.ad .fwho{color:#FF8FC4} .fsub.ad span{color:#FFD3EA}
 .fsub.sly .fwho{color:#C7F55B}
-.fbeat.on .fsub{animation:subIn .45s .55s ease both}
+.fsub .fwho i{font-style:italic;font-weight:700;letter-spacing:.06em;text-transform:none;opacity:.85}
+.fsub.vo{font-style:italic} .fsub.vo .fwho{color:#9DD8FF}
+.fbeat.on .fsub.now{animation:subIn .45s .35s ease both}
 @keyframes subIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .intro.port .fsub{top:calc(100% + 16px);bottom:auto;max-width:94%}
 /* the title */

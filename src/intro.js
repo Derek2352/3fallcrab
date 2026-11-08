@@ -4,7 +4,7 @@
 // Each shot fills the screen with a slow camera move, cut to the next with a film cut (fade, dissolve, whip pan,
 // lightning flash, dawn white-out), with film grain, subtitles (real text, for screen readers too), a synthesized
 // score and sound for every shot (GameAudio.film in src/audio.js) once sound is on.
-// About 28 seconds: it plays by itself, a tap (Enter, Space, →, or A on a pad) goes on, Skip (Esc, B) ends it, and
+// About 40 seconds: it plays by itself, a tap (Enter, Space, →, or A on a pad) goes on, Skip (Esc, B) ends it, and
 // "Your turn" at the end starts the game.
 // ?intro=0 or localStorage tff_intro = "off" leaves it out (booth staff, tests).
 (function(){
@@ -39,7 +39,7 @@ Object.entries(shots).forEach(([k, s]) => {
 // ---------- the screen: a 4:5 (phone) to 1.85:1 (wide) window on the square shots, black round it
 function fit(){
   const W = innerWidth, H = innerHeight, port = W / H < 0.9;
-  const resT = port ? Math.min(64, H * 0.08) : 0, resB = port ? Math.min(170, H * 0.22) : 0;   // a phone: room for the subtitles under the picture
+  const resT = port ? Math.min(64, H * 0.08) : 0, resB = port ? Math.min(230, H * 0.3) : 0;   // a phone: room for the subtitles under the picture
   const ar = Math.max(0.8, Math.min(1.85, W / (H - resT - resB)));
   let w = Math.min(W, (H - resT - resB) * ar), h = w / ar;
   el.style.setProperty("--fw", Math.floor(w) + "px"); el.style.setProperty("--fh", Math.floor(h) + "px");
@@ -85,14 +85,29 @@ function cut(n){
   bar.style.width = (100 * beats.slice(0, n + 1).reduce((t, x) => t + (+x.dataset.hold || 3000), 0) / TOTAL) + "%";
   cue(n);
 }
+// A shot's lines of script come one after another, like subtitles: the first as it cuts in, the next part-way through
+// (or on a tap). The shot moves on once its last line has had its time.
+let line = 0, lineTimer = 0;
+const linesOf = n => [...beats[n].querySelectorAll(".fsub")];
+function showLine(k){ line = k; linesOf(i).forEach((x, j) => x.classList.toggle("now", j === k)); }
 function go(n){
   i = n; cut(n);
-  clearTimeout(timer);
+  clearTimeout(timer); clearTimeout(lineTimer);
   let hold = +beats[n].dataset.hold || 3000;
   if (n === 0 && !ready.campus) hold += 1500;   // the credit waits a little for the first picture
+  const L = linesOf(n).length; showLine(0);
+  for (let k = 1; k < L; k++) lineTimer = setTimeout(() => { if (i === n) showLine(k); }, hold * k / L);
   timer = setTimeout(next, hold);
 }
-function next(){ if (done) return; if (i < beats.length - 1) go(i + 1); else end(); }
+function next(){
+  if (done) return;
+  const L = linesOf(i).length;
+  if (line < L - 1){   // a tap shows the shot's next line first
+    clearTimeout(timer); clearTimeout(lineTimer); showLine(line + 1);
+    timer = setTimeout(next, (+beats[i].dataset.hold || 3000) / L); return;
+  }
+  if (i < beats.length - 1) go(i + 1); else end();
+}
 function end(play){
   if (done) return; done = true; clearTimeout(timer);
   window.removeEventListener("keydown", onKey, true); removeEventListener("resize", fit);

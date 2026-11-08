@@ -1427,7 +1427,7 @@ html.iab-tight.fs.title .ts-sign{display:none}   /* a short screen with the tip 
 .fbeat.on .fslug{animation:type 1.1s .5s steps(26) both}
 @keyframes type{to{clip-path:inset(0 0 0 0)}}
 /* the chapter cards for the 3 Falls, stamped on */
-.fchap{position:absolute;left:4.5%;top:5.5%;display:grid;padding:7px 14px 8px 12px;border-left:6px solid var(--fc);background:rgba(10,8,14,.72);border-radius:4px;
+.fchap{position:absolute;left:4.5%;top:calc(6% + 3.6em);display:grid;padding:7px 14px 8px 12px;border-left:6px solid var(--fc);background:rgba(10,8,14,.72);border-radius:4px;
   font-weight:800;font-size:clamp(12px, 2.3vmin, 17px);line-height:1.3;color:#fff;box-shadow:0 6px 18px rgba(0,0,0,.35);opacity:0}
 .fchap b{font-family:var(--f-display);font-size:1.5em;line-height:1.05;color:var(--fc);letter-spacing:.04em}
 .fchap.f1{--fc:#FF7B35} .fchap.f2{--fc:#A88BFF} .fchap.f3{--fc:#5BB2FF}
@@ -1440,7 +1440,9 @@ html.iab-tight.fs.title .ts-sign{display:none}   /* a short screen with the tip 
 .fsub .fwho{order:-2;font-family:var(--f-body);font-size:.66em;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#FFD86B}
 .fsub.ad .fwho{color:#FF8FC4} .fsub.ad span{color:#FFD3EA}
 .fsub.sly .fwho{color:#C7F55B}
-.fbeat.on .fsub{animation:subIn .45s .55s ease both}
+.fsub .fwho i{font-style:italic;font-weight:700;letter-spacing:.06em;text-transform:none;opacity:.85}
+.fsub.vo{font-style:italic} .fsub.vo .fwho{color:#9DD8FF}
+.fbeat.on .fsub.now{animation:subIn .45s .35s ease both}
 @keyframes subIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .intro.port .fsub{top:calc(100% + 16px);bottom:auto;max-width:94%}
 /* the title */
