@@ -23,11 +23,11 @@ const TRAPS = {
           eff:"A heavy debt ball and chain crashes onto your tower, followed by awkward shapes. 一個好重嘅債務鐵球會跌落你座塔度，跟住嚟嘅都係奇形怪狀嘅嘢。",
           hit:["A debt ball is coming · awkward shapes next · savings boost −0.2", "債務鐵球跌緊落嚟·跟住啲嘢奇形怪狀·儲蓄加成−0.2"]},
   scam:  {en:"Scams", zh:"騙局", d:"Fake tips, “renting” your account 貼士股、租戶口",
-          eff:"You lose HK$5,000. Slippery, bouncy scam items come next, and Hold is locked. 會被呃走HK$5,000，之後跌落嚟嘅騙局物件又滑又彈，暫存亦會鎖住。",
+          eff:"You lose HK$5,000. Slippery, bouncy scam items come next, and Hold is locked. 會被呃走HK$5,000，之後跌落嚟嘅騙局物件又滑又彈，暫存都會鎖住。",
           hit:["{loss} · slippery, bouncy items next · Hold locked", "{loss}·跟住啲嘢又滑又彈·暫存鎖住"]},
   delay: {en:"Putting off saving", zh:"拖延儲錢", d:"“I'll start next year” 「明年先儲」",
-          eff:"Time speeds up for 20s and your savings boost drops back to ×1.0. 時間加速20秒，儲蓄加成打回×1.0。",
-          hit:["Time speeds up for 20 s · savings boost back to ×1.0", "時間加速20秒·儲蓄加成打回×1.0"]}
+          eff:"Time speeds up for 20 s and your savings boost drops back to ×1.0. 時間加速20秒，儲蓄加成跌返去×1.0。",
+          hit:["Time speeds up for 20 s · savings boost back to ×1.0", "時間加速20秒·儲蓄加成跌返去×1.0"]}
 };
 
 // The story: every card's `later` says what happened to the player after each answer (w: the wise one, r: the risky one),
@@ -115,10 +115,10 @@ const CARDS = [
   {id:"reno", st:3, thumb:{w:"calculator"}, tag:["Flat renovation","大裝修"], en:"The flat needs a full renovation.", zh:"層樓要大裝修。",
    w:["Pay from savings and do it in phases","用儲蓄，分階段慢慢裝"], r:["Do it all now on card instalments","一次過碌卡分期"], trap:"spend",
    tip:["On a fixed retirement income, new debt is much harder to clear.","退休後收入有限，再借錢就好難還得清。"],
-   later:{w:["Kitchen this year, bathroom the next. By 70, {name}'s flat looked brand new and {his} savings were still there.", "今年裝廚房，明年整廁所。到70歲，{name}層樓煥然一新，存款都仲喺度。"], r:["Come Lunar New Year the flat sparkled. Come summer, {name}'s retirement income couldn't keep up with the instalments and interest.", "新年前裝修搞掂，靚到發光。到夏天，{name}嘅退休收入追唔上分期，卡數利息越滾越大。"]}},
+   later:{w:["Kitchen this year, bathroom the next. By 70, {name}'s flat looked brand new and {his} savings were still there.", "今年裝廚房，明年整廁所。到70歲，{name}層樓煥然一新，啲錢都仲喺度。"], r:["Come Lunar New Year the flat sparkled. Come summer, {name}'s retirement income couldn't keep up with the instalments and interest.", "新年前裝修搞掂，靚到發光。到夏天，{name}嘅退休收入追唔上分期，卡數利息越滾越大。"]}},
   {id:"will", st:3, tag:["Will and retirement budget","遺囑同退休預算"], en:"Your kids ask about your plans for later life.", zh:"仔女問你晚年有咩打算。",
    w:["Write a will and a retirement budget now","而家立遺囑、做退休預算"], r:["Deal with it someday","第日先算"], trap:"delay",
-   tip:["A will and a budget protect your family from guesswork and disputes later.","立好遺囑、做好預算，屋企人第日就唔使估估吓，亦少啲爭拗。"],
+   tip:["A will and a budget protect your family from guesswork and disputes later.","立好遺囑、做好預算，屋企人第日就唔使估估吓，都少啲爭拗。"],
    later:{w:["On {name}'s 80th birthday the kids got the will, the budget, and a note: “Don't fight over the mahjong table.” Nobody ever did.", "八十大壽，{name}將遺囑、預算同一張字條交畀仔女：「麻雀枱唔准爭。」結果真係冇人爭。"], r:["Still saying “someday” at 82, {name} had no budget on paper, so the kids argued over who would pay for {his} care.", "82歲，{name}仲係講「第日先算」。冇預算可依，仔女為咗邊個畀護理費嗌到拆天。"]}}
 ];
 
@@ -709,7 +709,7 @@ const PERSONA_CARDS = [
    later:{w:["Before dinner, {name} had taped the bank's real hotline number inside the lift. Not one auntie on the floor lost a cent.", "晚飯前，{name}已經將銀行真熱線貼喺升降機入面。成層樓一個師奶都冇蝕過一蚊。"], r:["Overnight, Mum and two neighbours lost HK$48,000. {name}, the estate brain, spent the next day at the police station.", "一夜之間，阿媽同兩個街坊冇咗HK$48,000。屋邨神童{name}第二日要陪佢哋喺差館坐成日。"]}},
   {id:"c_estate_genius_r", st:3, who:"estate+genius", thumb:{w:"piggybank", r:"textbooks"}, tag:["Grandson's tutoring", "孫仔補習費"], en:"The floor says your grandson's “a genius, like you”. You want to prepay 3 years of elite tutoring: HK$120,000.", zh:"成層樓話孫仔「似足你咁叻」，你想預繳三年補習HK$120,000。",
    w:["Help a bit each month, within budget", "按預算每月幫少少"], r:["Prepay 3 years from your nest egg", "用退休錢一次過預繳"], trap:"spend",
-   tip:["Retirement savings must last decades. Give what your budget allows, and avoid big prepayments to any centre.", "退休錢要用幾十年。量力而為咁幫，亦唔好一次過預繳大筆學費。"],
+   tip:["Retirement savings must last decades. Give what your budget allows, and avoid big prepayments to any centre.", "退休錢要用幾十年。量力而為咁幫，都唔好一次過預繳大筆學費。"],
    later:{w:["Five years on, {name}'s monthly help still fit the budget, the nest egg held, and the grandson revised at 3am. Like {name}.", "五年後，{name}每月幫少少，退休錢照穩陣。孫仔照樣凌晨三點先溫書，真係似足佢。"], r:["A year in, the tutoring centre closed overnight, and HK$80,000 of {name}'s prepaid nest egg vanished with it.", "一年後，補習中心一夜執笠，{name}由退休錢預繳嘅HK$80,000，跟住一齊冇咗。"]}},
   {id:"c_estate_social_u", st:0, who:"estate+social", thumb:{w:"calculator", r:"smartphone"}, tag:["Group-trip treasurer", "夾錢旅行財政"], en:"The estate WhatsApp group makes you treasurer: HK$24,000 for a 20-person trip, in your account. Log it? Later.", zh:"屋邨群組揀你做旅行財政，HK$24,000喺你戶口。記數？「遲啲」。",
    w:["Log every payment in a shared sheet today", "今日開共享表，逐筆記低"], r:["It's all in my head. Sort it later", "我記得晒，遲啲先整"], trap:"delay",
