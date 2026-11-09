@@ -22,7 +22,13 @@ behind.forEach(n => { n.inert = true; });
 const scr = document.getElementById("fScreen"), flashEl = el.querySelector(".fflash"), bar = document.getElementById("fBar");
 const beats = [...el.querySelectorAll(".fbeat")].sort((a, b) => a.dataset.step - b.dataset.step);
 const shots = {}; el.querySelectorAll(".fshot").forEach(s => { shots[s.dataset.shot] = s; });
-const TOTAL = beats.reduce((t, b) => t + (+b.dataset.hold || 3000), 0);
+// Reading time comes from the line itself, not from a fixed beat length: about 130 ms a character,
+// never under 3.4 s and never over 5 s. A beat lasts as long as its subtitle lines added together.
+const linesOf = n => [...beats[n].querySelectorAll(".fsub")];
+const lineMs = x => { const t = x.textContent || ""; let n = 0; for (const ch of t) { const c = ch.codePointAt(0); if (c >= 0x4e00 && c <= 0x9fff) n++; } return Math.max(3600, Math.min(5000, Math.round(n * 130))); };
+const holdsOf = n => { const L = linesOf(n); return L.length ? L.map(lineMs) : [(+beats[n].dataset.hold || 3000)]; };
+const holdOf = n => holdsOf(n).reduce((a, b) => a + b, 0);
+const TOTAL = beats.reduce((t, b, n) => t + holdOf(n), 0);
 
 // ---------- the pictures: the first is in the page; the rest load in order, while the credit is up
 const ready = {};
@@ -64,7 +70,7 @@ function soundOn(){
 // ---------- the film, beat by beat
 let i = -1, timer = 0, done = false, shown = null;
 function cut(n){
-  const b = beats[n], via = b.dataset.via, k = b.dataset.shot, hold = +b.dataset.hold || 3000;
+  const b = beats[n], via = b.dataset.via, k = b.dataset.shot, hold = holdOf(n);
   beats.forEach((x, j) => x.classList.toggle("on", j === n));
   scr.classList.toggle("hook", via === "hook");
   if (k && shots[k] !== shown){
@@ -82,21 +88,22 @@ function cut(n){
     }
     shown = next;
   }
-  bar.style.width = (100 * beats.slice(0, n + 1).reduce((t, x) => t + (+x.dataset.hold || 3000), 0) / TOTAL) + "%";
+  bar.style.width = (100 * beats.slice(0, n + 1).reduce((t, x, j) => t + holdOf(j), 0) / TOTAL) + "%";
   cue(n);
 }
 // A shot's lines of script come one after another, like subtitles: the first as it cuts in, the next part-way through
 // (or on a tap). The shot moves on once its last line has had its time.
 let line = 0, lineTimer = 0;
-const linesOf = n => [...beats[n].querySelectorAll(".fsub")];
 function showLine(k){ line = k; linesOf(i).forEach((x, j) => x.classList.toggle("now", j === k)); }
 function go(n){
   i = n; cut(n);
   clearTimeout(timer); clearTimeout(lineTimer);
-  let hold = +beats[n].dataset.hold || 3000;
+  const H = holdsOf(n), L = H.length;
+  let hold = H.reduce((a, b) => a + b, 0);
   if (n === 0 && !ready.campus) hold += 1500;   // the credit waits a little for the first picture
-  const L = linesOf(n).length; showLine(0);
-  for (let k = 1; k < L; k++) lineTimer = setTimeout(() => { if (i === n) showLine(k); }, hold * k / L);
+  showLine(0);
+  let at = 0;
+  for (let k = 1; k < L; k++){ at += H[k - 1]; lineTimer = setTimeout(() => { if (i === n) showLine(k); }, at); }
   timer = setTimeout(next, hold);
 }
 function next(){
@@ -104,7 +111,7 @@ function next(){
   const L = linesOf(i).length;
   if (line < L - 1){   // a tap shows the shot's next line first
     clearTimeout(timer); clearTimeout(lineTimer); showLine(line + 1);
-    timer = setTimeout(next, (+beats[i].dataset.hold || 3000) / L); return;
+    timer = setTimeout(next, holdsOf(i)[line] || 3600); return;
   }
   if (i < beats.length - 1) go(i + 1); else end();
 }
@@ -143,5 +150,5 @@ el.addEventListener("click", e => {
 addEventListener("resize", fit);
 window.TFF_INTRO = {on: () => !done, next: () => { tapped(); next(); }, skip: () => end(), go: () => end(true)};
 try { go(0); soundState(); setTimeout(soundState, 1200); const s = document.getElementById("introSkip"); if (s) s.focus({preventScroll: true}); } catch(e){ end(); }
-setTimeout(() => { if (!done) end(); }, 60000);   // never stuck
+setTimeout(() => { if (!done) end(); }, TOTAL + 30000);   // never stuck
 })();

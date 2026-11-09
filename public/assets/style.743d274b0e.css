@@ -1,5 +1,5 @@
 /* Web fonts, self-hosted: subsets of Gluten, Noto Sans HK and LXGW WenKai TC (SIL Open Font License 1.1;
-   licences: /assets/OFL.e6a45b48f3.txt). `npm run fonts` makes src/fonts/*.woff2 from the characters used in src/, and
+   licences: /assets/OFL.390eb80368.txt). `npm run fonts` makes src/fonts/*.woff2 from the characters used in src/, and
    `npm run build` warns about a Chinese character they lack (the system font draws it). The family names and weights
    are the ones Google Fonts served, so --f-* below and clay.js (canvas lettering) stay as they are. */
 @font-face{font-family:"Gluten";font-style:normal;font-weight:400 900;font-display:swap;src:url(/assets/gluten.5b0fb221b0.woff2) format("woff2")}
@@ -40,7 +40,6 @@
   --f-display:"Gluten","Arial Rounded MT Bold","Trebuchet MS",sans-serif;
   --f-zh:"LXGW WenKai TC","TFF Punct","Noto Sans HK","PingFang HK","Microsoft JhengHei",sans-serif;
   --f-body:"TFF Punct","Noto Sans HK","PingFang HK","Microsoft JhengHei",system-ui,sans-serif;
-  --f-dot:"TFF Punct","Noto Sans HK","PingFang HK","Microsoft JhengHei",system-ui,sans-serif;   /* numbers in tables (it was a dot-matrix font, which looked like a computer terminal) */
   color-scheme:light;
 }
 *{box-sizing:border-box}
@@ -91,13 +90,13 @@ button{font-family:inherit;color:inherit}
 .passbook{background:var(--red);padding:12px 12px 14px;color:#fff}
 .pb-cover{display:flex;justify-content:space-between;align-items:baseline;margin:0 4px 8px}
 .pb-cover .zh{font-family:var(--f-zh);font-weight:700;font-size:20px;letter-spacing:3px;color:#FFE7A0;text-shadow:0 2px 0 rgba(0,0,0,.25)}
-.pb-cover small{font-family:var(--f-dot);font-size:11px;color:#FFD9D6;letter-spacing:.5px}
+.pb-cover small{font-family:var(--f-body);font-size:11px;color:#FFD9D6;letter-spacing:.5px}
 .pb-page{background:var(--cream);color:var(--ink);border-radius:14px;padding:10px 10px 8px;box-shadow:inset 2px 2px 0 rgba(255,255,255,.8), inset -2px -3px 6px rgba(60,20,10,.12)}
 .bal{display:flex;justify-content:space-between;align-items:flex-end;gap:8px;margin-bottom:6px}
 .bal .k{font-size:11px;color:var(--ink-2);line-height:1.2}
 .bal .k b{display:block;font-family:var(--f-zh);font-size:13px;color:var(--ink)}
 .bal .v{font-family:var(--f-display);font-weight:900;font-size:30px;line-height:1;color:var(--green-d);font-variant-numeric:tabular-nums;white-space:nowrap}
-.ledger{width:100%;border-collapse:collapse;font-family:var(--f-dot);font-size:11px;font-variant-numeric:tabular-nums;table-layout:fixed}
+.ledger{width:100%;border-collapse:collapse;font-family:var(--f-body);font-size:11px;font-variant-numeric:tabular-nums;table-layout:fixed}
 .ledger th{font-family:var(--f-body);font-weight:700;font-size:10px;color:var(--ink-2);text-align:right;padding:2px 2px 3px;border-bottom:2px solid var(--cream-d)}
 .ledger th:nth-child(2),.ledger td:nth-child(2){text-align:left}
 .ledger td{padding:3px 2px;text-align:right;border-bottom:1px dashed #E7CFAE;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -210,7 +209,7 @@ button{font-family:inherit;color:inherit}
 .dir{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
 .dir li{display:grid;grid-template-columns:46px 1fr;gap:10px;align-items:center;padding:6px 8px;border-radius:12px;background:var(--navy-d);position:relative;overflow:hidden;
   box-shadow:inset 1px 1px 0 rgba(255,255,255,.12), inset -2px -3px 5px rgba(0,0,0,.25)}
-.dir .fl{font-family:var(--f-dot);font-size:17px;text-align:center;background:#0E1440;border-radius:8px;padding:2px 0;color:#7E8BD6}
+.dir .fl{font-family:var(--f-body);font-size:17px;text-align:center;background:#0E1440;border-radius:8px;padding:2px 0;color:#7E8BD6}
 .dir .nm b{display:block;font-family:var(--f-zh);font-size:15px;font-weight:700;line-height:1.15}
 .dir .nm small{display:block;font-size:11.5px;color:#B8C0F0;line-height:1.2}
 .dir .bar{position:absolute;left:0;bottom:0;height:3px;width:0;background:var(--lamp);transition:width .3s}
@@ -218,7 +217,7 @@ button{font-family:inherit;color:inherit}
 .dir li.on .fl{background:var(--ink);color:var(--lamp)} .dir li.on small{color:var(--ink-2)}
 .dir li.done .fl{color:var(--lamp)}
 .height{margin:10px 2px 0;display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:#C9D0F5}
-.height b{font-family:var(--f-dot);font-size:20px;color:var(--lamp)}
+.height b{font-family:var(--f-body);font-size:20px;color:var(--lamp)}
 
 /* ---------- leaderboard ---------- */
 .lbx{background:var(--teal);color:#fff;padding:12px 12px 12px}
@@ -235,8 +234,8 @@ button{font-family:inherit;color:inherit}
 .lb .r{font-family:var(--f-display);font-weight:900;font-size:15px;text-align:center;color:var(--ink-2)}
 .lb li:nth-child(1) .r{color:var(--orange-d)} .lb li:nth-child(2) .r{color:var(--blue-d)} .lb li:nth-child(3) .r{color:var(--pink-d)}
 .lb .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;font-weight:700}
-.lb .fl{font-family:var(--f-dot);font-size:11px;color:var(--ink-2)}
-.lb .s{font-family:var(--f-dot);font-size:12.5px;color:var(--green-d)}
+.lb .fl{font-family:var(--f-body);font-size:11px;color:var(--ink-2)}
+.lb .s{font-family:var(--f-body);font-size:12.5px;color:var(--green-d)}
 .lb-empty{margin:6px 2px;color:var(--ink-2);font-size:12.5px}
 .lb-note{margin:7px 2px 0;font-size:11.5px;color:#E2FFFB}
 .insight{display:flex;flex-direction:column;gap:8px;font-size:12px;padding:4px 2px}
@@ -244,7 +243,7 @@ button{font-family:inherit;color:inherit}
 .bar2 .track{grid-column:1/-1;height:9px;border-radius:6px;background:#EEDCC0;overflow:hidden;box-shadow:inset 1px 1px 2px rgba(0,0,0,.15)}
 .bar2 .track i{display:block;height:100%;border-radius:6px;background:var(--green)}
 .bar2.crab .track i{background:var(--red)}
-.bar2 b{font-family:var(--f-dot)}
+.bar2 b{font-family:var(--f-body)}
 
 /* ---------- how to ---------- */
 .howto{background:var(--cream);padding:14px}
@@ -259,7 +258,7 @@ button{font-family:inherit;color:inherit}
   box-shadow:inset 3px 3px 2px rgba(255,255,255,.7), inset -6px -8px 14px rgba(60,20,10,.16), 6px 10px 0 rgba(60,20,10,.22), 12px 24px 40px rgba(30,10,40,.3)}
 .lifecard{animation:deal .32s cubic-bezier(.2,.9,.3,1.3)}
 @keyframes deal{from{transform:translateY(30px) rotate(-4deg) scale(.9);opacity:0}to{transform:none;opacity:1}}
-.lc-band{background:var(--pink);color:#fff;padding:12px 18px 10px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.lc-band{background:var(--pink);color:#fff;padding:12px 18px 10px;display:flex;justify-content:space-between;align-items:center;gap:10px;border-radius:22px 22px 0 0}
 .lc-band .no{display:flex;flex-direction:column;gap:4px;min-width:0;width:100%}
 .lc-band .sub{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .lc-band .stg{white-space:nowrap}
@@ -269,7 +268,7 @@ button{font-family:inherit;color:inherit}
 /* the clapperboard: a striped stick on the band that swings shut as the card opens (with the clap sound) */
 .lc-band{position:relative;padding-top:24px !important}
 .lc-band::before{content:"";position:absolute;left:0;right:0;top:0;height:14px;transform-origin:8px 100%;
-  background:repeating-linear-gradient(-55deg, #1E1A24 0 13px, #FFFDF7 13px 26px);box-shadow:0 2px 0 rgba(0,0,0,.25);animation:clap .42s cubic-bezier(.5,0,.75,0) both}
+  background:repeating-linear-gradient(-55deg, #1E1A24 0 13px, var(--paper) 13px 26px);box-shadow:0 2px 0 rgba(0,0,0,.25);animation:clap .42s cubic-bezier(.5,0,.75,0) both}
 @keyframes clap{0%{transform:rotate(-16deg)}70%{transform:rotate(-16deg)}100%{transform:none}}
 .lc-band .stg{font-size:12px;font-weight:800;background:rgba(255,255,255,.22);padding:3px 10px;border-radius:999px}
 .lc-body{padding:16px 20px 20px}
@@ -279,11 +278,11 @@ button{font-family:inherit;color:inherit}
   background:radial-gradient(circle at 5px 3.5px, #FFF4E2 1.6px, transparent 2.2px) 0 0 / 11px 100% repeat-x,
     radial-gradient(circle at 5px 12.5px, #FFF4E2 1.6px, transparent 2.2px) 0 0 / 11px 100% repeat-x, linear-gradient(#2E2838, #2E2838) 0 6px / 100% 4px no-repeat, var(--orange)}
 .lifecard h3{margin:0;font-size:20px;line-height:1.3;text-wrap:balance}
-.lifecard .zh{margin:4px 0 16px;font-family:var(--f-zh);font-size:17px;color:var(--ink-2)}
+.lifecard .zh{margin:4px 0 16px;font-family:var(--f-body);font-size:17px;color:var(--ink-2)}
 .choices{display:grid;gap:12px}
 .choice{appearance:none;border:0;text-align:left;display:grid;grid-template-columns:40px 1fr;gap:12px;align-items:center;padding:12px 14px;border-radius:18px;background:#fff;color:var(--ink);cursor:pointer;font-size:14.5px;
   box-shadow:inset 2px 2px 1px rgba(255,255,255,.9), inset -3px -4px 7px rgba(60,20,10,.14), 0 5px 0 var(--cream-d), 3px 9px 14px rgba(120,62,12,.16);transition:transform .08s}
-.choice:hover{background:#FFFBF2}
+.choice:hover{background:var(--paper-hi)}
 .choice:active{transform:translateY(4px);box-shadow:inset 2px 2px 1px rgba(255,255,255,.9), inset -3px -4px 7px rgba(60,20,10,.14), 0 1px 0 var(--cream-d)}
 .choice .key{font-family:var(--f-display);font-weight:900;font-size:21px;width:40px;height:40px;border-radius:14px;display:grid;place-items:center;color:#fff;background:var(--navy);box-shadow:inset 2px 2px 1px rgba(255,255,255,.3), inset -2px -3px 5px rgba(0,0,0,.3)}
 .choice b{display:block;font-weight:700}
@@ -300,7 +299,7 @@ button{font-family:inherit;color:inherit}
 .statement{max-width:580px}
 .st-band{background:var(--teal);color:#fff;padding:14px 20px 12px;display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
 .st-band .zh{font-family:var(--f-zh);font-weight:700;font-size:22px;letter-spacing:3px}
-.st-band small{font-family:var(--f-dot);font-size:12px;opacity:.9}
+.st-band small{font-family:var(--f-body);font-size:12px;opacity:.9}
 .st-body{padding:16px 20px 20px}
 .st-eyebrow{margin:0;font-family:var(--f-zh);font-weight:700;color:var(--pink-d);font-size:15px}
 .statement h3{margin:2px 0 4px;font-family:var(--f-display);font-weight:900;font-size:30px;line-height:1.05;text-wrap:balance}
@@ -310,7 +309,7 @@ button{font-family:inherit;color:inherit}
 .rows li .lab{white-space:nowrap}
 .rows li .lab small{font-family:var(--f-zh);color:var(--ink-2);margin-left:4px}
 .rows li .dots{flex:1;border-bottom:2px dotted #DCC3A0;transform:translateY(-4px)}
-.rows li .val{font-family:var(--f-dot);font-size:16px;white-space:nowrap}
+.rows li .val{font-family:var(--f-body);font-size:16px;white-space:nowrap}
 .rows li.big .val{font-family:var(--f-display);font-weight:900;font-size:24px;color:var(--green-d)}
 .esec{border-top:2px dashed var(--cream-d);padding-top:14px;margin-top:14px}
 .esec h4{margin:0 0 10px;font-family:var(--f-display);font-weight:800;font-size:17px}
@@ -337,10 +336,10 @@ button{font-family:inherit;color:inherit}
 .qopt:disabled{cursor:default;color:var(--ink)}
 .qfb{margin:8px 0 0;padding:9px 12px;border-radius:12px;font-size:13px;line-height:1.45}
 .qfb:empty{margin:0;padding:0}
-.qfb.ok{background:#E2F6E7;color:#1D6631}
-.qfb.no{background:#FFE6E3;color:#8C1D18}
+.qfb.ok{background:var(--good-bg);color:var(--good)}
+.qfb.no{background:var(--bad-bg);color:var(--bad)}
 .qfb b{display:block;font-size:13.5px;margin-bottom:2px}
-.qfb small{display:block;font-family:var(--f-zh);font-size:12.5px;margin-top:2px}
+.qfb small{display:block;font-family:var(--f-zh);font-size:14px;margin-top:2px}
 .esec-note{margin:-4px 0 10px;font-size:12.5px;color:var(--ink-2)}
 .email-note{margin:8px 0 0;font-size:12px;color:var(--ink-2)}
 .habits{display:grid;gap:7px}
@@ -476,13 +475,14 @@ button{font-family:inherit;color:inherit}
 .stamp.good{background:#5DD47C} .stamp.gold{background:#FFB23D}
 /* modal + life event playing card */
 .modal{background:rgba(37,49,122,.30);backdrop-filter:blur(3px) saturate(1.15);-webkit-backdrop-filter:blur(3px) saturate(1.15)}
-.lifecard{max-width:400px;border:8px solid #FFFDF7;border-radius:30px;transform:rotate(-1.2deg)}
-@keyframes deal{from{transform:translateY(30px) rotate(-5deg) scale(.9);opacity:0}to{transform:rotate(-1.2deg);opacity:1}}
+.lifecard{max-width:400px;border-radius:30px;position:relative;overflow:visible;isolation:isolate}
+.lifecard::before{content:"";position:absolute;inset:-8px;background:var(--paper);border-radius:30px;transform:rotate(-1.2deg);z-index:-1}
+@keyframes deal{from{transform:translateY(30px) scale(.9);opacity:0}to{transform:none;opacity:1}}
 .lc-body{min-height:330px;position:relative}
 .lc-body::after{content:attr(data-no);position:absolute;right:14px;bottom:8px;transform:rotate(180deg);font-family:var(--f-display);font-weight:900;font-size:13px;color:var(--pink-d);opacity:.55}
 .choice{grid-template-columns:40px 1fr 50px}
 .choice .thumb{width:50px;height:50px;border-radius:12px;background:#FFF4E2;box-shadow:inset -2px -2px 4px rgba(60,20,10,.1)}
-.oc-head.good, .oc-effect[style*="green"]{color:#1F7A3A!important}
+.oc-head.good, .oc-effect[style*="green"]{color:var(--good)!important}
 /* HUD: tidy grid, no overflow */
 .hud{display:none;grid-template-columns:auto minmax(0,1fr) auto auto auto;gap:8px}
 .hud .mini{margin-left:0}
@@ -518,6 +518,8 @@ button{font-family:inherit;color:inherit}
    light colour, the colour behind it is a little deeper, or the text turns ink; text-only greens and pinks get a
    deeper shade, while big decorative numbers keep the bright ones. */
 :root{--hot:#DF1B72; --hot-d:#A8155A; --pink-t:#CE2870; --green-t:#267E3E; --violet:#7C59F0; --scarlet:#E71910}
+/* popup palette: one paper, one ink, one accent, plus two semantic states */
+:root{--paper-hi:#FFFBF2; --paper:#FFFDF7; --jp:#C77700; --good:#1D6631; --good-bg:#E2F6E7; --bad:#8C1D18; --bad-bg:#FFE6E3}
 .btn{background:var(--hot);box-shadow:inset 2px 2px 1px rgba(255,255,255,.45), inset -3px -4px 6px rgba(0,0,0,.18), 0 5px 0 var(--hot-d), 3px 9px 14px rgba(120,62,12,.22)}
 .btn:active{box-shadow:inset 2px 2px 1px rgba(255,255,255,.45), inset -3px -4px 6px rgba(0,0,0,.18), 0 1px 0 var(--hot-d), 2px 3px 6px rgba(120,62,12,.2)}
 .btn.teal{background:#11837B;box-shadow:inset 2px 2px 1px rgba(255,255,255,.4), inset -3px -4px 6px rgba(0,0,0,.18), 0 5px 0 #0A5F59, 3px 9px 14px rgba(120,62,12,.22)}
@@ -637,7 +639,7 @@ html.fs .talk{inset:6px}
 .ov-card .ctl.touch-only{display:none}
 @media (pointer: coarse){ .ov-card .ctl.kb-only{display:none} .ov-card .ctl.touch-only{display:grid} }
 .ov-card .ctl li{display:flex;flex-direction:column;align-items:center;gap:1px;font-size:12px;font-weight:700;line-height:1.2;color:var(--ink);text-align:center}
-.ov-card .ctl small{font-family:var(--f-zh);font-size:11.5px;font-weight:700;color:var(--ink-2)}
+.ov-card .ctl small{font-family:var(--f-zh);font-size:13px;font-weight:700;color:var(--ink-2)}
 .ov-card .ctl .ic{height:26px;display:flex;align-items:center;justify-content:center;gap:3px}
 .ov-card .ctl svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
 .ov-card .ctl kbd{font-family:var(--f-body);font-weight:800;font-size:11px;color:var(--ink);background:#fff;border-radius:7px;padding:1px 6px;box-shadow:inset -1px -2px 2px rgba(60,20,10,.15), 0 2px 0 var(--cream-d)}
@@ -759,14 +761,14 @@ button, .habit, #board, .pad{-webkit-tap-highlight-color:transparent}   /* each 
 .frenzy s{display:block;height:100%;background:#D85A1A;transform-origin:left center}
 .frenzy.ending::before{animation-duration:.35s} .frenzy.ending i{color:var(--red-d)}
 @keyframes fzpulse{0%,100%{opacity:.45}50%{opacity:1}}   /* opacity only: the glow pulses without repainting */
-html.jp .bal .v, html.jp .hud .nw .v{color:#C77700;text-shadow:0 0 8px rgba(255,190,30,.85)}
+html.jp .bal .v, html.jp .hud .nw .v{color:var(--jp);text-shadow:0 0 8px rgba(255,190,30,.85)}
 .fzglow{position:absolute;inset:10px;z-index:2;border-radius:20px;pointer-events:none;display:none;box-shadow:inset 0 0 0 4px rgba(255,214,60,.95),inset 0 0 30px 14px rgba(255,165,0,.75),inset 0 0 80px 20px rgba(255,200,40,.35)}
 html.fs .fzglow{inset:6px}
 html.jp .fzglow{display:block;animation:fzpulse 1.4s ease-in-out infinite;will-change:opacity}
 html.jp-end .fzglow{animation-duration:.35s}
 .board-wrap.jpshake{animation:jpshake .5s linear}
 @keyframes jpshake{0%,100%{transform:none}15%{transform:translate(-5px,2px)}30%{transform:translate(5px,-2px)}45%{transform:translate(-4px,-1px)}60%{transform:translate(3px,2px)}80%{transform:translate(-2px,0)}}
-.rows li.jp .val{color:#C77700}
+.rows li.jp .val{color:var(--jp)}
 @media (max-width: 420px){ .jpban{padding:10px 18px 12px} .jpban b{font-size:34px} .jpban em{font-size:24px} .jpban .zh{font-size:18px} .jpban small{font-size:11px;white-space:normal;max-width:220px}
   .frenzy{top:12px;gap:6px} .frenzy b{width:32px;height:32px;font-size:12px} .frenzy span{font-size:13px} .frenzy i{font-size:19px} .frenzy u{left:44px} }
 @media (prefers-reduced-motion: reduce){
@@ -782,7 +784,7 @@ html.jp-end .fzglow{animation-duration:.35s}
 .rows li .val{font-family:var(--f-display);font-weight:800;font-size:17px}
 #rStage{font-family:var(--f-display);font-weight:800}
 #rStage .zh{font-family:var(--f-zh);font-weight:700;margin-right:.3em}
-.rows li.jp .val{color:#9A5B00}   /* 5:1 on the cream */
+.rows li.jp .val{color:var(--jp)}   /* 5:1 on the cream */
 .lb .s{font-family:var(--f-display);font-weight:800;font-size:13px}
 .lb .fl{font-family:var(--f-display);font-weight:800;font-size:11.5px}
 .bar2 b{font-family:var(--f-display);font-weight:800}
@@ -820,7 +822,7 @@ html.jp-end .fzglow{animation-duration:.35s}
   .iconbtn:hover:not(:disabled){background:#FFFBF2}
   .tab[aria-pressed="false"]:hover{background:#B5EEE8}
   .qopt:not(:disabled):hover, .habit:hover{box-shadow:inset 0 0 0 2px var(--cream-d), 0 3px 0 var(--cream-d)}
-  .choice:hover{background:#FFF7E8}
+  .choice:hover{background:var(--paper-hi)}
 }
 #board:focus-visible{outline:3px solid rgba(255,253,247,.9);outline-offset:-3px}   /* a cream rim, not a navy frame, all game */
 /* backdrops in the page's warm brown (navy over the yellow turned khaki); pause dims the board too */
@@ -865,7 +867,7 @@ html.jp-end .fzglow{animation-duration:.35s}
 .qopt.is-right::after{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 34'%3E%3Ccircle cx='17' cy='17' r='15' fill='%234CC36A'/%3E%3Cpath d='M10 17.5l5 5 9-11' fill='none' stroke='%23fff' stroke-width='3.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}
 .qopt.is-wrong::after{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 34'%3E%3Ccircle cx='17' cy='17' r='15' fill='%23E71910'/%3E%3Cpath d='M11.5 11.5l11 11M22.5 11.5l-11 11' fill='none' stroke='%23fff' stroke-width='3.6' stroke-linecap='round'/%3E%3C/svg%3E")}
 /* bilingual button labels: the Chinese a half-step heavier, so it reads as half of the label */
-.btn .zh, .ov-card .btn .zh, .lifecard .btn .zh, .statement .btn .zh{font-size:.9em;-webkit-text-stroke:.35px currentColor}
+.btn .zh, .ov-card .btn .zh, .lifecard .btn .zh, .statement .btn .zh{font-size:.9em}
 /* tickets: the notch sits on the perforation */
 .ticket::before, .ticket::after{display:none}
 .ticket .perf{position:relative}
@@ -1104,7 +1106,7 @@ html.fs.title #startOv .ov-card > h2, html.fs.title #startOv .ov-card > p.zh, ht
 html.fs.title .ts-logo{display:flex;flex-direction:column;align-items:center}
 .ts-logo canvas{width:min(24vw, 15vh, 150px);height:auto;aspect-ratio:5 / 4;margin-bottom:-10px}
 .ts-logo .ts-word{font-size:min(13.5vw, 8.5vh, 82px);margin:0}
-#startOv .ov-card .ts-zh{margin:4px 0 0;font-family:var(--f-zh);font-weight:700;font-size:min(15vw, 9.5vh, 92px);line-height:1;letter-spacing:.08em;color:#25317A;
+#startOv .ov-card .ts-zh{margin:4px 0 0;font-family:var(--f-zh);font-weight:700;font-size:min(15vw, 9.5vh, 92px);line-height:1;letter-spacing:.08em;color:var(--navy);
   text-shadow:3px 3px 0 #fff, -3px 3px 0 #fff, 3px -3px 0 #fff, -3px -3px 0 #fff, 0 4px 0 #fff, 0 -4px 0 #fff, 4px 0 0 #fff, -4px 0 0 #fff, 5px 10px 0 rgba(37,49,122,.3)}
 html.fs.title .ts-sign{display:flex;flex-direction:column;gap:3px;margin:4px 0 2px;padding:14px 24px 15px;max-width:360px;border-radius:14px 18px 12px 16px;transform:rotate(-1.5deg);
   background:linear-gradient(180deg, #F7E6C4, #EBD2A4);color:#4A2E14;
@@ -1590,8 +1592,8 @@ html.fs.title .chal{max-width:380px;align-self:center;width:100%;background:rgba
 @media (max-height: 700px){
   .lc-band{padding:9px 16px 8px;padding-top:20px !important} .lc-band::before{height:11px}
   .lc-body{padding:13px 16px 26px}
-  .lifecard h3{font-size:18px;line-height:1.28}
-  .lifecard .zh{margin:3px 0 11px;font-size:15.5px}
+  .lifecard h3{font-size:19px;line-height:1.28}
+  .lifecard .zh{margin:3px 0 11px;font-size:16px}
   .choices{gap:8px}
   .choice{padding:9px 12px;font-size:14px}
   .choice small{font-size:13.5px}
@@ -1599,8 +1601,8 @@ html.fs.title .chal{max-width:380px;align-self:center;width:100%;background:rgba
 @media (max-height: 600px){   /* 320 x 568 */
   .lc-band{padding:7px 14px 6px;padding-top:16px !important} .lc-band::before{height:9px} .lc-band .no small{display:none} .lc-band .no{gap:3px} .lc-band .stg{font-size:11px;padding:1px 8px}
   .lc-body{padding:12px 14px 22px}
-  .lifecard h3{font-size:16.5px;line-height:1.25}
-  .lifecard .zh{margin:2px 0 9px;font-size:14.5px}
+  .lifecard h3{font-size:18px;line-height:1.25}
+  .lifecard .zh{margin:2px 0 9px;font-size:16px}
   .choice{padding:7px 10px;font-size:13.5px}
   .choice small{font-size:13px}
 }
