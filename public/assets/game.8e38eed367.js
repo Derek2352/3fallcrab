@@ -897,6 +897,70 @@ function fitOutcome(){
   oc.style.maxHeight = over > 0 ? Math.max(150, oc.offsetHeight - over) + "px" : "none";
 }
 addEventListener("resize", () => { if (S && S.card && S.card.flip) fitOutcome(); });
+// ---------- the ghost of the player above: someone else's tower on screen ----------
+// Each finished game sends its tower's outline with its record (sil: the leftmost and rightmost x of every 12.5 px
+// row, from the platform up). A game shows the outline of this week's board game with the lowest score still above
+// the player's own, as a pale silhouette standing on the same platform, behind the tower; passing it brings the next
+// one up. Games from before outlines were kept show as a dashed line at their height. Looks only: no physics, no score.
+const SIL_ROW = 12.5, SIL_ROWS = 120;
+function outlineOf(){
+  const rows = [];
+  for (const b of engine.world.bodies){
+    if (!b.tff || b === S.active || !b.tff.released || b.position.y > 5) continue;   // what stands on the tower, not what is still falling
+    for (const part of (b.parts.length > 1 ? b.parts.slice(1) : b.parts)){
+      const vs = part.vertices, n = vs.length;
+      const i0 = Math.max(0, Math.floor(-part.bounds.max.y / SIL_ROW)), i1 = Math.min(SIL_ROWS - 1, Math.floor(-part.bounds.min.y / SIL_ROW));
+      for (let i = i0; i <= i1; i++){
+        const ya = -(i + 1) * SIL_ROW, yb = -i * SIL_ROW; let l = Infinity, r = -Infinity;
+        for (let j = 0; j < n; j++){
+          const p = vs[j], q = vs[(j + 1) % n];
+          if (p.y >= ya && p.y <= yb){ l = Math.min(l, p.x); r = Math.max(r, p.x); }
+          for (const yy of [ya, yb]) if ((p.y - yy) * (q.y - yy) < 0){ const x = p.x + (q.x - p.x) * (yy - p.y) / (q.y - p.y); l = Math.min(l, x); r = Math.max(r, x); }
+        }
+        if (l <= r){ const row = rows[i] || (rows[i] = [Infinity, -Infinity]); row[0] = Math.min(row[0], l); row[1] = Math.max(row[1], r); }
+      }
+    }
+  }
+  const enc = v => Math.round(clamp(v, 0, W)).toString(36).padStart(2, "0");
+  let s = ""; for (let i = 0; i < rows.length; i++) s += rows[i] ? enc(rows[i][0]) + enc(rows[i][1]) : "0000";
+  return s || undefined;
+}
+let GHOSTS = [];   // this week's board games, lowest score first: {name, score, height, rows}
+function loadGhosts(){
+  fetch("/api/scores?view=ghosts").then(r => r.ok ? r.json() : null).then(j => {
+    if (!j || !Array.isArray(j.ghosts)) return;
+    GHOSTS = j.ghosts.filter(g => g && typeof g.score === "number" && typeof g.name === "string").map(g => {
+      let rows = null;
+      if (typeof g.sil === "string" && /^(?:[0-9a-z]{4})+$/.test(g.sil)){ rows = [];
+        for (let i = 0; i < g.sil.length; i += 4){ const l = parseInt(g.sil.slice(i, i + 2), 36), r = parseInt(g.sil.slice(i + 2, i + 4), 36); rows.push(r > l ? [l, r] : null); } }
+      return {name: g.name, score: g.score, height: +g.height || 0, rows};
+    }).sort((a, b) => a.score - b.score);
+  }).catch(() => {});
+}
+function ghostNow(){   // the one to chase: the lowest score still above the player's
+  const g = GHOSTS.find(x => x.score > S.score) || null;
+  if (g === S.ghost) return;
+  if (S.ghost && S.ghost.score <= S.score && S.mode === "playing"){ stamp("Passed " + S.ghost.name + "!", "爬過咗 " + S.ghost.name + "！", "gold"); A.sfx("rival"); }
+  S.ghost = g; S.ghostAt = S.play;
+}
+function drawGhost(c, g){
+  const a = clamp((S.play - S.ghostAt) / 700, 0, 1); let top = 0, cx = W / 2;
+  c.save();
+  if (g.rows){
+    c.globalAlpha = 0.36 * a; c.fillStyle = "#FFFFFF"; c.beginPath();
+    g.rows.forEach((r, i) => { if (r){ c.rect(r[0], -(i + 1) * SIL_ROW, r[1] - r[0], SIL_ROW + 0.2); top = -(i + 1) * SIL_ROW; cx = (r[0] + r[1]) / 2; } });
+    c.fill();
+  } else {
+    top = -g.height * FLOOR; c.globalAlpha = 0.75 * a; c.strokeStyle = "#FFFFFF"; c.lineWidth = 2; c.setLineDash([9, 7]);
+    c.beginPath(); c.moveTo(W/2 - PW/2, top); c.lineTo(W/2 + PW/2, top); c.stroke(); c.setLineDash([]);
+  }
+  const t = g.tag || (g.tag = "▲ " + g.name + " · " + fmt(g.score));   // whose it is
+  c.font = "800 11px " + K.FONTS.sans; c.textAlign = "center"; c.textBaseline = "middle";
+  const tw = g.tw || (g.tw = c.measureText(t).width + 14), x = clamp(cx, tw / 2 + 4, W - tw / 2 - 4), y = top - 12;
+  c.globalAlpha = 0.85 * a; c.fillStyle = "#25317A"; roundRect(c, x - tw / 2, y - 9, tw, 18, 9); c.fill();
+  c.globalAlpha = a; c.fillStyle = "#FFFFFF"; c.fillText(t, x, y + 0.5);
+  c.restore();
+}
 function setRotLock(n){ S.rotLock = n; root.classList.toggle("rotlock", n > 0); }
 function closeCard(){
   if (!S.card) return;
@@ -1376,6 +1440,7 @@ function startGame(){
   flushRecord(S);   // the last game's quiz answers or habit may still be waiting to be saved
   S = newState(); S.camTop = camTarget(); makeEngine(); S.mode = "playing"; frenzyUI(); $("jpBan").hidden = true;
   takes++;   // the slate's TAKE: this visit's game number
+  loadGhosts();
   root.classList.remove("rotlock");
   S.persona = ROLL; rollKept = false; showWho();   // who this life is (rolled just before)
   if (firstQueue){ S.queue = firstQueue; S.lastId = firstQueue[2].id; S.jackpot = firstQueue.some(d => d.jackpot); firstQueue = null; }
@@ -1393,6 +1458,7 @@ function startGame(){
 function endGame(reason){
   if (S.mode === "over") return;
   S.mode = "over"; S.over = reason; S.endAt = Date.now();
+  try { S.sil = outlineOf(); } catch(e){}   // the tower's outline, for the next player's ghost
   if (S.frenzyUntil){ S.frenzyUntil = 0; frenzyUI(); }   // jackpot time ends with the game
   if (S.active){ S.active.tff.released = true; S.active = null; }
   $("cardModal").hidden = true; S.card = null;
@@ -2555,6 +2621,7 @@ function draw(dt){
   if (S && S.pw > PW && L.wing){ const e = (S.pw - PW) / 2, wl = L.wing[e];   // the foundation's added wings (a wise answer's reward)
     if (wl){ c.drawImage(wl, W/2 - PW/2 - e - 10, 0, e + 34, 40); c.drawImage(wl, W/2 + PW/2 - 24, 0, e + 34, 40); } }
   c.drawImage(L.plat, W/2 - PW/2 - 20, 0, PW + 40, 200);
+  if (S.ghost && !bare && S.mode !== "idle") drawGhost(c, S.ghost);   // behind the tower
   const a = S.active, v0 = S.camTop - YT, v1 = S.camTop + H + YB, live = [];   // what moves, in view (out of view isn't drawn)
   if (!bare) for (const b of engine.world.bodies) if (b.tff && !(still && PILE.set.has(b)) && b.bounds.max.y + PAD >= v0 && b.bounds.min.y - PAD <= v1) live.push(b);
   if (still && !bare) blitPile(c, k, PILE.s);
@@ -2978,6 +3045,7 @@ function tick(dt){
   if (S.play >= GAME_MS){ endGame("time"); return; }
   if (S.fastOn && S.play >= S.speedUntil){ S.fastOn = false; A.mode(musicMode()); }
   if (S.frenzyUntil) frenzyTick();
+  ghostNow();
   if (S.active && S.play >= S.nextEvent){ openCard(); return; }
   if (!S.plan && S.play >= S.nextEvent - 4000) S.plan = planCard();
   if (S.active && trollTick()) return;
@@ -3637,6 +3705,7 @@ function recordBody(st){
     items: st.items, real_ms: Math.round(st.realMs), at: st.endAt || undefined, prior: st.prior,   // checked by the server; at buckets a late retry
     jackpot: st.jpAt >= 0 ? 1 : 0,   // its windfall and jackpot time raise the server's score limit
     avatar: WHO,   // Jack or Jackie
+    sil: st.sil || undefined,   // the tower's outline (the ghost another player may chase)
     title: st.verdict ? st.verdict.id : undefined,   // the 稱號 (title) id, e.g. "zero"
     via: CHAL ? "c" : undefined,   // came from a friend's challenge link
     persona: st.persona ? personaKey(st.persona) : undefined,   // the rolled type, e.g. "sub+grind"

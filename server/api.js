@@ -5,6 +5,7 @@
 //   GET  /api/health               -> is the database connected?
 //   GET  /api/scores               -> this week's top 10 + all-time top 10 (nicknames only, never emails)
 //   GET  /api/scores?view=stats    -> anonymised decision and quiz data for the Stats tab
+//   GET  /api/scores?view=ghosts   -> this week's board games with their tower outlines, for the ghost a game shows
 //   POST /api/scores               -> save one finished game, then update it (see post() below)
 //   GET  /api/admin/scores         -> latest games incl. hidden ones, with emails   (needs ADMIN_TOKEN)
 //   GET  /api/admin/summary        -> survey and decision analysis, ?week= / ?month= (needs ADMIN_TOKEN)
@@ -113,6 +114,7 @@ export const ADDED = [
   ["mtype", "TEXT"], // the player's 4-letter money type, e.g. "SGPC" (a key of TFF_CONTENT.TYPES; earlier game pages; the title replaced it)
   ["via", "TEXT"], // how the player arrived: 'c' = a friend's challenge link (newer game pages)
   ["title", "TEXT"], // the game's 稱號, a TFF_CONTENT.TITLES id such as "zero" (newer game pages)
+  ["sil", "TEXT"], // the finished tower's outline, for the ghost shown to the next player below (newer game pages): 4 base-36 characters a row (left x, right x), 12.5 px rows from the platform up
   ["persona", "TEXT"], // the type rolled before the game, family money + personality, e.g. "sub+grind" (newer game pages)
 ];
 const SCHEMA_2 = [
@@ -382,6 +384,25 @@ async function percentile(db, raw) {
   return json({ ok: true, pct: n < 10 ? null : Math.min(99, Math.floor((100 * b) / n)), n });
 }
 
+// A tower's outline as the game page sends it: rows of 4 base-36 characters (left x, right x on the 440 px board),
+// 120 rows at most. Anything else is dropped (the game is still saved).
+export function cleanSil(v) {
+  if (typeof v !== "string" || !/^(?:[0-9a-z]{4}){1,120}$/.test(v)) return null;
+  for (let i = 0; i < v.length; i += 4) { const l = parseInt(v.slice(i, i + 2), 36), r = parseInt(v.slice(i + 2, i + 4), 36); if (l > r || r > 440) return null; }
+  return v;
+}
+// The ghosts a game shows: this week's games on the board, highest first, with their outlines where they have one.
+// Only what the board already makes public (nickname, score, height), never a hidden game.
+let ghostMemo = null;
+async function ghosts(env, db) {
+  const week = isoWeek(new Date(), timeZone(env));
+  if (ghostMemo && ghostMemo.week === week && Date.now() - ghostMemo.at < 30000) return json(ghostMemo.body);
+  const r = await db.prepare("SELECT name, score, height, sil FROM scores WHERE week = ?1 AND hidden = 0 AND posted = 1 ORDER BY score DESC, id ASC LIMIT 30").bind(week).all();
+  const body = { ok: true, week, ghosts: (r.results || []).map((g) => ({ name: g.name, score: g.score, height: g.height, sil: g.sil || null })) };
+  ghostMemo = { at: Date.now(), week, body };
+  return json(body);
+}
+
 // Every saved game counts here, posted to the board or not.
 let statsMemo = null;
 async function stats(db) {
@@ -495,6 +516,7 @@ async function post(request, env, db) {
     mtype: typeof b.mtype === "string" && /^[SY][GD][PL][CH]$/.test(b.mtype) && Object.hasOwn(MTYPES, b.mtype) ? b.mtype : null, // never looked at by implausible()
     via: b.via === "c" ? "c" : null, // never looked at by implausible()
     title: typeof b.title === "string" && TITLE_IDS.has(b.title) ? b.title : null, // never looked at by implausible()
+    sil: cleanSil(b.sil), // never looked at by implausible()
     persona: typeof b.persona === "string" && PERSONA_KEYS.has(b.persona) ? b.persona : null, // never looked at by implausible()
     ip_hash: null,
   };
@@ -796,7 +818,7 @@ export async function handle(request, env) {
       if (path.startsWith("/api/admin/")) return await admin(path.slice("/api/admin/".length), request, env, env.DB);
       if (method === "GET" || method === "HEAD") {
         const sp = new URL(request.url).searchParams, view = sp.get("view");
-        return view === "stats" ? await stats(env.DB) : view === "pct" ? await percentile(env.DB, sp.get("score")) : await board(env, env.DB);
+        return view === "stats" ? await stats(env.DB) : view === "pct" ? await percentile(env.DB, sp.get("score")) : view === "ghosts" ? await ghosts(env, env.DB) : await board(env, env.DB);
       }
       if (method === "POST") return await post(request, env, env.DB);
       return fail("method_not_allowed", 405, { allow: "GET, HEAD, POST" });
