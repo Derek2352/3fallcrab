@@ -20,14 +20,14 @@ const STAGES = [
 // result ({loss} is filled in with the money lost)
 const TRAPS = {
   spend: {en:"Overspending", zh:"過度消費", d:"Credit cards & buy‑now‑pay‑later 信用卡、先買後付",
-          eff:"A heavy debt ball and chain crashes onto your tower, followed by awkward shapes. 一個好重嘅債務鐵球會跌落你座塔度，跟住嚟嘅都係奇形怪狀嘅嘢。",
-          hit:["A debt ball is coming · awkward shapes next · savings boost −0.2", "債務鐵球跌緊落嚟·跟住啲嘢奇形怪狀·儲蓄加成−0.2"]},
+          eff:"A heavy debt ball and chain crashes onto your tower, followed by awkward shapes, the first one giant (lifestyle inflation). 一個好重嘅債務鐵球會跌落你座塔度，跟住嚟嘅都係奇形怪狀嘅嘢，第一件仲會變到巨型（生活膨脹）。",
+          hit:["A debt ball is coming · a giant item, then awkward shapes · savings boost −0.2", "債務鐵球跌緊落嚟·一件巨型，跟住奇形怪狀·儲蓄加成−0.2"]},
   scam:  {en:"Scams", zh:"騙局", d:"Fake tips, “renting” your account 貼士股、租戶口",
-          eff:"You lose HK$5,000. Slippery, bouncy scam items come next, and Hold is locked. 會被呃走HK$5,000，之後跌落嚟嘅騙局物件又滑又彈，暫存都會鎖住。",
-          hit:["{loss} · slippery, bouncy items next · Hold locked", "{loss}·跟住啲嘢又滑又彈·暫存鎖住"]},
+          eff:"You lose HK$5,000. Slippery, bouncy scam items come next, Hold is locked, and you can't see what's coming. 會被呃走HK$5,000，之後跌落嚟嘅騙局物件又滑又彈，暫存會鎖住，下一件係咩都睇唔清。",
+          hit:["{loss} · slippery, bouncy items next · Hold locked · Next is hidden", "{loss}·跟住啲嘢又滑又彈·暫存鎖住·下一件睇唔清"]},
   delay: {en:"Putting off saving", zh:"拖延儲錢", d:"“I'll start next year” 「明年先儲」",
-          eff:"Time speeds up for 20 s and your savings boost drops back to ×1.0. 時間加速20秒，儲蓄加成跌返去×1.0。",
-          hit:["Time speeds up for 20 s · savings boost back to ×1.0", "時間加速20秒·儲蓄加成跌返去×1.0"]}
+          eff:"Time speeds up for 20 s, the next 2 items can't be turned, and your savings boost drops back to ×1.0. 時間加速20秒，之後2件轉唔到，儲蓄加成跌返去×1.0。",
+          hit:["Time speeds up for 20 s · next 2 items can't be turned · savings boost back to ×1.0", "時間加速20秒·之後2件轉唔到·儲蓄加成跌返去×1.0"]}
 };
 
 // The story: every card's `later` says what happened to the player after each answer (w: the wise one, r: the risky one),
@@ -911,8 +911,19 @@ CARDS.push(...PERSONA_CARDS);
 
 // The film's three acts: a Life Event card's act follows the life stage (University sets up, First Job and Family are
 // the confrontation, Retirement resolves). A card's slate and the result's story say the act.
+// The reward for a wise answer: the player picks one of three (the card's own, by its Fall, and two others).
+// en/zh: the name; d: what it does; m: what it stands for with money.
+const POWERS = {
+  vine: {en:"Vines", zh:"藤蔓", d:["Your next item sticks to what it touches", "下一件一掂就黐實"], m:["A habit that sticks", "養成咗嘅習慣"]},
+  lock: {en:"Fixed deposit", zh:"定期鎖", d:["Your next item locks where it lands", "下一件一停低就鎖死"], m:["Money you can't spend on a whim", "唔會心血來潮使咗嘅錢"]},
+  net:  {en:"Insurance net", zh:"保險網", d:["Catches up to 3 falls for 25 s", "25秒內接住最多3件"], m:["Cover for what falls", "跌咗都有保障"]},
+  wide: {en:"Wider base", zh:"加闊地基", d:["The platform grows wider for the rest of the game", "個平台加闊，直到完場"], m:["A bigger savings base", "儲蓄基礎更闊"]},
+  undo: {en:"Cooling-off", zh:"冷靜期", d:["Lifts the top item off your tower, no drop counted", "拎走塔頂嗰件，唔計跌落海"], m:["A purchase you can cancel", "買錯都退得返"]}
+};
+const POWER_OF_TRAP = {spend: "vine", delay: "lock", scam: "net"};
+
 const ACTS = [{n:"I", en:"The Setup", zh:"第一幕：開端", z:"第一幕"}, {n:"II", en:"The Confrontation", zh:"第二幕：衝突", z:"第二幕"}, {n:"III", en:"The Resolution", zh:"第三幕：結局", z:"第三幕"}];
 const ACT_OF_STAGE = [0, 1, 1, 2];
 
-root.TFF_CONTENT = {ACTS, ACT_OF_STAGE, STAGES, TRAPS, CARDS, QUIZ, HABITS, QUIZ_WAS, HABIT_WAS, answerNow, habitNow, QUIPS, TROLLS, TYPE_AXES, TYPES, TITLES, PERSONAS, LATER_NONE, ENDINGS};
+root.TFF_CONTENT = {ACTS, ACT_OF_STAGE, POWERS, POWER_OF_TRAP, STAGES, TRAPS, CARDS, QUIZ, HABITS, QUIZ_WAS, HABIT_WAS, answerNow, habitNow, QUIPS, TROLLS, TYPE_AXES, TYPES, TITLES, PERSONAS, LATER_NONE, ENDINGS};
 })(typeof window !== "undefined" ? window : globalThis);

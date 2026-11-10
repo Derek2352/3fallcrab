@@ -33,7 +33,7 @@ const FALL = [1.5, 1.8, 2.1, 2.4];
 const WARMUP_MS = 45000, WARMUP_FROM = 0.65;   // a gentle start: items fall at 65% speed, easing up to full over the first 45 s
 const MAX_DROPS = 3;
 
-const {STAGES, TRAPS, CARDS, QUIZ, HABITS, ACTS, ACT_OF_STAGE} = window.TFF_CONTENT;   // src/content.js
+const {STAGES, TRAPS, CARDS, QUIZ, HABITS, ACTS, ACT_OF_STAGE, POWERS, POWER_OF_TRAP} = window.TFF_CONTENT;   // src/content.js
 const QUIPS = window.TFF_CONTENT.QUIPS || {};
 const TITLES = window.TFF_CONTENT.TITLES || [];   // 稱號: the verdict title for each game
 const LATER_NONE = window.TFF_CONTENT.LATER_NONE || [], ENDINGS = window.TFF_CONTENT.ENDINGS || [];   // the story: a timed-out card, and how a life ends
@@ -126,7 +126,7 @@ const svgUse = (id, cls) => { const s = document.createElementNS("http://www.w3.
 // ---------- state ----------
 let S, engine, platform;
 function newState(){
-  return {active:null, targetAngle:0, queue:[], hold:null, canHold:true, scamLock:0, forced:{type:null, n:0}, lastId:null, jackpot:false,
+  return {active:null, targetAngle:0, queue:[], hold:null, canHold:true, scamLock:0, rotLock:0, rotSaid:-1e9, pw:PW, wides:0, forced:{type:null, n:0}, lastId:null, jackpot:false,
     score:0, rate:1, fund:0, falls:{spend:0, scam:0, delay:0}, drops:0, choices:[], wise:0, risky:0, missed:0,
     height:0, best:0, bestFloor:0, stage:0, play:0, acc:0, spawnAt:0, nextEvent:FIRST_CARD, shocks:[60000, 125000],
     speedUntil:0, fastOn:false, quakeUntil:0, pendingDebt:0, used:new Set(), mode:"idle", card:null, cardCount:0, over:null, posted:false,
@@ -140,7 +140,7 @@ function newState(){
 function makeEngine(){
   engine = Engine.create({enableSleeping:true});
   engine.positionIterations = 12; engine.velocityIterations = 10;
-  platform = Bodies.rectangle(W/2, 15, PW, 30, {isStatic:true, friction:1, frictionStatic:2, restitution:0, chamfer:{radius:6}, label:"platform"});
+  platform = Bodies.rectangle(W/2, 15, PW, 30, platOpt());
   Composite.add(engine.world, platform);
   Events.on(engine, "collisionStart", ev => {
     if (!S) return;
@@ -225,11 +225,21 @@ function dropDebt(){
   Body.setVelocity(b, {x: 0, y: 4}); Body.setAngularVelocity(b, (Math.random() - .5) * 0.08);
   A.sfx("debt"); stamp("Debt incoming!", "債務跌緊落嚟！", "bad");
 }
+// Steering by key, pad or controller: a quick tap nudges the item one small step (for fine placing); held for longer
+// than NUDGE_MS it slides.
+const NUDGE = 6, NUDGE_MS = 130, keyAt = {left: 0, right: 0};
+function setKey(d, v){
+  if (v && !keys[d]){ keyAt[d] = performance.now();
+    const b = S && S.mode === "playing" && S.active, dx = d === "left" ? -NUDGE : NUDGE;
+    if (b && (dx < 0 ? b.bounds.min.x + dx >= 6 : b.bounds.max.x + dx <= W - 6)){ Body.translate(b, {x: dx, y: 0}); A.sfx("move"); } }
+  keys[d] = v;
+}
+const sliding = d => keys[d] && performance.now() - keyAt[d] >= NUDGE_MS;
 function control(){
   const b = S.active; if (!b) return;
   let vx;
   if (S.dragX !== null) vx = clamp((S.dragX - b.position.x) * 0.3, -7, 7);
-  else vx = ((keys.right ? 1 : 0) - (keys.left ? 1 : 0)) * 4.5;
+  else vx = ((sliding("right") ? 1 : 0) - (sliding("left") ? 1 : 0)) * 4.5;
   if (b.bounds.min.x < 6 && vx < 0) vx = 0;
   if (b.bounds.max.x > W - 6 && vx > 0) vx = 0;
   if (Math.abs(vx) > 0.5) A.sfx("move");
@@ -387,6 +397,77 @@ function lockOf(def, closed){
   return v;
 }
 const lockedOf = def => lockOf(def, true);
+// Lifestyle inflation (the curse of an overspending Fall): the next awkward item comes giant
+const BIG = 1.4, bigDefs = new Map();
+function bigOf(def){
+  if (!def || def.big || def.vine || def.lock || def.locked || def.jackpot || def.kind === "debt") return def;
+  let v = bigDefs.get(def.id);
+  if (!v){
+    v = Object.create(def);
+    Object.assign(v, {id: def.id + "~big", big: true, base: def,
+      en: "Giant " + (/^[A-Z][a-z]/.test(def.en) ? def.en[0].toLowerCase() + def.en.slice(1) : def.en), zh: "巨型" + def.zh,
+      make(x, y){ const b = def.make(x, y); Body.scale(b, BIG, BIG, {x, y}); return b; },
+      draw(g){ g.save(); g.scale(BIG, BIG); def.draw(g); g.restore(); }});
+    bigDefs.set(def.id, v);
+  }
+  return v;
+}
+// ---------- the rewards for a wise answer (POWERS in content.js): the player picks one of three on the answered card
+const platOpt = () => ({isStatic:true, friction:1, frictionStatic:2, restitution:0, chamfer:{radius:6}, label:"platform"});   // a fresh one each time: Matter takes the chamfer out of it
+function widen(){   // a wider foundation, twice at most
+  if (S.wides >= 2) return;
+  S.wides++; S.pw += 40;
+  Composite.remove(engine.world, platform);
+  platform = Bodies.rectangle(W/2, 15, S.pw, 30, platOpt()); Composite.add(engine.world, platform);
+  for (const sx of [-1, 1]) burst(W/2 + sx * (S.pw/2 - 10), 12, ["#FFD23F", "#F2B51C", "#FFF1A8"], "255,200,50");
+  A.sfx("lock"); mood("happy", 1500); stamp("Wider base!", "地基加闊咗！", "gold");
+}
+function topLoose(){   // the highest single item resting on the tower (not locked, not fused by vines, not the debt ball)
+  let best = null;
+  for (const b of engine.world.bodies){
+    if (!b.tff || b === S.active || !b.tff.released || b.isStatic || b.tff.members || b.tff.hostBody || b.position.y > 5) continue;
+    const d = b.tff.def; if (d.kind === "debt" || d.jackpot) continue;
+    if (!best || b.bounds.min.y < best.bounds.min.y) best = b;
+  }
+  return best;
+}
+function undoTop(){   // cooling-off: the top item is lifted off, with no drop
+  const b = topLoose();
+  if (!b){ stamp("Nothing to return", "冇嘢可以退", "info"); return; }
+  Composite.remove(engine.world, b);
+  burst(b.position.x, b.position.y, ["#9DD8FF", "#FFFFFF", "#5BB2FF"], "157,216,255");
+  A.sfx("uiDone"); stamp("Cooling-off: " + b.tff.def.en + " returned", "冷靜期：退返" + b.tff.def.zh, "good");
+}
+function applyPower(k){
+  if (k === "vine" || k === "lock"){ S.queue[0] = k === "lock" ? lockOf(S.queue[0]) : vineOf(S.queue[0]); A.sfx("vineGet"); drawPreviews(true); prewarm(); }
+  else if (k === "net") raiseNet("Insurance net: falls get caught", "保險網：跌落嚟都接得住");
+  else if (k === "wide") widen();
+  else if (k === "undo") undoTop();
+}
+function showPowers(c){   // three to pick from: the card's own (by its Fall) first and selected, and two others
+  const own = POWER_OF_TRAP[c.trap] || "vine";
+  const rest = Object.keys(POWERS).filter(k => k !== own && (k !== "wide" || S.wides < 2) && (k !== "undo" || topLoose()));
+  for (let i = rest.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [rest[i], rest[j]] = [rest[j], rest[i]]; }
+  S.card.powers = [own, ...rest.slice(0, 2)]; S.card.power = own;
+  const box = $("ocPowers"), row = $("ocPowerRow"); row.replaceChildren();
+  S.card.powers.forEach((k, i) => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "pw"; b.setAttribute("role", "radio"); b.dataset.k = k;
+    const key = document.createElement("span"); key.className = "key"; key.textContent = i + 1; key.setAttribute("aria-hidden", "true");
+    const z = document.createElement("small"); z.lang = "zh-HK"; z.textContent = POWERS[k].zh;
+    const t = document.createElement("span"); t.append(POWERS[k].en, z); b.append(key, t);
+    b.addEventListener("click", e => { if (!tapTooSoon(e, S.card.flipAt)) pickPower(i); });
+    row.appendChild(b);
+  });
+  box.hidden = false; pickPower(0, true);
+}
+function pickPower(i, quiet){
+  if (!S.card || !S.card.powers || !S.card.powers[i]) return;
+  const k = S.card.power = S.card.powers[i], P = POWERS[k];
+  [...$("ocPowerRow").children].forEach((b, j) => { b.setAttribute("aria-checked", String(j === i)); b.tabIndex = j === i ? 0 : -1; });
+  const d = $("ocPowerWhat"), z = document.createElement("small"); z.lang = "zh-HK"; z.textContent = P.d[1] + "（" + P.m[1] + "）";
+  d.replaceChildren(P.d[0] + " (" + P.m[0][0].toLowerCase() + P.m[0].slice(1) + ")", z);
+  if (!quiet){ A.sfx("uiSelect"); fitOutcome(); }
+}
 function lockIn(b){   // b: a released body (or a fused group) with a fixed-deposit item, at rest
   Body.setStatic(b, true);
   let at = null;
@@ -764,9 +845,8 @@ function choose(kind){
     S.forced = {type: "wise", n: 4};
     S.wiseRun++; S.afterCard = S.rate >= 2 && !S.said.has("boost") ? (S.said.add("boost"), "boost") : S.wiseRun === 3 ? "wise3" : "wise";
     head.className = "oc-head good"; head.appendChild(svgUse("i-good")); txt.textContent = "Good call! 揀得好！";
-    const rw = c.trap === "delay" ? ["the first locked in like a fixed deposit", "第一件定期鎖"] : c.trap === "scam" ? null : ["the first wrapped in vines", "第一件纏住藤蔓"];
-    en = (rw ? "Next 4 items are stable, " + rw[0] : "Next 4 items are stable · insurance net for " + NET_MS / 1000 + " s") + " · boost ×" + S.rate.toFixed(1) + " · emergency fund +1";
-    zh = (rw ? "之後4件平穩，" + rw[1] : "之後4件平穩·保險網" + NET_MS / 1000 + "秒") + "·加成×" + S.rate.toFixed(1) + "·應急錢+1";
+    en = "Next 4 items are stable · boost ×" + S.rate.toFixed(1) + " · emergency fund +1";   // and a reward of the player's choice (showPowers)
+    zh = "之後4件平穩·加成×" + S.rate.toFixed(1) + "·應急錢+1";
     $("ocEffect").style.color = "var(--green-t)"; A.sfx("wise");
   } else {
     const trap = kind === "risky" ? c.trap : "delay";
@@ -781,7 +861,7 @@ function choose(kind){
     $("ocEffect").style.color = "var(--red-d)"; A.sfx("risky");
     if (trap === "spend"){ S.rate = Math.max(1, +(S.rate - 0.2).toFixed(1)); S.forced = {type: "risky", n: 3}; S.pendingDebt++; }
     else if (trap === "scam"){ const sl = Math.min(S.score, 5000); loss = sl; S.score -= sl; ledger({zh: "被騙", en: "Scam"}, -sl); S.forced = {type: "scam", n: 3}; S.scamLock = 4; A.sfx("scam"); }
-    else { S.speedUntil = S.play + 20000; S.rate = 1; S.forced = {type: "risky", n: 2}; }
+    else { S.speedUntil = S.play + 20000; S.rate = 1; S.forced = {type: "risky", n: 2}; setRotLock(3); }   // too late to turn: the falling item and the next 2
   }
   head.appendChild(txt);
   const fxEn = en.replace("{loss}", fmt(-loss)).split(" · "), fxZh = zh.replace("{loss}", fmt(-loss)).split("·"), eff = $("ocEffect");
@@ -802,10 +882,9 @@ function choose(kind){
   $("cardChoices").hidden = true; $("cardOutcome").hidden = false; fitOutcome(); requestAnimationFrame(() => { fitLine(txt); fitOutcome(); });   // after its Chinese is marked
   $("cardContinue").focus({preventScroll:true});
   S.queue = []; refill();
-  if (kind === "wise"){   // the reward fits the card: vines for spending, a fixed deposit for saving early, insurance for scams
-    if (c.trap === "scam") S.afterNet = true;
-    else { S.queue[0] = c.trap === "delay" ? lockOf(S.queue[0]) : vineOf(S.queue[0]); setTimeout(() => A.sfx("vineGet"), 380); }
-  }
+  if (kind === "wise") showPowers(c);   // the reward: the card's own by default (vines for spending, a fixed deposit for saving early, insurance for scams)
+  else { $("ocPowers").hidden = true; if (S.afterCard === "spend") S.queue[0] = bigOf(S.queue[0]); }   // lifestyle inflation: the first awkward item comes giant
+  fitOutcome();
   drawPreviews(); updateHUD(); prewarm();
 }
 // The answered card fits the screen: when its result (story, effects, tip) is too tall, that part scrolls inside the card
@@ -818,10 +897,13 @@ function fitOutcome(){
   oc.style.maxHeight = over > 0 ? Math.max(150, oc.offsetHeight - over) + "px" : "none";
 }
 addEventListener("resize", () => { if (S && S.card && S.card.flip) fitOutcome(); });
+function setRotLock(n){ S.rotLock = n; root.classList.toggle("rotlock", n > 0); }
 function closeCard(){
   if (!S.card) return;
+  const power = S.card.flip ? S.card.power : null;
   $("cardModal").hidden = true; S.card = null; modalOpen(false);
   if (S.mode === "card"){
+    if (power) applyPower(power);
     S.mode = "playing"; S.nextEvent = S.play + CARD_GAP;
     S.fastOn = S.play < S.speedUntil; A.mode(musicMode());
     while (S.pendingDebt > 0){ S.pendingDebt--; dropDebt(); }
@@ -1294,6 +1376,7 @@ function startGame(){
   flushRecord(S);   // the last game's quiz answers or habit may still be waiting to be saved
   S = newState(); S.camTop = camTarget(); makeEngine(); S.mode = "playing"; frenzyUI(); $("jpBan").hidden = true;
   takes++;   // the slate's TAKE: this visit's game number
+  root.classList.remove("rotlock");
   S.persona = ROLL; rollKept = false; showWho();   // who this life is (rolled just before)
   if (firstQueue){ S.queue = firstQueue; S.lastId = firstQueue[2].id; S.jackpot = firstQueue.some(d => d.jackpot); firstQueue = null; }
   $("startOv").hidden = true; $("pauseOv").hidden = true; $("endModal").hidden = true; $("cardModal").hidden = true; $("seeOv").hidden = true; modalOpen(false);
@@ -1338,6 +1421,10 @@ const keys = {left:false, right:false};
 let softHeld = false;
 function act(a){
   if (!S || S.mode !== "playing") return;
+  if (a.startsWith("rot") && S.rotLock > 0){   // the curse of putting off: too late to turn
+    if (S.active){ A.sfx("uiNope"); if (S.play - S.rotSaid > 1500){ S.rotSaid = S.play; stamp("Too late to turn!", "遲咗，轉唔到！", "bad"); } }
+    return;
+  }
   if (a === "rotate"){ S.targetAngle += Math.PI/2; if (S.active) A.sfx("rotate"); }
   else if (a === "rotL"){ S.targetAngle -= Math.PI/12; if (S.active) A.sfx("rotate"); }
   else if (a === "rotR"){ S.targetAngle += Math.PI/12; if (S.active) A.sfx("rotate"); }
@@ -1448,7 +1535,9 @@ document.addEventListener("keydown", e => {
     if (!S.card.flip && ["1","2","a","b","A","B"].includes(k)){
       const idx = (k === "1" || k.toLowerCase() === "a") ? 0 : 1;
       choose(S.card.order[idx] === "w" ? "wise" : "risky"); e.preventDefault();
-    } else if (S.card.flip && (k === "Enter" || k === " ")){ closeCard(); e.preventDefault(); }
+    } else if (S.card.flip && (k === "Enter" || k === " ")){ if (!(e.target && e.target.classList && e.target.classList.contains("pw"))){ closeCard(); e.preventDefault(); } }
+    else if (S.card.flip && S.card.powers && ["1", "2", "3"].includes(k)){ pickPower(+k - 1); e.preventDefault(); }
+    else if (S.card.flip && S.card.powers && (k === "ArrowLeft" || k === "ArrowRight")){ const n = S.card.powers.length, i = S.card.powers.indexOf(S.card.power); pickPower((i + (k === "ArrowLeft" ? n - 1 : 1)) % n); e.preventDefault(); }
     return;
   }
   if (S.mode === "idle" && S.viewing && !$("seeOv").hidden && (k === "Escape" || k === "r" || k === "R")){ openResults(); e.preventDefault(); return; }
@@ -1457,8 +1546,8 @@ document.addEventListener("keydown", e => {
   if (k === "p" || k === "P" || k === "Escape"){ if (S.mode === "playing" || S.mode === "paused"){ togglePause(); e.preventDefault(); } return; }
   if (S.mode !== "playing") return;
   switch (k){
-    case "ArrowLeft": keys.left = true; S.dragX = null; e.preventDefault(); break;
-    case "ArrowRight": keys.right = true; S.dragX = null; e.preventDefault(); break;
+    case "ArrowLeft": setKey("left", true); S.dragX = null; e.preventDefault(); break;
+    case "ArrowRight": setKey("right", true); S.dragX = null; e.preventDefault(); break;
     case "ArrowDown": softHeld = true; e.preventDefault(); break;
     case "ArrowUp": if (!e.repeat) act("rotate"); e.preventDefault(); break;
     case "z": case "Z": act("rotL"); e.preventDefault(); break;
@@ -1480,7 +1569,7 @@ document.addEventListener("visibilitychange", () => {
 $("pad").querySelectorAll("button").forEach(b => {
   const a = b.dataset.act;
   const down = e => { e.preventDefault(); if (S) S.dragX = null;
-    if (a === "left") keys.left = true; else if (a === "right") keys.right = true; else if (a === "down") softHeld = true; else act(a); };
+    if (a === "left") setKey("left", true); else if (a === "right") setKey("right", true); else if (a === "down") softHeld = true; else act(a); };
   const up = () => { if (a === "left") keys.left = false; if (a === "right") keys.right = false; if (a === "down") softHeld = false; };
   b.addEventListener("pointerdown", down);
   b.addEventListener("click", e => { if (e.detail === 0 && a !== "left" && a !== "right" && a !== "down") act(a); });
@@ -1795,7 +1884,7 @@ function pollPad(now){
     const on = k === "soft" ? !!(cur.down || cur.rt) : !!cur[k];
     if (on === !!GP.held[k]) continue;
     GP.held[k] = on; const v = on && !!S && S.mode === "playing";
-    if (k === "soft") softHeld = v; else keys[k] = v;
+    if (k === "soft") softHeld = v; else if (k === "left" || k === "right") setKey(k, v); else keys[k] = v;
     if (v) S.dragX = null;
   }
   if (!gp || !S) return;
@@ -1844,6 +1933,7 @@ function pollPad(now){
       if (hit("x") || hit("y")) choose(S.card.order[hit("x") ? 0 : 1] === "w" ? "wise" : "risky");
       else { if (nav) padMove($("cardChoices"), nav); if (hit("a")) padPress($("cardChoices")); }
     } else if ((hit("a") || hit("b") || hit("start")) && S.card.t - S.card.flipAt >= 450) closeCard();
+    else if (nav && S.card.powers){ const n = S.card.powers.length; pickPower((S.card.powers.indexOf(S.card.power) + (nav < 0 ? n - 1 : 1)) % n); }
     return;
   }
   if (S.mode === "paused"){
@@ -2177,6 +2267,7 @@ function buildLayers(soft, only){
     K.text(g, "儲蓄基礎", PW/2 - 52, 16.5, {size:13, font:"zh", color:"#25317A", weight:700});
     K.text(g, "SAVINGS FOUNDATION", PW/2 + 52, 16.5, {size:11.5, font:"display", color:"#25317A", weight:900});
   });
+  make.wing = () => { const o = {}; for (const e of [20, 40]) o[e] = layer(e + 34, 40, g => K.blob(g, K.slab((e + 34) / 2, 15, e + 14, 30, 7, {lump:1.0, seed:9}), "yellow", {sheen:false})); return o; };
   // a red-sail junk that drifts across the harbour
   make.junk = () => layer(80, 60, g => {
     K.blob(g, K.tube([[40, 6], [40, 44]], 2.4), "brown", {depth:0.8, soft:1, sheen:false, rim:0.4});
@@ -2461,6 +2552,8 @@ function draw(dt){
   if (still && !bare) updatePile(k, T);
   c.setTransform(k, 0, 0, k, k * (sx + XV), (YT - S.camTop) * k);
   if (!bare) drawRuler(c);
+  if (S && S.pw > PW && L.wing){ const e = (S.pw - PW) / 2, wl = L.wing[e];   // the foundation's added wings (a wise answer's reward)
+    if (wl){ c.drawImage(wl, W/2 - PW/2 - e - 10, 0, e + 34, 40); c.drawImage(wl, W/2 + PW/2 - 24, 0, e + 34, 40); } }
   c.drawImage(L.plat, W/2 - PW/2 - 20, 0, PW + 40, 200);
   const a = S.active, v0 = S.camTop - YT, v1 = S.camTop + H + YB, live = [];   // what moves, in view (out of view isn't drawn)
   if (!bare) for (const b of engine.world.bodies) if (b.tff && !(still && PILE.set.has(b)) && b.bounds.max.y + PAD >= v0 && b.bounds.min.y - PAD <= v1) live.push(b);
@@ -2598,6 +2691,16 @@ function previewInto(canvas, def){
     g.imageSmoothingQuality = "high"; g.drawImage(sp.img, sp.x0, sp.y0, sp.w, sp.h);
   } catch(e){ try { def.draw(g); } catch(e2){} }
 }
+function fogInto(canvas){   // a purple fog and a question mark where the coming item would show
+  const r = canvas._sz || (canvas._sz = canvas.getBoundingClientRect());
+  if (!r.width || !r.height) return;
+  const g = canvas.getContext("2d"), w = Math.max(20, Math.round(r.width * DPR)), h = Math.max(20, Math.round(r.height * DPR));
+  if (canvas.width !== w || canvas.height !== h){ canvas.width = w; canvas.height = h; }
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, w, h);
+  const gr = g.createRadialGradient(w/2, h/2, w * 0.05, w/2, h/2, w * 0.6); gr.addColorStop(0, "rgba(110,79,216,.9)"); gr.addColorStop(0.7, "rgba(110,79,216,.45)"); gr.addColorStop(1, "rgba(110,79,216,0)");
+  g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  g.fillStyle = "#fff"; g.font = "900 " + Math.round(h * 0.5) + "px " + K.FONTS.display; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("?", w/2, h/2 + h * 0.04);
+}
 function nameInto(el, def, empty){
   el.replaceChildren();
   if (!def){ const s = document.createElement("small"); s.textContent = empty; el.appendChild(s); return; }
@@ -2616,13 +2719,14 @@ function drawPreviews(force){
   const n0 = S.queue[0], n1 = S.queue[1];
   const key = [n0 && n0.id, n1 && n1.id, S.hold && S.hold.id, S.scamLock > 0, SC, DPR].join("|");
   if (key === lastPrev && !force) return; lastPrev = key;
-  previewInto($("nextCv"), n0); previewInto($("holdCv"), S.hold); previewInto($("next2Cv"), n1);
-  previewInto($("hudNext"), n0); previewInto($("hudHold"), S.hold);
-  nameInto($("nextName"), n0, "");
+  const fog = S.scamLock > 0;   // the curse of a scam: what's coming is hidden
+  if (fog){ fogInto($("nextCv")); fogInto($("next2Cv")); fogInto($("hudNext")); } else { previewInto($("nextCv"), n0); previewInto($("next2Cv"), n1); previewInto($("hudNext"), n0); }
+  previewInto($("holdCv"), S.hold); previewInto($("hudHold"), S.hold);
+  nameInto($("nextName"), fog ? null : n0, fog ? "Hidden by a scam 被呃咗，睇唔清" : "");
   nameInto($("holdName"), S.hold, S.scamLock > 0 ? "Locked by a scam 被呃咗，暫存鎖住" : "Press C to keep one for later 按C暫存");
   if (S.hold && S.scamLock > 0){ const lk = document.createElement("small"); lk.className = "locked"; lk.textContent = "Locked by a scam 被呃咗，暫存鎖住"; $("holdName").appendChild(lk); }
   const t2 = $("next2Name"); t2.replaceChildren();
-  if (n1){ const z = document.createElement("span"); z.className = "nw"; z.textContent = n1.zh; t2.append("Then 跟住：" + n1.en + " ", z); }
+  if (n1 && !fog){ const z = document.createElement("span"); z.className = "nw"; z.textContent = n1.zh; t2.append("Then 跟住：" + n1.en + " ", z); }
 }
 
 // ---------- HUD, passbook, stamps ----------
@@ -2878,7 +2982,7 @@ function tick(dt){
   if (!S.plan && S.play >= S.nextEvent - 4000) S.plan = planCard();
   if (S.active && trollTick()) return;
   if (S.active && S.shocks.length && S.play >= S.shocks[0]){ S.shocks.shift(); shock(); }
-  if (!S.active && S.spawnAt && S.play >= S.spawnAt){ S.spawnAt = 0; if (S.scamLock > 0) S.scamLock--; nextPiece(); }
+  if (!S.active && S.spawnAt && S.play >= S.spawnAt){ S.spawnAt = 0; if (S.scamLock > 0) S.scamLock--; if (S.rotLock > 0) setRotLock(S.rotLock - 1); nextPiece(); }
   S.acc += dt; let n = 0;
   while (S.acc >= STEP && n++ < 4){ S.acc -= STEP; physicsStep(); if (S.mode !== "playing") return; }
   if (S.acc > STEP * 4) S.acc = 0;

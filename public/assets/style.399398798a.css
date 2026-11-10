@@ -1,17 +1,17 @@
 /* Web fonts, self-hosted: subsets of Gluten, Noto Sans HK and LXGW WenKai TC (SIL Open Font License 1.1;
-   licences: /assets/OFL.390eb80368.txt). `npm run fonts` makes src/fonts/*.woff2 from the characters used in src/, and
+   licences: /assets/OFL.e6a45b48f3.txt). `npm run fonts` makes src/fonts/*.woff2 from the characters used in src/, and
    `npm run build` warns about a Chinese character they lack (the system font draws it). The family names and weights
    are the ones Google Fonts served, so --f-* below and clay.js (canvas lettering) stay as they are. */
 @font-face{font-family:"Gluten";font-style:normal;font-weight:400 900;font-display:swap;src:url(/assets/gluten.5b0fb221b0.woff2) format("woff2")}
 /* Noto Sans HK is one variable file. Four faces, not one 400 900 range, so a weight-800 label still uses the 900 face, as before. */
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/noto-sans-hk.7231a6562d.woff2) format("woff2")}
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:500;font-display:swap;src:url(/assets/noto-sans-hk.7231a6562d.woff2) format("woff2")}
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/noto-sans-hk.7231a6562d.woff2) format("woff2")}
-@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:900;font-display:swap;src:url(/assets/noto-sans-hk.7231a6562d.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/noto-sans-hk.8112cbbc1a.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:500;font-display:swap;src:url(/assets/noto-sans-hk.8112cbbc1a.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/noto-sans-hk.8112cbbc1a.woff2) format("woff2")}
+@font-face{font-family:"Noto Sans HK";font-style:normal;font-weight:900;font-display:swap;src:url(/assets/noto-sans-hk.8112cbbc1a.woff2) format("woff2")}
 /* WenKai draws only Chinese (and the digits inside Chinese lines): its Latin is a thin handwriting, so English in a
    Chinese-font line falls through to Noto Sans HK and reads the same as everywhere else */
-@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/lxgw-wenkai-tc-regular.aa2a2e63d4.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
-@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/lxgw-wenkai-tc-bold.50d8e9a705.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
+@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/lxgw-wenkai-tc-regular.fa1be05896.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
+@font-face{font-family:"LXGW WenKai TC";font-style:normal;font-weight:700;font-display:swap;src:url(/assets/lxgw-wenkai-tc-bold.60fe78403c.woff2) format("woff2");unicode-range:U+0030-0039,U+2E80-2FDF,U+3000-303F,U+31C0-31EF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF,U+20000-2FFFF}
 /* Curly quotes, ‘ ’, × and · in Latin widths: Noto Sans HK draws them a whole Chinese character wide, which left holes
    in English ("to   “rent”", "pays ×1.5"). Source Sans 3 (the Latin Noto Sans HK is based on), 1 KB a weight. */
 @font-face{font-family:"TFF Punct";font-style:normal;font-weight:400 650;font-display:swap;src:url(/assets/source-sans-punct-400.f1e8c6c73b.woff2) format("woff2");unicode-range:U+00B7,U+00D7,U+2018-201D}
@@ -292,6 +292,22 @@ button{font-family:inherit;color:inherit}
 .oc-head.good{color:var(--green-d)} .oc-head.bad{color:var(--red-d)}
 .oc-head svg{width:34px;height:34px;flex:none}
 .oc-effect{margin:0;font-size:13.5px;font-weight:700}
+/* the reward for a wise answer: three to pick from (the selected one is ringed), and what it does */
+.oc-powers{display:flex;flex-direction:column;gap:6px}
+.oc-powers[hidden]{display:none}
+.op-lab{margin:0;font-size:12.5px;font-weight:800;color:var(--ink-2)}
+.op-lab span{font-family:var(--f-zh);margin-left:5px}
+.op-row{display:grid;grid-template-columns:repeat(3, minmax(0, 1fr));gap:6px}
+.pw{display:flex;align-items:center;gap:6px;min-height:44px;padding:5px 7px;border:2px solid transparent;border-radius:12px;background:#fff;color:var(--ink);font:800 12.5px/1.15 var(--f-body);text-align:left;cursor:pointer;
+  box-shadow:inset -2px -3px 5px rgba(60,20,10,.1), 0 2px 0 rgba(60,20,10,.12)}
+.pw .key{flex:none;width:20px;height:20px;border-radius:7px;display:grid;place-items:center;background:var(--navy);color:#fff;font:900 12px var(--f-display)}
+.pw small{display:block;font-family:var(--f-zh);font-weight:700;font-size:12.5px;color:var(--ink-2)}
+.pw[aria-checked="true"]{border-color:var(--good);background:#EAF8EE}
+.op-what{margin:0;font-size:12.5px;font-weight:700;line-height:1.35;color:var(--ink)}
+.op-what small{display:block;font-family:var(--f-zh);font-size:12.5px;color:var(--ink-2)}
+@media (max-width: 360px){ .pw{padding:5px 6px;font-size:12px;overflow-wrap:anywhere} .pw .key{display:none} .pw small{font-size:12px} }
+/* the curse of putting off: Turn is out while it lasts */
+html.rotlock .pad [data-act="rotate"]{opacity:.4}
 .oc-tip{margin:0;padding:12px 14px;border-radius:16px;background:#fff;font-size:13.5px;line-height:1.5;box-shadow:inset 2px 2px 1px rgba(255,255,255,.9), inset -2px -3px 6px rgba(60,20,10,.1)}
 .oc-tip small{display:block;color:var(--ink-2);margin-top:4px;font-family:var(--f-zh);font-size:13.5px}
 .oc-actions{display:flex;justify-content:flex-end}

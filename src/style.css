@@ -292,6 +292,22 @@ button{font-family:inherit;color:inherit}
 .oc-head.good{color:var(--green-d)} .oc-head.bad{color:var(--red-d)}
 .oc-head svg{width:34px;height:34px;flex:none}
 .oc-effect{margin:0;font-size:13.5px;font-weight:700}
+/* the reward for a wise answer: three to pick from (the selected one is ringed), and what it does */
+.oc-powers{display:flex;flex-direction:column;gap:6px}
+.oc-powers[hidden]{display:none}
+.op-lab{margin:0;font-size:12.5px;font-weight:800;color:var(--ink-2)}
+.op-lab span{font-family:var(--f-zh);margin-left:5px}
+.op-row{display:grid;grid-template-columns:repeat(3, minmax(0, 1fr));gap:6px}
+.pw{display:flex;align-items:center;gap:6px;min-height:44px;padding:5px 7px;border:2px solid transparent;border-radius:12px;background:#fff;color:var(--ink);font:800 12.5px/1.15 var(--f-body);text-align:left;cursor:pointer;
+  box-shadow:inset -2px -3px 5px rgba(60,20,10,.1), 0 2px 0 rgba(60,20,10,.12)}
+.pw .key{flex:none;width:20px;height:20px;border-radius:7px;display:grid;place-items:center;background:var(--navy);color:#fff;font:900 12px var(--f-display)}
+.pw small{display:block;font-family:var(--f-zh);font-weight:700;font-size:12.5px;color:var(--ink-2)}
+.pw[aria-checked="true"]{border-color:var(--good);background:#EAF8EE}
+.op-what{margin:0;font-size:12.5px;font-weight:700;line-height:1.35;color:var(--ink)}
+.op-what small{display:block;font-family:var(--f-zh);font-size:12.5px;color:var(--ink-2)}
+@media (max-width: 360px){ .pw{padding:5px 6px;font-size:12px;overflow-wrap:anywhere} .pw .key{display:none} .pw small{font-size:12px} }
+/* the curse of putting off: Turn is out while it lasts */
+html.rotlock .pad [data-act="rotate"]{opacity:.4}
 .oc-tip{margin:0;padding:12px 14px;border-radius:16px;background:#fff;font-size:13.5px;line-height:1.5;box-shadow:inset 2px 2px 1px rgba(255,255,255,.9), inset -2px -3px 6px rgba(60,20,10,.1)}
 .oc-tip small{display:block;color:var(--ink-2);margin-top:4px;font-family:var(--f-zh);font-size:13.5px}
 .oc-actions{display:flex;justify-content:flex-end}
