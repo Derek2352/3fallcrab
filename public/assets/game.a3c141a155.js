@@ -414,9 +414,41 @@ function bigOf(def){
 }
 // ---------- the rewards for a wise answer (POWERS in content.js): the player picks one of three on the answered card
 const platOpt = () => ({isStatic:true, friction:1, frictionStatic:2, restitution:0, chamfer:{radius:6}, label:"platform"});   // a fresh one each time: Matter takes the chamfer out of it
+// The wider base stands on a bamboo scaffold (竹棚), lashed together the Hong Kong way, that rises out of the water as
+// the base slides out from under the platform.
+const SHED_Y = 24, SHED_H = 112;
+const shedW = e => PW/2 + e - 35;   // from the base's outer edge to just inside the pillar
+function drawShed(g, e){
+  const w = shedW(e), h = SHED_H, xs = [];
+  for (let d = 3; d < w - 3; d += 36) xs.push(w - d);   // poles every 36 from the pillar out, the same for both widths
+  if (xs[xs.length - 1] - 5 > 12) xs.push(5);   // and one under the outer edge
+  const BAM = "#D4B060", rows = [6, 44, 82], o = {depth: 0.8, soft: 1, sheen: false, rim: 0.4};
+  for (let i = 0; i + 1 < xs.length; i++){ const a = xs[i], b = xs[i + 1], up = i % 2 ? [rows[0], rows[1]] : [rows[1], rows[0]];   // a brace across each bay
+    K.blob(g, K.tube([[a, up[0]], [b, up[1]]], 2.4), "#C9A24A", o); K.blob(g, K.tube([[a, rows[2]], [b, rows[1]]], 2.4), "#C9A24A", o); }
+  for (const y of rows) K.blob(g, K.tube([[2, y], [w - 1, y]], 2.8), BAM, o);
+  for (const x of xs){
+    K.blob(g, K.tube([[x, 0], [x, h]], 3.4), BAM, {depth: 0.9, soft: 1.1, sheen: {x: x - 0.8, y: h / 2, rx: 0.6, ry: h / 2.5}, rim: 0.4});
+    for (let y = 13; y < h; y += 15) K.groove(g, K.poly([[x - 1.7, y], [x + 1.7, y]], false), 0.9);   // the bamboo's nodes
+    for (const y of rows) K.press(g, K.ball(x, y, 2.6, 2.1, {lump: 0.05}), "black", {sheen: false, texture: 0});   // the black ties
+  }
+}
+function drawWide(c){
+  const e = (S.pw - PW) / 2, prev = e - 20, p = clamp((S.play - (S.wideAt || -1e9)) / 900, 0, 1), ease = 1 - Math.pow(1 - p, 3);
+  for (const side of [-1, 1]){
+    c.save(); if (side > 0){ c.translate(W, 0); c.scale(-1, 1); }   // the right side is the left one mirrored
+    const x0 = W/2 - PW/2 - e;
+    if (prev > 0 && L.shed[prev]) c.drawImage(L.shed[prev], W/2 - PW/2 - prev, SHED_Y, shedW(prev), SHED_H);
+    const sh = L.shed[e]; if (sh){   // it rises out of the water
+      const up = SHED_H * ease; c.save(); c.beginPath(); c.rect(x0 - 4, WATER_Y - up, shedW(e) + 8, up + 20); c.clip();
+      c.drawImage(sh, x0, SHED_Y + (1 - ease) * 30, shedW(e), SHED_H); c.restore(); }
+    const wl = L.wing[e], slide = (1 - clamp((p - 0.35) / 0.65, 0, 1)) * e;   // then the base slides out over it
+    if (wl) c.drawImage(wl, x0 - 10 + slide, 0, e + 34, 40);
+    c.restore();
+  }
+}
 function widen(){   // a wider foundation, twice at most
   if (S.wides >= 2) return;
-  S.wides++; S.pw += 40;
+  S.wides++; S.pw += 40; S.wideAt = S.play;
   Composite.remove(engine.world, platform);
   platform = Bodies.rectangle(W/2, 15, S.pw, 30, platOpt()); Composite.add(engine.world, platform);
   for (const sx of [-1, 1]) burst(W/2 + sx * (S.pw/2 - 10), 12, ["#FFD23F", "#F2B51C", "#FFF1A8"], "255,200,50");
@@ -2416,6 +2448,9 @@ function buildLayers(soft, only){
     K.text(g, "儲蓄基礎", PW/2 - 52, 16.5, {size:13, font:"zh", color:"#25317A", weight:700});
     K.text(g, "SAVINGS FOUNDATION", PW/2 + 52, 16.5, {size:11.5, font:"display", color:"#25317A", weight:900});
   });
+  // the bamboo scaffold (竹棚) that holds a wider base up from the water: one side, from the base's outer edge (x 0) to
+  // the pillar, from just under the slab down into the harbour (drawn mirrored for the right side)
+  make.shed = () => { const o = {}; for (const e of [20, 40]) o[e] = layer(shedW(e), SHED_H, g => drawShed(g, e)); return o; };
   make.wing = () => { const o = {}; for (const e of [20, 40]) o[e] = layer(e + 34, 40, g => K.blob(g, K.slab((e + 34) / 2, 15, e + 14, 30, 7, {lump:1.0, seed:9}), "yellow", {sheen:false})); return o; };
   // a red-sail junk that drifts across the harbour
   make.junk = () => layer(80, 60, g => {
@@ -2701,8 +2736,7 @@ function draw(dt){
   if (still && !bare) updatePile(k, T);
   c.setTransform(k, 0, 0, k, k * (sx + XV), (YT - S.camTop) * k);
   if (!bare) drawRuler(c);
-  if (S && S.pw > PW && L.wing){ const e = (S.pw - PW) / 2, wl = L.wing[e];   // the foundation's added wings (a wise answer's reward)
-    if (wl){ c.drawImage(wl, W/2 - PW/2 - e - 10, 0, e + 34, 40); c.drawImage(wl, W/2 + PW/2 - 24, 0, e + 34, 40); } }
+  if (S && S.pw > PW && L.wing && L.shed) drawWide(c);
   c.drawImage(L.plat, W/2 - PW/2 - 20, 0, PW + 40, 200);
   if (S.ghost && !bare && S.mode !== "idle") drawGhost(c, S.ghost);   // behind the tower
   const a = S.active, v0 = S.camTop - YT, v1 = S.camTop + H + YB, live = [];   // what moves, in view (out of view isn't drawn)
