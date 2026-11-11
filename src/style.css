@@ -1744,6 +1744,7 @@ html.fs.title .ts-sound .ts-silent{color:var(--ink-2);font-weight:700}
 .filmvig{position:fixed;inset:0;z-index:5;pointer-events:none;
   background:radial-gradient(ellipse at 50% 46%, transparent 58%, rgba(30,18,6,.22) 100%)}
 @media (prefers-reduced-motion: reduce){ .filmgrain{animation:none} }
+@media (pointer: coarse), (max-width: 640px){ .filmgrain{animation:none} }   /* phones: a static grain, not a full-screen repaint */
 
 .fbars{position:fixed;left:0;right:0;height:0;padding:0;border:0;background:#0b0a10;z-index:28;pointer-events:none;
   transition:height .38s cubic-bezier(.2,.9,.3,1)}
