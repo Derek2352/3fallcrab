@@ -1759,7 +1759,7 @@ body.cardscene .lbx{height:min(9vh,86px)}
 @keyframes cutslam{0%{transform:rotate(-16deg)}55%{transform:rotate(-16deg)}100%{transform:rotate(0)}}
 .cut-word{position:absolute;inset:0;display:grid;place-items:center;
   font-family:var(--f-display);font-weight:900;font-size:clamp(64px,17vw,180px);letter-spacing:.06em;
-  color:#FFFDF7;opacity:0;text-shadow:-3px -3px 0 #1E1A24,3px -3px 0 #1E1A24,-3px 3px 0 #1E1A24,3px 3px 0 #1E1A24,-5px 0 0 #1E1A24,5px 0 0 #1E1A24,0 -5px 0 #1E1A24,0 5px 0 #1E1A24,0 12px 26px rgba(0,0,0,.45)}
+  color:#FFFDF7;opacity:0}
 #cutOv.on .cut-word{animation:cutword 1s steps(1) forwards}
 @keyframes cutword{0%{opacity:0}52%{opacity:0}53%{opacity:1}82%{opacity:1}100%{opacity:0}}
 @media (prefers-reduced-motion: reduce){ #cutOv.on .cut-stick{animation:none;transform:none} }
