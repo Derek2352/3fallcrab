@@ -417,6 +417,7 @@
       });
       var last = mel[mel.length - 1], tl = t + last[1];
       tone(v, "triangle", mtof(K(r, 86 + 12)), tl, 0.003, 0.12, 0.35);        // sparkle on the top note
+      [0, 0.17].forEach(function (d) { bell(v, tl + last[2] + 0.12 + d, 1760, 0.2, 0.55); noiseHit(v, tl + last[2] + 0.12 + d, 0.001, 0.12, 0.02, "highpass", 5000, 0.7); });   // the tram's ding ding 叮叮
       if (st >= 2) { noiseHit(v, tl - 0.03, 0.001, 0.25, 0.05, "bandpass", 1900, 0.8); noiseHit(v, tl, 0.001, 0.35, 0.09, "bandpass", 1900, 0.8); }
       if (st >= 3) {
         var k = tone(v, "sine", 150, tl, 0.002, 0.8, 0.25); k.o.frequency.exponentialRampToValueAtTime(48, tl + 0.12);

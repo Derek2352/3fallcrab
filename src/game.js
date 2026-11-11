@@ -500,6 +500,16 @@ const platOpt = () => ({isStatic:true, friction:1, frictionStatic:2, restitution
 // the base slides out from under the platform.
 const SHED_Y = 24, SHED_H = 112;
 const shedW = e => PW/2 + e - 35;   // from the base's outer edge to just inside the pillar
+// a neon signboard's characters, stacked down the board; lit: with its coloured glow (at golden hour and twilight)
+function neonText(g, s, lit){
+  const n = s.t.length, step = (s.h - 8) / n, size = Math.min(11, step * 0.95);
+  g.save();
+  if (lit){ g.shadowColor = s.tube; g.shadowBlur = 6; g.strokeStyle = s.tube; g.lineWidth = 1.4; g.strokeRect(s.x + 1.5, s.y + 1.5, s.w - 3, s.h - 3); }
+  g.font = "900 " + size + "px " + K.FONTS.zh; g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillStyle = lit ? "#FFF6E0" : s.tube;
+  for (let k = 0; k < n; k++) g.fillText(s.t[k], s.x + s.w / 2, s.y + 4 + step * (k + 0.5));
+  g.restore();
+}
 function drawShed(g, e){
   const w = shedW(e), h = SHED_H, xs = [];
   for (let d = 3; d < w - 3; d += 36) xs.push(w - d);   // poles every 36 from the pillar out, the same for both widths
@@ -2493,6 +2503,33 @@ function buildLayers(soft, only){
       } else K.blob(g, K.slab(x + w/2, top + h/2 + 10, w, h + 20, 6, {lump:0.9, seed:i * 13}), c, {depth:4, soft:6});
       for (let wy = top + 14; wy < 245; wy += 15) for (let wx = x + 7; wx < x + w - 9; wx += 10)
         if (r() > 0.55) K.press(g, K.rrc(wx + 2, wy, 5, 7, 1.5), r() > 0.25 ? "#FFF3A6" : "cream", {sheen:false, texture:0, depth:0.6, soft:0.8, rim:0.3});
+      tops.push({x, w, top});
+      if (i !== 7 && i % 5 !== 3) street(x, w, top, i);   // street life on the plain blocks
+    };
+    // Hong Kong street life, from its own random numbers (so the skyline itself stays as it was): AC boxes under some
+    // windows, bamboo laundry poles with clothes, and neon signboards (they glow at golden hour and twilight)
+    const tops = [], signs = [], NEON = ["茶餐廳", "押", "涼茶", "金行", "麻雀", "跌打"], TUBE = ["#FF4F8B", "#3BE0C8", "#FFD84D", "#FF7B35", "#8B6CF2", "#4CC36A"];
+    const street = (x, w, top, i) => {
+      const q = K.rng(300 + i * 7), h = 260 - top;
+      for (let n = 0; n < 3; n++){ const ay = top + 22 + Math.floor(q() * Math.max(1, (h - 50) / 15)) * 15, ax = x + 6 + Math.floor(q() * Math.max(1, (w - 18) / 10)) * 10;
+        if (ay < 248) K.press(g, K.rrc(ax + 4, ay + 8, 8, 5, 1), "#C9CCD6", {sheen:false, texture:0, depth:0.6, soft:0.8, rim:0.3}); }
+      const kind = q();
+      if (kind < 0.42 && h > 70){   // a signboard sticking out from the right-hand side
+        const t = NEON[Math.floor(q() * NEON.length)], tube = TUBE[Math.floor(q() * TUBE.length)], bh = 12 + t.length * 11, by = top + 18 + q() * Math.max(0, h - bh - 60);
+        const sx = x + w - 6, sign = {x: sx, y: by, w: 15, h: bh, t, tube};
+        K.blob(g, K.slab(sx + 7.5, by + bh / 2, 15, bh, 2, {lump: 0.2, seed: i}), "#2E2838", {depth: 1.2, soft: 1.6, sheen: false});
+        neonText(g, sign, false); signs.push(sign);
+      } else if (kind < 0.8 && h > 60){   // laundry on bamboo poles
+        for (let n = 0; n < 2; n++){
+          const py = top + 26 + Math.floor(q() * Math.max(1, (h - 60) / 15)) * 15, left = q() < 0.5, x0 = left ? x + 3 : x + w - 3, dir = left ? -1 : 1;
+          if (py > 245) continue;
+          K.blob(g, K.tube([[x0, py], [x0 + dir * 22, py - 2]], 1.6), "#D4B060", {depth: 0.5, soft: 0.7, sheen: false, rim: 0.3});
+          const cols = ["pink", "sky", "yellow", "white", "teal", "orange"];
+          for (let k = 0; k < 3; k++){ const cx = x0 + dir * (5 + k * 7.5), col = cols[Math.floor(q() * cols.length)];
+            if (q() < 0.5) K.press(g, K.blobPoly([[cx - 3.6, py], [cx + 3.6, py], [cx + 3, py + 9], [cx - 3, py + 9]], {lump: 0.1}), col, {sheen: false, texture: 0, depth: 0.5, soft: 0.7, rim: 0.3});   // a shirt
+            else K.press(g, K.rrc(cx - 3, py + 0.5, 6, 8, 1), col, {sheen: false, texture: 0, depth: 0.5, soft: 0.7, rim: 0.3}); }   // a towel
+        }
+      }
     };
     let x = -10, i = 0;
     while (x < W + 60 + XV){
@@ -2505,6 +2542,15 @@ function buildLayers(soft, only){
     g.restore();
     // atmospheric haze so the tower of items always reads in front of the city
     g.save(); g.globalCompositeOperation = "source-atop"; g.fillStyle = "rgba(" + mixHex("#A0DCFF", "#FFB38A", duskStep).slice(4, -1) + ",0.42)"; g.fillRect(0, 0, W + 60 + 2 * XV, 260); g.restore();
+    if (duskStep > 0){ g.save(); g.translate(XV, 0); for (const sg of signs) neonText(g, sg, true); g.restore(); }   // the neon lights up as the sun goes down
+    if (duskStep >= 1){   // and at twilight, a light show from the tallest towers
+      const tall = tops.slice().sort((a, b) => a.top - b.top).slice(0, 4), BEAM = ["255,95,162", "59,224,200", "139,108,242", "255,216,77"];
+      g.save(); g.translate(XV, 0); g.globalCompositeOperation = "lighter";
+      tall.forEach((t, n) => { const cx = t.x + t.w / 2, a = (n % 2 ? 1 : -1) * (0.18 + n * 0.08), len = t.top + 30, bx = cx + Math.sin(a) * len, by = t.top - Math.cos(a) * len;
+        const gr = g.createLinearGradient(cx, t.top, bx, by); gr.addColorStop(0, "rgba(" + BEAM[n] + ",.32)"); gr.addColorStop(1, "rgba(" + BEAM[n] + ",0)");
+        g.fillStyle = gr; g.beginPath(); g.moveTo(cx - 1.5, t.top); g.lineTo(bx - 7, by); g.lineTo(bx + 7, by); g.lineTo(cx + 1.5, t.top); g.closePath(); g.fill(); });
+      g.restore();
+    }
   });
   // harbour (world units, wide so it can scroll)
   make.sea = () => layer(W + 120 + 2 * XV, 220, g => {
@@ -2534,6 +2580,16 @@ function buildLayers(soft, only){
   // the pillar, from just under the slab down into the harbour (drawn mirrored for the right side)
   make.shed = () => { const o = {}; for (const e of [20, 40]) o[e] = layer(shedW(e), SHED_H, g => drawShed(g, e)); return o; };
   make.wing = () => { const o = {}; for (const e of [20, 40]) o[e] = layer(e + 34, 40, g => K.blob(g, K.slab((e + 34) / 2, 15, e + 14, 30, 7, {lump:1.0, seed:9}), "yellow", {sheen:false})); return o; };
+  // a green-and-white double-deck harbour ferry (a generic one) that crosses the other way
+  make.ferry = () => layer(104, 56, g => {
+    K.blob(g, K.blobPoly([[6, 38], [98, 38], [92, 52], [12, 52]], {lump: 0.3, seed: 3}), "#1E7A4C", {depth: 2, soft: 3, sheen: false});
+    K.press(g, K.slab(52, 41, 88, 4, 1, {lump: 0.1}), "white", {sheen: false, texture: 0});
+    K.blob(g, K.slab(52, 31, 80, 12, 3, {lump: 0.3, seed: 4}), "white", {depth: 1.2, soft: 1.8, sheen: false});
+    K.blob(g, K.slab(52, 19, 70, 12, 3, {lump: 0.3, seed: 5}), "white", {depth: 1.2, soft: 1.8, sheen: false});
+    K.blob(g, K.slab(52, 11, 76, 5, 2, {lump: 0.2, seed: 6}), "#2E8B57", {depth: 1, soft: 1.4, sheen: false});
+    for (const [y, x0, x1] of [[31, 18, 86], [19, 22, 82]]) for (let x = x0; x <= x1; x += 8) K.press(g, K.rrc(x - 2.2, y - 3, 4.4, 5, 1), "#7FC4F0", {sheen: false, texture: 0, depth: 0.5, soft: 0.7, rim: 0.3});
+    K.press(g, K.ball(52, 6, 2.2, 2.2, {lump: 0.05}), "red", {sheen: false, texture: 0});   // the mast light
+  });
   // a red-sail junk that drifts across the harbour
   make.junk = () => layer(80, 60, g => {
     K.blob(g, K.tube([[40, 6], [40, 44]], 2.4), "brown", {depth:0.8, soft:1, sheen:false, rim:0.4});
@@ -2857,6 +2913,8 @@ function draw(dt){
   if (v1 > WATER_Y + 206){ c.fillStyle = seaDeep; c.fillRect(-XV - 2, WATER_Y + 206, W + 2 * XV + 4, v1 - WATER_Y - 200); }   // deeper water, behind the pad
   c.fillStyle = "rgba(20,30,90,0.28)"; c.beginPath(); c.ellipse(W/2, WATER_Y + 6, 46, 6, 0, 0, Math.PI * 2); c.fill();
   const jx = ((T * 0.22) % (W + 160 + 2 * XV)) - 100 - XV, jy = WATER_Y - 44 + (reduceMotion ? 0 : Math.sin(T / 22) * 1.6);
+  const span = W + 260 + 2 * XV, fx = W + 120 + XV - ((T * 0.13 + span * 0.55) % span), fy = WATER_Y - 42 + (reduceMotion ? 0 : Math.sin(T / 30 + 1) * 1.2);   // the ferry, the other way
+  if (L.ferry) c.drawImage(L.ferry, fx, fy, 104, 56);
   c.drawImage(L.junk, jx, jy, 80, 60);
   for (const sp of S.splashes){
     sp.t += f; const t = sp.t / 45, n = sp.big ? 9 : 6;
