@@ -205,6 +205,7 @@
             <div class="ts-only ts-pills">
               <button class="ov-chip" id="tsLb" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M7 6H4.5a2.5 2.5 0 0 0 3 3.3M17 6h2.5a2.5 2.5 0 0 1-3 3.3M12 13v4M8.5 20h7"/></svg><span>Leaderboard<span class="zh" lang="zh-HK">排行榜</span></span></button>
               <button class="ov-chip" id="tsHow" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.6a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5v.6M12 16.8v.2"/></svg><span>How to play<span class="zh" lang="zh-HK">玩法</span></span></button>
+              <button class="ov-chip" id="tsWear" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16.5h16M6.5 16.5c0-4 2.2-6.5 5.5-6.5s5.500 2.500 5.500 6.500M12 10V7.500M10 7.500h4"/></svg><span>Wardrobe<span class="zh" lang="zh-HK">衣櫃</span></span></button>
             </div>
             <div class="ov-opts">
               <button class="ov-chip" id="fsStartBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg><span>Full screen<span class="zh" lang="zh-HK">全螢幕</span></span></button>
@@ -279,6 +280,12 @@
       <h2 class="h">The 3 Falls <span class="zh" lang="zh-HK">三大陷阱</span></h2>
       <ul class="tags" id="fallsList" data-clip-spend="%%asset:clips/fall-spend.mp4%%" data-still-spend="%%asset:clips/fall-spend.webp%%" data-clip-scam="%%asset:clips/fall-scam.mp4%%" data-still-scam="%%asset:clips/fall-scam.webp%%" data-clip-delay="%%asset:clips/fall-delay.mp4%%" data-still-delay="%%asset:clips/fall-delay.webp%%"></ul>
       <p class="falls-note">Mid-game, some offers look too good to be true. They are. <span class="zl" lang="zh-HK">遊戲中有啲優惠好到唔似真，佢哋真係假㗎。</span></p>
+    </section>
+
+    <section class="wardrobe clay" aria-label="Crab wardrobe">
+      <h2 class="h">Crab wardrobe <span class="zh" lang="zh-HK">蟹仔衣櫃</span></h2>
+      <p class="wardrobe-note" id="wardrobeNote"></p>
+      <div class="wlist" id="wardrobeList" role="radiogroup" aria-label="What the crab wears 蟹仔造型"></div>
     </section>
 
     <section class="lbx clay" aria-label="Leaderboard">
@@ -413,7 +420,7 @@
           <p class="sh-who" id="heroWho" hidden></p>
         </div>
         <div class="sh-verdict" id="heroVerdict" hidden><span class="sv-medal" id="svMedal" aria-hidden="true"></span>
-          <p class="sv-name"><span class="sr">Your title 你的稱號: </span><span id="svName"></span></p><p class="sv-line" id="svLine"></p></div>
+          <p class="sv-name"><span class="sr">Your title 你的稱號: </span><span id="svName"></span></p><p class="sv-line" id="svLine"></p><p class="sv-new" id="svNew" hidden></p></div>
         <p class="sh-pct" id="heroPct" hidden></p>
         <p class="sh-chal" id="heroChal" hidden></p>
         <i class="spk s1" aria-hidden="true"></i><i class="spk s2" aria-hidden="true"></i><i class="spk s3" aria-hidden="true"></i><i class="spk s4" aria-hidden="true"></i>

@@ -1528,6 +1528,20 @@ html.iab-tight.fs.title .ts-sign{display:none}   /* a short screen with the tip 
 .sv-name .en{display:inline-block;margin-left:8px;font-family:var(--f-body);font-size:12.5px;font-weight:800;color:#8E1C24}
 .sv-line{margin:0;font-size:12.5px;font-weight:700;line-height:1.3;color:#6B2A2F}
 .sv-line .zl{display:block;font-family:var(--f-zh)}
+.sv-new{grid-column:1 / -1;margin:4px 0 0;padding:4px 8px;border-radius:8px;background:#fff;font-size:12.5px;font-weight:800;line-height:1.3;color:var(--good)}
+.sv-new[hidden]{display:none} .sv-new .zl{display:block;font-family:var(--f-zh)}
+/* the crab's wardrobe: None and eight accessories, three to a row; the one worn is ringed, locked ones dimmed */
+.wardrobe{background:var(--cream);padding:14px}
+.wardrobe-note{margin:0 0 10px;font-size:13px;font-weight:700;color:var(--ink-2)} .wardrobe-note .zl{display:block;font-family:var(--f-zh)}
+.wlist{display:grid;grid-template-columns:repeat(3, minmax(0, 1fr));gap:8px}
+.wtile{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px 8px;border:2.5px solid transparent;border-radius:16px;background:#fff;color:var(--ink);font:800 12.5px/1.2 var(--f-body);text-align:center;cursor:pointer;
+  box-shadow:inset -2px -3px 6px rgba(60,20,10,.1), 0 2px 0 rgba(60,20,10,.12)}
+.wtile canvas{width:80px;height:64px;max-width:100%}
+.wtile small{display:block;font-family:var(--f-zh);font-weight:700;font-size:12.5px;color:var(--ink-2)}
+.wtile[aria-checked="true"]{border-color:var(--good);background:#EAF8EE}
+.wtile.locked{cursor:not-allowed;background:#F4EEE2}
+.wtile.locked canvas{filter:grayscale(1) brightness(.55) contrast(.7);opacity:.55}
+.wtile .ww{font-size:11.5px;font-weight:700;color:var(--ink-2)} .wtile .ww small{font-size:11.5px}
 .sh-verdict.in{animation:chop .55s 1s cubic-bezier(.2,.9,.3,1.4) both}
 @keyframes chop{0%{opacity:0;transform:scale(2.3) rotate(-9deg)}60%{opacity:1;transform:scale(.94) rotate(-.4deg)}100%{opacity:1;transform:rotate(-1.2deg)}}
 /* where it ranks: the pill fills to the share of games beaten */

@@ -911,6 +911,18 @@ CARDS.push(...PERSONA_CARDS);
 
 // The film's three acts: a Life Event card's act follows the life stage (University sets up, First Job and Family are
 // the confrontation, Retirement resolves). A card's slate and the result's story say the act.
+// The crab's wardrobe: an accessory unlocked the first time a title is earned (kept on the device). title: a TITLES id.
+const HATS = [
+  {id:"goggles", title:"diver",    en:"Diving goggles",   zh:"潛水鏡"},
+  {id:"sleuth",  title:"scamvip",  en:"Detective hat",    zh:"偵探帽"},
+  {id:"bag",     title:"future",   en:"Shopping-bag hat", zh:"購物袋帽"},
+  {id:"nightcap",title:"tomorrow", en:"Nightcap",         zh:"睡帽"},
+  {id:"halo",    title:"zero",     en:"Halo",             zh:"光環"},
+  {id:"straw",   title:"retire",   en:"Straw sun hat",    zh:"草帽"},
+  {id:"tophat",  title:"lucky",    en:"Top hat",          zh:"禮帽"},
+  {id:"hardhat", title:"stacker",  en:"Hard hat",         zh:"地盤帽"}
+];
+
 // The reward for a wise answer: the player picks one of three (the card's own, by its Fall, and two others).
 // en/zh: the name; d: what it does; m: what it stands for with money.
 const POWERS = {
@@ -925,5 +937,5 @@ const POWER_OF_TRAP = {spend: "vine", delay: "lock", scam: "net"};
 const ACTS = [{n:"I", en:"The Setup", zh:"第一幕：開端", z:"第一幕"}, {n:"II", en:"The Confrontation", zh:"第二幕：衝突", z:"第二幕"}, {n:"III", en:"The Resolution", zh:"第三幕：結局", z:"第三幕"}];
 const ACT_OF_STAGE = [0, 1, 1, 2];
 
-root.TFF_CONTENT = {ACTS, ACT_OF_STAGE, POWERS, POWER_OF_TRAP, STAGES, TRAPS, CARDS, QUIZ, HABITS, QUIZ_WAS, HABIT_WAS, answerNow, habitNow, QUIPS, TROLLS, TYPE_AXES, TYPES, TITLES, PERSONAS, LATER_NONE, ENDINGS};
+root.TFF_CONTENT = {ACTS, ACT_OF_STAGE, POWERS, POWER_OF_TRAP, HATS, STAGES, TRAPS, CARDS, QUIZ, HABITS, QUIZ_WAS, HABIT_WAS, answerNow, habitNow, QUIPS, TROLLS, TYPE_AXES, TYPES, TITLES, PERSONAS, LATER_NONE, ENDINGS};
 })(typeof window !== "undefined" ? window : globalThis);

@@ -33,7 +33,7 @@ const FALL = [1.5, 1.8, 2.1, 2.4];
 const WARMUP_MS = 45000, WARMUP_FROM = 0.65;   // a gentle start: items fall at 65% speed, easing up to full over the first 45 s
 const MAX_DROPS = 3;
 
-const {STAGES, TRAPS, CARDS, QUIZ, HABITS, ACTS, ACT_OF_STAGE, POWERS, POWER_OF_TRAP} = window.TFF_CONTENT;   // src/content.js
+const {STAGES, TRAPS, CARDS, QUIZ, HABITS, ACTS, ACT_OF_STAGE, POWERS, POWER_OF_TRAP, HATS} = window.TFF_CONTENT;   // src/content.js
 const QUIPS = window.TFF_CONTENT.QUIPS || {};
 const TITLES = window.TFF_CONTENT.TITLES || [];   // 稱號: the verdict title for each game
 const LATER_NONE = window.TFF_CONTENT.LATER_NONE || [], ENDINGS = window.TFF_CONTENT.ENDINGS || [];   // the story: a timed-out card, and how a life ends
@@ -439,7 +439,8 @@ function undoTop(){   // cooling-off: the top item is lifted off, with no drop
   A.sfx("uiDone"); stamp("Cooling-off: " + b.tff.def.en + " returned", "冷靜期：退返" + b.tff.def.zh, "good");
 }
 function applyPower(k){
-  if (k === "vine" || k === "lock"){ S.queue[0] = k === "lock" ? lockOf(S.queue[0]) : vineOf(S.queue[0]); A.sfx("vineGet"); drawPreviews(true); prewarm(); }
+  if (k === "vine" || k === "lock"){ const q = S.queue[0], plain = q && (q.vine || q.lock) && q.base ? q.base : q;   // the pick replaces a wrap the item came with
+    S.queue[0] = k === "lock" ? lockOf(plain) : vineOf(plain); A.sfx("vineGet"); drawPreviews(true); prewarm(); }
   else if (k === "net") raiseNet("Insurance net: falls get caught", "保險網：跌落嚟都接得住");
   else if (k === "wide") widen();
   else if (k === "undo") undoTop();
@@ -1860,7 +1861,7 @@ $("pickModal").addEventListener("click", e => { if (e.target === e.currentTarget
 // ---------- the title screen's sheets ----------
 // Leaderboard, How to play and Privacy open in a sheet over the title: the page's own sections are moved into it (so
 // they work as they do on the page) and put back when it closes.
-const INFO = {lb: {t: ["Leaderboard", "排行榜"], q: [".lbx"]}, how: {t: ["How to play", "玩法"], q: [".howto", ".falls"]}, priv: {t: ["Privacy", "私隱聲明"], q: [".foot"]}};
+const INFO = {lb: {t: ["Leaderboard", "排行榜"], q: [".lbx"]}, how: {t: ["How to play", "玩法"], q: [".howto", ".falls"]}, priv: {t: ["Privacy", "私隱聲明"], q: [".foot"]}, wear: {t: ["Crab wardrobe", "蟹仔衣櫃"], q: [".wardrobe"]}};
 let infoOpen = null;
 function openInfo(kind, from){
   closeInfo(true);
@@ -1869,6 +1870,33 @@ function openInfo(kind, from){
   const t = $("infoTitle"), z = document.createElement("span"); z.className = "zh"; z.lang = "zh-HK"; z.textContent = k.t[1]; t.replaceChildren(k.t[0], z);
   $("infoModal").hidden = false; modalOpen(true); body.scrollTop = 0; $("infoClose").focus({preventScroll: true}); A.sfx("uiOpen");
   if (kind === "lb") refreshLB(true);
+  if (kind === "wear") renderWardrobe();
+}
+// The wardrobe: None and the eight accessories. One that's been earned shows the crab wearing it and can be picked;
+// a locked one says which title unlocks it.
+function wearHat(id){
+  HAT = id && hatOwned(id) ? id : null; lsSet("tff_hat", HAT);
+  buildLayers(false, "crab"); drawCrabs(); talk.mood = null; needDraw = true;   // every crab on screen, again
+}
+function renderWardrobe(){
+  const box = $("wardrobeList"); if (!box) return; box.replaceChildren();
+  const have = earnedTitles(), n = HATS.filter(h => have.includes(h.title)).length;
+  bi($("wardrobeNote"), n + " of " + HATS.length + " unlocked. Earn a title to unlock its look.", "已解鎖 " + n + "／" + HATS.length + "。攞到稱號，就解鎖佢嘅造型。");
+  [{id: null, en: "None", zh: "冇"}, ...HATS].forEach(h => {
+    const own = !h.id || have.includes(h.title), t = h.title && TITLES.find(x => x.id === h.title);
+    const b = document.createElement("button"); b.type = "button"; b.className = "wtile" + (own ? "" : " locked"); b.setAttribute("role", "radio");
+    b.setAttribute("aria-checked", String((h.id || null) === HAT)); if (!own) b.setAttribute("aria-disabled", "true");
+    const cv = document.createElement("canvas"); cv.width = 160; cv.height = 128; cv.setAttribute("aria-hidden", "true");
+    const g = cv.getContext("2d"); g.setTransform(2, 0, 0, 2, 80, 64); crabArt(g, "happy", h.id);
+    const nm = document.createElement("span"); nm.className = "wn"; const z = document.createElement("small"); z.lang = "zh-HK"; z.textContent = h.zh; nm.append(h.en, z);
+    b.append(cv, nm);
+    if (!own && t){ const w = document.createElement("span"); w.className = "ww"; const wz = document.createElement("small"); wz.lang = "zh-HK"; wz.textContent = "攞到「" + t.zh + "」解鎖"; w.append("Locked: earn " + t.en, wz); b.appendChild(w); }
+    b.addEventListener("click", () => {
+      if (!own){ A.sfx("uiNope"); return; }
+      wearHat(h.id); A.sfx("uiSelect"); [...box.children].forEach(x => x.setAttribute("aria-checked", String(x === b)));
+    });
+    box.appendChild(b);
+  });
 }
 function closeInfo(quiet){
   if (!infoOpen) return;
@@ -1880,7 +1908,7 @@ function closeInfo(quiet){
 }
 $("infoClose").addEventListener("click", () => closeInfo());
 $("infoModal").addEventListener("click", e => { if (e.target === e.currentTarget) closeInfo(); });
-for (const [id, kind] of [["tsLb", "lb"], ["tsHow", "how"], ["tsPriv", "priv"]]) $(id).addEventListener("click", e => openInfo(kind, e.currentTarget));
+for (const [id, kind] of [["tsLb", "lb"], ["tsHow", "how"], ["tsPriv", "priv"], ["tsWear", "wear"]]) $(id).addEventListener("click", e => openInfo(kind, e.currentTarget));
 $("tsMute").addEventListener("click", toggleMute);
 $("tsFs").addEventListener("click", () => toggleFs(false));
 
@@ -2073,7 +2101,7 @@ const endDrag = e => {
 cv.addEventListener("pointerup", endDrag); cv.addEventListener("pointercancel", endDrag);
 // Every press answers. What has a sound of its own (Start, steps, sheets, toggles, picks, the game's own moves) plays
 // it where it happens, so keys and a controller get it too; any other button gets a tap. A locked button says no.
-const OWN_SOUND = "#startBtn,#pickGo,#rollGo,#againBtn,#againBtn2,#stNext,#stBack,#tsLb,#tsHow,#tsPriv,#infoClose,.who,#tsMute,#muteBtn,#fsBtn,#tsFs,#fsStartBtn,#pauseBtn,#resumeBtn,#resultsBtn,#closeEnd,.choice,.qopt,.pad button,#hudHoldBtn,label.habit,.ctime label";
+const OWN_SOUND = "#startBtn,#pickGo,#rollGo,#againBtn,#againBtn2,#stNext,#stBack,#tsLb,#tsHow,#tsPriv,#tsWear,.wtile,#infoClose,.who,#tsMute,#muteBtn,#fsBtn,#tsFs,#fsStartBtn,#pauseBtn,#resumeBtn,#resultsBtn,#closeEnd,.choice,.qopt,.pad button,#hudHoldBtn,label.habit,.ctime label";
 document.addEventListener("click", e => { const t = e.target.closest && e.target.closest(".btn,.tab,.iconbtn,.ov-chip,.hbtn,button,[role=tab]"); if (t && !t.disabled && !t.closest(OWN_SOUND)) A.sfx("click"); });
 document.addEventListener("pointerdown", e => { const t = e.target.closest && e.target.closest("button:disabled,[aria-disabled=true]"); if (t){ A.unlock(); A.sfx("uiNope"); } });
 // Sound from the first touch: a page may make sound only after a tap or a key, so the first one anywhere (the title
@@ -2229,8 +2257,63 @@ function sampleSea(){
     for (let i = 0; i < d.length; i += 4){ r += d[i]; g += d[i + 1]; b += d[i + 2]; } const m = d.length / 4; seaDeep = "rgb(" + Math.round(r / m) + "," + Math.round(g / m) + "," + Math.round(b / m) + ")"; } catch(e){}
 }
 function layer(w, h, fn){ const k = SC * DPR; const c = document.createElement("canvas"); c.width = Math.ceil(w * k); c.height = Math.ceil(h * k); const g = c.getContext("2d"); g.setTransform(k, 0, 0, k, 0, 0); fn(g); return c; }
-function crabArt(g, mood){
-  if (AV && AV.crab && AV.crab(g, mood)) return;   // the photographed crab, once its picture has loaded (avatar.js)
+// ---------- the crab's wardrobe: an accessory for each of eight titles, earned on this device ----------
+const earnedTitles = () => { const t = lsGet("tff_titles", []); return Array.isArray(t) ? t : []; };
+const hatOwned = id => { const h = HATS.find(x => x.id === id); return !!h && earnedTitles().includes(h.title); };
+let HAT = (() => { const h = lsGet("tff_hat", null); return hatOwned(h) ? h : null; })();
+// where the crab's eyes are in each mood (the photographed crab, and the clay one): [left eye x, right eye x, y, top]
+const EYES = {photo: {idle: [-7.5, 8, -15, -20.5], happy: [-6, 9, -10, -15.5], worried: [-7.5, 7.5, -10.5, -16]}, clay: [-7, 7, -15, -20]};
+function hatArt(g, hat, mood, photo){
+  const e = photo ? EYES.photo[mood === "happy" ? "happy" : mood === "worried" || mood === "cover" ? "worried" : "idle"] : EYES.clay;
+  const cx = (e[0] + e[1]) / 2, top = e[3] + 3;   // the hat sits a little way down over the eyes
+  const o = {depth: 1.2, soft: 1.6, sheen: false, rim: 0.5};
+  g.save(); g.translate(cx, top);
+  if (hat !== "goggles") g.scale(1.25, 1.25);   // (the layer leaves 30 units above the crab's middle: 1.25 just fits when its eyes are highest)
+  if (hat === "goggles"){   // over the eyes, with a snorkel
+    g.translate(-cx, -top);
+    K.blob(g, K.tube([[e[0], e[2]], [e[1], e[2]]], 2.4), "black", o);
+    for (const x of [e[0], e[1]]){ g.fillStyle = "rgba(127,211,255,.45)"; g.beginPath(); g.arc(x, e[2], 5.6, 0, 7); g.fill(); g.strokeStyle = "#20C1B3"; g.lineWidth = 2; g.stroke();
+      g.strokeStyle = "rgba(255,255,255,.8)"; g.lineWidth = 1; g.beginPath(); g.arc(x, e[2], 3.8, 3.6, 4.6); g.stroke(); }
+    K.blob(g, K.tube([[e[1] + 6, e[2] + 3], [e[1] + 8.5, e[2] - 4], [e[1] + 8.5, e[2] - 11]], 2.2), "orange", o);
+  } else if (hat === "sleuth"){
+    K.blob(g, K.slab(0, -0.6, 25, 3.4, 1.6, {lump: 0.3, seed: 3}), "#7A5332", o);
+    K.blob(g, K.blobPoly([[-8.5, -1.5], [-7.5, -7.5], [-3, -9], [3, -9], [7.5, -7.5], [8.5, -1.5]], {lump: 0.3, seed: 4}), "#8C6239", o);
+    K.press(g, K.slab(0, -2.6, 17, 2, 0.8, {lump: 0.1}), "#3B2A1C", {sheen: false, texture: 0});
+  } else if (hat === "bag"){
+    for (const sx of [-1, 1]) K.blob(g, K.tube([[sx * 5.5, -6], [sx * 4.5, -9.2], [sx * 1.5, -9.2], [sx * 0.8, -6]], 1.1), "#B01457", {depth: 0.5, soft: 0.8, sheen: false, rim: 0.3});
+    K.blob(g, K.blobPoly([[-8, 0.5], [-7, -7], [7, -7], [8, 0.5]], {lump: 0.25, seed: 6}), "pink", o);
+    K.press(g, K.ball(0, -3.2, 2.2, 2.2, {lump: 0.05}), "white", {sheen: false, texture: 0});
+  } else if (hat === "nightcap"){
+    K.blob(g, K.blobPoly([[-8.5, -1], [-5, -7.5], [3, -9.2], [12, -6.5], [14, -3], [8.5, -1]], {lump: 0.3, seed: 8}), "blue", o);
+    for (const x of [-3.5, 2, 7.5]) K.groove(g, K.poly([[x - 1.5, -1.5], [x + 1.5, -8]], false), 1.1);
+    K.blob(g, K.slab(0, -0.4, 19.5, 3.4, 1.7, {lump: 0.4, seed: 9}), "white", o);
+    K.blob(g, K.ball(14.5, -1.6, 2.7, 2.7, {lump: 0.3, seed: 2}), "white", o);
+  } else if (hat === "halo"){
+    g.translate(0, -5.5);
+    g.strokeStyle = "rgba(255,200,61,.35)"; g.lineWidth = 5; g.beginPath(); g.ellipse(0, 0, 10.5, 3, 0, 0, 7); g.stroke();
+    g.strokeStyle = "#FFC83D"; g.lineWidth = 2.6; g.beginPath(); g.ellipse(0, 0, 10.5, 3, 0, 0, 7); g.stroke();
+    g.strokeStyle = "#FFF1A8"; g.lineWidth = 1; g.beginPath(); g.ellipse(0, -0.5, 10.5, 3, 0, 3.5, 5.9); g.stroke();
+  } else if (hat === "straw"){
+    K.blob(g, K.ball(0, -0.4, 16, 2.9, {lump: 0.3, seed: 5}), "#E8C56A", o);
+    K.blob(g, K.blobPoly([[-7.5, -1.2], [-6.5, -7.2], [0, -8.6], [6.5, -7.2], [7.5, -1.2]], {lump: 0.3, seed: 6}), "#F0D282", o);
+    K.press(g, K.slab(0, -2.5, 14.6, 2, 0.8, {lump: 0.1}), "red", {sheen: false, texture: 0});
+  } else if (hat === "tophat"){
+    K.blob(g, K.slab(0, -0.4, 20, 2.8, 1.3, {lump: 0.2, seed: 3}), "black", o);
+    K.blob(g, K.slab(0, -5.3, 12, 8.4, 1.6, {lump: 0.2, seed: 4}), "black", o);
+    K.press(g, K.slab(0, -2.6, 12, 2, 0.6, {lump: 0.05}), "yellow", {sheen: false, texture: 0});
+  } else if (hat === "hardhat"){
+    K.blob(g, K.blobPoly([[-10, -0.5], [-9, -5.5], [-5, -8.6], [0, -9.4], [5, -8.6], [9, -5.5], [10, -0.5]], {lump: 0.2, seed: 7}), "yellow", {depth: 1.4, soft: 1.8, sheen: {x: -3.5, y: -6.5, rx: 3, ry: 1.2}});
+    K.blob(g, K.slab(1.5, -0.2, 25, 2.6, 1.3, {lump: 0.2, seed: 8}), "#F2B51C", o);
+    K.groove(g, K.poly([[0, -9], [0, -1.6]], false), 1.2);
+  }
+  g.restore();
+}
+function crabArt(g, mood, hat = HAT){   // the crab, in whatever it is wearing (hat: null for none)
+  const photo = crabBody(g, mood);
+  if (hat) try { hatArt(g, hat, mood, photo); } catch(e){}
+}
+function crabBody(g, mood){
+  if (AV && AV.crab && AV.crab(g, mood)) return true;   // the photographed crab, once its picture has loaded (avatar.js)
   // a clay crab centred on (0,0), ~64×46 units
   const shell = K.ball(0, 6, 24, 15, {lump:0.6, seed:9});
   const claw = (sx) => {
@@ -3377,6 +3460,12 @@ function showVerdict(v){
   const nm = $("svName"), en = document.createElement("span"); en.className = "en"; en.lang = "en"; en.textContent = v.en;
   nm.replaceChildren(v.zh, en);
   bi($("svLine"), v.line[0], v.line[1]);
+  // the title is kept on this device; the first time, it unlocks its look for the crab (if it has one)
+  if (S && S.titled !== v.id){ S.titled = v.id; const had = earnedTitles(), fresh = !had.includes(v.id);
+    if (fresh) lsSet("tff_titles", [...had, v.id]);
+    S.newHat = fresh ? HATS.find(h => h.title === v.id) || null : null; }
+  const hat = S && S.newHat; $("svNew").hidden = !hat;
+  if (hat) bi($("svNew"), "New for your crab: " + hat.en + " (in the Wardrobe)", "蟹仔新造型：" + hat.zh + "（去衣櫃換）");
   const mb = $("svMedal"); mb.dataset.tier = tierOf(v); mb.classList.remove("gl"); if (window.TFF_MEDAL3D) TFF_MEDAL3D.unmount();
   setTimeout(() => loadMedal().then(M => {
     if (!M || !S || S.verdict !== v || $("endModal").hidden) return;
