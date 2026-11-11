@@ -580,6 +580,11 @@
       tone(v, "triangle", mtof(K(r, 86)), t + 0.13, 0.003, 0.22, 0.25);
       tone(v, "triangle", mtof(K(r, 93)), t + 0.2, 0.003, 0.18, 0.3);
     },
+    slime: function (v, t) {                               // a slimy item: a short wet blop
+      var a = tone(v, "sine", 520, t, 0.004, 0.55, 0.12); a.o.frequency.exponentialRampToValueAtTime(140, t + 0.11);
+      var n = noiseHit(v, t + 0.01, 0.004, 0.22, 0.09, "lowpass", 900, 1.4); n.f.frequency.exponentialRampToValueAtTime(260, t + 0.1);
+      var b = tone(v, "sine", 300, t + 0.07, 0.003, 0.25, 0.08); b.o.frequency.exponentialRampToValueAtTime(620, t + 0.14);
+    },
     vineGet: function (v, t) {                             // a vine-wrapped item is on its way: rustle + rising sparkle
       var r = v.r;
       noiseHit(v, t, 0.06, 0.16, 0.25, "bandpass", 3800, 1.2);
@@ -822,10 +827,10 @@
     click: 0.7, spawn: 0.7, move: 1.35, rotate: 0.7, hold: 0.75, release: 0.7, harddrop: 0.85, deposit: 0.7,
     floor: 0.8, stage: 0.95, splash: 0.85, cardOpen: 0.8, clap: 0.8, cardTick: 0.75, wise: 0.9, risky: 0.5, stamp: 0.9,
     debt: 0.8, scam: 0.45, quake: 1.0, shield: 0.9, timeWarn: 0.75, timeUp: 0.9, gameOver: 0.52, win: 1.0, post: 0.85,
-    vine: 0.85, vineGet: 0.8, jackpot: 1.0, frenzyTick: 1.0, frenzyEnd: 0.8,
+    vine: 0.85, vineGet: 0.8, slime: 0.7, jackpot: 1.0, frenzyTick: 1.0, frenzyEnd: 0.8,
     offerPop: 0.8, profitTick: 0.7, scratch: 0.7, nearMiss: 0.55, heartbeat: 1.0, reviveFail: 0.6
   };
-  var THROTTLE = { uiOpen: 0.12, uiClose: 0.12, uiNext: 0.08, uiBack: 0.08, uiToggle: 0.06, uiSelect: 0.05, uiNope: 0.25, go: 0.3, lock: 0.3, netCatch: 0.2, rescue: 0.3, rival: 1, reel: 0.05, reelStop: 0.1, move: 0.055, rotate: 0.05, click: 0.035, deposit: 0.045, spawn: 0.08, cardTick: 0.15, splash: 0.08,
+  var THROTTLE = { slime: 0.1, uiOpen: 0.12, uiClose: 0.12, uiNext: 0.08, uiBack: 0.08, uiToggle: 0.06, uiSelect: 0.05, uiNope: 0.25, go: 0.3, lock: 0.3, netCatch: 0.2, rescue: 0.3, rival: 1, reel: 0.05, reelStop: 0.1, move: 0.055, rotate: 0.05, click: 0.035, deposit: 0.045, spawn: 0.08, cardTick: 0.15, splash: 0.08,
                    hold: 0.06, release: 0.05, harddrop: 0.08, stamp: 0.08, cardOpen: 0.1, vine: 0.06, vineGet: 0.3,
                    jackpot: 1.5, frenzyTick: 0.3, frenzyEnd: 0.5, profitTick: 0.08, scratch: 0.1, heartbeat: 0.3 };
   var LOW_PRIORITY = { move: 1, click: 1, spawn: 1, rotate: 1, hold: 1, release: 1, deposit: 1, cardTick: 1 };

@@ -135,7 +135,7 @@ function newState(){
     said:new Set(), streak:0, wiseRun:0, afterCard:null, overKey:null, pb:0, items:0, realMs:0, endAt:0, prior:0, quizDone:false,
     jpAt:-1, frenzyUntil:0, frenzySec:0, jpExtra:0, pops:[], hand:null,
     troll:{investAt:0, ticketAt:0, invest:0, tickets:0, ticketSeen:0, revive:0, reviveSeen:0, scamSaid:0}, offer:null, pf:null, revive:null, lost:[],
-    net:null, netWob:null, rescues:[], afterNet:false, lockSaid:false, netSaid:false};   // jackpot: when it appeared, end of jackpot time, extra it paid
+    net:null, netWob:null, rescues:[], afterNet:false, lockSaid:false, netSaid:false, slimeSaid:false};   // jackpot: when it appeared, end of jackpot time, extra it paid
 }
 function makeEngine(){
   engine = Engine.create({enableSleeping:true});
@@ -165,7 +165,8 @@ function makeEngine(){
 function addItem(def, x, y, player){
   const b = K.shape.fixInertia(def.make(x, y));   // again here: some items rebuild their parts after shape.body()
   b.tff = {def, player, released:!player, settled:false, at:S.play, eo:{x: x - b.position.x, y: y - b.position.y}, vine: !!def.vine, parts: ownParts(b)};
-  for (const pt of b.tff.parts){ pt.plugin = pt.plugin || {}; pt.plugin.item = b; }
+  for (const pt of b.tff.parts){ pt.plugin = pt.plugin || {}; pt.plugin.item = b; if (def.slime) pt.plugin.material = "food"; }
+  if (def.slime) b.tff.slime = true;
   Composite.add(engine.world, b);
   return b;
 }
@@ -178,13 +179,15 @@ function genItem(){
   do { it = pool[Math.floor(Math.random() * pool.length)]; } while (pool.length > 1 && it.id === S.lastId && guard++ < 10);
   S.lastId = it.id;
   if (it.kind === "scam") return it;
-  const r = Math.random(); return r < VINE_RARE ? vineOf(it) : r < VINE_RARE + LOCK_RARE ? lockOf(it) : it;
+  const r = Math.random(); return r < VINE_RARE ? vineOf(it) : r < VINE_RARE + LOCK_RARE ? lockOf(it) : r < VINE_RARE + LOCK_RARE + SLIME_RARE ? slimeOf(it) : it;
 }
 function refill(){ while (S.queue.length < 3) S.queue.push(genItem()); }
 function spawn(def){
   S.active = addItem(def, W/2, S.camTop + 85, true); S.targetAngle = 0; A.sfx("spawn");
   if (def.vine){ A.sfx("vineGet"); stamp("Vine-wrapped: it sticks!", "藤蔓：一掂就黐", "good"); }
   if (def.lock){ A.sfx("vineGet"); stamp("Fixed deposit: it locks where it lands", "定期鎖：一停低就鎖死", "good"); wantSprite(lockedOf(def), 0, 1); }
+  if (def.slime){ A.sfx("slime"); stamp("Slime-coated: it grips!", "黏黏：一掂就黐住", "good");
+    if (!S.slimeSaid){ S.slimeSaid = true; crab("Slime! Like a sticky budget: what lands on it stays put.", "黏黏！好似有紀律嘅預算：放上去就企得穩。"); } }
   if (def.jackpot){ if (S.jpAt < 0) jackpotHit(); else stamp("Its claws catch what lands", "對鉗接住跌落嚟嘅嘢", "gold"); }   // back from hold: no second windfall
 }
 function nextPiece(){ refill(); const it = S.queue.shift(); refill(); spawn(it); S.canHold = true; drawPreviews(); prewarm(); }
@@ -278,6 +281,7 @@ function worldStep(){
     if (b.tff && b.tff.capFall && b.velocity.y > b.tff.capFall) Body.setVelocity(b, {x: b.velocity.x, y: b.tff.capFall});
   Engine.update(engine, STEP); S.steps++;
   if (S.grabs.length) processGrabs();
+  slimeGrip();
   for (const b of engine.world.bodies){
     if (!b.tff || b === S.active || b.isSleeping) continue;
     if (Math.abs(b.angularVelocity) > MAX_SPIN) Body.setAngularVelocity(b, Math.sign(b.angularVelocity) * MAX_SPIN);
@@ -397,6 +401,84 @@ function lockOf(def, closed){
   return v;
 }
 const lockedOf = def => lockOf(def, true);
+// ---------- slime 黏黏 ----------
+// Now and then an item comes coated in slime. Softer than vines (which weld blocks into one rigid lump): what touches
+// a slimy item grips it. Their contact gets full friction and no bounce (Matter's Pair.update, wrapped below, would
+// otherwise take the lower friction and the higher bounce of the two), and a gentle pull holds them together and
+// calms the spin, so a block settles instead of sliding or toppling off. A hard knock can still pull them apart.
+const SLIME_RARE = 0.065, SLIME_PULL = 0.35, SLIME_SPIN = 0.9;
+const slimeDefs = new Map();
+function slimeOf(def){
+  if (!def || def.slime || def.vine || def.lock || def.locked || def.big || def.jackpot || def.kind === "debt" || def.kind === "scam") return def;
+  let v = slimeDefs.get(def.id);
+  if (!v){
+    v = Object.create(def);
+    Object.assign(v, {id: def.id + "~slime", slime: true, base: def,
+      en: "Slimy " + (/^[A-Z][a-z]/.test(def.en) ? def.en[0].toLowerCase() + def.en.slice(1) : def.en), zh: "黏黏" + def.zh,
+      draw(g){ def.draw(g); drawSlimeWrap(g, def); }});
+    slimeDefs.set(def.id, v);
+  }
+  return v;
+}
+const slimy = b => !!(b && b.tff && (b.tff.slime || (b.tff.members && b.tff.members.some(m => m.tff.slime))));
+(() => { const up = Matter.Pair.update;   // the contact rules: a slimy body's contacts grip
+  Matter.Pair.update = function(pair, collision, ts){
+    up.apply(this, arguments);
+    const a = collision.parentA, b = collision.parentB;
+    if (slimy(a) || slimy(b)){ pair.friction = 1; pair.frictionStatic = 10; pair.restitution = 0; }
+  };
+})();
+function slimeGrip(){   // the pull, after each step: what touches slime is drawn onto it, and its spin calmed
+  const g = engine.gravity.y * engine.gravity.scale;
+  for (const pr of engine.pairs.list){
+    if (!pr.isActive || pr.isSensor) continue;
+    const c = pr.collision, a = c.parentA, b = c.parentB, sa = slimy(a), sb = slimy(b);
+    if (!sa && !sb) continue;
+    if (a === S.active || b === S.active) continue;
+    const n = c.normal;   // from a towards b
+    for (const [o, s] of [[a, -1], [b, 1]]){
+      if (o.isStatic || o.isSleeping) continue;
+      const other = o === a ? b : a; if (!slimy(other) && !slimy(o)) continue;
+      const f = SLIME_PULL * o.mass * g;   // towards the other body (the normal points from a to b)
+      Body.applyForce(o, o.position, {x: -s * n.x * f, y: -s * n.y * f});
+      Body.setAngularVelocity(o, o.angularVelocity * SLIME_SPIN);
+    }
+    if (!pr.slimeHeard && (sa || sb)){ pr.slimeHeard = true; const st = Math.hypot(a.velocity.x - b.velocity.x, a.velocity.y - b.velocity.y); if (st > 1.2) A.sfx("slime", {volume: clamp(st / 6, 0.3, 1)}); }
+  }
+}
+// the slime's look on a slimy item's sprite: a glossy green coat over the item and drips off its lower edge
+function drawSlimeWrap(g, def){
+  const V = vineShape(def), r = K.rng([...def.id].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 1000003, 11));
+  const clip = new Path2D();
+  for (const P of V.polys){ P.forEach((q, i) => i ? clip.lineTo(q.x, q.y) : clip.moveTo(q.x, q.y)); clip.closePath(); }
+  g.save(); g.clip(clip);
+  // the coat: thick and glossy on top, thinning down the sides, with a wavy edge where it runs out
+  const top = V.y0, bot = V.y0 + V.h, edge = top + V.h * 0.62;
+  const coat = new Path2D(); coat.moveTo(V.x0 - 3, top - 3); coat.lineTo(V.x0 + V.w + 3, top - 3);
+  const waves = Math.max(3, Math.round(V.w / 14));
+  for (let i = waves; i >= 0; i--){ const x = V.x0 + V.w * i / waves, y = edge + Math.sin(i * 2.1 + r() * 2) * V.h * 0.07; coat.lineTo(x, y); }
+  coat.closePath();
+  const gr = g.createLinearGradient(0, top, 0, edge); gr.addColorStop(0, "rgba(160,222,70,.62)"); gr.addColorStop(1, "rgba(120,205,80,.34)");
+  g.fillStyle = gr; g.fill(coat);
+  g.fillStyle = "rgba(140,215,80,.16)"; g.fillRect(V.x0 - 2, top - 2, V.w + 4, V.h + 4);   // a faint sheen on the rest
+  g.fillStyle = "rgba(255,255,255,.55)";   // the shine
+  g.beginPath(); g.ellipse(V.x0 + V.w * 0.3, top + V.h * 0.16, V.w * 0.17, Math.max(1.4, V.h * 0.06), -0.2, 0, 7); g.fill();
+  for (let i = 0; i < 4; i++){ g.beginPath(); g.arc(V.x0 + V.w * (0.15 + r() * 0.7), top + V.h * (0.1 + r() * 0.42), 0.9 + r() * 1.2, 0, 7); g.fill(); }   // bubbles
+  g.restore();
+  // drips: round-bottomed drops hanging from the coat's edge at the item's sides
+  const sides = [];
+  for (const P of V.polys) for (const q of P) if (q.y > top + V.h * 0.25 && q.y < bot - V.h * 0.1) sides.push(q);
+  const left = sides.reduce((m, q) => (!m || q.x < m.x ? q : m), null), right = sides.reduce((m, q) => (!m || q.x > m.x ? q : m), null);
+  const drops = [];
+  if (left) drops.push({x: left.x + 2.5, y: Math.min(edge, left.y)}); if (right) drops.push({x: right.x - 2.5, y: Math.min(edge, right.y)});
+  if (V.w > 60) drops.push({x: V.x0 + V.w * (0.4 + r() * 0.2), y: edge + 1});
+  for (const d of drops){
+    const len = 4 + r() * 4, rad = 2 + r() * 0.9;
+    const p = new Path2D(); p.moveTo(d.x - 1.4, d.y - 2); p.lineTo(d.x - 1.1, d.y + len - rad); p.arc(d.x, d.y + len, rad, Math.PI + 0.45, -0.45, true); p.lineTo(d.x + 1.4, d.y - 2); p.closePath();
+    g.save(); g.globalAlpha = 0.85; K.blob(g, p, "#8CD24A", {depth: 0.5, soft: 0.7, sheen: false, texture: 0, rim: 0.3}); g.restore();
+    g.fillStyle = "rgba(255,255,255,.7)"; g.beginPath(); g.arc(d.x - rad * 0.35, d.y + len - rad * 0.3, 0.7, 0, 7); g.fill();
+  }
+}
 // Lifestyle inflation (the curse of an overspending Fall): the next awkward item comes giant
 const BIG = 1.4, bigDefs = new Map();
 function bigOf(def){
@@ -471,7 +553,7 @@ function undoTop(){   // cooling-off: the top item is lifted off, with no drop
   A.sfx("uiDone"); stamp("Cooling-off: " + b.tff.def.en + " returned", "冷靜期：退返" + b.tff.def.zh, "good");
 }
 function applyPower(k){
-  if (k === "vine" || k === "lock"){ const q = S.queue[0], plain = q && (q.vine || q.lock) && q.base ? q.base : q;   // the pick replaces a wrap the item came with
+  if (k === "vine" || k === "lock"){ const q = S.queue[0], plain = q && (q.vine || q.lock || q.slime) && q.base ? q.base : q;   // the pick replaces a wrap the item came with
     S.queue[0] = k === "lock" ? lockOf(plain) : vineOf(plain); A.sfx("vineGet"); drawPreviews(true); prewarm(); }
   else if (k === "net") raiseNet("Insurance net: falls get caught", "保險網：跌落嚟都接得住");
   else if (k === "wide") widen();
@@ -2896,6 +2978,7 @@ function nameInto(el, def, empty){
   el.appendChild(chip);
   if (def.vine){ const v = document.createElement("span"); v.className = "kind vine"; v.textContent = "Vine 藤蔓"; el.appendChild(v); }
   if (def.lock){ const v = document.createElement("span"); v.className = "kind lock"; v.textContent = "Lock 定期鎖"; el.appendChild(v); }
+  if (def.slime){ const v = document.createElement("span"); v.className = "kind slime"; v.textContent = "Slime 黏黏"; el.appendChild(v); }
 }
 let lastPrev = "";
 function drawPreviews(force){
