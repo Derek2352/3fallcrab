@@ -362,7 +362,7 @@ function physicsStep(){
 // between them would fight the collision solver: stress-tested, joints left welded items creeping ~60% of the
 // time; fusing keeps them as still as unwelded ones.) Each item keeps its own sprite, drawn from its pose
 // relative to the fused body, and the vine visibly creeps onto whatever it grabbed.
-const VINE_RARE = 0.05, VINE_GRABS = 4, MAX_FUSED = 8;
+const VINE_RARE = 0.12, VINE_GRABS = 4, MAX_FUSED = 8;
 const vineDefs = new Map();
 function vineOf(def){
   if (!def || def.vine || def.jackpot || def.kind === "debt") return def;
