@@ -3845,7 +3845,7 @@ function showEnd(){
   });
   $("nickname").value = lsGet("tff_name", "");
   const live = apiAllowed && !apiGone && dbWritable;
-  $("email").value = ""; emailError(false); $("email").closest(".fld").hidden = $("emailNote").closest(".email-note").hidden = !live;   // never kept on the device
+  $("email").value = lsGet("tff_email", ""); emailError(false); $("email").closest(".fld").hidden = $("emailNote").closest(".email-note").hidden = !live;   // kept on this device only, so a returning player does not retype it
   $("postBtn").disabled = false; postLabel("Post score", "上榜");
   const ps = $("postStatus"); ps.className = "post-status";
   ps.textContent = live ? "Only your nickname and score will appear on the leaderboard. 排行榜只會顯示你的暱稱及分數。" : "Your score will be saved on this device only. 分數只會儲存在這部裝置。";
@@ -4080,6 +4080,7 @@ $("postBtn").addEventListener("click", async () => {
   }
   emailError(false); st.posting = true;
   const name = sanitizeName($("nickname").value); lsSet("tff_name", name === ANON ? "" : name);
+  if (email) lsSet("tff_email", email);   // remembered here, like the nickname
   const answers = answersOf(st), right = st.quiz.filter(x => x && x.ok).length;
   const entry = {name, score: Math.round(st.score), stage: st.stage, height: +(st.best / FLOOR).toFixed(1), drops: st.drops,
     wise: st.wise, risky: st.risky, missed: st.missed, falls: {...st.falls}, choices: st.choices.slice(0, 20), habit: st.habit || null,
