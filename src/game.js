@@ -406,7 +406,7 @@ const lockedOf = def => lockOf(def, true);
 // a slimy item grips it. Their contact gets full friction and no bounce (Matter's Pair.update, wrapped below, would
 // otherwise take the lower friction and the higher bounce of the two), and a gentle pull holds them together and
 // calms the spin, so a block settles instead of sliding or toppling off. A hard knock can still pull them apart.
-const SLIME_RARE = 0.065, SLIME_PULL = 0.35, SLIME_SPIN = 0.9;
+const SLIME_RARE = 0.18, SLIME_PULL = 0.35, SLIME_SPIN = 0.9;
 const slimeDefs = new Map();
 function slimeOf(def){
   if (!def || def.slime || def.vine || def.lock || def.locked || def.big || def.jackpot || def.kind === "debt" || def.kind === "scam") return def;
