@@ -951,7 +951,7 @@ function openCard(){
   $("cardOutcome").hidden = true; $("cardBar").style.transform = "scaleX(1)";
   $("cardHint").textContent = "Life Event card: Act " + act.n + ", scene " + S.cardCount + ". Choose within " + cardMs() / 1000 + " seconds: press 1 or 2" + (root.classList.contains("gamepad") ? ", or X or Y on the controller" : ", or tap a choice") + "." +
     (slowRead ? "" : " For more time on later cards, pause the game and set the card timer to 30 seconds.");
-  $("cardModal").hidden = false; sceneBars(true);
+  $("cardModal").hidden = false;
   const sheet = $("cardSheet"); sheet.classList.remove("done"); sheet.style.animation = "none"; void sheet.offsetWidth; sheet.style.animation = "";
   modalOpen(true); $("cardSheet").focus({preventScroll:true});
 }
@@ -1090,7 +1090,7 @@ function setRotLock(n){ S.rotLock = n; root.classList.toggle("rotlock", n > 0); 
 function closeCard(){
   if (!S.card) return;
   const power = S.card.flip ? S.card.power : null;
-  $("cardModal").hidden = true; S.card = null; sceneBars(false); modalOpen(false);
+  $("cardModal").hidden = true; S.card = null; modalOpen(false);
   if (S.mode === "card"){
     if (power) applyPower(power);
     S.mode = "playing"; S.nextEvent = S.play + CARD_GAP;
@@ -1580,27 +1580,18 @@ function startGame(){
   outfitKey = ""; prevLook = null; avFx.clear(); updateAvatar(true);   // a new game starts in the first outfit, no transition
   clipsSync();   // How to play's clips rest while a game is on
 }
-function sceneBars(on){ document.body.classList.toggle("cardscene", !!on); }
-let cutT = 0;
-function cutSlap(){
-  const ov = $("cutOv"); if (!ov) return;
-  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  clearTimeout(cutT); ov.hidden = false; ov.classList.remove("on"); void ov.offsetWidth; ov.classList.add("on");
-  cutT = setTimeout(() => { ov.classList.remove("on"); ov.hidden = true; }, reduce ? 450 : 1250);
-}
 function endGame(reason){
   if (S.mode === "over") return;
   S.mode = "over"; S.over = reason; S.endAt = Date.now();
   try { S.sil = outlineOf(); } catch(e){}   // the tower's outline, for the next player's ghost
   if (S.frenzyUntil){ S.frenzyUntil = 0; frenzyUI(); }   // jackpot time ends with the game
   if (S.active){ S.active.tff.released = true; S.active = null; }
-  $("cardModal").hidden = true; S.card = null; sceneBars(false);
+  $("cardModal").hidden = true; S.card = null;
   if (S.offer){ $("offerModal").hidden = true; S.offer = null; modalOpen(false); }
   if (S.pf){ $("pfChip").hidden = true; S.pf = null; }
   if (S.troll.invest >= 2 && !S.troll.scamSaid){ S.troll.scamSaid = 1; S.falls.scam++; }   // the game ended before the scam showed itself
   A.mode("over"); setPauseUI(); clipsSync(); loadPoster(posterFor(S));   // the share card's poster, ready by the time it's made
   A.sfx(reason === "drops" ? "gameOver" : (S.stage === STAGES.length - 1 ? "win" : "timeUp"));
-  cutSlap();
   mood(reason === "drops" ? "cover" : "happy", 4000);
   S.overKey = reason === "drops" ? "overDrops" : "over" + S.stage; quip(S.overKey, 3);
   if (S.score > lsGet("tff_pb", 0)) lsSet("tff_pb", Math.round(S.score));
