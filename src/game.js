@@ -404,9 +404,10 @@ const lockedOf = def => lockOf(def, true);
 // ---------- slime 黏黏 ----------
 // Now and then an item comes coated in slime. Softer than vines (which weld blocks into one rigid lump): what touches
 // a slimy item grips it. Their contact gets full friction and no bounce (Matter's Pair.update, wrapped below, would
-// otherwise take the lower friction and the higher bounce of the two), and a gentle pull holds them together and
-// calms the spin, so a block settles instead of sliding or toppling off. A hard knock can still pull them apart.
-const SLIME_RARE = 0.18, SLIME_PULL = 0.35, SLIME_SPIN = 0.9;
+// otherwise take the lower friction and the higher bounce of the two). The grip is one-way: it cancels motion that
+// would separate the pair, and never pushes them together, so nothing springs back and forth on the contact. A hard
+// knock can still pull them apart.
+const SLIME_RARE = 0.18, SLIME_GRAB = 0.9, SLIME_SPIN = 0.9;
 const slimeDefs = new Map();
 function slimeOf(def){
   if (!def || def.slime || def.vine || def.lock || def.locked || def.big || def.jackpot || def.kind === "debt" || def.kind === "scam") return def;
@@ -428,22 +429,21 @@ const slimy = b => !!(b && b.tff && (b.tff.slime || (b.tff.members && b.tff.memb
     if (slimy(a) || slimy(b)){ pair.friction = 1; pair.frictionStatic = 10; pair.restitution = 0; }
   };
 })();
-function slimeGrip(){   // the pull, after each step: what touches slime is drawn onto it, and its spin calmed
-  const g = engine.gravity.y * engine.gravity.scale;
+function slimeGrip(){   // stick, never tug: cancel whatever would separate the pair, add nothing
   for (const pr of engine.pairs.list){
     if (!pr.isActive || pr.isSensor) continue;
-    const c = pr.collision, a = c.parentA, b = c.parentB, sa = slimy(a), sb = slimy(b);
-    if (!sa && !sb) continue;
+    const c = pr.collision, a = c.parentA, b = c.parentB;
+    if (!slimy(a) && !slimy(b)) continue;
     if (a === S.active || b === S.active) continue;
-    const n = c.normal;   // from a towards b
-    for (const [o, s] of [[a, -1], [b, 1]]){
-      if (o.isStatic || o.isSleeping) continue;
-      const other = o === a ? b : a; if (!slimy(other) && !slimy(o)) continue;
-      const f = SLIME_PULL * o.mass * g;   // towards the other body (the normal points from a to b)
-      Body.applyForce(o, o.position, {x: -s * n.x * f, y: -s * n.y * f});
-      Body.setAngularVelocity(o, o.angularVelocity * SLIME_SPIN);
+    const n = c.normal;   // points from a to b
+    const rv = (b.velocity.x - a.velocity.x) * n.x + (b.velocity.y - a.velocity.y) * n.y;   // > 0 means separating
+    if (rv > 0.02){
+      const dv = rv * SLIME_GRAB * 0.5;   // each body takes half, so the pair meets and stops there
+      if (!a.isStatic && !a.isSleeping) Body.setVelocity(a, {x: a.velocity.x + n.x * dv, y: a.velocity.y + n.y * dv});
+      if (!b.isStatic && !b.isSleeping) Body.setVelocity(b, {x: b.velocity.x - n.x * dv, y: b.velocity.y - n.y * dv});
     }
-    if (!pr.slimeHeard && (sa || sb)){ pr.slimeHeard = true; const st = Math.hypot(a.velocity.x - b.velocity.x, a.velocity.y - b.velocity.y); if (st > 1.2) A.sfx("slime", {volume: clamp(st / 6, 0.3, 1)}); }
+    for (const o of [a, b]) if (!o.isStatic && !o.isSleeping) Body.setAngularVelocity(o, o.angularVelocity * SLIME_SPIN);
+    if (!pr.slimeHeard && (slimy(a) || slimy(b))){ pr.slimeHeard = true; const st = Math.hypot(a.velocity.x - b.velocity.x, a.velocity.y - b.velocity.y); if (st > 1.2) A.sfx("slime", {volume: clamp(st / 6, 0.3, 1)}); }
   }
 }
 // the slime's look on a slimy item's sprite: a glossy green coat over the item and drips off its lower edge
