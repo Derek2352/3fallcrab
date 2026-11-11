@@ -10,7 +10,7 @@
   },
   "scripts": {
     "build": "node tools/build.mjs",
-    "test": "node --test",
+    "test": "node --test --test-concurrency=1",
     "fonts": "python3 tools/subset-fonts.py",
     "medal": "node tools/medal3d/build.mjs",
     "clips": "node tools/build.mjs && node tools/clips.mjs",
