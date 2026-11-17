@@ -52,6 +52,9 @@ test("cleanAnswers: accepts known questions, drops junk, counts right answers", 
 test("implausible: refuses impossible games, allows ordinary ones", () => {
   assert.equal(A.implausible({ score: 0, height: 0, stage: 0 }, 0, 0), null);
   assert.equal(A.implausible({ score: 200, height: 1, stage: 0 }, 1, 5), null);
+  assert.equal(A.implausible({ score: 57000, height: 10, stage: 2 }, 5, 5), null);
+  assert.equal(A.implausible({ score: 57010, height: 10, stage: 2 }, 5, 5), "score");
+  assert.equal(A.implausible({ score: 15600, height: 0, stage: 2 }, 5, 5), "no_height");
   assert.equal(A.implausible({ score: 115, height: 2, stage: 0 }, 1, 4), "score_step");
   assert.equal(A.implausible({ score: 500, height: 0, stage: 0 }, 0, 3), "no_height");
   assert.equal(A.implausible({ score: 9999990, height: 20, stage: 3 }, 0, 20), "score");

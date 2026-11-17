@@ -2,11 +2,35 @@
 (() => {
   "use strict";
   const input = document.getElementById("url");
+  const booth = document.getElementById("booth");
   const svg = document.getElementById("qr");
   const NS = "http://www.w3.org/2000/svg";
   const fromQuery = new URLSearchParams(location.search).get("url");
   input.value = fromQuery || location.origin + "/";
+  function syncBooth() {
+    if (!booth) return;
+    try {
+      const u = new URL(input.value.trim() || location.origin + "/");
+      booth.checked = u.searchParams.get("booth") === "1";
+    } catch { booth.checked = /[?&]booth=1(?:&|$)/.test(input.value); }
+  }
+  if (booth) {
+    booth.addEventListener("change", () => {
+      try {
+        const u = new URL(input.value.trim() || location.origin + "/");
+        if (booth.checked) u.searchParams.set("booth", "1");
+        else u.searchParams.delete("booth");
+        input.value = u.href;
+      } catch {
+        const raw = input.value.trim() || location.origin + "/";
+        if (booth.checked && !/[?&]booth=1(?:&|$)/.test(raw)) input.value = raw + (raw.includes("?") ? "&" : "?") + "booth=1";
+        else if (!booth.checked) input.value = raw.replace(/([?&])booth=1(&|$)/, (_, a, b) => (a === "?" && b ? "?" : b ? a : "")).replace(/[?&]$/, "");
+      }
+      draw();
+    });
+  }
   function draw() {
+    syncBooth();
     const text = input.value.trim() || location.origin + "/";
     const qr = qrcode(0, "M");
     qr.addData(text); qr.make();

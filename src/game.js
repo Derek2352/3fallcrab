@@ -135,7 +135,7 @@ function newState(){
     said:new Set(), streak:0, wiseRun:0, afterCard:null, overKey:null, pb:0, items:0, realMs:0, endAt:0, prior:0, quizDone:false,
     jpAt:-1, frenzyUntil:0, frenzySec:0, jpExtra:0, pops:[], hand:null,
     troll:{investAt:0, ticketAt:0, invest:0, tickets:0, ticketSeen:0, revive:0, reviveSeen:0, scamSaid:0}, offer:null, pf:null, revive:null, lost:[],
-    net:null, netWob:null, rescues:[], afterNet:false, lockSaid:false, netSaid:false, slimeSaid:false};   // jackpot: when it appeared, end of jackpot time, extra it paid
+    net:null, netWob:null, rescues:[], afterNet:false, lockSaid:false, netSaid:false, slimeSaid:false, earlyFloors:0, compounded:0, replay:null};   // jackpot: when it appeared, end of jackpot time, extra it paid
 }
 function makeEngine(){
   engine = Engine.create({enableSleeping:true});
@@ -339,6 +339,7 @@ function physicsStep(){
     const f = Math.floor(h / FLOOR);
     while (f > S.bestFloor){
       S.bestFloor++;
+      if (S.stage <= 1) S.earlyFloors++;
       const [gain, x] = pay(2000); S.score += gain;
       ledger({zh: "第" + S.bestFloor + "層", en: "Floor " + S.bestFloor}, gain, x > 1 ? "×" + x : "");
       A.sfx("floor", {floor: S.bestFloor}); mood("happy", 1200);
@@ -347,6 +348,11 @@ function physicsStep(){
     const ns = stageFor(S.best / FLOOR);
     if (ns > S.stage){
       S.stage = ns; const st = STAGES[ns];
+      if (S.earlyFloors > 0){
+        const [div, dx] = pay(Math.min(S.earlyFloors, 10) * 200);
+        S.score += div; S.compounded += div;
+        ledger({zh: "早儲複息", en: "Compound interest"}, div, dx > 1 ? "×" + dx : "");
+      }
       A.sfx(ns === STAGES.length - 1 ? "win" : "stage", {stage: ns}); A.stage(ns);
       stamp(st.en, st.zh, "gold"); quip("stage" + ns, 3);
       crab("Welcome to " + st.en + ". Items fall faster from here.", "去到「" + st.zh + "」喇！由而家起，啲嘢會跌得快啲。");
@@ -966,12 +972,15 @@ function choose(kind){
   const txt = document.createElement("span"); txt.dataset.fit = 15;
   let en, zh, loss = 0;
   if (kind === "wise"){
+    const overflow = S.fund >= 3 && S.best > 0;
     S.wise++; S.rate = Math.min(2, +(S.rate + 0.2).toFixed(1)); S.fund = Math.min(3, S.fund + 1); S.hand = "piggy";
+    let bonus = 0;
+    if (overflow){ [bonus] = pay(1000); S.score += bonus; S.compounded += bonus; ledger({zh: "應急錢儲滿利息", en: "Full-fund interest"}, bonus); }
     S.forced = {type: "wise", n: 4};
     S.wiseRun++; S.afterCard = S.rate >= 2 && !S.said.has("boost") ? (S.said.add("boost"), "boost") : S.wiseRun === 3 ? "wise3" : "wise";
     head.className = "oc-head good"; head.appendChild(svgUse("i-good")); txt.textContent = "Good call! 揀得好！";
-    en = "Next 4 items are stable · boost ×" + S.rate.toFixed(1) + " · emergency fund +1";   // and a reward of the player's choice (showPowers)
-    zh = "之後4件平穩·加成×" + S.rate.toFixed(1) + "·應急錢+1";
+    en = "Next 4 items are stable · boost ×" + S.rate.toFixed(1) + " · " + (bonus ? "full-fund interest +" + fmt(bonus) : "emergency fund +1");   // and a reward of the player's choice (showPowers)
+    zh = "之後4件平穩·加成×" + S.rate.toFixed(1) + "·" + (bonus ? "應急錢儲滿利息+" + fmt(bonus) : "應急錢+1");
     $("ocEffect").style.color = "var(--green-t)"; A.sfx("wise");
   } else {
     const trap = kind === "risky" ? c.trap : "delay";
@@ -1051,15 +1060,31 @@ function outlineOf(){
   return s || undefined;
 }
 let GHOSTS = [];   // this week's board games, lowest score first: {name, score, height, rows}
+function chalGhost(){
+  if (!CHAL || CHAL.s <= 0) return null;
+  let rows = null;
+  if (CHAL.sil){
+    rows = [];
+    for (let i = 0; i < CHAL.sil.length; i += 4){
+      const l = parseInt(CHAL.sil.slice(i, i + 2), 36), r = parseInt(CHAL.sil.slice(i + 2, i + 4), 36);
+      rows.push(r > l ? [l, r] : null);
+    }
+  }
+  const h = rows ? +(rows.length * SIL_ROW / FLOOR).toFixed(1) : Math.max(1, Math.min(20, Math.round(CHAL.s / 2500)));
+  return {name: CHAL.n || "Friend 朋友", score: CHAL.s, height: h, rows, chal: true};
+}
 function loadGhosts(){
   fetch("/api/scores?view=ghosts").then(r => r.ok ? r.json() : null).then(j => {
     if (!j || !Array.isArray(j.ghosts)) return;
-    GHOSTS = j.ghosts.filter(g => g && typeof g.score === "number" && typeof g.name === "string").map(g => {
+    const list = j.ghosts.filter(g => g && typeof g.score === "number" && typeof g.name === "string").map(g => {
       let rows = null;
       if (typeof g.sil === "string" && /^(?:[0-9a-z]{4})+$/.test(g.sil)){ rows = [];
         for (let i = 0; i < g.sil.length; i += 4){ const l = parseInt(g.sil.slice(i, i + 2), 36), r = parseInt(g.sil.slice(i + 2, i + 4), 36); rows.push(r > l ? [l, r] : null); } }
       return {name: g.name, score: g.score, height: +g.height || 0, rows};
-    }).sort((a, b) => a.score - b.score);
+    });
+    const cg = chalGhost();
+    if (cg && !list.some(x => x.score === cg.score && x.name === cg.name)) list.push(cg);
+    GHOSTS = list.sort((a, b) => a.score - b.score);
   }).catch(() => {});
 }
 function ghostNow(){   // the one to chase: the lowest score still above the player's
@@ -1090,6 +1115,10 @@ function setRotLock(n){ S.rotLock = n; root.classList.toggle("rotlock", n > 0); 
 function closeCard(){
   if (!S.card) return;
   const power = S.card.flip ? S.card.power : null;
+  if (power && S.choices.length){
+    const lastCh = S.choices[S.choices.length - 1];
+    if (lastCh && lastCh.card === S.card.c.id && lastCh.pick === "wise") lastCh.power = power;
+  }
   $("cardModal").hidden = true; S.card = null; modalOpen(false);
   if (S.mode === "card"){
     if (power) applyPower(power);
@@ -1558,14 +1587,16 @@ function rainFrame(now){
 
 // ---------- flow ----------
 function startGame(){
+  clearTimeout(boothTimer);
   A.unlock(); A.sfx("go"); closeInfo(true); closePicker(true); closeRoll(true);
   if (!$("iabTip").hidden){ $("iabTip").hidden = true; root.style.setProperty("--iab-h", "0px"); root.classList.remove("iab-tight"); lastFit = ""; }   // the tip is for the start
   if (root.classList.contains("title")){ played = true; root.classList.remove("title"); enterBrowserFs(); lastFit = ""; resize(); }
   played = true;
+  if (BOOTH){ whoPicked = false; ssSet("tff_picked", ""); }
   flushRecord(S);   // the last game's quiz answers or habit may still be waiting to be saved
   S = newState(); S.camTop = camTarget(); makeEngine(); S.mode = "playing"; frenzyUI(); $("jpBan").hidden = true;
   takes++;   // the slate's TAKE: this visit's game number
-  loadGhosts();
+  const cg = chalGhost(); GHOSTS = cg ? [cg] : []; loadGhosts();
   root.classList.remove("rotlock");
   S.persona = ROLL; rollKept = false; showWho();   // who this life is (rolled just before)
   if (firstQueue){ S.queue = firstQueue; S.lastId = firstQueue[2].id; S.jackpot = firstQueue.some(d => d.jackpot); firstQueue = null; }
@@ -1586,6 +1617,10 @@ function endGame(reason){
   try { S.sil = outlineOf(); } catch(e){}   // the tower's outline, for the next player's ghost
   if (S.frenzyUntil){ S.frenzyUntil = 0; frenzyUI(); }   // jackpot time ends with the game
   if (S.active){ S.active.tff.released = true; S.active = null; }
+  if (S.card && S.card.flip && S.card.power && S.choices.length){
+    const lastCh = S.choices[S.choices.length - 1];
+    if (lastCh && lastCh.card === S.card.c.id && lastCh.pick === "wise") lastCh.power = S.card.power;
+  }
   $("cardModal").hidden = true; S.card = null;
   if (S.offer){ $("offerModal").hidden = true; S.offer = null; modalOpen(false); }
   if (S.pf){ $("pfChip").hidden = true; S.pf = null; }
@@ -1680,6 +1715,7 @@ function toggleFs(want = !fsOn){
 for (const ev of ["fullscreenchange", "webkitfullscreenchange"]) document.addEventListener(ev, () => { lastFit = ""; resize(); });
 let endShownAt = 0;
 document.addEventListener("keydown", e => {
+  if (BOOTH) bumpBooth();
   if (!S) return;
   if (!$("rollModal").hidden){   // the roll: Enter or Space on its button, Esc goes back (the roll is kept)
     if (e.key === "Escape"){ closeRoll(); e.preventDefault(); }
@@ -1860,13 +1896,20 @@ function setPick(who, quiet){
   for (const b of document.querySelectorAll("#pickModal .who")){ const on = b.dataset.who === who; b.setAttribute("aria-checked", String(on)); b.tabIndex = on ? 0 : -1; }
   for (const b of document.querySelectorAll("#pickModal .who")) paintAvatar(b.querySelector("canvas"), {who: b.dataset.who, stage: 0, tier: 1, hand: null, mood: b.dataset.who === who ? "happy" : "idle", drops: 0, boost: false});
 }
+let pickFromEnd = false;
 function openPicker(){
+  pickFromEnd = !$("endModal").hidden; $("endModal").hidden = true;
   $("pickModal").hidden = false; modalOpen(true); setPick(WHO, true); A.sfx("uiOpen");
   fitLine($("pickTitle"));
   document.querySelector('#pickModal .who[aria-checked="true"]').focus({preventScroll: true});
 }
-function closePicker(quiet){ if ($("pickModal").hidden) return; if (!quiet) A.sfx("uiClose"); $("pickModal").hidden = true; modalOpen(false); }
-function pickGo(){ WHO = pickSel; lsSet("tff_who", WHO); whoPicked = true; ssSet("tff_picked", "1"); closePicker(true); newLife(); }
+function closePicker(quiet){
+  if ($("pickModal").hidden) return;
+  if (!quiet) A.sfx("uiClose"); $("pickModal").hidden = true; modalOpen(false);
+  if (pickFromEnd && !quiet && S && S.mode === "over"){ $("endModal").hidden = false; modalOpen(true); $("againBtn").focus({preventScroll: true}); }
+  pickFromEnd = false;
+}
+function pickGo(){ WHO = pickSel; if (!BOOTH) lsSet("tff_who", WHO); whoPicked = true; ssSet("tff_picked", "1"); closePicker(true); newLife(); }
 // Start from the title or the start card: the player is chosen first (once a visit); Play again goes straight on
 function beginGame(){
   if (root.classList.contains("title")) enterBrowserFs();   // on the tap itself: browsers allow it only then
@@ -1887,7 +1930,20 @@ $("pickGo").addEventListener("click", pickGo);
 const PERSONAS = window.TFF_CONTENT.PERSONAS || {bg: {}, pe: {}, combos: {}};
 const BG_KEYS = Object.keys(PERSONAS.bg), PE_KEYS = Object.keys(PERSONAS.pe), REPS = 6;
 const ROLL_AUTO = /[?&]roll=0(&|$)/.test(location.search) || ssGet("tff_roll_auto") === "1";
-let ROLL = null, rollKept = false, rollPhase = "", rollTimers = [];
+const BOOTH = /[?&]booth=1(&|$)/.test(location.search) || ssGet("tff_booth") === "1";
+if (/[?&]booth=1(&|$)/.test(location.search)) ssSet("tff_booth", "1");
+let ROLL = null, rollKept = false, rollPhase = "", rollTimers = [], boothTimer = 0;
+function bumpBooth(){
+  clearTimeout(boothTimer);
+  if (!BOOTH || !S || (S.mode !== "over" && !(S.mode === "idle" && S.viewing))) return;
+  boothTimer = setTimeout(() => {
+    if (!S || (S.mode !== "over" && !(S.mode === "idle" && S.viewing))) return;
+    $("endModal").hidden = true; $("seeOv").hidden = true; $("pickModal").hidden = true; $("rollModal").hidden = true;
+    modalOpen(false);
+    played = false; whoPicked = false; ssSet("tff_picked", ""); rollKept = false; ROLL = null;
+    sampleTower(); setFs(fsOn); $("startOv").hidden = false; setPauseUI(); updateHUD(); renderLedger(); drawPreviews(true); needDraw = true;
+  }, 90000);
+}
 const rnd = n => Math.floor(Math.random() * n);
 const personaKey = p => p ? p.bg + "+" + p.pe : "";
 function personaOf(p){
@@ -1897,6 +1953,9 @@ function personaOf(p){
 }
 const rollDice = () => ({bg: BG_KEYS[rnd(BG_KEYS.length)], pe: PE_KEYS[rnd(PE_KEYS.length)]});
 function newLife(){   // every game starts here: roll who you are, then play
+  clearTimeout(boothTimer);
+  if (S) S.replay = null;
+  if (BOOTH && !whoPicked){ openPicker(); return; }
   if (!BG_KEYS.length || !PE_KEYS.length){ ROLL = null; startGame(); return; }
   if (ROLL_AUTO){ if (!rollKept) ROLL = rollDice(); startGame(); return; }
   openRoll();
@@ -1921,12 +1980,22 @@ function openRoll(){
   paintAvatar($("rollAvatar"), {who: WHO, stage: 0, tier: 1, hand: null, mood: "happy", drops: 0, boost: false});
   for (const cv of m.querySelectorAll(".rtile canvas")){ const k = cv.parentNode.dataset.k, it = (PERSONAS.bg[k] || PERSONAS.pe[k] || {}).item, def = DEFS.find(d => d.id === it); if (def) previewInto(cv, def); }
   fitLine($("rollTitle"));
-  if (rollKept && ROLL) showRollResult(true);   // rolled already and not played yet: the same life, no re-roll
-  else {
+  const cs = $("chalSame"), cp = CHAL && CHAL.p ? CHAL.p.split("+") : null, cP = cp && personaOf({ bg: cp[0], pe: cp[1] });
+  if (rollKept && ROLL){
+    if (cs) cs.hidden = true;
+    showRollResult(true);   // rolled already and not played yet: the same life, no re-roll
+  } else {
     rollPhase = "ready"; $("rollRes").hidden = true; $("rollSay").textContent = "";
     for (const id of ["reelBg", "reelPe"]) $(id).classList.remove("landed");
     placeStrip($("stripBg"), BG_KEYS, BG_KEYS[rnd(BG_KEYS.length)], 0); placeStrip($("stripPe"), PE_KEYS, PE_KEYS[rnd(PE_KEYS.length)], 0);
     label($("rollGo"), ["Roll", "抽！"]);
+    if (cs){
+      cs.hidden = !cP;
+      if (cP){
+        label(cs, ["Same life: " + cP.en, "同命挑戰：" + cP.zh]);
+        cs.onclick = () => { ROLL = { bg: cp[0], pe: cp[1] }; rollKept = true; A.sfx("uiSelect"); cs.hidden = true; showRollResult(true); };
+      }
+    }
   }
   $("rollGo").focus({preventScroll: true});
 }
@@ -1946,6 +2015,7 @@ function spinReel(reel, strip, keys, k, ms){
 }
 function rollSpin(){
   if (rollPhase !== "ready") return;
+  if ($("chalSame")) $("chalSame").hidden = true;
   rollPhase = "spinning"; ROLL = rollDice(); rollKept = true;
   label($("rollGo"), ["Rolling…", "抽緊…"]);
   const ms = reduceMotion ? 0 : 1;
@@ -2033,6 +2103,7 @@ function closeInfo(quiet){
 $("infoClose").addEventListener("click", () => closeInfo());
 $("infoModal").addEventListener("click", e => { if (e.target === e.currentTarget) closeInfo(); });
 for (const [id, kind] of [["tsLb", "lb"], ["tsHow", "how"], ["tsPriv", "priv"], ["tsWear", "wear"]]) $(id).addEventListener("click", e => openInfo(kind, e.currentTarget));
+$("tsStory").addEventListener("click", () => { if (window.TFF_INTRO && TFF_INTRO.replay){ A.sfx("uiOpen"); TFF_INTRO.replay(); } });
 $("tsMute").addEventListener("click", toggleMute);
 $("tsFs").addEventListener("click", () => toggleFs(false));
 
@@ -2184,7 +2255,7 @@ window.addEventListener("gamepaddisconnected", () => {
   GP.on = Math.max(0, GP.on - 1);
   if (!GP.on){ root.classList.remove("gamepad"); pollPad(performance.now()); }   // lets go of anything it was holding
 });
-document.addEventListener("pointerdown", () => root.classList.remove("padnav"), true);
+document.addEventListener("pointerdown", () => { root.classList.remove("padnav"); if (BOOTH) bumpBooth(); }, true);
 const cv = $("board");
 let drag = null;
 function worldX(clientX, r){ r = r || cv.getBoundingClientRect(); return (clientX - r.left) / r.width * (W + 2 * XV) - XV; }
@@ -2225,7 +2296,7 @@ const endDrag = e => {
 cv.addEventListener("pointerup", endDrag); cv.addEventListener("pointercancel", endDrag);
 // Every press answers. What has a sound of its own (Start, steps, sheets, toggles, picks, the game's own moves) plays
 // it where it happens, so keys and a controller get it too; any other button gets a tap. A locked button says no.
-const OWN_SOUND = "#startBtn,#pickGo,#rollGo,#againBtn,#againBtn2,#stNext,#stBack,#tsLb,#tsHow,#tsPriv,#tsWear,.wtile,#infoClose,.who,#tsMute,#muteBtn,#fsBtn,#tsFs,#fsStartBtn,#pauseBtn,#resumeBtn,#resultsBtn,#closeEnd,.choice,.qopt,.pad button,#hudHoldBtn,label.habit,.ctime label";
+const OWN_SOUND = "#startBtn,#pickGo,#rollGo,#chalSame,#againBtn,#againBtn2,#replayBtn,#stNext,#stBack,#tsLb,#tsHow,#tsPriv,#tsWear,#tsStory,.wtile,#infoClose,.who,#tsMute,#muteBtn,#fsBtn,#tsFs,#fsStartBtn,#pauseBtn,#resumeBtn,#resultsBtn,#closeEnd,.choice,.qopt,.pad button,#hudHoldBtn,label.habit,.ctime label";
 document.addEventListener("click", e => { const t = e.target.closest && e.target.closest(".btn,.tab,.iconbtn,.ov-chip,.hbtn,button,[role=tab]"); if (t && !t.disabled && !t.closest(OWN_SOUND)) A.sfx("click"); });
 document.addEventListener("pointerdown", e => { const t = e.target.closest && e.target.closest("button:disabled,[aria-disabled=true]"); if (t){ A.unlock(); A.sfx("uiNope"); } });
 // Sound from the first touch: a page may make sound only after a tap or a key, so the first one anywhere (the title
@@ -2281,12 +2352,20 @@ $("againBtn").addEventListener("click", newLife);
 let endScroll = 0;
 function openResults(){
   if (!S || S.mode !== "idle" || !S.viewing) return;
+  S.replay = null;
   $("seeOv").hidden = true; S.viewing = false; S.mode = "over"; A.sfx("uiOpen");
   $("endModal").hidden = false; $("stScroll").scrollTop = endScroll;
   endShownAt = performance.now(); modalOpen(true); setPauseUI();
   $(S.step === 4 ? "closeEnd" : STEP_FOCUS[S.step - 1]).focus({preventScroll:true});   // back on the step they left
 }
 $("resultsBtn").addEventListener("click", openResults);
+$("replayBtn").addEventListener("click", () => {
+  if (!S || !(S.viewing && S.mode === "idle")) return;
+  const bodies = engine.world.bodies.filter(b => b.tff && b !== S.active).sort((a, b) => (a.tff.at || 0) - (b.tff.at || 0));
+  S.replay = { t0: performance.now(), dur: Math.min(3200, Math.max(1200, bodies.length * 90)), bodies };
+  S.camTop = camBase();
+  A.sfx("uiSelect"); needDraw = true;
+});
 $("closeEnd").addEventListener("click", () => { A.sfx("uiClose"); endScroll = $("stScroll").scrollTop; $("endModal").hidden = true; modalOpen(false); S.viewing = true; S.mode = "idle"; S.queue = []; S.hold = null; drawPreviews(true); $("seeOv").hidden = false; setPauseUI(); $("againBtn2").hidden = !S.flowDone; ($("againBtn2").hidden ? $("resultsBtn") : $("againBtn2")).focus(); if (S.overKey) quip(S.overKey, 3); });
 $("againBtn2").addEventListener("click", newLife);
 cv.tabIndex = 0;
@@ -2854,7 +2933,9 @@ function blitPile(c, k, img){
 // moves by time, not by frames, so it runs at the same speed on a 60 Hz or a 120 Hz screen.
 function draw(dt){
   const c = ctx, k = SC * DPR, f = (dt || STEP) / STEP, T = S.steps + ALPHA; drawN++;
-  const target = camTarget();
+  const rep = S && S.replay;
+  const rp = rep ? clamp((performance.now() - rep.t0) / rep.dur, 0, 1) : 0;
+  const target = rep ? camBase() + (camTarget() - camBase()) * rp : camTarget();
   S.camTop += (target - S.camTop) * (1 - Math.pow(0.95, f));
   let sx = 0;
   if (S.shake > 0){ sx = (Math.random() - .5) * S.shake; S.shake = Math.max(0, S.shake - 0.4 * f); }
@@ -2869,7 +2950,7 @@ function draw(dt){
   }
   backdrop(c, k, Math.min(40, rise * 0.05) - 10, Math.min(H - 110, (WATER_Y - S.camTop) - 250 + rise * 0.85));
   // world
-  const still = sx === 0;   // a quake shakes everything: then it is all drawn live
+  const still = sx === 0 && !rep;   // a quake or replay draws everything live
   const bare = root.classList.contains("title");   // the title screen: the scene alone, no floors, labels or sample tower
   if (still && !bare) updatePile(k, T);
   c.setTransform(k, 0, 0, k, k * (sx + XV), (YT - S.camTop) * k);
@@ -2878,7 +2959,8 @@ function draw(dt){
   c.drawImage(L.plat, W/2 - PW/2 - 20, 0, PW + 40, 200);
   if (S.ghost && !bare && S.mode !== "idle") drawGhost(c, S.ghost);   // behind the tower
   const a = S.active, v0 = S.camTop - YT, v1 = S.camTop + H + YB, live = [];   // what moves, in view (out of view isn't drawn)
-  if (!bare) for (const b of engine.world.bodies) if (b.tff && !(still && PILE.set.has(b)) && b.bounds.max.y + PAD >= v0 && b.bounds.min.y - PAD <= v1) live.push(b);
+  const repKeep = rep ? new Set(rep.bodies.slice(0, Math.max(1, Math.ceil(rp * rep.bodies.length)))) : null;
+  if (!bare) for (const b of engine.world.bodies) if (b.tff && !(still && PILE.set.has(b)) && (!repKeep || repKeep.has(b)) && b.bounds.max.y + PAD >= v0 && b.bounds.min.y - PAD <= v1) live.push(b);
   if (still && !bare) blitPile(c, k, PILE.s);
   for (const b of live) for (const m of membersOf(b)) drawBody(c, m, true);
   if (a && S.mode !== "over"){
@@ -2935,6 +3017,10 @@ function draw(dt){
   c.setTransform(k, 0, 0, k, 0, 0);
   if (S.mode === "playing" && S.play < S.speedUntil){ c.fillStyle = "rgba(255,123,53,0.08)"; c.fillRect(0, 0, W + 2 * XV, H + YT + YB); }
   if (S.mode === "over" && S.over === "drops"){ c.fillStyle = "rgba(242,70,62,0.12)"; c.fillRect(0, 0, W + 2 * XV, H + YT + YB); }
+  if (rep){
+    if (rp >= 1) S.replay = null;
+    needDraw = true;
+  }
 }
 function drawRuler(c){
   c.save();
@@ -3454,11 +3540,24 @@ function drawPosterCard(g, img, medalPic){
   const extra = [S.pct != null ? "贏咗 " + S.pct + "% 玩家 · Beat " + S.pct + "% of players" : "", S.chal && S.chal.beat ? "挑戰成功！Beat " + ((CHAL && CHAL.n) || "my friend") : ""].filter(Boolean).join("   ·   ");
   if (extra) say(extra, 540, p0 + 466, 960, 23, 15, zh(500), DIM, "center");
   spaced(0);
-  // the stub's foot: a barcode, where to play, the show's date and the seat
+  // the stub's foot: a QR code, a barcode, where to play, the show's date and the seat
   tear(p0 + 488);
-  let x = 62; seed = Number(no) + 7;
+  let bx0 = 62;
+  if (typeof window.qrcode === "function"){
+    try {
+      const qr = window.qrcode(0, "L");
+      qr.addData(challengeUrl(true)); qr.make();
+      const cnt = qr.getModuleCount(), sz = 58, pad = 3, mod = (sz - pad * 2) / cnt;
+      g.fillStyle = CREAM; g.fillRect(60, p0 + 496, sz, sz);
+      g.fillStyle = "#171A33";
+      for (let r = 0; r < cnt; r++) for (let col = 0; col < cnt; col++) if (qr.isDark(r, col))
+        g.fillRect(60 + pad + col * mod, p0 + 496 + pad + r * mod, mod + 0.3, mod + 0.3);
+      bx0 = 132;
+    } catch(e){}
+  }
+  let x = bx0; seed = Number(no) + 7;
   while (x < 290){ const w = 2 + Math.floor(rnd() * 4); if (rnd() > 0.35){ g.fillStyle = CREAM; g.fillRect(x, p0 + 504, w, 32); } x += w + 2; }
-  say(no.split("").join(" "), 175, p0 + 550, 230, 13, 10, f => "700 " + f + "px " + F.sans, DIM, "center");
+  say(no.split("").join(" "), bx0 > 62 ? 211 : 175, p0 + 550, bx0 > 62 ? 160 : 230, 13, 10, f => "700 " + f + "px " + F.sans, DIM, "center");
   say("3fallcrab.com", 540, p0 + 536, 360, 38, 26, f => "900 " + f + "px " + F.display, "#FF7AB4", "center");
   const d = new Date(S.endAt || Date.now()), mon = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"][d.getMonth()];
   label(String(d.getDate()).padStart(2, "0") + " " + mon + " " + d.getFullYear() + " · " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"), 1020, p0 + 518, "right", 300);
@@ -3469,15 +3568,29 @@ function drawPosterCard(g, img, medalPic){
   for (const cx of [0, 1080]){ g.beginPath(); g.arc(cx, p0, NOTCH, 0, Math.PI * 2); g.fill(); }
   g.restore();
 }
+let qrP = null;
+function loadQr(){
+  if (typeof window.qrcode === "function") return Promise.resolve(window.qrcode);
+  if (qrP) return qrP;
+  qrP = new Promise(res => {
+    const sc = document.createElement("script"); sc.src = "/vendor/qrcode-1.4.4.js"; sc.async = true;
+    sc.onload = () => res(window.qrcode || null); sc.onerror = () => res(null);
+    document.head.appendChild(sc);
+  });
+  return qrP;
+}
 async function readyCard(){
-  const k = [S.endAt, Math.round(S.score), cardName(), WHO, S.pct, S.verdict && S.verdict.id, S.chal && S.chal.beat, personaKey(S.persona), posterFor(S)].join("|");
+  const k = [S.endAt, Math.round(S.score), cardName(), WHO, S.pct, S.verdict && S.verdict.id, S.chal && S.chal.beat, personaKey(S.persona), posterFor(S), S.posted ? myLastId : ""].join("|");
   if (cardBlob && cardKey === k) return cardBlob;
   const b = await makeResultCard(); cardBlob = b; cardKey = k; return b;
 }
 async function makeResultCard(){
   if (document.fonts && document.fonts.ready) await document.fonts.ready;
   const pkey = posterFor(S), posterP = loadPoster(pkey);
-  const M = await Promise.race([loadMedal(), new Promise(r => setTimeout(() => r(null), 4000))]);
+  const [M] = await Promise.all([
+    Promise.race([loadMedal(), new Promise(r => setTimeout(() => r(null), 4000))]),
+    Promise.race([loadQr(), new Promise(r => setTimeout(() => r(null), 2000))]),
+  ]);
   let medalPic = null; try { medalPic = M && M.snapshot(tierOf(S.verdict || verdictOf(S)), 240, 282); } catch(e){}
   const poster = await Promise.race([posterP, new Promise(r => setTimeout(() => r(null), 5000))]);
   const CW = 1080, CH = 1350, c = document.createElement("canvas"); c.width = CW; c.height = poster ? CARD_H : CH;
@@ -3678,10 +3791,13 @@ function showChal(){
   else bi(el, fmt(c.gap) + " short of " + whoEn + " (" + fmt(CHAL.s) + ")", "仲差 " + fmt(c.gap) + " 就贏到" + zhIn(whoZh));
 }
 // The link a post or a share carries: a challenge with this game's result.
-function challengeUrl(){
+function challengeUrl(compact){
   const q = new URLSearchParams(); q.set("s", String(Math.round(S.score)));
   const n = cardName(); if (n) q.set("n", n);
   const v = S.verdict || verdictOf(S); if (v) q.set("v", v.id);
+  if (S.persona) q.set("p", personaKey(S.persona));
+  if (S.posted && myLastId) q.set("g", String(myLastId));
+  else if (!compact && S.sil && S.sil.length <= 240) q.set("sil", S.sil);
   return location.origin + "/c?" + q.toString();
 }
 // The words of a post: the result, the title, the type, the brag (or the dare), then a question and a tag, because on
@@ -3805,7 +3921,7 @@ function showEnd(){
   const qz = $("quiz"); qz.replaceChildren(); S.quiz = QUIZ.map(() => null);
   const quizScore = () => { $("quizScore").textContent = S.quiz.filter(x => x && x.ok).length + "/" + QUIZ.length; };
   quizScore();
-  S.prior = Math.min(99, +lsGet("tff_quiz_n", 0) || 0);   // quizzes finished on this device before this game
+  S.prior = BOOTH ? 0 : Math.min(99, +lsGet("tff_quiz_n", 0) || 0);   // quizzes finished on this device before this game
   QUIZ.forEach((q, qi) => {
     const fs = document.createElement("fieldset"); fs.className = "qz";
     const lg = document.createElement("legend"); lg.textContent = (qi + 1) + ". " + q.q[0];
@@ -3826,7 +3942,7 @@ function showEnd(){
         const why = document.createElement("span"); why.textContent = q.why[0];
         const wz = document.createElement("small"); wz.textContent = q.why[1];
         fb.className = "qfb " + (ok ? "ok" : "no"); fb.replaceChildren(head, hz, why, wz);
-        if (!S.quizDone && S.quiz.every(Boolean)){ S.quizDone = true; lsSet("tff_quiz_n", (+lsGet("tff_quiz_n", 0) || 0) + 1); }
+        if (!S.quizDone && S.quiz.every(Boolean)){ S.quizDone = true; if (!BOOTH) lsSet("tff_quiz_n", (+lsGet("tff_quiz_n", 0) || 0) + 1); }
         if (S.step === 2) stepButtons();
         quizScore(); saveSoon();
       });
@@ -3843,9 +3959,9 @@ function showEnd(){
     const t = document.createElement("span"); t.textContent = h.en; const z = document.createElement("small"); z.textContent = h.zh; t.appendChild(z);
     lab.append(inp, t); hb.appendChild(lab);
   });
-  $("nickname").value = lsGet("tff_name", "");
+  $("nickname").value = BOOTH ? "" : lsGet("tff_name", "");
   const live = apiAllowed && !apiGone && dbWritable;
-  $("email").value = lsGet("tff_email", ""); emailError(false); $("email").closest(".fld").hidden = $("emailNote").closest(".email-note").hidden = !live;   // kept on this device only, so a returning player does not retype it
+  $("email").value = BOOTH ? "" : lsGet("tff_email", ""); emailError(false); $("email").closest(".fld").hidden = $("emailNote").closest(".email-note").hidden = !live;   // kept on this device only, so a returning player does not retype it
   $("postBtn").disabled = false; postLabel("Post score", "上榜");
   const ps = $("postStatus"); ps.className = "post-status";
   ps.textContent = live ? "Only your nickname and score will appear on the leaderboard. 排行榜只會顯示你的暱稱及分數。" : "Your score will be saved on this device only. 分數只會儲存在這部裝置。";
@@ -3887,6 +4003,7 @@ $("endModal").hidden = false; $("stScroll").scrollTop = 0; endScroll = 0;
   setTimeout(() => { if (S === game && (S.mode === "over" || S.mode === "idle")) menuMusic(); }, 3200);   // after the end jingle, the menu music again
   saveRecord(game).catch(e => keepForLater(game, e));
   planFirst();
+  if (BOOTH) bumpBooth();
 }
 
 // ---------- leaderboard: live board from /api/scores (Cloudflare Pages Function + D1); this device is the fallback ----------
@@ -3917,8 +4034,10 @@ CHAL = (() => {
   if (!c) c = ssGet("tff_chal") ? (() => { try { return JSON.parse(ssGet("tff_chal")); } catch(e){ return null; } })() : null;
   if (!c || typeof c.s !== "number" || !isFinite(c.s) || Math.abs(c.s) > 9999999) return null;
   const n = typeof c.n === "string" ? sanitizeName(c.n) : ANON;
-  const out = {s: Math.round(c.s), n: n === ANON ? "" : n, v: TITLES.find(x => x.id === c.v) || null};
-  ssSet("tff_chal", JSON.stringify({s: out.s, n: out.n, v: out.v ? out.v.id : ""}));
+  const p = typeof c.p === "string" && personaOf({ bg: c.p.split("+")[0], pe: c.p.split("+")[1] }) ? c.p : "";
+  const sil = typeof c.sil === "string" && /^(?:[0-9a-z]{4}){1,120}$/.test(c.sil) ? c.sil : "";
+  const out = {s: Math.round(c.s), n: n === ANON ? "" : n, v: TITLES.find(x => x.id === c.v) || null, p, sil};
+  ssSet("tff_chal", JSON.stringify({s: out.s, n: out.n, v: out.v ? out.v.id : "", p: out.p, sil: out.sil}));
   return out;
 })();
 (function chalBanner(){
@@ -3927,6 +4046,8 @@ CHAL = (() => {
   const amt = document.createElement("b"); amt.textContent = fmt(CHAL.s);
   const t = $("chalT"); t.replaceChildren(zhName(who || "你朋友") + "儲到 ", amt);
   if (v){ const i = document.createElement("i"); i.textContent = v.zh; t.append(i); }   // their 稱號
+  const Pp = CHAL.p ? personaOf({ bg: CHAL.p.split("+")[0], pe: CHAL.p.split("+")[1] }) : null;
+  if (Pp){ const sp = document.createElement("span"); sp.textContent = " · " + Pp.zh; t.append(sp); }
   const z = document.createElement("span"); z.lang = "zh-HK"; z.textContent = "你夠唔夠膽挑戰？";
   $("chalE").replaceChildren(z, "Can you beat " + (who || "your friend") + "?");
   box.hidden = false; root.classList.add("chal");
@@ -4079,8 +4200,8 @@ $("postBtn").addEventListener("click", async () => {
     return;
   }
   emailError(false); st.posting = true;
-  const name = sanitizeName($("nickname").value); lsSet("tff_name", name === ANON ? "" : name);
-  if (email) lsSet("tff_email", email);   // remembered here, like the nickname
+  const name = sanitizeName($("nickname").value); if (!BOOTH) lsSet("tff_name", name === ANON ? "" : name);
+  if (email && !BOOTH) lsSet("tff_email", email);   // remembered here, like the nickname
   const answers = answersOf(st), right = st.quiz.filter(x => x && x.ok).length;
   const entry = {name, score: Math.round(st.score), stage: st.stage, height: +(st.best / FLOOR).toFixed(1), drops: st.drops,
     wise: st.wise, risky: st.risky, missed: st.missed, falls: {...st.falls}, choices: st.choices.slice(0, 20), habit: st.habit || null,
@@ -4099,7 +4220,7 @@ $("postBtn").addEventListener("click", async () => {
         A.sfx("post"); ps.className = "post-status ok";
         ps.textContent = (j.rank ? "You're #" + j.rank + " this week! 今個星期排第" + j.rank + "！ " : "On the live board! 已上榜！ ") +
           (email ? "We'll email you if you win a prize. 如果你得獎，我哋會電郵通知你。" : "");
-        postLabel("Posted ✓", "已上榜"); showStatus(); cardBlob = null; stepButtons();   // the picture will carry the nickname
+        postLabel("Posted ✓", "已上榜"); showStatus(); cardBlob = null; stepButtons(); threadsLink();   // the picture will carry the nickname
         setTimeout(() => { if (st === S && S.step === 3) setStep(4); }, 1600);   // a moment to read the rank, then the card
       }
       lbSig = ""; refreshLB(true);

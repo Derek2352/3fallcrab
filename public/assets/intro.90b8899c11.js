@@ -6,18 +6,20 @@
 // score and sound for every shot (GameAudio.film in src/audio.js) once sound is on.
 // About 40 seconds: it plays by itself, a tap (Enter, Space, →, or A on a pad) goes on, Skip (Esc, B) ends it, and
 // "Your turn" at the end starts the game.
-// ?intro=0 or localStorage tff_intro = "off" leaves it out (booth staff, tests).
+// ?intro=0 or ?booth=1 or localStorage tff_intro = "off" leaves it out (booth staff, tests); plays once per tab (?intro=1 forces it).
 (function(){
 "use strict";
 const el = document.getElementById("intro");
 if (!el) return;
 const ART = window.TFF_ART || {}, GA = window.GameAudio;
-let off = /[?&]intro=0\b/.test(location.search);
-try { if (localStorage.getItem("tff_intro") === "off") off = true; } catch(e){}
-if (off){ el.hidden = true; return; }
+const forceOn = /[?&]intro=1\b/.test(location.search);
+let off = !forceOn && /[?&](?:intro=0|booth=1)\b/.test(location.search);
+try {
+  if (!forceOn && (localStorage.getItem("tff_intro") === "off" || sessionStorage.getItem("tff_intro_seen") === "1" || sessionStorage.getItem("tff_booth") === "1")) off = true;
+} catch(e){}
 const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-const behind = [...document.body.children].filter(n => n !== el && n.tagName !== "SCRIPT"), was = behind.map(n => n.inert);
-behind.forEach(n => { n.inert = true; });
+const behind = [...document.body.children].filter(n => n !== el && n.tagName !== "SCRIPT");
+let was = behind.map(n => n.inert);
 
 const scr = document.getElementById("fScreen"), flashEl = el.querySelector(".fflash"), bar = document.getElementById("fBar");
 const beats = [...el.querySelectorAll(".fbeat")].sort((a, b) => a.dataset.step - b.dataset.step);
@@ -38,9 +40,13 @@ Object.entries(shots).forEach(([k, s]) => {
   if (img.complete && img.naturalWidth) ok(); else img.addEventListener("load", ok);
   img.addEventListener("error", () => { img.remove(); });   // the shot's own colour stands in
 });
-(async () => { for (const s of Object.values(shots)){ const img = s.querySelector("img"); if (!img || !img.dataset.src) continue;
-  img.src = img.dataset.src; delete img.dataset.src;
-  await new Promise(r => { if (img.complete) r(); else { img.addEventListener("load", r, {once: true}); img.addEventListener("error", r, {once: true}); setTimeout(r, 4000); } }); } })();
+let restLoaded = false;
+function loadRest(){
+  if (restLoaded) return; restLoaded = true;
+  (async () => { for (const s of Object.values(shots)){ const img = s.querySelector("img"); if (!img || !img.dataset.src) continue;
+    img.src = img.dataset.src; delete img.dataset.src;
+    await new Promise(r => { if (img.complete) r(); else { img.addEventListener("load", r, {once: true}); img.addEventListener("error", r, {once: true}); setTimeout(r, 4000); } }); } })();
+}
 
 // ---------- the screen: a 4:5 (phone) to 1.85:1 (wide) window on the square shots, black round it
 function fit(){
@@ -68,7 +74,7 @@ function soundOn(){
 }
 
 // ---------- the film, beat by beat
-let i = -1, timer = 0, done = false, shown = null;
+let i = -1, timer = 0, done = false, shown = null, safetyTimer = 0;
 function cut(n){
   const b = beats[n], via = b.dataset.via, k = b.dataset.shot, hold = holdOf(n);
   beats.forEach((x, j) => x.classList.toggle("on", j === n));
@@ -116,13 +122,14 @@ function next(){
   if (i < beats.length - 1) go(i + 1); else end();
 }
 function end(play){
-  if (done) return; done = true; clearTimeout(timer);
+  if (done) return; done = true; clearTimeout(timer); clearTimeout(lineTimer); clearTimeout(safetyTimer);
+  try { sessionStorage.setItem("tff_intro_seen", "1"); } catch(e){}
   window.removeEventListener("keydown", onKey, true); removeEventListener("resize", fit);
   behind.forEach((n, k) => { n.inert = was[k]; });
   if (film) film.stop(play ? 0.25 : 0.8);
   if (ART.music) ART.music();   // the title's own music, if sound is on
   el.classList.add("out");
-  setTimeout(() => { el.hidden = true; }, reduce ? 0 : 600);
+  setTimeout(() => { if (done) el.hidden = true; }, reduce ? 0 : 600);
   const start = document.getElementById("startBtn");
   if (play && start){ start.click(); return; }
   if (start && start.offsetParent) start.focus({preventScroll: true});
@@ -136,7 +143,6 @@ function onKey(e){
   e.preventDefault(); e.stopImmediatePropagation();
 }
 function tapped(){ el.classList.add("tapped"); askFs(); setTimeout(() => { if (cued !== i) cue(i); soundState(); }, 80); }
-window.addEventListener("keydown", onKey, true);
 // The first tap or key on the film also asks for the browser's own full screen (a page may only ask on a tap or a
 // key), so the title is already free of the browser's bars. Left untouched, it waits for Start as before.
 let fsAsked = false;
@@ -147,8 +153,21 @@ el.addEventListener("click", e => {
   if (e.target.closest("#introSound")){ el.classList.add("tapped"); soundOn(); return; }
   tapped(); next();
 });
-addEventListener("resize", fit);
-window.TFF_INTRO = {on: () => !done, next: () => { tapped(); next(); }, skip: () => end(), go: () => end(true)};
-try { go(0); soundState(); setTimeout(soundState, 1200); const s = document.getElementById("introSkip"); if (s) s.focus({preventScroll: true}); } catch(e){ end(); }
-setTimeout(() => { if (!done) end(); }, TOTAL + 30000);   // never stuck
+function startFilm(isReplay){
+  done = false; i = -1; line = 0; cued = -1; shown = null;
+  was = behind.map(n => n.inert);
+  behind.forEach(n => { n.inert = true; });
+  Object.values(shots).forEach(s => { s.className = "fshot"; });
+  el.hidden = false; el.classList.remove("out");
+  fit(); addEventListener("resize", fit);
+  window.addEventListener("keydown", onKey, true);
+  loadRest();
+  if (isReplay){ if (GA && GA.music) GA.music.stop(); soundOn(); }
+  try { go(0); soundState(); setTimeout(soundState, 1200); const s = document.getElementById("introSkip"); if (s) s.focus({preventScroll: true}); } catch(e){ end(); }
+  clearTimeout(safetyTimer);
+  safetyTimer = setTimeout(() => { if (!done) end(); }, TOTAL + 30000);   // never stuck
+}
+window.TFF_INTRO = {on: () => !done, next: () => { tapped(); next(); }, skip: () => end(), go: () => end(true), replay: () => startFilm(true)};
+if (off){ el.hidden = true; done = true; }
+else startFilm(false);
 })();

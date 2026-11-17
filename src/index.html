@@ -206,6 +206,7 @@
               <button class="ov-chip" id="tsLb" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M7 6H4.5a2.5 2.5 0 0 0 3 3.3M17 6h2.5a2.5 2.5 0 0 1-3 3.3M12 13v4M8.5 20h7"/></svg><span>Leaderboard<span class="zh" lang="zh-HK">排行榜</span></span></button>
               <button class="ov-chip" id="tsHow" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.6a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5v.6M12 16.8v.2"/></svg><span>How to play<span class="zh" lang="zh-HK">玩法</span></span></button>
               <button class="ov-chip" id="tsWear" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16.5h16M6.5 16.5c0-4 2.2-6.5 5.5-6.5s5.500 2.500 5.500 6.500M12 10V7.500M10 7.500h4"/></svg><span>Wardrobe<span class="zh" lang="zh-HK">衣櫃</span></span></button>
+              <button class="ov-chip" id="tsStory" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M10 9l5 3-5 3z"/></svg><span>Story<span class="zh" lang="zh-HK">故事</span></span></button>
             </div>
             <div class="ov-opts">
               <button class="ov-chip" id="fsStartBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg><span>Full screen<span class="zh" lang="zh-HK">全螢幕</span></span></button>
@@ -217,7 +218,7 @@
           <button class="ts-only ts-priv" id="tsPriv" type="button">Privacy<span class="zh" lang="zh-HK">私隱聲明</span></button>
           <button class="iconbtn ts-only ts-mute" id="tsMute" type="button" aria-pressed="false" aria-label="Mute sound"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="#2E2838"/><path class="w" d="M16 8.5c1.6 1.8 1.6 5.2 0 7M18.6 6c3 3.2 3 8.8 0 12" fill="none" stroke="#FF5FA2" stroke-width="2.2" stroke-linecap="round"/><path class="x" d="M16.5 9.5l5 5M21.5 9.5l-5 5" stroke="#F2463E" stroke-width="2.4" stroke-linecap="round"/></svg></button>
         </div>
-        <div class="overlay seeov" id="seeOv" hidden><button class="btn alt" id="resultsBtn" aria-label="Back to results">Results<span class="zh" lang="zh-HK">睇返結算</span></button><button class="btn" id="againBtn2">Play again<span class="zh" lang="zh-HK">再玩</span></button></div>
+        <div class="overlay seeov" id="seeOv" hidden><button class="btn alt" id="resultsBtn" aria-label="Back to results">Results<span class="zh" lang="zh-HK">睇返結算</span></button><button class="btn alt" id="replayBtn" type="button">Replay<span class="zh" lang="zh-HK">重溫</span></button><button class="btn" id="againBtn2">Play again<span class="zh" lang="zh-HK">再玩</span></button></div>
         <div class="overlay" id="pauseOv" hidden>
           <div class="ov-card"><h2>Paused</h2><p class="zh" lang="zh-HK">暫停</p><button class="btn go" id="resumeBtn">Resume<span class="zh" lang="zh-HK">繼續</span></button>
             <div class="ov-opts"><div class="ov-chip ctime" role="radiogroup" aria-labelledby="ctPauseK"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V9.8M9.5 2.6h5M12 2.6V6M18.2 6.8l1.6-1.6"/></svg><span class="k" id="ctPauseK">Card timer<span class="zh" lang="zh-HK">揀答案時間</span></span>
@@ -391,6 +392,7 @@
       <p class="rr-line" id="rrLine"></p>
     </div>
     <p class="sr" id="rollSay" aria-live="assertive"></p>
+    <button class="btn alt" id="chalSame" type="button" hidden></button>
     <button class="btn go" id="rollGo" type="button">Roll<span class="zh" lang="zh-HK">抽！</span></button>
   </div>
 </div>

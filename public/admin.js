@@ -21,11 +21,11 @@
   const HIDE_HINT = $("panelMsg").textContent;
   let token = "";
   try { token = sessionStorage.getItem(KEY) || ""; } catch {}
-  let cur = { week: "", month: "" }, periods = { weeks: [], months: [] }, all = null; // current week / month, known periods, all-time summary
+  let cur = { week: "", month: "" }, periods = { weeks: [], months: [] }, all = null, lastSum = null; // current week / month, known periods, all-time summary
   let offset = 0, seen = new Set(), mails = { week: [], month: [] };
   const seq = { sum: 0, week: 0, month: 0, games: 0 }; // the newest request wins; Lock bumps them all so late answers are dropped
   // Everything that holds data or emails: emptied on Lock.
-  const VIEWS = ["tiles", "kpiMore", "kpiNote", "quizBox", "scoreBox", "habitBox", "trapBox", "stageBox", "cardBox", "weekBox", "monthBox",
+  const VIEWS = ["tiles", "kpiMore", "kpiNote", "quizBox", "scoreBox", "habitBox", "trapBox", "stageBox", "trollBox", "powerBox", "cardBox", "weekBox", "monthBox",
     "winWeekRows", "winMonthRows", "rows", "sumMsg", "dlMsg", "panelMsg", "winWeekMsg", "winMonthMsg", "winWeekInfo", "winMonthInfo", "gCount"];
 
   // ---------- helpers ----------
@@ -84,7 +84,7 @@
     token = ""; try { sessionStorage.removeItem(KEY); } catch {}
     for (const k in seq) seq[k]++;
     for (const id of VIEWS) $(id).replaceChildren();
-    all = null; mails = { week: [], month: [] }; $("copyBox").value = ""; $("copyBox").hidden = true;
+    all = null; lastSum = null; mails = { week: [], month: [] }; $("copyBox").value = ""; $("copyBox").hidden = true;
     show(false); say("loginMsg", text, err);
   }
 
@@ -225,6 +225,22 @@
     ], "sm"));
     $("stageBox").replaceChildren(table([{ h: "Stage", c: "t" }, { h: "Games", c: "num" }, { h: "% of games", c: "num" }],
       s.stages.map((x) => { const p = share(x.n, o.games); return { cells: [[x.en, x.zh && zh(x.zh)], fmt(x.n), [pc(p), meter(p)]] }; }), "sm"));
+    const tr = s.trolls || {}, ti = tr.invest || {}, tt = tr.tickets || {}, rv = tr.revive || {};
+    $("trollBox").replaceChildren(table([
+      { h: "Temptation", c: "t" },
+      { h: "Offered", c: "num" },
+      { h: "Fell for it", c: "num" },
+      { h: "% fell", c: "num" },
+    ], [
+      { cells: [["“Guaranteed 30%” scam", zh("炒幣/投資騙局"), ti.fee ? el("span", "qs", `${fmt(ti.fee)} also paid HK$1,000 release fee`) : ""], fmt(ti.seen || 0), fmt(ti.invested || 0), [pc(ti.hitPct), ti.hitPct != null && meter(ti.hitPct, "pink")]] },
+      { cells: [["Lucky scratch card", zh("幸運刮刮卡"), tt.cards ? el("span", "qs", `${fmt(tt.cards)} total cards bought`) : ""], fmt(tt.seen || 0), fmt(tt.bought || 0), [pc(tt.hitPct), tt.hitPct != null && meter(tt.hitPct, "pink")]] },
+      { cells: [["Fake revive", zh("假復活")], fmt(rv.seen || 0), fmt(rv.pressed || 0), [pc(rv.hitPct), rv.hitPct != null && meter(rv.hitPct, "pink")]] },
+    ], "sm"));
+    const pws = (s.powers || []).slice().sort((a, b) => b.n - a.n), pwTot = pws.reduce((n, x) => n + x.n, 0);
+    $("powerBox").replaceChildren(pwTot
+      ? table([{ h: "Reward", c: "t" }, { h: "Picked", c: "num" }, { h: "Share", c: "num" }],
+          pws.map((x) => { const p = share(x.n, pwTot); return { cells: [[x.en, x.zh && zh(x.zh)], fmt(x.n), [pc(p), meter(p, "ok")]] }; }), "sm")
+      : el("p", "msg", "No reward picks recorded yet."));
     const stage = (i) => (s.stages.find((x) => x.stage === i) || {}).en || "–";
     const trap = (id) => (s.traps.find((x) => x.id === id) || {}).en || "–";
     // the 16 general cards always; a rolled type's cards once they've come up (132 of them, mostly unseen at first)
@@ -261,6 +277,7 @@
       const [s, a] = await Promise.all([call(sumUrl(q)), q && !all ? call(sumUrl("")).catch(() => null) : null]);
       if (my !== seq.sum) return;
       all = q ? a || all : s;
+      lastSum = s;
       cur = s.current; periods = s.periods;
       fillPeriods(); renderSurvey(s); renderDecisions(s);
       if (all) renderTrends(all, q);
@@ -331,20 +348,24 @@
 
   function gamesCsv(rows) {
     const pass = Math.ceil((QN * 2) / 3); // same rule as the server: 2 of 3
+    const baseCards = C.CARDS.filter((c) => !c.who);
+    const sceneCols = [1, 2, 3, 4, 5, 6, 7].flatMap((n) => [`scene_${n}_card`, `scene_${n}_pick`, `scene_${n}_power`]);
     const head = ["game_id", "saved_hkt", "week", "month", "on_board", "hidden", "nickname", "email", "score", "floors", "life_stage", "ended", "items_dropped",
       "wise_picks", "risky_picks", "missed_picks", "fall_overspending", "fall_scams", "fall_putting_off_saving", "habit_id", "habit", "quiz_answered", "quiz_correct", "quiz_2plus", "quiz_version",
-      ...C.QUIZ.flatMap((q) => ["q_" + q.id, "q_" + q.id + "_correct"]), ...C.CARDS.map((c) => "card_" + c.id), "items_placed", "seconds_played", "quizzes_before", "jackpot", "troll_revive", "troll_invest", "troll_tickets", "player", "money_type", "money_type_name", "via", "title", "title_name", "persona", "persona_name"];
+      ...C.QUIZ.flatMap((q) => ["q_" + q.id, "q_" + q.id + "_correct"]), ...baseCards.map((c) => "card_" + c.id), ...sceneCols, "items_placed", "seconds_played", "quizzes_before", "jackpot", "troll_revive", "troll_invest", "troll_tickets", "player", "money_type", "money_type_name", "via", "title", "title_name", "persona", "persona_name"];
     return csv(head, rows.map((r) => {
       // answers to an earlier question are grouped onto the one that replaced it (right to right, wrong to wrong)
       const raw = list(r.quiz_answers), answers = new Map(raw.map((a) => { const m = C.answerNow(a); return m ? [m.q, m] : [a.q, a]; })), picks = new Map();
       const version = !raw.length ? "" : raw.some((a) => C.QUIZ_WAS[a.q]) ? "earlier" : "current";
-      for (const c of list(r.choices)) if (!picks.has(c.card)) picks.set(c.card, choice(c));
+      const evs = list(r.choices);
+      for (const c of evs) if (!picks.has(c.card)) picks.set(c.card, choice(c));
+      const scenes = [0, 1, 2, 3, 4, 5, 6].flatMap((i) => { const c = evs[i]; return c ? [c.card, choice(c), c.power || ""] : ["", "", ""]; });
       const done = r.quiz_answered === QN || (r.quiz_answered == null && r.quiz != null); // older games kept only the score
       return [...lead(r), r.hidden ? 1 : 0, r.posted ? r.name : "", r.email, r.score, r.height, stageName(r.stage), r.ended, r.drops,
         r.wise, r.risky, r.missed, r.fall_spend, r.fall_scam, r.fall_delay, r.habit, (C.HABITS.find((h) => h.id === C.habitNow(r.habit)) || {}).en,
         r.quiz_answered, r.quiz, done ? (r.quiz >= pass ? 1 : 0) : "", version,
         ...C.QUIZ.flatMap((q) => { const a = answers.get(q.id); return a ? [(q.o[a.pick] || [])[0], (a.ok ?? a.pick === q.a) ? 1 : 0] : ["", ""]; }),
-        ...C.CARDS.map((c) => picks.get(c.id)), r.items, r.real_ms == null ? "" : Math.round(r.real_ms / 1000), r.quiz_prior, r.jackpot ?? "", r.troll_revive ?? "", r.troll_invest ?? "", r.troll_tickets ?? "", r.avatar ?? "", r.mtype ?? "", ((C.TYPES || {})[r.mtype] || {}).en ?? "", r.via ?? "", r.title ?? "", ((C.TITLES || []).find((t) => t.id === r.title) || {}).en ?? "", r.persona ?? "", (personaName(r.persona) || {}).en ?? ""];
+        ...baseCards.map((c) => picks.get(c.id)), ...scenes, r.items, r.real_ms == null ? "" : Math.round(r.real_ms / 1000), r.quiz_prior, r.jackpot ?? "", r.troll_revive ?? "", r.troll_invest ?? "", r.troll_tickets ?? "", r.avatar ?? "", r.mtype ?? "", ((C.TYPES || {})[r.mtype] || {}).en ?? "", r.via ?? "", r.title ?? "", ((C.TITLES || []).find((t) => t.id === r.title) || {}).en ?? "", r.persona ?? "", (personaName(r.persona) || {}).en ?? ""];
     }));
   }
   function answersCsv(rows) {
@@ -359,10 +380,10 @@
     })));
   }
   function eventsCsv(rows) {
-    const head = ["game_id", "saved_hkt", "week", "month", "on_board", "order", "card_id", "card", "life_stage", "trap", "choice", "hidden"], byId = new Map(C.CARDS.map((c) => [c.id, c]));
+    const head = ["game_id", "saved_hkt", "week", "month", "on_board", "order", "card_id", "card", "life_stage", "trap", "choice", "persona_who", "reward_picked", "hidden"], byId = new Map(C.CARDS.map((c) => [c.id, c]));
     return csv(head, rows.flatMap((r) => list(r.choices).map((c, i) => {
       const card = byId.get(c.card);
-      return [...lead(r), i + 1, c.card, card ? card.tag[0] : "", card ? stageName(card.st) : "", card ? (C.TRAPS[card.trap] || {}).en : "", choice(c), r.hidden ? 1 : 0];
+      return [...lead(r), i + 1, c.card, card ? card.tag[0] : "", card ? stageName(card.st) : "", card ? (C.TRAPS[card.trap] || {}).en : "", choice(c), card && card.who ? card.who : "", c.power || "", r.hidden ? 1 : 0];
     })));
   }
   async function allRows(progress) { // every game, page by page
@@ -484,8 +505,40 @@
     unlock();
   });
   $("lockBtn").addEventListener("click", () => lock("Locked."));
+  function reportSummary(s) {
+    if (!s) return "";
+    const o = s.overview, picked = ($("periodSel").selectedOptions[0] && $("periodSel").selectedOptions[0].textContent) || "All time";
+    const tr = s.trolls || {}, ti = tr.invest || {}, tt = tr.tickets || {}, rv = tr.revive || {};
+    const lines = [
+      `# 3 Fall Fun 人生跌塔 — Programme Summary (${picked})`,
+      `Games saved: ${fmt(o.games)} (On board: ${fmt(o.posted)}, Anonymous: ${fmt(o.anonymous)}, Shared challenge links: ${fmt(o.via_c || 0)})`,
+      `Avg score: ${fmt(o.avgScore)} | Best score: ${fmt(o.bestScore)} | Avg floors: ${o.avgHeight ?? "–"}`,
+      `Quiz finished: ${fmt(o.quizTakers)} (${ratio(o.quizTakers, o.games, "games")}) | Scored ${o.quizPassMark}/${o.quizQuestions}+: ${pc(o.quizPassPct)} (target ${o.quizTargetPct}%) | First-try ${o.quizPassMark}/${o.quizQuestions}+: ${pc(o.quizFirstPct)} (${fmt(o.quizFirstPass)}/${fmt(o.quizFirst)})`,
+      "",
+      "## Quiz Questions",
+      ...s.quiz.map((q, i) => `- Q${i + 1}: ${q.en} — ${pc(q.pct)} right (${fmt(q.right)}/${fmt(q.n)})`),
+      "",
+      "## Habit Pledges",
+      ...s.habits.map((h) => `- ${h.en}: ${fmt(h.n)} (${pc(share(h.n, o.games))})`),
+      "",
+      "## Money Traps (3 Falls)",
+      ...s.traps.map((t) => `- ${t.en}: ${fmt(t.falls)} falls in ${fmt(t.games)} games (${pc(t.gamesPct)})`),
+      `- No falls: ${fmt(o.noFallGames)} games (${pc(share(o.noFallGames, o.games))})`,
+      "",
+      "## Too Good to Be True",
+      `- "Guaranteed 30%" scam: ${fmt(ti.invested || 0)}/${fmt(ti.seen || 0)} invested (${pc(ti.hitPct)}; ${fmt(ti.fee || 0)} paid release fee)`,
+      `- Lucky scratch card: ${fmt(tt.bought || 0)}/${fmt(tt.seen || 0)} bought (${pc(tt.hitPct)}; ${fmt(tt.cards || 0)} cards total)`,
+      `- Fake revive: ${fmt(rv.pressed || 0)}/${fmt(rv.seen || 0)} pressed (${pc(rv.hitPct)})`,
+      "",
+      "## Life Stages Reached",
+      ...s.stages.map((st) => `- ${st.en}: ${fmt(st.n)} (${pc(share(st.n, o.games))})`),
+    ];
+    return lines.join("\n");
+  }
   $("periodSel").addEventListener("change", () => loadSummary());
   $("refreshBtn").addEventListener("click", () => { loadGames(true).catch(oops("panelMsg")); loadSummary(true); loadWinners("week"); loadWinners("month"); });
+  $("copyReportBtn").addEventListener("click", () => { if (!lastSum) return say("sumMsg", "Summary is still loading.", true); copy(reportSummary(lastSum), $("copyReportBtn"), "sumMsg", "report summary"); });
+  $("printReportBtn").addEventListener("click", () => window.print());
   for (const t of TABS) $("tab-" + t).addEventListener("click", () => openTab(t));
   $("tabs").addEventListener("keydown", (ev) => { // arrow keys move between tabs
     const i = TABS.findIndex((t) => $("tab-" + t) === document.activeElement);

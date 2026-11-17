@@ -75,3 +75,41 @@ test("the board never exposes an email address", async () => {
   assert.equal(text.includes("a@b.co"), false, "an email appeared in the public board");
   assert.equal(text.includes("email"), false, "an email field appeared in the public board");
 });
+
+test("choices preserve valid wise rewards and drop invalid or risky ones", async () => {
+  const { post, store } = make();
+  const r = await post(game(400, "Wise", {
+    choices: [
+      { card: "newphone", pick: "wise", power: "vine" },
+      { card: "cafe", pick: "wise", power: "hacked_power" },
+      { card: "subtrap", pick: "risky", power: "net" },
+    ],
+  }));
+  assert.equal(r.status, 201);
+  assert.deepEqual(JSON.parse(store._rows[0].choices), [
+    { card: "newphone", pick: "wise", power: "vine" },
+    { card: "cafe", pick: "wise" },
+    { card: "subtrap", pick: "risky" },
+  ]);
+});
+
+test("ghost cache clears immediately when admin renames or hides a score", async () => {
+  const token = "0123456789abcdef";
+  const { post, call } = make({ ADMIN_TOKEN: token });
+  const adminHdr = { "content-type": "application/json", authorization: `Bearer ${token}` };
+  await post(game(350, "RudeName", { sil: "0a1b" }));
+
+  const first = await (await call("/api/scores?view=ghosts")).json();
+  assert.deepEqual(first.ghosts.map((g) => g.name), ["RudeName"]);
+
+  const ren = await call("/api/admin/rename", { method: "POST", body: JSON.stringify({ id: 1 }), headers: adminHdr });
+  assert.equal(ren.status, 200);
+  const afterRename = await (await call("/api/scores?view=ghosts")).json();
+  assert.equal(afterRename.ghosts.length, 1);
+  assert.notEqual(afterRename.ghosts[0].name, "RudeName");
+
+  const hid = await call("/api/admin/hide", { method: "POST", body: JSON.stringify({ id: 1, hidden: true }), headers: adminHdr });
+  assert.equal(hid.status, 200);
+  const afterHide = await (await call("/api/scores?view=ghosts")).json();
+  assert.deepEqual(afterHide.ghosts, []);
+});

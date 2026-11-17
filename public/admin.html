@@ -149,6 +149,12 @@
     table.stack td:first-child{grid-column:1/-1;font-weight:600}
     table.stack td:first-child::before{content:none}
   }
+  @media print{
+    body{background:#fff}
+    header button,#loginCard,#periodBar button,#periodBar .hint,#tabs,#pane-trends,#pane-winners,#pane-downloads,#pane-games{display:none!important}
+    #panel,#pane-survey,#pane-decisions{display:block!important}
+    .card{break-inside:avoid;border-color:#ccc;box-shadow:none}
+  }
 </style>
 </head>
 <body>
@@ -173,6 +179,8 @@
         <label for="periodSel"><b>Period</b> <span lang="zh-HK">期間</span></label>
         <select id="periodSel"><option value="">All time</option></select>
         <button class="ghost" id="refreshBtn">Refresh</button>
+        <button class="ghost" id="copyReportBtn">Copy summary</button>
+        <button class="ghost" id="printReportBtn">Print / PDF</button>
         <span class="hint">Survey and Decisions show this period. Hidden games are left out.</span>
       </div>
       <p class="msg" id="sumMsg" role="status"></p>
@@ -223,6 +231,18 @@
         <section class="card">
           <h2>Life stage reached <small class="zh" lang="zh-HK">人生階段</small></h2>
           <div class="wrap" id="stageBox"></div>
+        </section>
+      </div>
+      <div class="grid2">
+        <section class="card">
+          <h2>Too good to be true <small class="zh" lang="zh-HK">太好嘅嘢唔會係真</small></h2>
+          <div class="wrap" id="trollBox"></div>
+          <p class="hint">Mid-game and end-of-game temptation offers: how often players were offered them and fell for them.</p>
+        </section>
+        <section class="card">
+          <h2>Rewards picked <small class="zh" lang="zh-HK">揀咗嘅獎勵</small></h2>
+          <div class="wrap" id="powerBox"></div>
+          <p class="hint">Which helper players chose after answering a Life Event card wisely.</p>
         </section>
       </div>
       <section class="card">
@@ -281,7 +301,6 @@
           </div>
         </section>
       </div>
-      <textarea id="copyBox" rows="3" readonly hidden aria-label="Text to copy by hand"></textarea>
       <p class="msg">Emails are private: they are never shown on the public board. Use them only to contact winners. A “repeat” tag means the same email shows up more than once in the list (capital letters ignored), so you can pick different winners.</p>
     </div>
 
@@ -325,6 +344,7 @@
         <p><button class="ghost" id="moreBtn" hidden>Load more</button> <span class="hint" id="gCount"></span></p>
       </section>
     </div>
+    <textarea id="copyBox" rows="3" readonly hidden aria-label="Text to copy by hand"></textarea>
   </div>
 </main>
 <script src="/assets/content.cf4ef8693a.js"></script>

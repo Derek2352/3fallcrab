@@ -3,7 +3,7 @@
 // and what the board exposes, without a database.
 const COLS = ["id", "gid", "edit_hash", "name", "email", "score", "stage", "height", "drops", "wise", "risky",
   "missed", "fall_spend", "fall_scam", "fall_delay", "choices", "habit", "quiz", "quiz_answered", "quiz_answers",
-  "ended", "week", "month", "persona", "ip_hash", "posted", "hidden", "created_at", "updated_at", "edits"];
+  "ended", "week", "month", "persona", "sil", "ip_hash", "posted", "hidden", "created_at", "updated_at", "edits"];
 
 export function makeStore() {
   const rows = [];
@@ -11,6 +11,7 @@ export function makeStore() {
 
   const select = (sql, args) => {
     let list = rows.slice();
+    if (/WHERE id = \?1/.test(sql)) list = list.filter((r) => r.id === args[0]);
     if (/WHERE gid = \?1/.test(sql)) list = list.filter((r) => r.gid === args[0]);
     if (/month IS NULL/.test(sql)) list = list.filter((r) => r.month == null);
     if (/WHERE week = \?1/.test(sql)) list = list.filter((r) => r.week === args[0]);
@@ -58,6 +59,14 @@ export function makeStore() {
     if (/INSERT INTO scores/.test(sql)) return { meta: insert(sql, args) };
     if (/UPDATE scores SET month = \?1 WHERE id = \?2/.test(sql)) {
       const r = rows.find((x) => x.id === args[1]); if (r) r.month = args[0];
+      return { meta: { changes: r ? 1 : 0 } };
+    }
+    if (/UPDATE scores SET hidden = \?1 WHERE id = \?2/.test(sql)) {
+      const r = rows.find((x) => x.id === args[1]); if (r) r.hidden = args[0];
+      return { meta: { changes: r ? 1 : 0 } };
+    }
+    if (/UPDATE scores SET name = \?1 WHERE id = \?2/.test(sql)) {
+      const r = rows.find((x) => x.id === args[1]); if (r) r.name = args[0];
       return { meta: { changes: r ? 1 : 0 } };
     }
     if (/UPDATE scores SET ip_hash = NULL/.test(sql)) {

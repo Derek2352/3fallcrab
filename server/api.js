@@ -25,7 +25,8 @@
 
 import "../src/content.js"; // quiz, habits and cards, shared with the game page (sets globalThis.TFF_CONTENT)
 
-const { QUIZ, HABITS: HABIT_LIST, answerNow, habitNow, CARDS, STAGES, TRAPS, TYPES: MTYPES, TITLES, PERSONAS = { bg: {}, pe: {} } } = globalThis.TFF_CONTENT;
+const { QUIZ, HABITS: HABIT_LIST, answerNow, habitNow, CARDS, STAGES, TRAPS, POWERS = {}, TYPES: MTYPES, TITLES, PERSONAS = { bg: {}, pe: {} } } = globalThis.TFF_CONTENT;
+const POWER_IDS = new Set(Object.keys(POWERS));
 const PERSONA_KEYS = new Set(Object.keys(PERSONAS.bg).flatMap((b) => Object.keys(PERSONAS.pe).map((p) => b + "+" + p)));
 const TITLE_IDS = new Set(TITLES.map((t) => t.id));
 export const NAME_DEFAULT = "Anonymous crab 匿名蟹";
@@ -235,7 +236,8 @@ function cleanChoices(list) {
   return list.slice(0, 20).flatMap((c) => {
     if (!c || typeof c.card !== "string" || !/^[a-z0-9_-]{1,24}$/.test(c.card) || !PICKS.includes(c.pick) || seen.has(c.card)) return [];
     seen.add(c.card);
-    return [{ card: c.card, pick: c.pick }];
+    const power = c.pick === "wise" && typeof c.power === "string" && POWER_IDS.has(c.power) ? c.power : undefined;
+    return [{ card: c.card, pick: c.pick, ...(power && { power }) }];
   });
 }
 // The decision counters come from the choices themselves, not from separate numbers the page sends, so one request
@@ -272,8 +274,9 @@ export function implausible(v, wise, items, now = Date.now()) {
   if (v.score > 0 && v.height <= 0 && !(v.jackpot === 1 && v.score <= JACKPOT_BONUS)) return "no_height";   // the windfall needs no tower
   if (!stageFits(v.stage, v.height) && !(now < OLD_STAGES_UNTIL && stageFits(v.stage, v.height, OLD_STAGE_AT))) return "stage";
   const boost = Math.min(2, 1 + 0.2 * wise), floors = Math.floor(v.height + 0.05), placed = items ?? MAX_ITEMS;
-  const jackpot = v.jackpot === 1 ? JACKPOT_BONUS + (FRENZY_X - 1) * boost * (500 * Math.min(placed, FRENZY_ITEMS) + 2000 * floors) : 0;
-  if (v.score > boost * (500 * placed + 2000 * floors) + jackpot) return "score";
+  const extra = v.height > 0 ? boost * (2000 * Math.max(0, v.stage) + 1000 * Math.max(0, wise - 3)) : 0;
+  const jackpot = v.jackpot === 1 ? JACKPOT_BONUS + (FRENZY_X - 1) * (boost * (500 * Math.min(placed, FRENZY_ITEMS) + 2000 * floors) + extra) : 0;
+  if (v.score > boost * (500 * placed + 2000 * floors) + extra + jackpot) return "score";
   return null;
 }
 
@@ -544,6 +547,7 @@ async function post(request, env, db) {
   await db.prepare("UPDATE scores SET ip_hash = NULL WHERE id IN (SELECT id FROM scores WHERE ip_hash IS NOT NULL AND created_at < ?1 LIMIT 500)")
     .bind(new Date(now.getTime() - 5 * 60000).toISOString()).run();
   if (!board) return json({ ok: true, id, week, board: false }, 201);
+  ghostMemo = null;
   return json({ ok: true, id, board: true, ...(await rankOf(db, week, values.score, id)), week, name: values.name }, 201);
 }
 
@@ -569,6 +573,7 @@ async function update(db, saved, c) {
         email = COALESCE(email, ?7), edits = edits + 1, updated_at = ?8, week = ?9, month = COALESCE(?10, month) WHERE id = ?11`)
       .bind(JSON.stringify(answers), answers.length, quizRight(answers), habit, posted, name, email, new Date().toISOString(), week, month, saved.id)
       .run();
+    if (!saved.posted && c.board) ghostMemo = null;
   } else week = saved.week;
   if (!posted) return json({ ok: true, id: saved.id, week, board: false });
   return json({ ok: true, id: saved.id, board: true, ...(await rankOf(db, week, saved.score, saved.id)), week, name });
@@ -624,7 +629,12 @@ async function summary(db, p) {
         ${sum(`${QUIZ_TAKER} AND quiz = ${QUIZ.length}`)} AS quizPerfect, ${sum(`CASE WHEN ${QUIZ_TAKER} THEN quiz END`)} AS quizSum,
         MAX(score) AS bestScore, ROUND(AVG(height), 1) AS avgHeight, ${sum("ended = 'time'")} AS endedTime, ${sum("ended = 'drops'")} AS endedDrops,
         ${sum("fall_spend > 0")} AS gSpend, ${sum("fall_scam > 0")} AS gScam, ${sum("fall_delay > 0")} AS gDelay,
-        ${sum("fall_spend + fall_scam + fall_delay = 0")} AS gNoFall
+        ${sum("fall_spend + fall_scam + fall_delay = 0")} AS gNoFall,
+        ${sum("troll_invest >= 1")} AS tiSeen, ${sum("troll_invest = 1")} AS tiDeclined,
+        ${sum("troll_invest >= 2")} AS tiInvested, ${sum("troll_invest = 3")} AS tiFee,
+        ${sum("troll_tickets IS NOT NULL")} AS ttSeen, ${sum("troll_tickets >= 1")} AS ttBought,
+        ${sum("COALESCE(troll_tickets, 0)")} AS ttCards,
+        ${sum("troll_revive IS NOT NULL")} AS trSeen, ${sum("troll_revive = 1")} AS trPressed
       FROM scores s WHERE ${where}`),
     q(`SELECT json_extract(a.value, '$.q') AS q, json_extract(a.value, '$.pick') AS pick, json_extract(a.value, '$.ok') AS ok, COUNT(*) AS n
       FROM scores s, json_each(s.quiz_answers) a WHERE ${where} AND s.quiz_answers IS NOT NULL GROUP BY 1, 2, 3`),
@@ -641,8 +651,10 @@ async function summary(db, p) {
     q(`SELECT persona AS k, COUNT(*) AS n FROM scores s WHERE ${where} AND persona IS NOT NULL GROUP BY persona`),
     db.prepare("SELECT DISTINCT week AS k FROM scores ORDER BY week DESC"),
     db.prepare("SELECT DISTINCT month AS k FROM scores WHERE month IS NOT NULL ORDER BY month DESC"),
+    q(`SELECT json_extract(c.value, '$.power') AS k, COUNT(*) AS n
+      FROM scores s, json_each(s.choices) c WHERE ${where} AND json_extract(c.value, '$.power') IS NOT NULL GROUP BY 1`),
   ]);
-  const [ov, qa, qs, hb, cd, st, wk, mo, mt, vc, tt, ps, weeks, months] = res.map((r) => r.results || []);
+  const [ov, qa, qs, hb, cd, st, wk, mo, mt, vc, tt, ps, weeks, months, pw] = res.map((r) => r.results || []);
   const o = ov[0] || {};
   const pct = (a, b) => (b ? Math.round((1000 * (a || 0)) / b) / 10 : null);
   const count = (rows, test) => rows.filter(test).reduce((s, r) => s + (r.n || 0), 0);
@@ -697,6 +709,12 @@ async function summary(db, p) {
         wisePct: pct(wise, n), riskyPct: pct(risky, n), nonePct: pct(none, n) };
     }),
     stages: STAGES.map((s, i) => ({ stage: i, en: s.en, zh: s.zh, n: count(st, (r) => r.k === i) })),
+    trolls: {
+      invest: { seen: o.tiSeen || 0, declined: o.tiDeclined || 0, invested: o.tiInvested || 0, fee: o.tiFee || 0, hitPct: pct(o.tiInvested, o.tiSeen) },
+      tickets: { seen: o.ttSeen || 0, bought: o.ttBought || 0, cards: o.ttCards || 0, hitPct: pct(o.ttBought, o.ttSeen) },
+      revive: { seen: o.trSeen || 0, pressed: o.trPressed || 0, hitPct: pct(o.trPressed, o.trSeen) },
+    },
+    powers: Object.keys(POWERS).map((k) => ({ id: k, en: POWERS[k].en, zh: POWERS[k].zh, n: count(pw || [], (r) => r.k === k) })),
     byWeek: wk.map(trend),
     byMonth: mo.map(trend),
   };
@@ -761,7 +779,7 @@ async function admin(path, request, env, db) {
     const id = int(b && b.id, 0, Number.MAX_SAFE_INTEGER);
     if (!id) return fail("bad_id", 400);
     const res = await db.prepare("UPDATE scores SET hidden = ?1 WHERE id = ?2").bind(b.hidden === false ? 0 : 1, id).run();
-    statsMemo = null;
+    statsMemo = null; ghostMemo = null;
     return json({ ok: true, id, hidden: b.hidden !== false, changed: res.meta.changes || 0 });
   }
   if (path === "rename" && request.method === "POST") { // a rude nickname: the game stays on the board and in the analysis
@@ -770,7 +788,7 @@ async function admin(path, request, env, db) {
     const id = int(b && b.id, 0, Number.MAX_SAFE_INTEGER);
     if (!id) return fail("bad_id", 400);
     const res = await db.prepare("UPDATE scores SET name = ?1 WHERE id = ?2").bind(NAME_DEFAULT, id).run();
-    statsMemo = null;
+    statsMemo = null; ghostMemo = null;
     return json({ ok: true, id, name: NAME_DEFAULT, changed: res.meta.changes || 0 });
   }
   if (path === "export" && request.method === "GET") {
