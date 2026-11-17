@@ -113,3 +113,13 @@ test("ghost cache clears immediately when admin renames or hides a score", async
   const afterHide = await (await call("/api/scores?view=ghosts")).json();
   assert.deepEqual(afterHide.ghosts, []);
 });
+
+test("the board includes title and persona badges on top rows without exposing email", async () => {
+  const { post, call } = make();
+  const r = await post(game(450, "Badge", { title: "zero", persona: "sub+grind" }));
+  assert.equal(r.status, 201);
+  const j = await (await call("/api/scores")).json();
+  assert.equal(j.weekTop[0].title, "zero");
+  assert.equal(j.weekTop[0].persona, "sub+grind");
+  assert.equal("email" in j.weekTop[0], false);
+});

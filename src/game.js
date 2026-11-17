@@ -23,6 +23,18 @@ const A = {
   muted(){ try { return GA ? GA.isMuted() : false; } catch(e){ return false; } },
   toggle(){ try { return GA ? GA.toggleMute() : false; } catch(e){ return false; } }
 };
+function haptic(ms, strong = 0.5, weak = 0.5){
+  if (reduceMotion || A.muted()) return;
+  try { if (navigator.vibrate) navigator.vibrate(ms); } catch(e){}
+  try {
+    for (const gp of (navigator.getGamepads ? navigator.getGamepads() : [])){
+      if (gp && gp.connected && gp.vibrationActuator && gp.vibrationActuator.playEffect){
+        gp.vibrationActuator.playEffect("dual-rumble", {duration: Array.isArray(ms) ? ms.reduce((a, b) => a + b, 0) : ms, strongMagnitude: strong, weakMagnitude: weak}).catch(() => {});
+        break;
+      }
+    }
+  } catch(e){}
+}
 
 // ---------- world ----------
 const W = 440, H = 700, PW = 270, FLOOR = 50, WATER_Y = 120;
@@ -169,6 +181,7 @@ function makeEngine(){
       if ((S.lastImpact.get(key) || -99) > now - 6) continue; S.lastImpact.set(key, now);
       const mat = (a.isStatic || b.isStatic) && st > 0.5 ? "platform" : ((loud.plugin && loud.plugin.material) || "card");
       A.impact(mat, st, clamp(((a.position.x + b.position.x) / 2) / W * 2 - 1, -1, 1));
+      if (st > 0.55) haptic(18, st * 0.4, st * 0.6);
     }
   });
 }
@@ -1157,7 +1170,7 @@ function shock(){
     S.fund--; A.sfx("shield"); stamp(sh[0], sh[1] + "：應急錢頂住咗", "good"); quip("shockOk", 2);
     crab("Life happens: " + (sh[0][0].toLowerCase() + sh[0].slice(1)) + ". Your emergency fund kept the tower steady.", "突發：" + sh[1] + "。好彩有應急錢，座塔企得穩。");
   } else {
-    S.quakeUntil = S.play + 1700; if (!reduceMotion) S.shake = 10; A.sfx("quake"); mood("worried", 2200); quip("shockBad", 2);
+    S.quakeUntil = S.play + 1700; if (!reduceMotion) S.shake = 10; haptic([60, 40, 90], 0.8, 0.6); A.sfx("quake"); mood("worried", 2200); quip("shockBad", 2);
     stamp(sh[0], sh[1] + "：冇應急錢，座塔震！", "bad");
     crab("Life happens: " + (sh[0][0].toLowerCase() + sh[0].slice(1)) + ". With no emergency fund, everything wobbles.", "突發：" + sh[1] + "。冇應急錢，成座塔都震。");
   }
@@ -1439,7 +1452,7 @@ function jackpotHit(){
   S.jpAt = S.play; S.frenzyUntil = S.play + FRENZY_MS; S.frenzySec = 0;
   S.score += JACKPOT_BONUS; ledger({zh: "大獎", en: "Jackpot windfall"}, JACKPOT_BONUS);
   A.sfx("jackpot"); A.mode(musicMode());
-  try { if (!A.muted() && navigator.vibrate) navigator.vibrate([70, 50, 70, 50, 180]); } catch(e){}
+  haptic([70, 50, 70, 50, 180], 0.9, 0.7);
   if (!reduceMotion){ const bw = $("boardWrap"); bw.classList.remove("jpshake"); void bw.offsetWidth; bw.classList.add("jpshake"); }   // moved as a whole: the tower stays cached
   mood("happy", 3500); quip("jackpot", 3);
   const sec = FRENZY_MS / 1000;
@@ -1650,6 +1663,7 @@ function endGame(reason){
   mood(reason === "drops" ? "cover" : "happy", 4000);
   S.overKey = reason === "drops" ? "overDrops" : "over" + S.stage; quip(S.overKey, 3);
   if (S.score > lsGet("tff_pb", 0)) lsSet("tff_pb", Math.round(S.score));
+  $("timeVal").classList.remove("urgent"); $("hudTime").classList.remove("urgent");
   updateHUD();
   setTimeout(reason === "drops" ? openRevive : showEnd, reason === "drops" ? 1000 : 700);   // the third drop: a revive is offered first
 }
@@ -2111,6 +2125,24 @@ function renderWardrobe(){
     });
     box.appendChild(b);
   });
+  const wt = $("wardrobeTitles");
+  if (wt){
+    wt.replaceChildren();
+    const pb = BOOTH ? 0 : (+lsGet("tff_pb", 0) || 0), gamesN = BOOTH ? 0 : localScores().length;
+    const st = document.createElement("p"); st.className = "wt-stats";
+    bi(st,
+      "Titles collected: " + have.length + "/" + TITLES.length + (pb > 0 ? " · Best: " + fmt(pb) : "") + (gamesN ? " · Games on device: " + gamesN : ""),
+      "稱號圖鑑：" + have.length + "／" + TITLES.length + (pb > 0 ? " · 最高紀錄：" + fmt(pb) : "") + (gamesN ? " · 本機局數：" + gamesN : ""));
+    const grid = document.createElement("div"); grid.className = "wt-grid";
+    TITLES.forEach(t => {
+      const got = have.includes(t.id), d = document.createElement("div");
+      d.className = "wt-chip " + (got ? "on" : "locked");
+      const b = document.createElement("b"); b.textContent = got ? t.zh + " · " + t.en : "？？？ · Locked 未解鎖";
+      const sm = document.createElement("small"); sm.textContent = got ? t.line[1] : t.line[0];
+      d.append(b, sm); grid.appendChild(d);
+    });
+    wt.append(st, grid);
+  }
 }
 function closeInfo(quiet){
   if (!infoOpen) return;
@@ -3305,6 +3337,12 @@ function updateTime(){
   const t = Math.floor(sec / 60) + ":" + String(sec % 60).padStart(2, "0");
   $("timeVal").textContent = t; $("hudTime").textContent = t;
   $("timeVal").classList.toggle("warn", sec <= 30);
+  const urg = sec <= 10 && sec > 0 && S.mode === "playing";
+  for (const id of ["timeVal", "hudTime"]){
+    const el = $(id); el.classList.remove("urgent");
+    if (urg){ void el.offsetWidth; el.classList.add("urgent"); }
+  }
+  if (urg && sec <= 5){ A.sfx("cardTick", {n: sec}); haptic(15, 0.25, 0.35); }
   if (sec <= 30 && !S.warned && S.mode === "playing"){ S.warned = true; A.sfx("timeWarn"); stamp("30 seconds left", "仲有30秒", "info"); quip("hurry", 3); }
   statusQuips();
 }
@@ -4002,6 +4040,11 @@ function showEnd(){
   $("rNw").textContent = fmt(S.score);
   $("rHeight").textContent = floorTxt(S.best / FLOOR);
   const picks = S.wise + S.risky + S.missed; $("rWise").textContent = picks ? S.wise + " of " + picks : "—";
+  $("rCompRow").hidden = !(S.compounded > 0);
+  if (S.compounded > 0){
+    $("rComp").textContent = "+" + fmt(S.compounded);
+    $("rCompRow").title = "Early-floor stage dividends + full emergency-fund interest · 早儲複息加應急錢儲滿利息";
+  }
   $("rJpRow").hidden = S.jpAt < 0;   // the windfall plus what jackpot time added
   if (S.jpAt >= 0){ $("rJp").textContent = "+" + fmt(JACKPOT_BONUS + S.jpExtra); $("rJpRow").title = fmt(JACKPOT_BONUS) + " windfall + " + fmt(S.jpExtra) + " from jackpot time · 意外之財加大獎時間收入"; }
   const fr = $("fallRep"); fr.replaceChildren();
@@ -4047,13 +4090,16 @@ function showEnd(){
     const lz = document.createElement("small"); lz.textContent = q.q[1]; lg.appendChild(lz);
     const box = document.createElement("div"); box.className = "qopts";
     const fb = document.createElement("p"); fb.className = "qfb"; fb.setAttribute("role", "status");
-    q.o.forEach((o, oi) => {
-      const b = document.createElement("button"); b.type = "button"; b.className = "qopt";
+    const order = q.o.map((_, idx) => idx);
+    for (let i = order.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+    order.forEach(oi => {
+      const o = q.o[oi];
+      const b = document.createElement("button"); b.type = "button"; b.className = "qopt"; b.dataset.oi = String(oi);
       b.textContent = o[0]; const z = document.createElement("small"); z.textContent = o[1]; b.appendChild(z);
       b.addEventListener("click", () => {
         if (S.quiz[qi]) return;
         const ok = oi === q.a; S.quiz[qi] = {pick: oi, ok}; A.sfx(ok ? "deposit" : "risky");
-        [...box.children].forEach((bb, j) => { bb.disabled = true; bb.classList.add(j === q.a ? "is-right" : j === oi ? "is-wrong" : "is-dim"); });
+        [...box.children].forEach(bb => { const bj = +bb.dataset.oi; bb.disabled = true; bb.classList.add(bj === q.a ? "is-right" : bj === oi ? "is-wrong" : "is-dim"); });
         b.setAttribute("aria-pressed", "true");
         const head = document.createElement("b"); head.className = "qh";
         head.append(svgUse(ok ? "i-good" : "i-bad"), ok ? "Correct!" : "Not quite. The answer is “" + q.o[q.a][0] + "”");
@@ -4324,6 +4370,7 @@ $("postBtn").addEventListener("click", async () => {
   const answers = answersOf(st), right = st.quiz.filter(x => x && x.ok).length;
   const entry = {name, score: Math.round(st.score), stage: st.stage, height: +(st.best / FLOOR).toFixed(1), drops: st.drops,
     wise: st.wise, risky: st.risky, missed: st.missed, falls: {...st.falls}, choices: st.choices.slice(0, 20), habit: st.habit || null,
+    title: st.verdict ? st.verdict.id : undefined, persona: st.persona ? personaKey(st.persona) : undefined,
     answers, quiz: answers.length ? right : null, ended: st.over, at: new Date().toISOString(), week: localWeek()};   // the device copy never holds the email
   btn.disabled = true; postLabel("Posting…", "上載中"); ps.className = "post-status";
   if (!db && apiAllowed && !apiGone) await refreshLB();
@@ -4334,7 +4381,7 @@ $("postBtn").addEventListener("click", async () => {
     try {
       const j = await saveRecord(st);
       myLastId = j.id; myIds.add(j.id); lsSet("tff_my_ids", [...myIds].slice(-30)); st.posted = true; st.posting = false; st.boardName = j.name || name;
-      myPost = {id: j.id, rank: j.rank || (j.rankCap || 500) + 1, week: j.week, name: j.name || name, score: entry.score, height: entry.height}; lsSet("tff_my_post", myPost);
+      myPost = {id: j.id, rank: j.rank || (j.rankCap || 500) + 1, week: j.week, name: j.name || name, score: entry.score, height: entry.height, title: entry.title, persona: entry.persona}; lsSet("tff_my_post", myPost);
       if (st === S){
         A.sfx("post"); ps.className = "post-status ok";
         ps.textContent = (j.rank ? "You're #" + j.rank + " this week! 今個星期排第" + j.rank + "！ " : "On the live board! 已上榜！ ") +
@@ -4380,6 +4427,13 @@ function lbRow(e, rank, mine){
   const li = document.createElement("li"); if (mine) li.className = "me";
   const r = document.createElement("span"); r.className = "r"; r.textContent = rank;
   const n = document.createElement("span"); n.className = "n"; n.textContent = sanitizeName(e.name);
+  const tv = e.title && TITLES.find(t => t.id === e.title), pv = e.persona && personaOf({bg: String(e.persona).split("+")[0], pe: String(e.persona).split("+")[1]});
+  if (tv || pv){
+    const sub = document.createElement("small"); sub.className = "lb-sub";
+    sub.textContent = [pv && pv.zh, tv && tv.zh].filter(Boolean).join(" · ");
+    sub.title = [pv && (pv.c.en || pv.en), tv && tv.en].filter(Boolean).join(" · ");
+    n.appendChild(sub);
+  }
   const f = document.createElement("span"); f.className = "fl"; f.textContent = typeof e.height === "number" ? floorTxt(e.height) : "";
   const s = document.createElement("span"); s.className = "s"; s.textContent = fmt(Number(e.score) || 0);
   li.append(r, n, f, s); return li;
@@ -4418,7 +4472,7 @@ function renderLB(){
   else { list = localList(); txt = "Scores on this device 本機紀錄"; }
   list = list.slice().sort((a, b) => (b.score || 0) - (a.score || 0));
   const extra = db && tab === "week" && myPost && myPost.week === curWeek() && myPost.rank > 0 && !list.slice(0, 10).some(e => e._id === myPost.id) ? myPost : null;
-  const sig = tab + "|" + txt + "|" + myLastId + "|" + myLocalAt + "|" + (extra ? extra.id : "") + "|" + list.slice(0, 10).map(e => (e._id != null ? e._id : e.at) + ":" + e.score + ":" + e.name).join(",");
+  const sig = tab + "|" + txt + "|" + myLastId + "|" + myLocalAt + "|" + (extra ? extra.id : "") + "|" + list.slice(0, 10).map(e => (e._id != null ? e._id : e.at) + ":" + e.score + ":" + e.name + ":" + (e.title || "") + ":" + (e.persona || "")).join(",");
   if (sig === lbSig) return;
   lbSig = sig; lbRows(list, extra); note.textContent = txt;
 }

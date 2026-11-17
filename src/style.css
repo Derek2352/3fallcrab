@@ -1788,3 +1788,19 @@ body:has(#cardModal:not([hidden])) .fbars{height:min(9vh,86px)}   /* follows the
 @media (prefers-reduced-motion: reduce){
   .lc-band::before, #endModal:not([hidden]) .seal, .dir li.on{animation:none !important}
 }
+
+.rows li.comp .val{color:var(--green-t)}
+.lb .n .lb-sub{display:block;font-family:var(--f-zh);font-size:11px;font-weight:700;color:var(--ink-2);line-height:1.15;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.w-titles{margin-top:12px;padding-top:12px;border-top:2px dashed var(--cream-d)}
+.wt-stats{margin:0 0 8px;font-size:12.5px;font-weight:800;color:var(--ink)}
+.wt-stats .zl{display:block;font-family:var(--f-zh);font-size:12px;color:var(--ink-2)}
+.wt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+.wt-chip{padding:6px 9px;border-radius:12px;background:#fff;box-shadow:inset -1px -2px 4px rgba(60,20,10,.08), 0 2px 0 var(--cream-d);font-size:11.5px;line-height:1.25}
+.wt-chip b{display:block;font-family:var(--f-zh);font-size:12.5px;color:var(--navy)}
+.wt-chip small{display:block;margin-top:2px;font-family:var(--f-zh);color:var(--ink-2);font-size:11px}
+.wt-chip.locked{background:#F4EEE2;opacity:.68}
+.wt-chip.locked b{color:var(--ink-2)}
+.pbs .v.urgent, .hud .hs .v.urgent{color:#FF5F56;animation:timepulse .5s cubic-bezier(.2,.9,.3,1.4)}
+#hudTime.urgent{color:var(--red-d)}
+@keyframes timepulse{0%{transform:scale(1.22)}100%{transform:none}}
+@media (prefers-reduced-motion: reduce){ .pbs .v.urgent, .hud .hs .v.urgent{animation:none} }

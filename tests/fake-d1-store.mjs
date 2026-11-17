@@ -3,7 +3,7 @@
 // and what the board exposes, without a database.
 const COLS = ["id", "gid", "edit_hash", "name", "email", "score", "stage", "height", "drops", "wise", "risky",
   "missed", "fall_spend", "fall_scam", "fall_delay", "choices", "habit", "quiz", "quiz_answered", "quiz_answers",
-  "ended", "week", "month", "persona", "sil", "ip_hash", "posted", "hidden", "created_at", "updated_at", "edits"];
+  "ended", "week", "month", "persona", "title", "sil", "ip_hash", "posted", "hidden", "created_at", "updated_at", "edits"];
 
 export function makeStore() {
   const rows = [];

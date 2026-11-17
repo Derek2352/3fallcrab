@@ -367,7 +367,7 @@ async function netHash(ip, scope, env) {
 
 async function board(env, db) {
   const week = isoWeek(new Date(), timeZone(env));
-  const cols = "id, name, score, height, stage, created_at AS at"; // never the email
+  const cols = "id, name, score, height, stage, title, persona, created_at AS at"; // never the email
   const [w, a] = await db.batch([
     db.prepare(`SELECT ${cols} FROM scores WHERE week = ?1 AND hidden = 0 AND posted = 1 ORDER BY score DESC, id ASC LIMIT 10`).bind(week),
     db.prepare(`SELECT ${cols} FROM scores WHERE hidden = 0 AND posted = 1 ORDER BY score DESC, id ASC LIMIT 10`),
