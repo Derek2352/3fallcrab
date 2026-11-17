@@ -23,14 +23,67 @@ const A = {
   muted(){ try { return GA ? GA.isMuted() : false; } catch(e){ return false; } },
   toggle(){ try { return GA ? GA.toggleMute() : false; } catch(e){ return false; } }
 };
+let iosHapticEl = null, iosHapticAt = 0;
+function triggerIosHaptic(){
+  const now = performance.now();
+  if (now - iosHapticAt < 40) return;
+  iosHapticAt = now;
+  if (!iosHapticEl && document.body){
+    const lbl = document.createElement("label");
+    lbl.setAttribute("aria-hidden", "true");
+    lbl.inert = true;
+    lbl.style.cssText = "position:fixed;left:-9999px;top:-9999px;opacity:0;pointer-events:none";
+    const inp = document.createElement("input");
+    inp.type = "checkbox";
+    inp.setAttribute("switch", "");
+    inp.tabIndex = -1;
+    lbl.appendChild(inp);
+    lbl.addEventListener("click", e => e.stopPropagation());
+    document.body.appendChild(lbl);
+    iosHapticEl = lbl;
+  }
+  if (iosHapticEl) iosHapticEl.click();
+}
+function hapticSegments(ms){
+  const segs = [];
+  if (Array.isArray(ms)){
+    let delay = 0;
+    for (let i = 0; i < ms.length; i++){
+      const v = Math.max(0, Math.round(ms[i] || 0));
+      if (i % 2 === 0 && v > 0) segs.push({delay, dur: v});
+      delay += v;
+    }
+  } else {
+    const v = Math.max(0, Math.round(ms || 0));
+    if (v > 0) segs.push({delay: 0, dur: v});
+  }
+  return segs;
+}
 function haptic(ms, strong = 0.5, weak = 0.5){
   if (reduceMotion || A.muted()) return;
+  const st = clamp(strong, 0, 1), wk = clamp(weak, 0, 1), mag = Math.max(st, wk);
   try { if (navigator.vibrate) navigator.vibrate(ms); } catch(e){}
   try {
-    for (const gp of (navigator.getGamepads ? navigator.getGamepads() : [])){
-      if (gp && gp.connected && gp.vibrationActuator && gp.vibrationActuator.playEffect){
-        gp.vibrationActuator.playEffect("dual-rumble", {duration: Array.isArray(ms) ? ms.reduce((a, b) => a + b, 0) : ms, strongMagnitude: strong, weakMagnitude: weak}).catch(() => {});
-        break;
+    if (typeof IOS !== "undefined" && IOS && !navigator.vibrate && typeof audioOn !== "undefined" && audioOn){
+      triggerIosHaptic();
+      if (Array.isArray(ms) && ms.length >= 3 && st >= 0.45){
+        setTimeout(() => { if (!reduceMotion && !A.muted()) triggerIosHaptic(); }, Math.min(220, (ms[0] || 20) + (ms[1] || 30)));
+      }
+    }
+  } catch(e){}
+  try {
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    const segs = hapticSegments(ms);
+    if (!segs.length) return;
+    const runSegs = fn => segs.forEach(s => s.delay > 0 ? setTimeout(() => fn(s.dur), s.delay) : fn(s.dur));
+    for (const gp of pads){
+      if (!gp || !gp.connected) continue;
+      const act = gp.vibrationActuator, ha = Array.isArray(gp.hapticActuators) ? gp.hapticActuators[0] : null;
+      if (act && typeof act.playEffect === "function"){
+        runSegs(dur => act.playEffect(act.type || "dual-rumble", {startDelay: 0, duration: dur, strongMagnitude: st, weakMagnitude: wk}).catch(() => {}));
+      } else {
+        const pulser = (act && typeof act.pulse === "function") ? act : ha;
+        if (pulser && typeof pulser.pulse === "function") runSegs(dur => Promise.resolve(pulser.pulse(mag, dur)).catch(() => {}));
       }
     }
   } catch(e){}
@@ -230,15 +283,15 @@ function planFirst(){   // picked as a fresh game would: the last game's forced 
 function release(hard){
   const b = S.active; if (!b) return;
   S.active = null; b.tff.released = true; b.tff.at = S.play;
-  if (hard){ Body.setVelocity(b, {x: b.velocity.x * 0.3, y: HARD_DROP}); b.tff.capFall = HARD_DROP; A.sfx("harddrop"); }
+  if (hard){ Body.setVelocity(b, {x: b.velocity.x * 0.3, y: HARD_DROP}); b.tff.capFall = HARD_DROP; A.sfx("harddrop"); haptic(22, 0.45, 0.55); }
   S.spawnAt = S.play + 420;
 }
 function doHold(){
   if (S.mode !== "playing" || !S.active || !S.canHold) return;
-  if (S.scamLock > 0){ stamp("Hold locked", "被呃咗，暫存用唔到", "bad"); return; }
+  if (S.scamLock > 0){ stamp("Hold locked", "被呃咗，暫存用唔到", "bad"); haptic([25, 30, 35], 0.5, 0.4); return; }
   const def = S.active.tff.def; Composite.remove(engine.world, S.active); S.active = null;
   if (S.hold){ const h = S.hold; S.hold = def; spawn(h); } else { S.hold = def; nextPiece(); }
-  S.canHold = false; A.sfx("hold"); drawPreviews(); prewarm();
+  S.canHold = false; A.sfx("hold"); haptic([12, 28, 16], 0.25, 0.35); drawPreviews(); prewarm();
 }
 function fallSpeed(){
   let f = FALL[S.stage] * (WARMUP_FROM + (1 - WARMUP_FROM) * clamp(S.play / WARMUP_MS, 0, 1));
@@ -249,7 +302,7 @@ function dropDebt(){
   if (!DEBT) return;
   const b = addItem(DEBT, W/2 + (Math.random() * 120 - 60), S.camTop + 40, false);
   Body.setVelocity(b, {x: 0, y: 4}); Body.setAngularVelocity(b, (Math.random() - .5) * 0.08);
-  A.sfx("debt"); stamp("Debt incoming!", "債務跌緊落嚟！", "bad");
+  A.sfx("debt"); haptic([30, 30, 50], 0.65, 0.45); stamp("Debt incoming!", "債務跌緊落嚟！", "bad");
 }
 // Steering by key, pad or controller: a quick tap nudges the item one small step (for fine placing); held for longer
 // than NUDGE_MS it slides.
@@ -257,7 +310,7 @@ const NUDGE = 6, NUDGE_MS = 130, keyAt = {left: 0, right: 0};
 function setKey(d, v){
   if (v && !keys[d]){ keyAt[d] = performance.now();
     const b = S && S.mode === "playing" && S.active, dx = d === "left" ? -NUDGE : NUDGE;
-    if (b && (dx < 0 ? b.bounds.min.x + dx >= 6 : b.bounds.max.x + dx <= W - 6)){ Body.translate(b, {x: dx, y: 0}); A.sfx("move"); } }
+    if (b && (dx < 0 ? b.bounds.min.x + dx >= 6 : b.bounds.max.x + dx <= W - 6)){ Body.translate(b, {x: dx, y: 0}); A.sfx("move"); haptic(8, 0.12, 0.2); } }
   keys[d] = v;
 }
 const sliding = d => keys[d] && performance.now() - keyAt[d] >= NUDGE_MS;
@@ -328,7 +381,7 @@ function physicsStep(){
     if (b.position.y > WATER_Y + 40){
       Composite.remove(engine.world, b);
       S.splashes.push({x: b.position.x, t: 0, big: b.mass > 8});
-      A.sfx("splash");
+      A.sfx("splash"); haptic([45, 35, 75], 0.8, 0.6);
       if (b === S.active){ S.active = null; S.spawnAt = S.play + 300; }
       for (const m of membersOf(b)){
         if (!m.tff.player) continue;
@@ -351,7 +404,7 @@ function physicsStep(){
       if (!m.tff.player || m.tff.settled || !resting || S.play - m.tff.at <= 450) continue;
       m.tff.settled = true;
       const k = m.tff.def.kind, base = k === "wise" ? 500 : k === "risky" ? 300 : 0;
-      if (base){ const [gain, x] = pay(base); S.score += gain; S.items++; ledger(m.tff.def, gain, x > 1 ? "×" + x : ""); A.sfx("deposit", {amount: gain, frenzy: x > 1}); if (x > 1) popMoney(m, gain); updateHUD(); }
+      if (base){ const [gain, x] = pay(base); S.score += gain; S.items++; ledger(m.tff.def, gain, x > 1 ? "×" + x : ""); A.sfx("deposit", {amount: gain, frenzy: x > 1}); haptic(12, 0.2, 0.3); if (x > 1) popMoney(m, gain); updateHUD(); }
       if (++S.streak % 4 === 0) quip("steady", 1);   // every 4 items landed in a row without a drop
     }
     if (resting && S.play - b.tff.at > 300) h = Math.max(h, -b.bounds.min.y);
@@ -365,7 +418,7 @@ function physicsStep(){
       if (S.stage <= 1) S.earlyFloors++;
       const [gain, x] = pay(2000); S.score += gain;
       ledger({zh: "第" + S.bestFloor + "層", en: "Floor " + S.bestFloor}, gain, x > 1 ? "×" + x : "");
-      A.sfx("floor", {floor: S.bestFloor}); mood("happy", 1200);
+      A.sfx("floor", {floor: S.bestFloor}); haptic([18, 30, 28], 0.45, 0.55); mood("happy", 1200);
       stamp("Floor " + S.bestFloor + " +" + fmt(gain) + (x > 1 ? " ×" + x : ""), "第" + S.bestFloor + "層" + (x > 1 ? " · " + x + "倍" : ""), x > 1 ? "gold" : "good"); quip("floor", 1);
     }
     const ns = stageFor(S.best / FLOOR);
@@ -376,7 +429,7 @@ function physicsStep(){
         S.score += div; S.compounded += div;
         ledger({zh: "早儲複息", en: "Compound interest"}, div, dx > 1 ? "×" + dx : "");
       }
-      A.sfx(ns === STAGES.length - 1 ? "win" : "stage", {stage: ns}); A.stage(ns);
+      A.sfx(ns === STAGES.length - 1 ? "win" : "stage", {stage: ns}); haptic([35, 40, 45, 40, 80], 0.75, 0.8); A.stage(ns);
       const sy = -st.at * FLOOR;
       burst(W * 0.24, sy, ["#FFE45C", "#FF5FA2", "#20C1B3", "#FF7B35"], "255,228,92");
       burst(W * 0.76, sy, ["#FFE45C", "#FF5FA2", "#8B6CF2", "#4CC36A"], "255,95,162");
@@ -576,7 +629,7 @@ function widen(){   // a wider foundation, twice at most
   Composite.remove(engine.world, platform);
   platform = Bodies.rectangle(W/2, 15, S.pw, 30, platOpt()); Composite.add(engine.world, platform);
   for (const sx of [-1, 1]) burst(W/2 + sx * (S.pw/2 - 10), 12, ["#FFD23F", "#F2B51C", "#FFF1A8"], "255,200,50");
-  A.sfx("lock"); mood("happy", 1500); stamp("Wider base!", "地基加闊咗！", "gold");
+  A.sfx("lock"); haptic(25, 0.45, 0.5); mood("happy", 1500); stamp("Wider base!", "地基加闊咗！", "gold");
 }
 function topLoose(){   // the highest single item resting on the tower (not locked, not fused by vines, not the debt ball)
   let best = null;
@@ -592,7 +645,7 @@ function undoTop(){   // cooling-off: the top item is lifted off, with no drop
   if (!b){ stamp("Nothing to return", "冇嘢可以退", "info"); return; }
   Composite.remove(engine.world, b);
   burst(b.position.x, b.position.y, ["#9DD8FF", "#FFFFFF", "#5BB2FF"], "157,216,255");
-  A.sfx("uiDone"); stamp("Cooling-off: " + b.tff.def.en + " returned", "冷靜期：退返" + b.tff.def.zh, "good");
+  A.sfx("uiDone"); haptic(25, 0.45, 0.5); stamp("Cooling-off: " + b.tff.def.en + " returned", "冷靜期：退返" + b.tff.def.zh, "good");
 }
 function applyPower(k){
   if (k === "vine" || k === "lock"){ const q = S.queue[0], plain = q && (q.vine || q.lock || q.slime) && q.base ? q.base : q;   // the pick replaces a wrap the item came with
@@ -631,7 +684,7 @@ function lockIn(b){   // b: a released body (or a fused group) with a fixed-depo
   for (const m of membersOf(b)){ m.tff.locked = true; if (m.tff.def.lock){ m.tff.def = lockedOf(m.tff.def); at = at || poseOf(m); } }
   at = at || {x: b.position.x, y: b.position.y};
   burst(at.x, at.y, ["#FFD23F", "#F2B51C", "#FFF1A8"], "255,200,50");
-  A.sfx("lock", {pan: clamp(at.x / W * 2 - 1, -1, 1)}); mood("happy", 1500);
+  A.sfx("lock", {pan: clamp(at.x / W * 2 - 1, -1, 1)}); haptic([28, 30, 40], 0.6, 0.5); mood("happy", 1500);
   stamp("Locked in!", "鎖定！", "gold");
   if (!S.lockSaid){ S.lockSaid = true; crab("Locked in, like a fixed deposit: money you can't spend on a whim stays put.", "好似定期存款咁鎖住咗：唔可以心血來潮拎嚟使，就企得穩。"); }
 }
@@ -648,7 +701,7 @@ function catchNet(b){   // b fell off the tower with the net up: caught, and bac
   S.queue.unshift(...back);
   S.net.left--; S.netWob = {x: b.position.x, t: 0};
   for (const d of back) S.rescues.push({def: d, x: clamp(b.position.x, 20, W - 20), y: NET_Y, t: 0});
-  A.sfx("netCatch", {pan: clamp(b.position.x / W * 2 - 1, -1, 1)}); setTimeout(() => A.sfx("rescue"), 200);
+  A.sfx("netCatch", {pan: clamp(b.position.x / W * 2 - 1, -1, 1)}); haptic([20, 40, 30], 0.45, 0.6); setTimeout(() => A.sfx("rescue"), 200);
   stamp("Caught by insurance!", "保險接住咗！" + (S.net.left ? "（仲有" + S.net.left + "次）" : ""), "good"); mood("happy", 1400); quip("netCatch", 2);
   drawPreviews(true); prewarm(); updateHUD();
 }
@@ -728,7 +781,7 @@ function processGrabs(){
     fuse(HA, HB, g.pre);
     addMark(other, g.x, g.y); if (other.tff.vine) addMark(vm, g.x, g.y);   // the vine creeps onto what it grabbed
     burst(g.x, g.y);
-    A.sfx("vine", {pan: clamp(g.x / W * 2 - 1, -1, 1)});
+    A.sfx("vine", {pan: clamp(g.x / W * 2 - 1, -1, 1)}); haptic([15, 25, 25], 0.4, 0.5);
     if (vm.tff.player && !vm.tff.stuckOnce){ vm.tff.stuckOnce = true; stamp("Vines grab on!", "藤蔓黐住咗！", "good"); }
   }
 }
@@ -963,7 +1016,7 @@ function openCard(){
   S.cardCount++;
   S.card = {c, t:0, flip:false, flipAt:0, order: plan.order, lastTick:4};
   S.mode = "card"; softHeld = false; keys.left = keys.right = false; S.dragX = null;
-  A.sfx("cardOpen"); setTimeout(() => A.sfx("clap"), 300); A.mode("card");
+  A.sfx("cardOpen"); setTimeout(() => { A.sfx("clap"); haptic(22, 0.45, 0.55); }, 300); A.mode("card");
   const st = STAGES[S.stage], act = ACTS[ACT_OF_STAGE[S.stage] || 0], sc = String(S.cardCount).padStart(2, "0");   // the slate: act (by life stage), scene, take
   $("cardSlate").replaceChildren("ACT " + act.n + " · SCENE ", Object.assign(document.createElement("b"), {id: "cardNo", textContent: sc}), " · TAKE " + takes);
   $("cardSlateZh").textContent = act.z + " · 第" + S.cardCount + "場";
@@ -1014,7 +1067,7 @@ function choose(kind){
     head.className = "oc-head good"; head.appendChild(svgUse("i-good")); txt.textContent = "Good call! 揀得好！";
     en = "Next 4 items are stable · boost ×" + S.rate.toFixed(1) + " · " + (bonus ? "full-fund interest +" + fmt(bonus) : "emergency fund +1");   // and a reward of the player's choice (showPowers)
     zh = "之後4件平穩·加成×" + S.rate.toFixed(1) + "·" + (bonus ? "應急錢儲滿利息+" + fmt(bonus) : "應急錢+1");
-    $("ocEffect").style.color = "var(--green-t)"; A.sfx("wise");
+    $("ocEffect").style.color = "var(--green-t)"; A.sfx("wise"); haptic([15, 30, 25], 0.4, 0.55);
   } else {
     const trap = kind === "risky" ? c.trap : "delay";
     S.hand = trap === "spend" ? "bags" : trap === "scam" ? "phone" : "hourglass";
@@ -1025,7 +1078,7 @@ function choose(kind){
     txt.textContent = TRAPS[trap].en + " " + TRAPS[trap].zh;
     [en, zh] = TRAPS[trap].hit;
     if (kind === "none"){ en = "Time ran out, so it was put off · " + en; zh = "諗太耐，即係拖延·" + zh; }
-    $("ocEffect").style.color = "var(--red-d)"; A.sfx("risky");
+    $("ocEffect").style.color = "var(--red-d)"; A.sfx("risky"); haptic([40, 35, 65], 0.75, 0.55);
     if (trap === "spend"){ S.rate = Math.max(1, +(S.rate - 0.2).toFixed(1)); S.forced = {type: "risky", n: 3}; S.pendingDebt++; }
     else if (trap === "scam"){ const sl = Math.min(S.score, 5000); loss = sl; S.score -= sl; ledger({zh: "被騙", en: "Scam"}, -sl); S.forced = {type: "scam", n: 3}; S.scamLock = 4; A.sfx("scam"); }
     else { S.speedUntil = S.play + 20000; S.rate = 1; S.forced = {type: "risky", n: 2}; setRotLock(3); }   // too late to turn: the falling item and the next 2
@@ -1123,7 +1176,7 @@ function loadGhosts(){
 function ghostNow(){   // the one to chase: the lowest score still above the player's
   const g = GHOSTS.find(x => x.score > S.score) || null;
   if (g === S.ghost) return;
-  if (S.ghost && S.ghost.score <= S.score && S.mode === "playing"){ stamp("Passed " + S.ghost.name + "!", "爬過咗 " + S.ghost.name + "！", "gold"); A.sfx("rival"); }
+  if (S.ghost && S.ghost.score <= S.score && S.mode === "playing"){ stamp("Passed " + S.ghost.name + "!", "爬過咗 " + S.ghost.name + "！", "gold"); A.sfx("rival"); haptic([25, 35, 45], 0.6, 0.7); }
   S.ghost = g; S.ghostAt = S.play;
 }
 function drawGhost(c, g){
@@ -1167,7 +1220,7 @@ function closeCard(){
 function shock(){
   const sh = SHOCKS[Math.floor(Math.random() * SHOCKS.length)];
   if (S.fund > 0){
-    S.fund--; A.sfx("shield"); stamp(sh[0], sh[1] + "：應急錢頂住咗", "good"); quip("shockOk", 2);
+    S.fund--; A.sfx("shield"); haptic([20, 30, 30], 0.45, 0.55); stamp(sh[0], sh[1] + "：應急錢頂住咗", "good"); quip("shockOk", 2);
     crab("Life happens: " + (sh[0][0].toLowerCase() + sh[0].slice(1)) + ". Your emergency fund kept the tower steady.", "突發：" + sh[1] + "。好彩有應急錢，座塔企得穩。");
   } else {
     S.quakeUntil = S.play + 1700; if (!reduceMotion) S.shake = 10; haptic([60, 40, 90], 0.8, 0.6); A.sfx("quake"); mood("worried", 2200); quip("shockBad", 2);
@@ -1243,7 +1296,7 @@ function offerStep(step){
     else if (step === "wait"){ set(I.wait, null); btns(null, null); }
     else {   // gone: the scam is a Fall, and the portfolio shows what it really was
       set(I.goneTitle, null); btns(I.ok, null); lessonInto($("offerNote"), I.lesson, I.fact);
-      S.falls.scam++; T.scamSaid = 1; S.hand = "phone"; updateHUD(); A.sfx("scam");
+      S.falls.scam++; T.scamSaid = 1; S.hand = "phone"; updateHUD(); A.sfx("scam"); haptic([50, 35, 80], 0.8, 0.6);
       $("pfChip").classList.add("gone"); $("pfVal").textContent = "−" + fmt(INVEST + (T.invest === 3 ? FEE : 0)); $("pfPct").textContent = "▼100%";
       $("pfLine").setAttribute("points", (S.pf.pts || "0,18") + " 60,20");
     }
@@ -1313,11 +1366,11 @@ function offerFrame(){
     if (o.sc < at.length && el >= at[o.sc]){
       switch (o.sc++){
         case 0: c[0].classList.add("scratching"); A.sfx("scratch"); break;
-        case 1: reveal(0, "💰"); break;
+        case 1: reveal(0, "💰"); haptic(14, 0.25, 0.35); break;
         case 2: c[1].classList.add("scratching"); A.sfx("scratch"); break;
-        case 3: reveal(1, "💰"); break;
+        case 3: reveal(1, "💰"); haptic(14, 0.25, 0.35); break;
         case 4: c[2].classList.add("scratching", "rolling"); A.sfx("scratch"); break;
-        case 5: c[2].classList.remove("rolling"); reveal(2, "🦀"); c[2].classList.add("miss"); A.sfx("nearMiss"); $("offerNote").textContent = TR.ticket.close.join(" "); if (!rm) fizzle(); break;
+        case 5: c[2].classList.remove("rolling"); reveal(2, "🦀"); c[2].classList.add("miss"); A.sfx("nearMiss"); haptic([30, 40, 45], 0.6, 0.45); $("offerNote").textContent = TR.ticket.close.join(" "); if (!rm) fizzle(); break;
         case 6: offerStep("again"); break;
       }
     }
@@ -1374,14 +1427,14 @@ function reviveFrame(dt){
   const limit = REVIVE_MS * (slowRead ? 2 : 1);
   if (r.phase === "ask"){
     const sec = Math.max(0, Math.ceil((limit - r.t) / 1000));
-    if (sec !== r.sec){ r.sec = sec; $("rvCount").textContent = sec; if (sec > 0){ A.sfx("heartbeat"); const c = $("rvCount"); c.classList.remove("beat"); void c.offsetWidth; c.classList.add("beat"); } }
+    if (sec !== r.sec){ r.sec = sec; $("rvCount").textContent = sec; if (sec > 0){ A.sfx("heartbeat"); haptic([18, 55, 14], 0.35, 0.25); const c = $("rvCount"); c.classList.remove("beat"); void c.offsetWidth; c.classList.add("beat"); } }
     if (r.t >= limit) reviveAnswer(false, true);
   } else if (r.phase === "busy"){
     const k = Math.min(0.99, (r.t - r.at) / 2500);
     $("rvBar").style.transform = "scaleX(" + k.toFixed(3) + ")"; $("rvMsg").textContent = TR.revive.busy[0] + " " + Math.round(k * 100) + "% " + TR.revive.busy[1];
     if (r.t - r.at >= 2900){
       r.phase = "fail"; r.at = r.t; $("rvSheet").classList.add("glitch", "dead"); if (!reduceMotion) $("boardWrap").classList.add("static");
-      $("rvMsg").textContent = TR.revive.fail.join(" "); A.sfx("reviveFail"); mood("cover", 4000);
+      $("rvMsg").textContent = TR.revive.fail.join(" "); A.sfx("reviveFail"); haptic([80, 40, 120], 0.9, 0.7); mood("cover", 4000);
     }
   } else if (r.phase === "fail" && r.t - r.at >= 1150 && !r.crt && !reduceMotion){ r.crt = true; $("boardWrap").classList.add("crt"); }   // the screen switches off
   else if (r.phase === "fail" && r.t - r.at >= (reduceMotion ? 1200 : 2000)){
@@ -1660,6 +1713,7 @@ function endGame(reason){
   if (S.troll.invest >= 2 && !S.troll.scamSaid){ S.troll.scamSaid = 1; S.falls.scam++; }   // the game ended before the scam showed itself
   A.mode("over"); setPauseUI(); clipsSync(); loadPoster(posterFor(S));   // the share card's poster, ready by the time it's made
   A.sfx(reason === "drops" ? "gameOver" : (S.stage === STAGES.length - 1 ? "win" : "timeUp"));
+  haptic(reason === "drops" ? [60, 40, 100] : [35, 45, 55], 0.8, 0.65);
   mood(reason === "drops" ? "cover" : "happy", 4000);
   S.overKey = reason === "drops" ? "overDrops" : "over" + S.stage; quip(S.overKey, 3);
   if (S.score > lsGet("tff_pb", 0)) lsSet("tff_pb", Math.round(S.score));
@@ -1682,15 +1736,15 @@ let softHeld = false;
 function act(a){
   if (!S || S.mode !== "playing") return;
   if (a.startsWith("rot") && S.rotLock > 0){   // the curse of putting off: too late to turn
-    if (S.active){ A.sfx("uiNope"); if (S.play - S.rotSaid > 1500){ S.rotSaid = S.play; stamp("Too late to turn!", "遲咗，轉唔到！", "bad"); } }
+    if (S.active){ A.sfx("uiNope"); haptic([25, 30, 35], 0.5, 0.4); if (S.play - S.rotSaid > 1500){ S.rotSaid = S.play; stamp("Too late to turn!", "遲咗，轉唔到！", "bad"); } }
     return;
   }
-  if (a === "rotate"){ S.targetAngle += Math.PI/2; if (S.active) A.sfx("rotate"); }
-  else if (a === "rotL"){ S.targetAngle -= Math.PI/12; if (S.active) A.sfx("rotate"); }
-  else if (a === "rotR"){ S.targetAngle += Math.PI/12; if (S.active) A.sfx("rotate"); }
+  if (a === "rotate") S.targetAngle += Math.PI/2;
+  else if (a === "rotL") S.targetAngle -= Math.PI/12;
+  else if (a === "rotR") S.targetAngle += Math.PI/12;
   else if (a === "drop") release(true);
   else if (a === "hold") doHold();
-  if (S.active && a.startsWith("rot")) wantSprite(S.active.tff.def, qOf(S.targetAngle), 0);   // the turn it's heading for
+  if (S.active && a.startsWith("rot")){ A.sfx("rotate"); haptic(10, 0.18, 0.28); wantSprite(S.active.tff.def, qOf(S.targetAngle), 0); }   // the turn it's heading for
 }
 function setMuteUI(){ const m = String(A.muted()); $("muteBtn").setAttribute("aria-pressed", m); $("tsMute").setAttribute("aria-pressed", m); }
 function toggleMute(){ A.unlock(); A.toggle(); setMuteUI(); A.sfx("uiToggle"); soundHint(); }   // heard only when sound comes back on
@@ -2047,8 +2101,8 @@ function spinReel(reel, strip, keys, k, ms){
   const target = (REPS - 1) * keys.length + keys.indexOf(k), y = -target * tileH(strip);
   if (!ms){ placeStrip(strip, keys, k, REPS - 1); return; }
   void strip.offsetWidth; strip.style.transition = "transform " + ms + "ms cubic-bezier(.12,.72,.18,1)"; strip.style.transform = "translateY(" + y + "px)";
-  let t = 0; for (let gap = 45; t < ms - 120; gap = Math.min(220, gap * 1.09)){ t += gap; rollTimers.push(setTimeout(() => A.sfx("reel"), t)); }   // ticks that slow down
-  rollTimers.push(setTimeout(() => { reel.classList.add("landed"); A.sfx("reelStop"); }, ms));
+  let t = 0; for (let gap = 45; t < ms - 120; gap = Math.min(220, gap * 1.09)){ t += gap; rollTimers.push(setTimeout(() => { A.sfx("reel"); haptic(6, 0.08, 0.15); }, t)); }   // ticks that slow down
+  rollTimers.push(setTimeout(() => { reel.classList.add("landed"); A.sfx("reelStop"); haptic(22, 0.45, 0.5); }, ms));
 }
 function rollSpin(){
   if (rollPhase !== "ready") return;
@@ -2076,7 +2130,7 @@ function showRollResult(again){
   $("rollRes").hidden = false;
   $("rollSay").textContent = "You rolled " + P.en + ": " + P.zh + ", " + (P.c.en || "") + ". " + P.c.line[0];
   label($("rollGo"), ["Start my life", "開始人生"]);
-  if (!again) A.sfx("rival");
+  if (!again){ A.sfx("rival"); haptic([20, 35, 35], 0.5, 0.6); }
   $("rollGo").focus({preventScroll: true});
 }
 $("rollGo").addEventListener("click", () => {
@@ -2332,7 +2386,7 @@ cv.addEventListener("pointermove", e => {
     else if (dy > 10 && dy > Math.abs(dx) * 1.2) drag.axis = "y";
   }
   if (drag.axis === "x") S.dragX = worldX(e.clientX, drag.r);
-  else if (drag.axis === "y" && dy > 28 && !drag.soft){ drag.soft = true; softHeld = true; }
+  else if (drag.axis === "y" && dy > 28 && !drag.soft){ drag.soft = true; softHeld = true; haptic(10, 0.15, 0.25); }
 });
 const endDrag = e => {
   if (!drag) return;
@@ -2353,8 +2407,8 @@ cv.addEventListener("pointerup", endDrag); cv.addEventListener("pointercancel", 
 // Every press answers. What has a sound of its own (Start, steps, sheets, toggles, picks, the game's own moves) plays
 // it where it happens, so keys and a controller get it too; any other button gets a tap. A locked button says no.
 const OWN_SOUND = "#startBtn,#pickGo,#rollGo,#chalSame,#againBtn,#againBtn2,#replayBtn,#stNext,#stBack,#tsLb,#tsHow,#tsPriv,#tsWear,#tsStory,.wtile,#infoClose,.who,#tsMute,#muteBtn,#fsBtn,#tsFs,#fsStartBtn,#pauseBtn,#resumeBtn,#resultsBtn,#closeEnd,.choice,.qopt,.pad button,#hudHoldBtn,label.habit,.ctime label";
-document.addEventListener("click", e => { const t = e.target.closest && e.target.closest(".btn,.tab,.iconbtn,.ov-chip,.hbtn,button,[role=tab]"); if (t && !t.disabled && !t.closest(OWN_SOUND)) A.sfx("click"); });
-document.addEventListener("pointerdown", e => { const t = e.target.closest && e.target.closest("button:disabled,[aria-disabled=true]"); if (t){ A.unlock(); A.sfx("uiNope"); } });
+document.addEventListener("click", e => { const t = e.target.closest && e.target.closest(".btn,.tab,.iconbtn,.ov-chip,.hbtn,button,[role=tab]"); if (t && !t.disabled){ haptic(8, 0.12, 0.2); if (!t.closest(OWN_SOUND)) A.sfx("click"); } });
+document.addEventListener("pointerdown", e => { const t = e.target.closest && e.target.closest("button:disabled,[aria-disabled=true]"); if (t){ A.unlock(); A.sfx("uiNope"); haptic([22, 30, 30], 0.45, 0.35); } });
 // Sound from the first touch: a page may make sound only after a tap or a key, so the first one anywhere (the title
 // included) switches it on, with the theme playing softer as menu music until a game starts. The title says so.
 let audioOn = false;
@@ -3938,7 +3992,7 @@ function showVerdict(v){
     try { if (M.mount(mb, tierOf(v), {still: reduceMotion})) mb.classList.add("gl"); } catch(e){}
   }), reduceMotion ? 0 : 950);   // as the title box lands
   box.classList.remove("in"); void box.offsetWidth; box.classList.add("in");
-  if (!reduceMotion) setTimeout(() => { if (S && S.verdict === v && !$("endModal").hidden && S.step === 1) A.sfx("stamp"); }, 1050);   // the seal lands after the count
+  if (!reduceMotion) setTimeout(() => { if (S && S.verdict === v && !$("endModal").hidden && S.step === 1){ A.sfx("stamp"); haptic(35, 0.6, 0.5); } }, 1050);   // the seal lands after the count
 }
 // Where this game ranks among all recorded games. Fetched once per game; the hero, the card and the post use it.
 function fetchPct(game){
@@ -4119,7 +4173,7 @@ function showEnd(){
       b.textContent = o[0]; const z = document.createElement("small"); z.textContent = o[1]; b.appendChild(z);
       b.addEventListener("click", () => {
         if (S.quiz[qi]) return;
-        const ok = oi === q.a; S.quiz[qi] = {pick: oi, ok}; A.sfx(ok ? "deposit" : "risky");
+        const ok = oi === q.a; S.quiz[qi] = {pick: oi, ok}; A.sfx(ok ? "deposit" : "risky"); haptic(ok ? [12, 25, 22] : [30, 35, 45], ok ? 0.35 : 0.6, 0.5);
         [...box.children].forEach(bb => { const bj = +bb.dataset.oi; bb.disabled = true; bb.classList.add(bj === q.a ? "is-right" : bj === oi ? "is-wrong" : "is-dim"); });
         b.setAttribute("aria-pressed", "true");
         const head = document.createElement("b"); head.className = "qh";
@@ -4245,7 +4299,7 @@ CHAL = (() => {
 function chalCheck(){   // while playing: the moment the score passes the friend's
   if (!CHAL || !S || S.chalSaid || S.mode !== "playing" || CHAL.s <= 0 || S.score <= CHAL.s) return;
   S.chalSaid = true; const who = CHAL.n;
-  stamp("You beat " + (who || "your friend") + "!", "贏咗" + zhIn(who || "你朋友") + "！", "gold"); A.sfx("rival"); mood("happy", 2200);
+  stamp("You beat " + (who || "your friend") + "!", "贏咗" + zhIn(who || "你朋友") + "！", "gold"); A.sfx("rival"); haptic([25, 35, 45], 0.6, 0.7); mood("happy", 2200);
   quip(who ? "chalBeat" : "chalBeatAnon", 3, who);
 }
 async function api(url, opts = {}){

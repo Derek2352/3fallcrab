@@ -57,3 +57,9 @@ test("end credits close the results, after the troll section", () => {
 test("grain is static on touch devices", () => {
   assert.ok(css.includes("pointer: coarse"), "no coarse-pointer guard for the grain");
 });
+
+test("haptics support vibration API, iOS switch fallback, and gamepad actuators", () => {
+  assert.ok(game.includes("navigator.vibrate"), "Vibration API support is missing");
+  assert.ok(game.includes('setAttribute("switch"'), "iOS Taptic switch fallback is missing");
+  assert.ok(game.includes("vibrationActuator") && game.includes("hapticActuators"), "Gamepad actuator support is missing");
+});
