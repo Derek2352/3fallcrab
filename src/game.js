@@ -1622,7 +1622,7 @@ function rainFrame(now){
 function startGame(){
   clearTimeout(boothTimer);
   A.unlock(); A.sfx("go"); closeInfo(true); closePicker(true); closeRoll(true);
-  if (!$("iabTip").hidden){ $("iabTip").hidden = true; root.style.setProperty("--iab-h", "0px"); root.classList.remove("iab-tight"); lastFit = ""; }   // the tip is for the start
+  hideIabTip();   // the tip is for the start
   if (root.classList.contains("title")){ played = true; root.classList.remove("title"); enterBrowserFs(); lastFit = ""; resize(); }
   played = true;
   if (BOOTH){ whoPicked = false; ssSet("tff_picked", ""); }
@@ -1933,6 +1933,7 @@ function setPick(who, quiet){
 let pickFromEnd = false;
 function openPicker(){
   pickFromEnd = !$("endModal").hidden; $("endModal").hidden = true;
+  hideIabTip();
   $("pickModal").hidden = false; modalOpen(true); setPick(WHO, true); A.sfx("uiOpen");
   fitLine($("pickTitle"));
   document.querySelector('#pickModal .who[aria-checked="true"]').focus({preventScroll: true});
@@ -1941,6 +1942,7 @@ function closePicker(quiet){
   if ($("pickModal").hidden) return;
   if (!quiet) A.sfx("uiClose"); $("pickModal").hidden = true; modalOpen(false);
   if (pickFromEnd && !quiet && S && S.mode === "over"){ $("endModal").hidden = false; modalOpen(true); $("againBtn").focus({preventScroll: true}); }
+  else if (!quiet && !played) iabTip();
   pickFromEnd = false;
 }
 function pickGo(){ WHO = pickSel; if (!BOOTH) lsSet("tff_who", WHO); whoPicked = true; ssSet("tff_picked", "1"); closePicker(true); newLife(); }
@@ -1975,7 +1977,7 @@ function bumpBooth(){
     $("endModal").hidden = true; $("seeOv").hidden = true; $("pickModal").hidden = true; $("rollModal").hidden = true;
     modalOpen(false);
     played = false; whoPicked = false; ssSet("tff_picked", ""); rollKept = false; ROLL = null;
-    sampleTower(); setFs(fsOn); $("startOv").hidden = false; setPauseUI(); updateHUD(); renderLedger(); drawPreviews(true); needDraw = true;
+    sampleTower(); setFs(fsOn); $("startOv").hidden = false; setPauseUI(); updateHUD(); renderLedger(); drawPreviews(true); iabTip(); needDraw = true;
   }, 90000);
 }
 const rnd = n => Math.floor(Math.random() * n);
@@ -2007,7 +2009,7 @@ const tileH = strip => strip.firstElementChild ? strip.firstElementChild.getBoun
 function placeStrip(strip, keys, k, cycle){ strip.style.transition = "none"; strip.style.transform = "translateY(" + (-(cycle * keys.length + keys.indexOf(k)) * tileH(strip)) + "px)"; }
 let rollFromEnd = false;   // the roll was opened by Play again on the statement: closing it without playing goes back there
 function openRoll(){
-  closeInfo(true); closePicker(true);
+  closeInfo(true); closePicker(true); hideIabTip();
   rollFromEnd = !$("endModal").hidden; $("endModal").hidden = true;   // the statement makes way (it was left on top of the roll)
   buildStrip($("stripBg"), BG_KEYS, PERSONAS.bg); buildStrip($("stripPe"), PE_KEYS, PERSONAS.pe);
   const m = $("rollModal"); m.hidden = false; modalOpen(true); A.sfx("uiOpen");
@@ -2038,6 +2040,7 @@ function closeRoll(quiet){
   if (rollPhase === "spinning") rollFinish(true);   // closing mid-spin still keeps the roll
   if (!quiet) A.sfx("uiClose"); $("rollModal").hidden = true; modalOpen(false);
   if (rollFromEnd && !quiet && S && S.mode === "over"){ $("endModal").hidden = false; modalOpen(true); $("againBtn").focus({preventScroll: true}); }
+  else if (!quiet && !played) iabTip();
   rollFromEnd = false;
 }
 function spinReel(reel, strip, keys, k, ms){
@@ -2092,7 +2095,7 @@ $("pickModal").addEventListener("click", e => { if (e.target === e.currentTarget
 const INFO = {lb: {t: ["Leaderboard", "排行榜"], q: [".lbx"]}, how: {t: ["How to play", "玩法"], q: [".howto", ".falls"]}, priv: {t: ["Privacy", "私隱聲明"], q: [".foot"]}, wear: {t: ["Crab wardrobe", "蟹仔衣櫃"], q: [".wardrobe"]}};
 let infoOpen = null;
 function openInfo(kind, from){
-  closeInfo(true);
+  closeInfo(true); hideIabTip();
   const k = INFO[kind], body = $("infoBody");
   infoOpen = {from, moved: k.q.map(sel => { const el = document.querySelector(sel), mark = document.createComment(sel); el.before(mark); body.appendChild(el); return [el, mark]; })};
   const t = $("infoTitle"), z = document.createElement("span"); z.className = "zh"; z.lang = "zh-HK"; z.textContent = k.t[1]; t.replaceChildren(k.t[0], z);
@@ -2150,6 +2153,7 @@ function closeInfo(quiet){
   for (const [el, mark] of infoOpen.moved) mark.replaceWith(el);
   const from = infoOpen.from; infoOpen = null;
   $("infoModal").hidden = true; modalOpen(false);
+  if (!quiet && !played) iabTip();
   if (from && !from.closest("[hidden]")) from.focus({preventScroll: true});
 }
 $("infoClose").addEventListener("click", () => closeInfo());
@@ -2357,9 +2361,20 @@ let audioOn = false;
 function soundHint(){ const h = $("tsSound"); if (h) h.hidden = audioOn || A.muted(); const z = $("tsSilent"); if (z) z.hidden = !IOS; }
 // The tip in an app's browser, on the start: open the game in the phone's own browser (Android: straight to Chrome;
 // LINE: its own switch; elsewhere the app's ··· menu), or copy the link. Closed, it stays closed for the visit.
+function hideIabTip(){
+  const tip = $("iabTip");
+  if (tip && !tip.hidden){ tip.hidden = true; root.style.setProperty("--iab-h", "0px"); root.classList.remove("iab-tight"); lastFit = ""; }
+}
+const iabRO = typeof ResizeObserver === "function" ? new ResizeObserver(() => {
+  const tip = $("iabTip");
+  if (tip && !tip.hidden && tip.offsetHeight) root.style.setProperty("--iab-h", tip.offsetHeight + "px");
+}) : null;
+if (iabRO && $("iabTip")) iabRO.observe($("iabTip"));
 function iabTip(){
   const tip = $("iabTip"); if (!IAB || ssGet("tff_iab_x")){ tip.hidden = true; root.style.setProperty("--iab-h", "0px"); root.classList.remove("iab-tight"); return; }
-  const q = location.pathname === "/c" ? location.search : "";   // a friend's challenge goes along
+  const isChalPath = location.pathname.replace(/\/+$/, "") === "/c";
+  const hasChalQuery = /^-?\d{1,7}$/.test(new URLSearchParams(location.search).get("s") || "");
+  const q = (isChalPath || CHAL || hasChalQuery) ? location.search : "";   // a friend's challenge goes along
   const url = location.origin + location.pathname + q, name = IAB === "app" ? "this app" : IAB, zh = IAB === "app" ? "呢個App" : IAB;
   let how = null;
   if (IAB === "LINE") how = () => { location.href = url + (q ? "&" : "?") + "openExternalBrowser=1"; };
@@ -2369,12 +2384,15 @@ function iabTip(){
   else bi(t, "Best in your browser: tap ··· (top right), then open in browser.", "用瀏覽器玩最好：撳右上角「···」，揀用瀏覽器開啟。");
   tip.setAttribute("aria-label", "You're in " + name + "'s browser 你而家用緊" + zh + "嘅瀏覽器");
   const ob = $("iabOpen"); ob.hidden = !how; if (how){ label(ob, IAB === "LINE" ? ["Open in browser", "用瀏覽器開"] : ["Open in Chrome", "用Chrome開"]); ob.onclick = how; }
-  tip.hidden = false;
-  requestAnimationFrame(() => { root.style.setProperty("--iab-h", tip.offsetHeight + "px"); root.classList.toggle("iab-tight", innerHeight - tip.offsetHeight < 640); });   // short screen: the title drops its prize sign
+  tip.hidden = false; root.classList.remove("iab-tight");
+  requestAnimationFrame(() => { if (!tip.hidden && tip.offsetHeight) root.style.setProperty("--iab-h", tip.offsetHeight + "px"); });
 }
 $("iabClose").addEventListener("click", () => { ssSet("tff_iab_x", "1"); A.sfx("uiClose"); iabTip(); lastFit = ""; resize(); });
 $("iabCopy").addEventListener("click", async () => {
-  const u = location.origin + (location.pathname === "/c" ? "/c" + location.search : "/"), st = $("iabStatus"); let done = false;
+  const isChalPath = location.pathname.replace(/\/+$/, "") === "/c";
+  const hasChalQuery = /^-?\d{1,7}$/.test(new URLSearchParams(location.search).get("s") || "");
+  const chalQuery = CHAL ? (() => { const qp = new URLSearchParams(); qp.set("s", String(CHAL.s)); if (CHAL.n) qp.set("n", CHAL.n); if (CHAL.v) qp.set("v", CHAL.v.id); if (CHAL.p) qp.set("p", CHAL.p); if (CHAL.sil && CHAL.sil.length <= 240) qp.set("sil", CHAL.sil); return "/c?" + qp.toString(); })() : "/";
+  const u = location.origin + ((isChalPath || hasChalQuery) ? "/c" + location.search : chalQuery), st = $("iabStatus"); let done = false;
   try { await navigator.clipboard.writeText(u); done = true; } catch(e){
     const t = document.createElement("textarea"); t.value = u; t.setAttribute("readonly", ""); t.style.cssText = "position:fixed;top:0;opacity:0";
     document.body.appendChild(t); t.select(); try { done = document.execCommand("copy"); } catch(_){} t.remove(); }
@@ -2389,7 +2407,7 @@ function firstSound(){
 function menuMusic(){ A.stage(0); A.mode("menu"); A.start(); }
 for (const ev of ["pointerdown", "pointerup", "touchend", "keydown", "click"]) document.addEventListener(ev, firstSound, {capture: true, passive: true});
 soundHint(); iabTip();
-window.TFF_ART = {sound: firstSound, music: () => { if (audioOn && (!S || S.mode !== "playing")) menuMusic(); }, fs: () => { if (fsOn) enterBrowserFs(); }};   // for the opening film (src/intro.js)
+window.TFF_ART = {sound: firstSound, music: () => { if (audioOn && (!S || S.mode !== "playing")) menuMusic(); if (!played && IAB && !ssGet("tff_iab_x")) setTimeout(() => { if (!played && (!S || S.mode === "idle")) iabTip(); }, 650); }, fs: () => { if (fsOn) enterBrowserFs(); }};   // for the opening film (src/intro.js)
 setTimeout(resize, 800);   // an app's browser may settle its bars after the page loads
 $("muteBtn").addEventListener("click", toggleMute);
 $("fsBtn").addEventListener("click", () => toggleFs());
@@ -2805,7 +2823,8 @@ function resize(){
   // Phones and tablets size the board to the screen with the browser's bars showing (it doesn't change as you
   // scroll or type), so the address bar sliding away or the keyboard opening doesn't resize the board and remake
   // every picture mid-game.
-  const vh = (narrow || touch) && document.documentElement.clientHeight || window.innerHeight;
+  const rawVh = (narrow || touch) && document.documentElement.clientHeight ? Math.min(document.documentElement.clientHeight, window.innerHeight || Infinity) : window.innerHeight;
+  const vh = (window.visualViewport && (narrow || touch)) ? Math.min(rawVh, Math.round(window.visualViewport.height)) : rawVh;
   let availH, availW, viewW = 0;
   if (title){ availH = vh; availW = viewW = document.documentElement.clientWidth; }   // the title: the scene covers the screen
   else if (narrow){
@@ -2856,7 +2875,9 @@ function resize(){
   avKeys.clear(); lookKey = "";
   fitAll();
 }
-let rzT = 0; window.addEventListener("resize", () => { clearTimeout(rzT); rzT = setTimeout(() => { resize(); fitAll(); }, 220); });
+let rzT = 0; const onResize = () => { clearTimeout(rzT); rzT = setTimeout(() => { resize(); fitAll(); }, 220); };
+window.addEventListener("resize", onResize);
+if (window.visualViewport) window.visualViewport.addEventListener("resize", () => { if (!document.activeElement || !/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)) onResize(); });
 
 // The harbour at the bottom of the view is a strip, so the tower has more of the screen: in full screen play most of
 // it is down behind the pad; the title keeps its fuller harbour.
@@ -4196,6 +4217,10 @@ const zhName = n => /[A-Za-z0-9]$/.test(n) ? n + " " : n, zhIn = n => /^[A-Za-z0
 CHAL = (() => {
   let c = null;
   try { const m = document.querySelector('meta[name="tff-chal"]'); if (m) c = JSON.parse(m.getAttribute("content")); } catch(e){ c = null; }
+  if (!c && location.search){
+    const q = new URLSearchParams(location.search), sr = q.get("s") || "";
+    if (/^-?\d{1,7}$/.test(sr)) c = { s: Number(sr), n: q.get("n") || "", v: q.get("v") || "", p: q.get("p") || "", sil: q.get("sil") || "" };
+  }
   if (!c) c = ssGet("tff_chal") ? (() => { try { return JSON.parse(ssGet("tff_chal")); } catch(e){ return null; } })() : null;
   if (!c || typeof c.s !== "number" || !isFinite(c.s) || Math.abs(c.s) > 9999999) return null;
   const n = typeof c.n === "string" ? sanitizeName(c.n) : ANON;

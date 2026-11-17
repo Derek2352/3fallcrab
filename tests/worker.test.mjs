@@ -18,6 +18,8 @@ test("the Worker exposes a fetch handler", async () => {
 test("the Pages function exposes onRequest", async () => {
   const pf = await import("../functions/api/[[path]].js");
   assert.equal(typeof pf.onRequest, "function");
+  const pc = await import("../functions/c.js");
+  assert.equal(typeof pc.onRequest, "function");
 });
 
 test("plain http is redirected for reads", async () => {
@@ -93,6 +95,26 @@ test("challenge route passes validated persona and silhouette into tff-chal meta
     const meta2 = appended.find((s) => s.includes('name="tff-chal"')) || "";
     const parsed2 = JSON.parse(/content="([^"]+)"/.exec(meta2)[1].replace(/&quot;/g, '"').replace(/&amp;/g, "&"));
     assert.deepEqual(parsed2, { s: 5000, n: "Ming", v: "zero", p: "sub+grind", sil: "0a1b2c3d" });
+
+    let seenHeaders = null;
+    const condAssets = {
+      fetch: async (req) => {
+        seenHeaders = req.headers;
+        if (req.headers.has("if-none-match") || req.headers.has("if-modified-since")) return new Response(null, { status: 304 });
+        return new Response("<!doctype html><head><title>x</title></head>", { status: 200, headers: { "content-type": "text/html" } });
+      },
+    };
+    const pc = await import("../functions/c.js");
+    const r3 = await pc.onRequest({
+      request: new Request("https://game.test/c/?s=8800&n=Amy&v=retire", { headers: { "if-none-match": '"etag1"', "if-modified-since": "Wed, 21 Oct 2015 07:28:00 GMT" } }),
+      env: { ASSETS: condAssets },
+    });
+    assert.equal(r3.status, 200);
+    assert.equal(seenHeaders.has("if-none-match"), false);
+    assert.equal(seenHeaders.has("if-modified-since"), false);
+    const meta3 = appended.find((s) => s.includes('name="tff-chal"')) || "";
+    const parsed3 = JSON.parse(/content="([^"]+)"/.exec(meta3)[1].replace(/&quot;/g, '"').replace(/&amp;/g, "&"));
+    assert.deepEqual(parsed3, { s: 8800, n: "Amy", v: "retire" });
   } finally {
     if (PrevRewriter === undefined) delete globalThis.HTMLRewriter;
     else globalThis.HTMLRewriter = PrevRewriter;

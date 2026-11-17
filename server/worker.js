@@ -10,9 +10,12 @@ const money = (n) => (n < 0 ? "−" : "") + "HK$" + Math.abs(n).toLocaleString("
 
 // The home page with its share-preview tags (og:title, og:description, og:url, title) filled in from ?s=score&n=name&v=title.
 // Every parameter is checked; anything invalid is dropped. Without a valid score the page is served as is.
-async function challenge(request, env) {
+export async function challenge(request, env) {
   const url = new URL(request.url), q = url.searchParams;
-  const home = await env.ASSETS.fetch(new Request(new URL("/", request.url), { method: request.method, headers: request.headers }));
+  const assetHeaders = new Headers(request.headers);
+  assetHeaders.delete("if-none-match");
+  assetHeaders.delete("if-modified-since");
+  const home = await env.ASSETS.fetch(new Request(new URL("/", request.url), { method: request.method, headers: assetHeaders }));
   const headers = new Headers(home.headers);
   headers.set("cache-control", "no-store");
   headers.delete("etag");
@@ -57,7 +60,7 @@ export default {
   async fetch(request, env) {
     const { pathname } = new URL(request.url);
     if (pathname === "/api" || pathname.startsWith("/api/")) return handle(request, env);
-    if (pathname === "/c" && (request.method === "GET" || request.method === "HEAD")) return challenge(request, env);
+    if ((pathname === "/c" || pathname === "/c/") && (request.method === "GET" || request.method === "HEAD")) return challenge(request, env);
     return env.ASSETS.fetch(request);
   },
 };

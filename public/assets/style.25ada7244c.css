@@ -1114,9 +1114,10 @@ html.fs.title, html.fs.title body{overflow:hidden;height:100%;overscroll-behavio
 html.fs.title .logo{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}   /* still the page's heading */
 html.fs.title .mast-right, html.fs.title .hud, html.fs.title .pad, html.fs.title .col, html.fs.title .info, html.fs.title .foot{display:none}
 html.fs.title .board-wrap{position:fixed;left:var(--tl-x,0);top:0;z-index:1;margin:0;padding:0;border-radius:0;background:none;box-shadow:none}
-html.fs.title #startOv{position:fixed;inset:0;border-radius:0;align-items:flex-start;justify-content:center;container-type:normal;
+html.fs.title #startOv{position:fixed;inset:0;border-radius:0;align-items:flex-start;justify-content:center;container-type:normal;overflow-y:auto;max-height:100%;
   padding:max(5vh, env(safe-area-inset-top)) 16px max(84px, calc(env(safe-area-inset-bottom) + 70px));
   background:radial-gradient(ellipse 70% 55% at 50% 42%, rgba(255,255,255,.28), rgba(255,255,255,0) 70%)}
+html.fs.title #startOv[hidden] .ts-only{display:none}
 html.fs.title #startOv .ov-card{zoom:1;background:none;box-shadow:none;width:100%;max-width:min(460px, 100%);max-height:none;overflow:visible;padding:0;gap:14px}
 html.fs.title #startOv .ov-card > h2, html.fs.title #startOv .ov-card > p.zh, html.fs.title #startOv .desc, html.fs.title #startOv .ctl, html.fs.title #fsStartBtn{display:none!important}
 html.fs.title .ts-logo{display:flex;flex-direction:column;align-items:center}
@@ -1138,14 +1139,23 @@ html.fs.title .ts-pills{display:flex;flex-wrap:wrap;justify-content:center;gap:1
 html.fs.title #startOv .ov-opts > .ov-chip{flex:0 0 auto}
 .ts-pills .ov-chip{background:#FFFDF7;padding:6px 14px 6px 10px}
 .ts-pills .ov-chip svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
-html.fs.title .ts-fs{display:grid;position:absolute;top:max(12px, env(safe-area-inset-top));right:max(12px, env(safe-area-inset-right))}
-html.fs.title .ts-mute{display:grid;position:absolute;right:max(16px, env(safe-area-inset-right));bottom:max(16px, env(safe-area-inset-bottom));width:60px;height:60px;border-radius:50%}
+html.fs.title .ts-fs{display:grid;position:fixed;z-index:2;top:max(12px, env(safe-area-inset-top));right:max(12px, env(safe-area-inset-right))}
+html.fs.title .ts-mute{display:grid;position:fixed;z-index:2;right:max(16px, env(safe-area-inset-right));bottom:max(16px, env(safe-area-inset-bottom));width:60px;height:60px;border-radius:50%}
 .ts-mute svg{width:30px;height:30px}
-html.fs.title .ts-priv{display:inline-flex;align-items:baseline;gap:6px;position:absolute;left:max(16px, env(safe-area-inset-left));bottom:max(24px, calc(env(safe-area-inset-bottom) + 8px));
+html.fs.title .ts-priv{display:inline-flex;align-items:baseline;gap:6px;position:fixed;z-index:2;left:max(16px, env(safe-area-inset-left));bottom:max(24px, calc(env(safe-area-inset-bottom) + 8px));
   appearance:none;border:0;cursor:pointer;padding:11px 20px 12px;border-radius:999px;font-family:var(--f-display);font-weight:800;font-size:15px;color:var(--ink);
   background:linear-gradient(180deg, #FFD23F, #FF9F1C);box-shadow:inset 2px 2px 1px rgba(255,255,255,.55), inset -3px -4px 6px rgba(0,0,0,.14), 0 4px 0 #C77700, 3px 8px 12px rgba(120,62,12,.2)}
 .ts-priv .zh{font-family:var(--f-zh);font-size:13.5px;font-weight:700}
 @media (max-height: 700px){ html.fs.title #startOv .ov-card{gap:10px} html.fs.title .ts-sign{padding:10px 18px 11px} }
+@media (max-width: 440px){ html.fs.title .ts-pills{gap:6px} html.fs.title .ts-pills .ov-chip{padding:5px 10px 5px 8px;font-size:13px} }
+html.fs.title.chal #startOv .ov-card, html.fs.title.inapp #startOv .ov-card{gap:8px}
+html.fs.title.chal .ts-sign, html.fs.title.inapp .ts-sign{padding:9px 18px 10px}
+html.fs.title.chal .chal, html.fs.title.inapp .chal{padding:7px 12px 8px 50px}
+@media (max-height: 760px){
+  html.fs.title.chal .ts-logo canvas, html.fs.title.inapp .ts-logo canvas{width:min(20vw, 11vh, 115px)}
+  html.fs.title.chal .ts-logo .ts-word, html.fs.title.inapp .ts-logo .ts-word{font-size:min(11.5vw, 7vh, 68px)}
+  html.fs.title.chal #startOv .ov-card .ts-zh, html.fs.title.inapp #startOv .ov-card .ts-zh{font-size:min(12.5vw, 7.5vh, 74px)}
+}
 @media (prefers-reduced-motion: reduce){ html.fs.title #startOv #startBtn{animation:none} }
 /* the sheet the title's pills open: the page's own sections, moved in */
 .infosheet{max-width:640px;max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px);display:flex;flex-direction:column}
@@ -1355,7 +1365,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}   /* no automatic text
 .iab{position:fixed;left:0;right:0;top:0;z-index:25;display:grid;grid-template-columns:1fr auto;gap:6px 10px;align-items:center;
   padding:calc(env(safe-area-inset-top) + 9px) max(12px, env(safe-area-inset-right)) 10px max(14px, env(safe-area-inset-left));
   background:rgba(37,49,122,.9);color:#fff;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);box-shadow:0 3px 12px rgba(20,30,90,.25)}
-.iab[hidden]{display:none}
+.iab[hidden], html:has(#intro:not([hidden])) .iab{display:none}
 .iab-t{grid-column:1;margin:0;font-size:12.5px;font-weight:700;line-height:1.35}
 .iab-t .zl{color:#D9DEFF;font-size:12px;font-weight:700}
 .iab-acts{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:8px}
@@ -1368,7 +1378,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}   /* no automatic text
 .iab-x svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round}
 html.inapp body{padding-top:var(--iab-h, 0px)}
 html.inapp.fs.title body{padding-top:0}
-html.fs.title #startOv{padding-top:calc(max(5vh, env(safe-area-inset-top)) + var(--iab-h, 0px))}
+html.fs.title.inapp #startOv{padding-top:calc(max(2.5vh, env(safe-area-inset-top)) + var(--iab-h, 0px))}
 html.fs.title .ts-fs{top:calc(max(12px, env(safe-area-inset-top)) + var(--iab-h, 0px))}
 .iab-save{margin:0 0 8px;font-size:13px;font-weight:700;color:var(--ink)}
 .iab-save .zl{font-size:12.5px}
@@ -1377,7 +1387,6 @@ html.fs.title .ts-fs{top:calc(max(12px, env(safe-area-inset-top)) + var(--iab-h,
 @media (prefers-reduced-motion: reduce){ .card-img.hint{animation:none;outline:3px solid var(--hot);outline-offset:3px} }
 html.fs.title .ts-sound .ts-silent{display:block;margin-top:2px;font-size:11px;font-weight:700;color:var(--red-d)}
 html.fs.title .ts-sound .ts-silent[hidden]{display:none}
-html.iab-tight.fs.title .ts-sign{display:none}   /* a short screen with the tip showing: the title keeps Start, the pills and the options */
 .kind.lock{background:#8A6400;color:#fff;margin-left:4px}
 .kind.slime{background:#B5E04A;color:var(--ink);margin-left:4px}   /* slime 黏黏 */   /* the fixed-deposit lock, by the vine chip (a deep gold: white text at 5.4:1) */
 
@@ -1562,7 +1571,7 @@ a.btn{text-decoration:none}
 .btn.threads{background:#151515;color:#fff;box-shadow:inset 2px 2px 1px rgba(255,255,255,.25), inset -3px -4px 6px rgba(0,0,0,.4), 0 5px 0 #000, 3px 9px 14px rgba(120,62,12,.22)}
 .btn.threads:active{box-shadow:inset 2px 2px 1px rgba(255,255,255,.25), inset -3px -4px 6px rgba(0,0,0,.4), 0 1px 0 #000}
 .btn.threads:focus-visible{outline:3px solid var(--hot);outline-offset:3px}
-/* the title screen, opened from a friend's link: the challenge letter takes the prize sign's place */
+/* the title screen, opened from a friend's link: the challenge letter sits under the prize sign */
 .chal{position:relative;align-self:stretch;margin:0;padding:8px 12px 9px 54px;border-radius:14px;background:#FFF8EC;border:3px solid var(--hot);text-align:left;
   box-shadow:0 4px 0 rgba(223,27,114,.28)}   /* not tilted: a turned box here widened the page on phones */
 .chal-seal{position:absolute;left:10px;top:50%;width:34px;height:42px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:var(--hot);color:#fff;
@@ -1572,7 +1581,6 @@ a.btn{text-decoration:none}
 .chal-t i{display:inline-block;margin-left:4px;padding:0 7px 1px;border-radius:6px;border:2px solid #D7262E;color:#B81E28;font-style:normal;font-size:13px;line-height:1.3;vertical-align:1px}
 .chal-e{margin:1px 0 0;font-size:12px;font-weight:700;line-height:1.3;color:var(--ink-2);text-wrap:pretty}
 .chal-e span{font-family:var(--f-zh);color:var(--pink-t);margin-right:4px}
-html.fs.title.chal .ts-sign{display:none}
 html.fs.title .chal{max-width:380px;align-self:center;width:100%;background:rgba(255,248,236,.96)}
 
 /* ---------- who you are: the roll (two clay slot reels), shown before every game ---------- */
