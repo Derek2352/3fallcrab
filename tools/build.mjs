@@ -112,6 +112,25 @@ for (const f of walk(out)) if (f.endsWith(".html")) writeFileSync(f, render(read
 // The fonts' licence (the SIL Open Font License wants it to travel with them) is published next to them in assets/.
 if ([...hashed.keys()].some((p) => p.endsWith(".woff2"))) asset("fonts/OFL.txt");
 
+// Offline service worker: precaches the shell, core bundles, and icons deterministically.
+if (existsSync(join(src, "sw.js"))) {
+  const coreAssets = [
+    "style.css", "vendor/matter-0.19.0.min.js", "prelude.js", "game.js", "intro.js",
+    "art/cast.webp", "art/ig-qr.webp",
+  ];
+  const fontAssets = [...hashed.entries()].filter(([k]) => k.endsWith(".woff2")).map(([, v]) => v).sort();
+  const precache = [
+    "/", "/manifest.webmanifest",
+    "/icons/favicon-32.png", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/icon-maskable-512.png", "/icons/apple-touch-icon.png",
+    ...coreAssets.map((k) => hashed.get(k)).filter(Boolean),
+    ...fontAssets,
+  ];
+  const swTpl = readFileSync(join(src, "sw.js"), "utf8");
+  const swVer = createHash("sha256").update(swTpl).update(JSON.stringify(precache)).digest("hex").slice(0, 12);
+  const swCode = minifyJs(swTpl.replaceAll("%%SW_VERSION%%", swVer).replaceAll("%%SW_PRECACHE%%", JSON.stringify(precache)));
+  writeFileSync(join(out, "sw.js"), swCode);
+}
+
 function walk(dir) {
   return readdirSync(dir).flatMap((n) => {
     const p = join(dir, n);
@@ -124,6 +143,7 @@ const bytes = files.reduce((n, f) => n + statSync(f).size, 0);
 console.log(`Built public/ — ${files.length} files, ${(bytes / 1024).toFixed(0)} KB${site ? `, SITE_URL ${site}` : ""}`);
 for (const [from, to] of hashed) console.log(`  src/${from} -> ${to}`);
 const left = files.filter((f) => /\.(html|css)$/.test(f) && readFileSync(f, "utf8").includes("%%"));
+if (existsSync(join(out, "sw.js")) && readFileSync(join(out, "sw.js"), "utf8").includes("%%")) left.push(join(out, "sw.js"));
 if (left.length) {
   console.error("Unreplaced placeholders in: " + left.map((f) => relative(root, f)).join(", "));
   process.exit(1);

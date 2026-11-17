@@ -4252,7 +4252,7 @@ const body = $("lbBody"); body.replaceChildren(); const p = document.createEleme
 await refreshLB();
 if (apiGone) return;
 schedulePoll(45000);
-window.addEventListener("online", () => refreshLB(true));
+window.addEventListener("online", () => { flushOutboxSoon(); refreshLB(true); });
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && performance.now() - lastFetch > 20000) refreshLB(); });
 if ("IntersectionObserver" in window){
 new IntersectionObserver(es => {
@@ -4308,6 +4308,9 @@ slowRead = r.value === "30"; lsSet("tff_slow_read", slowRead); syncTimer();
 }));
 syncTimer();
 initDB();
+if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")){
+window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
+}
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => {
 for (const s of SPR.values()) if (s.text) s.k = -1;
 buildLayers(true, "plat"); needDraw = true; drawPreviews(true);
