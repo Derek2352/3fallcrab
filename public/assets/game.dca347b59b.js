@@ -150,6 +150,27 @@ function stageFor(floors){ let s = 0; STAGES.forEach((st, i) => { if (floors >= 
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 function lsGet(k, d){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch(e){ return d; } }
 function lsSet(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+const ssGet = k => { try { return sessionStorage.getItem(k); } catch(e){ return null; } }, ssSet = (k, v) => { try { sessionStorage.setItem(k, v); } catch(e){} };
+const gfxForceHigh = /[?&]gfx=high(&|$)/.test(location.search), gfxForceLow = /[?&]gfx=low(&|$)/.test(location.search);
+let lowGfx = !gfxForceHigh && (gfxForceLow || ssGet("tff_low_gfx") === "1" || (navigator.hardwareConcurrency > 0 && navigator.hardwareConcurrency <= 2) || (navigator.deviceMemory > 0 && navigator.deviceMemory <= 2));
+if (lowGfx) document.documentElement.classList.add("low-gfx");
+let perfAvg = 16.7, perfN = 0, perfBad = 0;
+function enableLowGfx(){
+  if (lowGfx) return;
+  lowGfx = true;
+  document.documentElement.classList.add("low-gfx");
+  ssSet("tff_low_gfx", "1");
+  if (DPR > 1){ lastFit = ""; resize(); dropCaches(); }
+}
+function checkPerf(raw){
+  if (lowGfx || gfxForceHigh || document.hidden || raw <= 0 || raw > 200) return;
+  const active = (S && S.mode === "playing" && S.play > 1500) || (document.documentElement.classList.contains("title") && !(window.TFF_INTRO && TFF_INTRO.on()));
+  if (!active) return;
+  perfN++;
+  perfAvg = perfAvg * 0.92 + raw * 0.08;
+  perfBad = raw > 28 ? perfBad + 2 : raw < 20 ? Math.max(0, perfBad - 1) : perfBad;
+  if (perfBad >= 36 || (perfN >= 45 && perfAvg > 28)) enableLowGfx();
+}
 const mmss = ms => { const s = Math.floor(ms / 1000); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
 // Screen readers read Chinese with an English voice unless it's marked, so every run of Chinese text on the page
 // is wrapped in lang="zh-HK" as it appears. Numbers and short codes inside a Chinese phrase (HK$3,600, 18222)
@@ -222,7 +243,7 @@ function makeEngine(){
       const loud = (a.isStatic ? b : (b.isStatic ? a : (a.mass > b.mass ? a : b)));
       if (loud.tff && loud.tff.released && !loud.tff.landed && st > 0.08){
         loud.tff.landed = true; loud.tff.sqAt = S.steps; loud.tff.sqAmt = clamp(st * 0.14, 0.04, 0.11);
-        if (!reduceMotion){
+        if (!reduceMotion && !lowGfx){
           const pt = (p.collision.supports && p.collision.supports[0]) || {x: loud.position.x, y: loud.bounds.max.y};
           for (let i = 0; i < 4; i++){
             const dir = (i < 2 ? -1 : 1) * (0.6 + Math.random() * 1.1);
@@ -825,7 +846,8 @@ function addMark(m, x, y){
 function burst(x, y, cols, ring){
   S.leaves.push({ring: true, x, y, t: 0, rgb: ring});
   if (reduceMotion) return;
-  for (let i = 0; i < 10; i++){
+  const n = lowGfx ? 4 : 10;
+  for (let i = 0; i < n; i++){
     const a = Math.random() * Math.PI * 2, v = 1.2 + Math.random() * 2.2;
     S.leaves.push({x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 1.2, a: Math.random() * 6.3, va: (Math.random() - 0.5) * 0.3, t: 0, col: cols ? cols[i % cols.length] : i % 3 ? "#4CC36A" : "#B5E04A"});
   }
@@ -1611,11 +1633,11 @@ function rainSprites(u, dpr){
 function moneyRain(){
   if (!RAIN.cv){ const c = RAIN.cv = document.createElement("canvas"); c.className = "rain"; c.setAttribute("aria-hidden", "true"); document.body.appendChild(c); RAIN.g = c.getContext("2d"); }
   const c = RAIN.cv; c.hidden = false;
-  const w = c.clientWidth || window.innerWidth, h = c.clientHeight || window.innerHeight, dpr = Math.min(1.5, window.devicePixelRatio || 1);   // all in motion: no need for more
+  const w = c.clientWidth || window.innerWidth, h = c.clientHeight || window.innerHeight, dpr = lowGfx ? 1 : Math.min(1.5, window.devicePixelRatio || 1);   // all in motion: no need for more
   if (c.width !== Math.round(w * dpr) || c.height !== Math.round(h * dpr)){ c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); }
   Object.assign(RAIN, {w, h, dpr, parts: [], sparks: [], t0: performance.now(), last: 0, box: cv.getBoundingClientRect()});
   if (!reduceMotion){
-    const u = clamp(Math.round(Math.min(w, h) / 9), 36, 84), spr = rainSprites(u, Math.min(2, window.devicePixelRatio || 1)), n = Math.round(clamp(w * h / 6500, 60, 180));
+    const u = clamp(Math.round(Math.min(w, h) / 9), 36, 84), spr = rainSprites(u, lowGfx ? 1 : Math.min(2, window.devicePixelRatio || 1)), n = Math.round(clamp(w * h / (lowGfx ? 16000 : 6500), lowGfx ? 24 : 60, lowGfx ? 60 : 180));
     for (let i = 0; i < n; i++){
       const note = Math.random() < 0.68;
       RAIN.parts.push({note, imgs: note ? spr.notes[Math.floor(Math.random() * spr.notes.length)] : null, x: Math.random() * w, y: -u - Math.random() * h * 0.2,
@@ -1624,12 +1646,13 @@ function moneyRain(){
         sway: note ? 25 + Math.random() * 45 : 0, sp: Math.random() * 6.28, s: 0.7 + Math.random() * 0.55, term: (0.28 + Math.random() * 0.16) * h});
     }
     const r = cv.getBoundingClientRect(), bx = r.left + r.width / 2, by = r.top + r.height * 0.42;   // a burst of coins from the board
-    for (let i = 0; i < 28; i++){
+    const burstN = lowGfx ? 10 : 28, sparkN = lowGfx ? 10 : 30;
+    for (let i = 0; i < burstN; i++){
       const ang = -Math.PI / 2 + (Math.random() - 0.5) * 2.3, v = (0.55 + Math.random() * 0.75) * h;
       RAIN.parts.push({note: false, x: bx, y: by, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v, delay: Math.random() * 120, a: 0, va: 0,
         flip: Math.random() * 6.28, vf: 10 + Math.random() * 8, sway: 0, sp: 0, s: 0.8 + Math.random() * 0.5, term: 0});
     }
-    for (let i = 0; i < 30; i++) RAIN.sparks.push({x: Math.random() * w, y: Math.random() * h, delay: Math.random() * 2600, life: 380 + Math.random() * 320, r: 7 + Math.random() * 11});
+    for (let i = 0; i < sparkN; i++) RAIN.sparks.push({x: Math.random() * w, y: Math.random() * h, delay: Math.random() * 2600, life: 380 + Math.random() * 320, r: 7 + Math.random() * 11});
   }
   if (!RAIN.raf) RAIN.raf = requestAnimationFrame(rainFrame);
 }
@@ -1897,7 +1920,6 @@ $("pad").querySelectorAll("button").forEach(b => {
 // money the extras (a patched knee, a watch, gold and sunglasses), the last money decision what's in hand, the
 // moment the face. A new outfit pops in.
 const AV = window.TFF_AVATAR, AV_IDS = ["hudAvatar", "cardAvatar"];
-const ssGet = k => { try { return sessionStorage.getItem(k); } catch(e){ return null; } }, ssSet = (k, v) => { try { sessionStorage.setItem(k, v); } catch(e){} };
 let WHO = lsGet("tff_who", "jack") === "jackie" ? "jackie" : "jack", whoPicked = ssGet("tff_picked") === "1", pickSel = WHO;   // asked once per tab: a reload doesn't ask again
 const avKeys = new Map();
 let lookKey = "", outfitKey = "", avTick = 0, prevLook = null;
@@ -2516,10 +2538,14 @@ function spriteFor(def, q){
   usedText = false;
   try { def.draw(g); } catch(e){ g.fillStyle = "#FF5FA2"; g.fillRect(bb.min.x, bb.min.y, bb.max.x - bb.min.x, bb.max.y - bb.min.y); }
   // soft contact shadow: blurred silhouette via the off-canvas shadow trick (Safari-safe)
-  const m = 8, sh = document.createElement("canvas"); sh.width = img.width + Math.ceil(m*2*k); sh.height = img.height + Math.ceil(m*2*k);
-  const sg = sh.getContext("2d"); const FAR = 10000;
-  sg.shadowColor = "rgba(70,30,60,0.32)"; sg.shadowBlur = 5 * k; sg.shadowOffsetX = FAR; sg.drawImage(img, m*k - FAR, m*k);
-  s = {img, sh, x0, y0, w, h, m, k, q, text: usedText}; SPR.set(key, s);
+  if (lowGfx){
+    s = {img, sh: img, x0, y0, w, h, m: 0, k, q, text: usedText}; SPR.set(key, s);
+  } else {
+    const m = 8, sh = document.createElement("canvas"); sh.width = img.width + Math.ceil(m*2*k); sh.height = img.height + Math.ceil(m*2*k);
+    const sg = sh.getContext("2d"); const FAR = 10000;
+    sg.shadowColor = "rgba(70,30,60,0.32)"; sg.shadowBlur = 5 * k; sg.shadowOffsetX = FAR; sg.drawImage(img, m*k - FAR, m*k);
+    s = {img, sh, x0, y0, w, h, m, k, q, text: usedText}; SPR.set(key, s);
+  }
   if (SPR.size > SPR_MAX) SPR.delete(SPR.keys().next().value);
   return s;
 }
@@ -2893,7 +2919,7 @@ function resize(){
     viewW = document.documentElement.clientWidth - parseFloat(ss.paddingLeft) - parseFloat(ss.paddingRight);
     availW = viewW - 2 * FS_SIDE; }
   else { availW = Math.max(260, window.innerWidth - 620); availH = vh - header - 70 - (padOn ? 100 : 0); }
-  const fit = [narrow, wide, title, padOn, availW, availH, vh, window.devicePixelRatio].join();
+  const fit = [narrow, wide, title, padOn, availW, availH, vh, window.devicePixelRatio, lowGfx].join();
   if (fit === lastFit) return;
   lastFit = fit;
   const prevSC = SC, prevDPR = DPR, prevXV = XV;
@@ -2911,7 +2937,7 @@ function resize(){
     cv.style.top = -Math.round(YT * SC) + "px";
   } else { YT = YB = 0; wrap.style.width = wrap.style.height = ""; cv.style.top = ""; }
   // a very big board draws fewer pixels per point: never more than the biggest normal board (550 x 875 points at 2x)
-  DPR = Math.min(2, window.devicePixelRatio || 1, Math.max(1, Math.sqrt(1925000 / (vw * (H + YT + YB) * SC * SC))));
+  DPR = lowGfx ? 1 : Math.min(2, window.devicePixelRatio || 1, Math.max(1, Math.sqrt(1925000 / (vw * (H + YT + YB) * SC * SC))));
   const cw = Math.round(vw * SC * DPR), ch = Math.round((H + YT + YB) * SC * DPR);
   if (cv.width !== cw || cv.height !== ch){ cv.width = cw; cv.height = ch; needDraw = true; }
   cv.style.width = Math.round(vw * SC) + "px"; cv.style.height = Math.round((H + YT + YB) * SC) + "px";
@@ -3012,7 +3038,7 @@ function pileBand(y0, y1, T){
   for (const g of [gs, gb]){ g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, p0, g.canvas.width, p1 - p0); g.beginPath(); g.rect(0, p0, g.canvas.width, p1 - p0); g.clip(); g.setTransform(k, 0, 0, k, XV * k, -top * k); }
   const keep = ALPHA, here = PILE.list.filter(b => b.tff.cb.y1 + PAD >= a0 && b.tff.cb.y0 - PAD <= a1);
   ALPHA = 1;   // settled: drawn where the physics has them
-  for (const b of here) for (const m of membersOf(b)) drawBody(gs, m, true);
+  if (!lowGfx) for (const b of here) for (const m of membersOf(b)) drawBody(gs, m, true);
   for (const b of here){ for (const m of membersOf(b)) drawBody(gb, m, false); if (b.tff.members) drawMarks(gb, b, T, true); }
   ALPHA = keep;
   gs.restore(); gb.restore();
@@ -3106,7 +3132,7 @@ function draw(dt){
   if (still && !bare) updatePile(k, T);
   c.setTransform(k, 0, 0, k, k * (sx + XV), (YT - S.camTop) * k);
   if (!bare) drawRuler(c);
-  if (rise > 140 && !bare && !reduceMotion){
+  if (rise > 140 && !bare && !reduceMotion && !lowGfx){
     c.save(); c.strokeStyle = "rgba(255,253,247,0.88)"; c.lineWidth = 2.2; c.lineCap = "round";
     for (let i = 0; i < 2; i++){
       const spanB = W + 80 + 2 * XV, bx = ((T * (0.38 - i * 0.1) + i * 190) % spanB) - 40 - XV;
@@ -3130,21 +3156,23 @@ function draw(dt){
     }
   }
   if (!bare) for (const b of engine.world.bodies) if (b.tff && !(still && PILE.set.has(b)) && (!repKeep || repKeep.has(b)) && b.bounds.max.y + PAD >= v0 && b.bounds.min.y - PAD <= v1) live.push(b);
-  if (still && !bare) blitPile(c, k, PILE.s);
-  for (const b of live) for (const m of membersOf(b)) drawBody(c, m, true);
+  if (!lowGfx){
+    if (still && !bare) blitPile(c, k, PILE.s);
+    for (const b of live) for (const m of membersOf(b)) drawBody(c, m, true);
+  }
   if (a && S.mode !== "over"){
     // dashed guide down to where the item will land, with a landing ring and faint silhouette preview.
-    const ap = lerpPose(a), x = ap.x, y0 = a.bounds.max.y + (ap.y - a.position.y) + 6, under = [];
+    const ap = lerpPose(a), x = ap.x, y0 = a.bounds.max.y + (ap.y - a.position.y) + 6, under = [], stepY = lowGfx ? 10 : 5;
     let top = WATER_Y, land = WATER_Y;
     for (const b of engine.world.bodies) if (b !== a && b.bounds.min.x <= x && b.bounds.max.x >= x && b.bounds.max.y >= y0){ under.push(b); top = Math.min(top, b.bounds.min.y); }
-    for (let y = Math.ceil(Math.max(y0, top) / 5) * 5; y < WATER_Y; y += 5){
+    for (let y = Math.ceil(Math.max(y0, top) / stepY) * stepY; y < WATER_Y; y += stepY){
       if (!Matter.Query.point(under, {x, y}).length) continue;
-      let lo = y - 5, hi = y;
+      let lo = y - stepY, hi = y;
       for (let i = 0; i < 3; i++){ const mid = (lo + hi) / 2; if (Matter.Query.point(under, {x, y: mid}).length) hi = mid; else lo = mid; }
       land = Math.max(y0, hi); break;
     }
     const hw = clamp((a.bounds.max.x - a.bounds.min.x) * 0.42, 10, 44);
-    if (land - y0 > 16){
+    if (land - y0 > 16 && !lowGfx){
       const gy = ap.y + (land - a.bounds.max.y) - 2, gs = spriteNear(a.tff.def, qOf(ap.a), false);
       if (gs){
         const ca = Math.cos(ap.a), sa = Math.sin(ap.a), gx = x + a.tff.eo.x * ca - a.tff.eo.y * sa, gyy = gy + a.tff.eo.x * sa + a.tff.eo.y * ca;
@@ -3170,7 +3198,7 @@ function draw(dt){
   const off = (T * 0.35) % 60;
   c.drawImage(L.sea, -60 - XV - off, WATER_Y - 6, W + 120 + 2 * XV, 220);
   if (v1 > WATER_Y + 206){ c.fillStyle = seaDeep; c.fillRect(-XV - 2, WATER_Y + 206, W + 2 * XV + 4, v1 - WATER_Y - 200); }   // deeper water, behind the pad
-  if (skyDusk >= 0.45){
+  if (skyDusk >= 0.45 && !lowGfx){
     const wa = clamp((skyDusk - 0.45) / 0.55, 0, 1);
     c.save();
     for (let i = 0; i < 6; i++){
@@ -3185,7 +3213,7 @@ function draw(dt){
   const span = W + 260 + 2 * XV, fx = W + 120 + XV - ((T * 0.13 + span * 0.55) % span), fy = WATER_Y - 42 + (reduceMotion ? 0 : Math.sin(T / 30 + 1) * 1.2);   // the ferry, the other way
   if (L.ferry) c.drawImage(L.ferry, fx, fy, 104, 56);
   c.drawImage(L.junk, jx, jy, 80, 60);
-  if (!reduceMotion){
+  if (!reduceMotion && !lowGfx){
     c.save(); c.fillStyle = "rgba(255,253,247,0.48)";
     for (let i = 0; i < 4; i++){
       const jt = (T * 0.25 + i * 5) % 20, ft = (T * 0.22 + i * 5) % 20;
@@ -3195,7 +3223,7 @@ function draw(dt){
     c.restore();
   }
   for (const sp of S.splashes){
-    sp.t += f; const t = sp.t / 45, n = sp.big ? 9 : 6;
+    sp.t += f; const t = sp.t / 45, n = lowGfx ? 3 : sp.big ? 9 : 6;
     for (let i = 0; i < n; i++){
       const ang = Math.PI * (0.15 + 0.7 * i / (n - 1)), v = (sp.big ? 3.4 : 2.6) * (0.8 + (i % 3) * 0.15);
       const px = sp.x + Math.cos(ang) * v * sp.t * 1.2 * (i % 2 ? 1 : -1), py = WATER_Y - Math.sin(ang) * v * sp.t + 0.09 * sp.t * sp.t;
@@ -3566,6 +3594,7 @@ cv.addEventListener("contextrestored", () => {
 });
 function frameBody(now){
   const raw = now - last, dt = Math.min(50, raw); last = now;
+  checkPerf(raw);
   if (GP.on) pollPad(now);
   if (++avTick % 8 === 0) updateAvatar();
   if (S){

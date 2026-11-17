@@ -63,3 +63,9 @@ test("haptics support vibration API, iOS switch fallback, and gamepad actuators"
   assert.ok(game.includes('setAttribute("switch"'), "iOS Taptic switch fallback is missing");
   assert.ok(game.includes("vibrationActuator") && game.includes("hapticActuators"), "Gamepad actuator support is missing");
 });
+
+test("low-graphics mode detects slow/low-spec devices and steps down visuals", () => {
+  assert.ok(game.includes("enableLowGfx") && game.includes("checkPerf"), "frame-time low-graphics monitor is missing");
+  assert.ok(game.includes("lowGfx"), "lowGfx graphics scaling flag is missing");
+  assert.ok(css.includes("html.low-gfx"), "low-gfx CSS optimizations are missing");
+});

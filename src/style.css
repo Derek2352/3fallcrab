@@ -1812,3 +1812,8 @@ body:has(#cardModal:not([hidden])) .fbars{height:min(9vh,86px)}   /* follows the
 #hudTime.urgent{color:var(--red-d)}
 @keyframes timepulse{0%{transform:scale(1.22)}100%{transform:none}}
 @media (prefers-reduced-motion: reduce){ .pbs .v.urgent, .hud .hs .v.urgent{animation:none} }
+
+/* ---------- automatic low-graphics mode on slow / low-spec devices ---------- */
+html.low-gfx .filmgrain, html.low-gfx .filmvig{display:none}
+html.low-gfx .iab, html.low-gfx .hud, html.low-gfx .pad button, html.low-gfx .iconbtn{-webkit-backdrop-filter:none;backdrop-filter:none}
+html.low-gfx .fzglow, html.low-gfx #startOv #startBtn{animation:none}
