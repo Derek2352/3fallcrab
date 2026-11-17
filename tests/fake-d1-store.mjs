@@ -6,6 +6,124 @@ const COLS = ["id", "gid", "edit_hash", "name", "email", "score", "stage", "heig
   "ended", "week", "month", "persona", "title", "sil", "ip_hash", "posted", "hidden", "created_at", "updated_at", "edits",
   "items", "real_ms", "quiz_prior", "jackpot", "troll_revive", "troll_invest", "troll_tickets", "avatar", "mtype", "via"];
 
+function groupCount(list, keyFn) {
+  const m = new Map();
+  for (const r of list) {
+    const k = keyFn(r);
+    if (k !== undefined) m.set(k, (m.get(k) || 0) + 1);
+  }
+  return [...m.entries()].map(([k, n]) => ({ k, n }));
+}
+
+function summarizeTrend(list) {
+  const n = list.length;
+  const quizTakers = list.filter((r) => (r.quiz_answered === 3) || (r.quiz_answered == null && r.quiz != null));
+  const emails = list.filter((r) => r.email != null).length;
+  return {
+    games: n,
+    posted: list.filter((r) => r.posted === 1).length,
+    quizTakers: quizTakers.length,
+    quizPass: quizTakers.filter((r) => (r.quiz || 0) >= 2).length,
+    habits: list.filter((r) => r.habit != null).length,
+    emails,
+    avgScore: n ? Math.round(list.reduce((s, r) => s + (r.score || 0), 0) / n) : null,
+    wise: list.reduce((s, r) => s + (r.wise || 0), 0),
+    risky: list.reduce((s, r) => s + (r.risky || 0), 0),
+    missed: list.reduce((s, r) => s + (r.missed || 0), 0),
+    spend: list.reduce((s, r) => s + (r.fall_spend || 0), 0),
+    scam: list.reduce((s, r) => s + (r.fall_scam || 0), 0),
+    delay: list.reduce((s, r) => s + (r.fall_delay || 0), 0),
+    jack: list.filter((r) => r.avatar === "jack").length,
+    jackie: list.filter((r) => r.avatar === "jackie").length,
+  };
+}
+
+function summaryQuery(rows, sql, args) {
+  let list = rows.filter((r) => !r.hidden);
+  if (/AND s\.week = \?1/.test(sql)) list = list.filter((r) => r.week === args[0]);
+  else if (/AND s\.month = \?1/.test(sql)) list = list.filter((r) => r.month === args[0]);
+  if (/AS quizStarted/.test(sql)) {
+    const tr = summarizeTrend(list);
+    const quizTakers = list.filter((r) => (r.quiz_answered === 3) || (r.quiz_answered == null && r.quiz != null));
+    const quizFirst = quizTakers.filter((r) => r.quiz_prior === 0);
+    return [{
+      ...tr,
+      quizStarted: list.filter((r) => (r.quiz_answered || 0) >= 1).length,
+      quizLegacy: list.filter((r) => r.quiz_answered == null && r.quiz != null).length,
+      quizFirst: quizFirst.length,
+      quizFirstPass: quizFirst.filter((r) => (r.quiz || 0) >= 2).length,
+      quizPriorKnown: quizTakers.filter((r) => r.quiz_prior != null).length,
+      quizPerfect: quizTakers.filter((r) => r.quiz === 3).length,
+      quizSum: quizTakers.reduce((s, r) => s + (r.quiz || 0), 0),
+      bestScore: list.length ? Math.max(...list.map((r) => r.score || 0)) : null,
+      avgHeight: list.length ? Math.round((10 * list.reduce((s, r) => s + (r.height || 0), 0)) / list.length) / 10 : null,
+      endedTime: list.filter((r) => r.ended === "time").length,
+      endedDrops: list.filter((r) => r.ended === "drops").length,
+      gSpend: list.filter((r) => (r.fall_spend || 0) > 0).length,
+      gScam: list.filter((r) => (r.fall_scam || 0) > 0).length,
+      gDelay: list.filter((r) => (r.fall_delay || 0) > 0).length,
+      gNoFall: list.filter((r) => (r.fall_spend || 0) + (r.fall_scam || 0) + (r.fall_delay || 0) === 0).length,
+      tiSeen: list.filter((r) => (r.troll_invest || 0) >= 1).length,
+      tiDeclined: list.filter((r) => r.troll_invest === 1).length,
+      tiInvested: list.filter((r) => (r.troll_invest || 0) >= 2).length,
+      tiFee: list.filter((r) => r.troll_invest === 3).length,
+      ttSeen: list.filter((r) => r.troll_tickets != null).length,
+      ttBought: list.filter((r) => (r.troll_tickets || 0) >= 1).length,
+      ttCards: list.reduce((s, r) => s + (r.troll_tickets || 0), 0),
+      trSeen: list.filter((r) => r.troll_revive != null).length,
+      trPressed: list.filter((r) => r.troll_revive === 1).length,
+    }];
+  }
+  if (/json_each\(s\.quiz_answers\)/.test(sql)) {
+    const out = new Map();
+    for (const r of list) {
+      let arr = []; try { arr = JSON.parse(r.quiz_answers || "[]"); } catch {}
+      for (const a of Array.isArray(arr) ? arr : []) {
+        const k = `${a.q}|${a.pick}|${a.ok}`;
+        const prev = out.get(k) || { q: a.q, pick: a.pick, ok: a.ok, n: 0 };
+        prev.n++; out.set(k, prev);
+      }
+    }
+    return [...out.values()];
+  }
+  if (/json_each\(s\.choices\).*AS card/.test(sql)) {
+    const out = new Map();
+    for (const r of list) {
+      let arr = []; try { arr = JSON.parse(r.choices || "[]"); } catch {}
+      for (const c of Array.isArray(arr) ? arr : []) {
+        const k = `${c.card}|${c.pick}`;
+        const prev = out.get(k) || { card: c.card, pick: c.pick, n: 0 };
+        prev.n++; out.set(k, prev);
+      }
+    }
+    return [...out.values()];
+  }
+  if (/json_each\(s\.choices\).*AS k/.test(sql)) {
+    const out = new Map();
+    for (const r of list) {
+      let arr = []; try { arr = JSON.parse(r.choices || "[]"); } catch {}
+      for (const c of Array.isArray(arr) ? arr : []) if (c.power) out.set(c.power, (out.get(c.power) || 0) + 1);
+    }
+    return [...out.entries()].map(([k, n]) => ({ k, n }));
+  }
+  if (/GROUP BY quiz\b/.test(sql)) return groupCount(list.filter((r) => (r.quiz_answered === 3) || (r.quiz_answered == null && r.quiz != null)), (r) => r.quiz);
+  if (/GROUP BY habit\b/.test(sql)) return groupCount(list, (r) => r.habit ?? null);
+  if (/GROUP BY stage\b/.test(sql)) return groupCount(list, (r) => r.stage);
+  if (/GROUP BY week ORDER BY week/.test(sql)) {
+    const wks = [...new Set(list.map((r) => r.week).filter(Boolean))].sort();
+    return wks.map((k) => ({ k, ...summarizeTrend(list.filter((r) => r.week === k)) }));
+  }
+  if (/GROUP BY month ORDER BY month/.test(sql)) {
+    const mos = [...new Set(list.map((r) => r.month).filter(Boolean))].sort();
+    return mos.map((k) => ({ k, ...summarizeTrend(list.filter((r) => r.month === k)) }));
+  }
+  if (/GROUP BY mtype\b/.test(sql)) return groupCount(list.filter((r) => r.mtype != null), (r) => r.mtype);
+  if (/GROUP BY title\b/.test(sql)) return groupCount(list.filter((r) => r.title != null), (r) => r.title);
+  if (/GROUP BY persona\b/.test(sql)) return groupCount(list.filter((r) => r.persona != null), (r) => r.persona);
+  if (/AND via = 'c'/.test(sql)) return [{ n: list.filter((r) => r.via === "c").length }];
+  return [];
+}
+
 function applyAdminWhere(list, sql, args) {
   const m = /\bWHERE\s+([\s\S]+?)(?:\s+ORDER BY|\s+LIMIT|\s*$)/i.exec(sql);
   if (!m) return list;
@@ -156,6 +274,12 @@ export function makeStore() {
     if (/SELECT DISTINCT month AS k FROM scores/.test(sql)) {
       return { results: [...new Set(rows.map((r) => r.month).filter(Boolean))].sort().reverse().map((k) => ({ k })) };
     }
+    if (/SELECT COUNT\(\*\) AS scanned/.test(sql)) {
+      const sample = rows.slice(-1000).filter((r) => !r.hidden);
+      const tr = summarizeTrend(sample);
+      return { results: [{ scanned: rows.length, games: tr.games, wise: tr.wise, risky: tr.risky, missed: tr.missed, spend: tr.spend, scam: tr.scam, delay: tr.delay, quizSum: sample.reduce((s, r) => s + (r.quiz || 0), 0), quizN: tr.quizTakers, quizPass: tr.quizPass }] };
+    }
+    if (/FROM scores s\b|json_each\(s\./.test(sql)) return { results: summaryQuery(rows, sql, args) };
     if (/SELECT COUNT\(\*\) AS n FROM admin_fails/.test(sql)) return { results: [{ n: 0 }] };
     if (/^\s*SELECT/i.test(sql)) return { results: select(sql, args) };
     return { meta: { changes: 0 } };

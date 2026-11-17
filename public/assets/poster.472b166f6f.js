@@ -9,6 +9,10 @@ const NS = "http://www.w3.org/2000/svg";
 const qs = new URLSearchParams(location.search);
 const fromQuery = qs.get("url");
 input.value = fromQuery || location.origin + "/";
+if (qs.get("booth") === "1" && !fromQuery && booth) {
+booth.checked = true;
+input.value = location.origin + "/?booth=1";
+}
 if (igToggle && igBar) {
 const syncIg = () => { igBar.hidden = !igToggle.checked; };
 if (qs.get("ig") === "1") igToggle.checked = true;
