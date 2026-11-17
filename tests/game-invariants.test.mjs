@@ -2,12 +2,14 @@
 // it protects, so a future edit that undoes the work fails with a reason rather than silently.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const game = readFileSync(join(root, "src/game.js"), "utf8");
+const gameParts = readdirSync(join(root, "src/game")).filter((f) => f.endsWith(".js")).sort()
+  .map((f) => readFileSync(join(root, "src/game", f), "utf8"));
+const game = [readFileSync(join(root, "src/game-core.js"), "utf8"), ...gameParts].join("\n");
 const css = readFileSync(join(root, "src/style.css"), "utf8");
 const html = readFileSync(join(root, "src/index.html"), "utf8");
 const num = (name) => {

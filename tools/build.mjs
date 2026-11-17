@@ -8,6 +8,7 @@ import { createHash } from "node:crypto";
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, extname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { minifyJs, minifyCss, minifyHtml } from "./minify.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const src = join(root, "src");
@@ -63,17 +64,36 @@ for (const n of readdirSync(out)) rmSync(join(out, n), { recursive: true, force:
 mkdirSync(join(out, "assets"), { recursive: true });
 cpSync(join(src, "static"), out, { recursive: true });
 
+const PRELUDE = [
+  "clay.js", "audio.js",
+  "items/wise.js", "items/risky-a.js", "items/risky-b.js",
+  "items/scam.js", "items/jackpot.js", "items/hk.js",
+  "content.js", "avatar.js", "game-core.js",
+];
+
+function sourceFor(path) {
+  if (path === "prelude.js") {
+    return Buffer.from(PRELUDE.map((p) => readFileSync(join(src, p), "utf8")).join("\n"));
+  }
+  if (path === "game.js" && existsSync(join(src, "game"))) {
+    const parts = readdirSync(join(src, "game")).filter((f) => f.endsWith(".js")).sort();
+    return Buffer.from(`(() => {\n"use strict";\n${parts.map((f) => readFileSync(join(src, "game", f), "utf8")).join("\n")}\n})();\n`);
+  }
+  const file = join(src, path);
+  if (!existsSync(file)) throw new Error(`Missing asset: src/${path}`);
+  return readFileSync(file);
+}
+
 const hashed = new Map();
 function asset(path) {
   if (hashed.has(path)) return hashed.get(path);
-  const file = join(src, path);
-  if (!existsSync(file)) throw new Error(`Missing asset: src/${path}`);
-  let body = readFileSync(file);
+  let body = sourceFor(path);
+  const ext = extname(path);
   // A stylesheet can point at other assets, e.g. url(%%asset:fonts/gluten.woff2%%). Those are fingerprinted first, so the
   // stylesheet's own fingerprint changes whenever a font does.
-  if (extname(path) === ".css") body = Buffer.from(body.toString("utf8").replace(/%%asset:([^%]+)%%/g, (_, p) => asset(p.trim())));
+  if (ext === ".css") body = Buffer.from(minifyCss(body.toString("utf8").replace(/%%asset:([^%]+)%%/g, (_, p) => asset(p.trim()))));
+  else if (ext === ".js" && !path.startsWith("vendor/")) body = Buffer.from(minifyJs(body.toString("utf8")));
   const hash = createHash("sha256").update(body).digest("hex").slice(0, 10);
-  const ext = extname(path);
   const name = `${basename(path, ext)}.${hash}${ext}`;
   writeFileSync(join(out, "assets", name), body);
   hashed.set(path, `/assets/${name}`);
@@ -84,7 +104,7 @@ function render(html) {
   html = html.replace(/%%asset:([^%]+)%%/g, (_, p) => asset(p.trim()));
   if (!site) html = html.replace(/^.*%%SITE_URL%%\/".*\n/gm, ""); // og:url only makes sense with a real address
   if (!contact) html = html.replace(/<p[^>]*>[^\n]*%%CONTACT_EMAIL%%[^\n]*<\/p>\n?/g, "").replaceAll(" privacyNote", ""); // no address: leave the contact lines out
-  return html.replaceAll("%%SITE_URL%%", site).replaceAll("%%CONTACT_EMAIL%%", contact);
+  return minifyHtml(html.replaceAll("%%SITE_URL%%", site).replaceAll("%%CONTACT_EMAIL%%", contact));
 }
 
 writeFileSync(join(out, "index.html"), render(readFileSync(join(src, "index.html"), "utf8")));
