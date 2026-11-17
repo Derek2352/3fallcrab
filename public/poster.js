@@ -3,10 +3,19 @@
   "use strict";
   const input = document.getElementById("url");
   const booth = document.getElementById("booth");
+  const igToggle = document.getElementById("igToggle");
+  const igBar = document.getElementById("igBar");
   const svg = document.getElementById("qr");
   const NS = "http://www.w3.org/2000/svg";
-  const fromQuery = new URLSearchParams(location.search).get("url");
+  const qs = new URLSearchParams(location.search);
+  const fromQuery = qs.get("url");
   input.value = fromQuery || location.origin + "/";
+  if (igToggle && igBar) {
+    const syncIg = () => { igBar.hidden = !igToggle.checked; };
+    if (qs.get("ig") === "1") igToggle.checked = true;
+    igToggle.addEventListener("change", syncIg);
+    syncIg();
+  }
   function syncBooth() {
     if (!booth) return;
     try {

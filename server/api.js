@@ -603,6 +603,34 @@ async function authorised(request, env) {
 
 const ADMIN_COLS = "id, name, email, posted, score, stage, height, drops, wise, risky, missed, fall_spend, fall_scam, fall_delay, choices, habit, quiz, quiz_answered, quiz_answers, ended, week, month, created_at, updated_at, hidden, items, real_ms, quiz_prior, jackpot, troll_revive, troll_invest, troll_tickets, avatar, mtype, via, title, persona";
 
+function adminFilter(url) {
+  const conds = [], args = [];
+  const bind = (v) => { args.push(v); return `?${args.length}`; };
+  const p = period(url);
+  if (p.key) conds.push(`${p.type === "week" ? "week" : "month"} = ${bind(p.key)}`);
+  const on = url.searchParams.get("board");
+  if (on === "1") conds.push("posted = 1");
+  else if (on === "0") conds.push("posted = 0");
+  const st = url.searchParams.get("status");
+  if (st === "hidden") conds.push("hidden = 1");
+  else if (st === "shown") conds.push("hidden = 0");
+  const flag = url.searchParams.get("flag");
+  if (flag === "slow") conds.push("ended = 'time' AND real_ms > 270000");
+  else if (flag === "links") conds.push("via = 'c'");
+  else if (flag === "scam") conds.push("(troll_invest >= 2 OR troll_tickets > 0)");
+  const qRaw = String(url.searchParams.get("q") || "").trim().slice(0, 64);
+  if (qRaw) {
+    const pIdx = bind("%" + qRaw.toLowerCase().replace(/[\\%_]/g, "\\$&") + "%");
+    if (/^\d{1,10}$/.test(qRaw)) {
+      const idIdx = bind(Number(qRaw));
+      conds.push(`(id = ${idIdx} OR LOWER(name) LIKE ${pIdx} ESCAPE '\\' OR LOWER(COALESCE(email,'')) LIKE ${pIdx} ESCAPE '\\')`);
+    } else {
+      conds.push(`(LOWER(name) LIKE ${pIdx} ESCAPE '\\' OR LOWER(COALESCE(email,'')) LIKE ${pIdx} ESCAPE '\\' OR LOWER(COALESCE(title,'')) LIKE ${pIdx} ESCAPE '\\')`);
+    }
+  }
+  return { conds, args };
+}
+
 // ?week=2026-W41 or ?month=2026-10 narrows a view; neither means every game.
 function period(url) {
   const week = url.searchParams.get("week") || "", month = url.searchParams.get("month") || "";
@@ -746,21 +774,29 @@ async function admin(path, request, env, db) {
   if (path === "scores" && request.method === "GET") {
     const limit = int(url.searchParams.get("limit") || 100, 1, 500);
     const offset = int(url.searchParams.get("offset") || 0, 0, 1e9);
-    const p = period(url), args = p.key ? [p.key] : [];
-    const on = url.searchParams.get("board"); // "1": posted to the board only, "0": saved anonymously only
-    const where = p.where + (on === "1" ? " AND posted = 1" : on === "0" ? " AND posted = 0" : "");
-    const [rows, count] = await db.batch([
-      db.prepare(`SELECT ${ADMIN_COLS} FROM scores WHERE ${where} ORDER BY id DESC LIMIT ?${args.length + 1} OFFSET ?${args.length + 2}`).bind(...args, limit, offset),
+    const before = int(url.searchParams.get("before") || 0, 0, Number.MAX_SAFE_INTEGER);
+    const f = adminFilter(url), where = f.conds.length ? f.conds.join(" AND ") : "1 = 1", args = f.args;
+    const rowArgs = before > 0 ? [...args, before, limit + 1] : [...args, limit + 1, offset];
+    const rowSql = before > 0
+      ? `SELECT ${ADMIN_COLS} FROM scores WHERE ${where} AND id < ?${args.length + 1} ORDER BY id DESC LIMIT ?${args.length + 2}`
+      : `SELECT ${ADMIN_COLS} FROM scores WHERE ${where} ORDER BY id DESC LIMIT ?${args.length + 1} OFFSET ?${args.length + 2}`;
+    const [rows, count, fcount] = await db.batch([
+      db.prepare(rowSql).bind(...rowArgs),
       db.prepare("SELECT COUNT(*) AS n, COALESCE(SUM(hidden), 0) AS hidden, COALESCE(SUM(posted = 1 AND hidden = 0), 0) AS posted, COALESCE(SUM(email IS NOT NULL), 0) AS emails FROM scores"),
+      db.prepare(`SELECT COUNT(*) AS n FROM scores WHERE ${where}`).bind(...args),
     ]);
-    const c = count.results[0] || {};
-    return json({ ok: true, ...current, total: c.n || 0, hiddenTotal: c.hidden || 0, postedTotal: c.posted || 0, emailTotal: c.emails || 0, rows: rows.results });
+    const c = count.results[0] || {}, fc = fcount.results[0] || {};
+    const raw = rows.results || [], hasMore = raw.length > limit, list = hasMore ? raw.slice(0, limit) : raw;
+    return json({ ok: true, ...current, total: c.n || 0, hiddenTotal: c.hidden || 0, postedTotal: c.posted || 0, emailTotal: c.emails || 0, filteredTotal: fc.n || 0, rows: list, nextBefore: hasMore ? list[list.length - 1].id : null });
   }
   if (path === "rows" && request.method === "GET") {
     const after = int(url.searchParams.get("after") || 0, 0, Number.MAX_SAFE_INTEGER);
     const limit = int(url.searchParams.get("limit") || 500, 1, 1000);
-    const { results } = await db.prepare(`SELECT ${ADMIN_COLS} FROM scores WHERE id > ?1 ORDER BY id ASC LIMIT ?2`).bind(after, limit).all();
-    return json({ ok: true, rows: results, next: results.length === limit ? results[results.length - 1].id : null });
+    const f = adminFilter(url), where = f.conds.length ? f.conds.join(" AND ") + " AND " : "";
+    const aIdx = f.args.length + 1, lIdx = f.args.length + 2;
+    const { results } = await db.prepare(`SELECT ${ADMIN_COLS} FROM scores WHERE ${where}id > ?${aIdx} ORDER BY id ASC LIMIT ?${lIdx}`).bind(...f.args, after, limit + 1).all();
+    const hasMore = (results || []).length > limit, list = hasMore ? results.slice(0, limit) : (results || []);
+    return json({ ok: true, rows: list, next: hasMore ? list[list.length - 1].id : null });
   }
   if (path === "summary" && request.method === "GET") return json({ ok: true, current, ...(await summary(db, period(url))) });
   if (path === "winners" && request.method === "GET") {
@@ -791,19 +827,45 @@ async function admin(path, request, env, db) {
     statsMemo = null; ghostMemo = null;
     return json({ ok: true, id, name: NAME_DEFAULT, changed: res.meta.changes || 0 });
   }
+  if (path === "batch" && request.method === "POST") {
+    let b;
+    try { b = JSON.parse((await readBody(request, MAX_BODY)) ?? "x"); } catch { return fail("bad_json", 400); }
+    const act = b && b.action;
+    if (!["hide", "unhide", "rename"].includes(act)) return fail("bad_action", 400);
+    const ids = [...new Set((Array.isArray(b.ids) ? b.ids : []).map((x) => int(x, 0, Number.MAX_SAFE_INTEGER)).filter((x) => x > 0))].slice(0, 100);
+    if (!ids.length) return fail("bad_id", 400);
+    const ph = ids.map((_, i) => `?${i + 2}`).join(", ");
+    const sql = act === "rename" ? `UPDATE scores SET name = ?1 WHERE id IN (${ph})` : `UPDATE scores SET hidden = ?1 WHERE id IN (${ph})`;
+    const val = act === "rename" ? NAME_DEFAULT : (act === "hide" ? 1 : 0);
+    const res = await db.prepare(sql).bind(val, ...ids).run();
+    statsMemo = null; ghostMemo = null;
+    return json({ ok: true, action: act, count: ids.length, changed: res.meta.changes || 0 });
+  }
   if (path === "export" && request.method === "GET") {
-    const { results } = await db.prepare(`SELECT ${ADMIN_COLS} FROM scores ORDER BY id ASC`).all();
-    const cols = ADMIN_COLS.split(", ");
+    const f = adminFilter(url), where = f.conds.length ? f.conds.join(" AND ") + " AND " : "";
+    const aIdx = f.args.length + 1, cols = ADMIN_COLS.split(", ");
     const cell = (v) => {
       let s = v === null || v === undefined ? "" : String(v);
       if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; // keep spreadsheet apps from running formulas
       return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
     };
-    const csv = "\ufeff" + [cols.join(","), ...results.map((r) => cols.map((c) => cell(r[c])).join(","))].join("\r\n") + "\r\n";
-    return new Response(csv, {
+    const enc = new TextEncoder();
+    let after = 0, sentHead = false;
+    const stream = new ReadableStream({
+      async pull(ctrl) {
+        if (!sentHead) { sentHead = true; ctrl.enqueue(enc.encode("\ufeff" + cols.join(",") + "\r\n")); }
+        const { results } = await db.prepare(`SELECT ${ADMIN_COLS} FROM scores WHERE ${where}id > ?${aIdx} ORDER BY id ASC LIMIT 500`).bind(...f.args, after).all();
+        if (!results || !results.length) { ctrl.close(); return; }
+        after = results[results.length - 1].id;
+        ctrl.enqueue(enc.encode(results.map((r) => cols.map((c) => cell(r[c])).join(",")).join("\r\n") + "\r\n"));
+        if (results.length < 500) ctrl.close();
+      },
+    });
+    const scope = (url.searchParams.get("week") || url.searchParams.get("month") || "").replace(/[^A-Za-z0-9_-]/g, "");
+    return new Response(stream, {
       headers: {
         "content-type": "text/csv; charset=utf-8",
-        "content-disposition": `attachment; filename="3-fall-fun-scores-${new Date().toISOString().slice(0, 10)}.csv"`,
+        "content-disposition": `attachment; filename="3-fall-fun-scores${scope ? "-" + scope : ""}-${new Date().toISOString().slice(0, 10)}.csv"`,
         "cache-control": "no-store",
         ...SECURE,
       },

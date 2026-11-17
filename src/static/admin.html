@@ -23,7 +23,15 @@
   /* controls */
   form{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
   input,select,button,textarea{font:inherit}
-  input[type=password]{flex:1;min-width:220px;padding:9px 12px;border:1px solid var(--line);border-radius:10px}
+  input[type=password],input[type=search]{flex:1;min-width:190px;padding:8px 11px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
+  .chk{width:32px;text-align:center}
+  .batch{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:8px 10px;margin:0 0 10px;border-radius:10px;background:var(--tile);border:1px solid var(--line)}
+  .batch b{font-size:13px;margin-right:auto}
+  .chartbox{overflow-x:auto;padding:4px 0}
+  .chartbox svg{display:block;width:100%;min-width:480px;height:auto}
+  .cleg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);margin-bottom:6px}
+  .cleg span{display:inline-flex;align-items:center;gap:5px}
+  .cleg i{display:inline-block;width:12px;height:8px;border-radius:3px}
   select{padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);max-width:100%}
   textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:10px;color:var(--ink)}
   button{padding:9px 14px;border:0;border-radius:10px;background:var(--ink);color:#fff;font-weight:600;cursor:pointer}
@@ -255,6 +263,11 @@
     <!-- Trends: every week and month, whichever period is selected -->
     <div id="pane-trends" role="tabpanel" aria-labelledby="tab-trends" hidden>
       <section class="card">
+        <h2>Weekly trends <small class="zh" lang="zh-HK">每週趨勢圖</small></h2>
+        <div class="cleg"><span><i style="background:var(--teal)"></i>Games</span><span><i style="background:var(--pink)"></i>Quiz 2/3+ %</span><span><i style="background:var(--green)"></i>70% target</span></div>
+        <div class="chartbox" id="trendChartBox"></div>
+      </section>
+      <section class="card">
         <h2>By week <small class="zh" lang="zh-HK">按週</small></h2>
         <div class="wrap" id="weekBox"></div>
       </section>
@@ -308,18 +321,19 @@
     <div id="pane-downloads" role="tabpanel" aria-labelledby="tab-downloads" hidden>
       <section class="card">
         <h2>Downloads <small class="zh" lang="zh-HK">下載</small></h2>
-        <p class="msg">CSV files for Excel and Google Sheets, built in this browser from every saved game. Hidden games are included (see the <code>hidden</code> column in each file). Times are Hong Kong time.</p>
+        <p class="msg">CSV files for Excel and Google Sheets, built from saved games. Hidden games are included (see the <code>hidden</code> column in each file). Times are Hong Kong time.</p>
+        <div class="bar"><div class="pair"><label for="dlPeriod">Scope</label><select id="dlPeriod"><option value="">All time</option></select></div></div>
         <div class="dl">
           <div class="dlitem"><div><b>games.csv</b><span>One row per game: score, floors, life stage, habit, quiz answers and every Life Event choice.</span></div><button id="dlGames">Download</button></div>
           <div class="dlitem"><div><b>quiz_answers.csv</b><span>One row per quiz answer, for pivot tables. Older games did not keep their answers.</span></div><button id="dlAnswers">Download</button></div>
           <div class="dlitem"><div><b>life_events.csv</b><span>One row per Life Event card decision: wise, risky or missed.</span></div><button id="dlEvents">Download</button></div>
         </div>
         <p class="msg" id="dlMsg" role="status"></p>
-        <p><button class="ghost" id="csvBtn">Raw CSV</button> <span class="hint">Every database column, built by the server.</span></p>
+        <p><button class="ghost" id="csvBtn">Raw CSV</button> <span class="hint">Every database column, streamed directly by the server.</span></p>
       </section>
     </div>
 
-    <!-- Games: the latest saved games, hide / unhide -->
+    <!-- Games: search, filters, batch moderation -->
     <div id="pane-games" role="tabpanel" aria-labelledby="tab-games" hidden>
       <section class="card">
         <div class="stats">
@@ -332,11 +346,21 @@
         <div class="bar">
           <div class="pair"><label for="gPeriod">Period</label><select id="gPeriod"><option value="">All time</option></select></div>
           <div class="pair"><label for="gBoard">Board</label><select id="gBoard"><option value="">All</option><option value="1">On board</option><option value="0">Anonymous</option></select></div>
+          <div class="pair"><label for="gStatus">Status</label><select id="gStatus"><option value="">All</option><option value="shown">Shown</option><option value="hidden">Hidden</option></select></div>
+          <div class="pair"><label for="gFlag">Flag</label><select id="gFlag"><option value="">All</option><option value="slow">Slow motion check</option><option value="links">Shared challenge</option><option value="scam">Scam / tickets</option></select></div>
+          <div class="pair" style="max-width:none"><label for="gSearch">Search</label><input id="gSearch" type="search" placeholder="Nickname, email, title, or #id" maxlength="64"></div>
+        </div>
+        <div class="batch" id="batchBar" hidden>
+          <b id="batchCount">0 selected</b>
+          <button class="hide mini" id="batchHide" type="button">Hide selected</button>
+          <button class="show mini" id="batchUnhide" type="button">Unhide selected</button>
+          <button class="ghost mini" id="batchRename" type="button">Anonymise selected</button>
+          <button class="ghost mini" id="batchClear" type="button">Clear</button>
         </div>
         <p class="msg" id="panelMsg">For a rude nickname, use Anonymise name: the game stays on the board as "Anonymous crab" and keeps counting in the analysis. Hide is for junk or test games: it removes a game from the public board, the Stats tab and the analysis. You can unhide it later.</p>
         <div class="wrap">
           <table class="wide">
-            <thead><tr><th scope="col" class="num">#</th><th scope="col">Saved (HKT)</th><th scope="col">Week</th><th scope="col">Nickname</th><th scope="col">Email</th><th scope="col">Board</th><th scope="col" class="num">Score</th><th scope="col" class="num">Floors</th>
+            <thead><tr><th scope="col" class="chk"><input type="checkbox" id="gAll" aria-label="Select all visible games"></th><th scope="col" class="num">#</th><th scope="col">Saved (HKT)</th><th scope="col">Week</th><th scope="col">Nickname</th><th scope="col">Email</th><th scope="col">Board</th><th scope="col" class="num">Score</th><th scope="col" class="num">Floors</th>
               <th scope="col" class="num">Wise / risky / missed</th><th scope="col">Habit</th><th scope="col" class="num">Quiz</th><th scope="col">Ended</th><th scope="col">Status</th><th scope="col"><span class="sr">Action</span></th></tr></thead>
             <tbody id="rows"></tbody>
           </table>

@@ -25,10 +25,10 @@
   let token = "";
   try { token = sessionStorage.getItem(KEY) || ""; } catch { }
   let cur = { week: "", month: "" }, periods = { weeks: [], months: [] }, all = null, lastSum = null; // current week / month, known periods, all-time summary
-  let offset = 0, seen = new Set(), mails = { week: [], month: [] };
+  let nextBefore = null, seen = new Set(), selected = new Set(), mails = { week: [], month: [] };
   const seq = { sum: 0, week: 0, month: 0, games: 0 }; // the newest request wins; Lock bumps them all so late answers are dropped
   // Everything that holds data or emails: emptied on Lock.
-  const VIEWS = ["tiles", "kpiMore", "kpiNote", "quizBox", "scoreBox", "habitBox", "trapBox", "stageBox", "trollBox", "powerBox", "cardBox", "weekBox", "monthBox",
+  const VIEWS = ["tiles", "kpiMore", "kpiNote", "quizBox", "scoreBox", "habitBox", "trapBox", "stageBox", "trollBox", "powerBox", "cardBox", "trendChartBox", "weekBox", "monthBox",
     "winWeekRows", "winMonthRows", "rows", "sumMsg", "dlMsg", "panelMsg", "winWeekMsg", "winMonthMsg", "winWeekInfo", "winMonthInfo", "gCount"];
 
   // ---------- helpers ----------
@@ -87,7 +87,7 @@
     token = ""; try { sessionStorage.removeItem(KEY); } catch { }
     for (const k in seq) seq[k]++;
     for (const id of VIEWS) $(id).replaceChildren();
-    all = null; lastSum = null; mails = { week: [], month: [] }; $("copyBox").value = ""; $("copyBox").hidden = true;
+    all = null; lastSum = null; selected.clear(); mails = { week: [], month: [] }; $("copyBox").value = ""; $("copyBox").hidden = true; if ($("batchBar")) $("batchBar").hidden = true;
     show(false); say("loginMsg", text, err);
   }
 
@@ -113,7 +113,7 @@
       g.append(...ks.map((k) => new Option(text(k), name + "=" + k)));
       return g;
     };
-    for (const id of ["periodSel", "gPeriod"]) setOpts($(id), [new Option("All time", ""), group("Weeks", weeks, "week", weekLabel), group("Months", months, "month", monthLabel)], "");
+    for (const id of ["periodSel", "gPeriod", "dlPeriod"]) setOpts($(id), [new Option("All time", ""), group("Weeks", weeks, "week", weekLabel), group("Months", months, "month", monthLabel)], "");
     const withNow = (ks, now) => [...new Set([now, ...ks])].filter(Boolean).sort().reverse();
     setOpts($("winWeekSel"), withNow(weeks, cur.week).map((k) => new Option(weekLabel(k), k)), cur.week);
     setOpts($("winMonthSel"), withNow(months, cur.month).map((k) => new Option(monthLabel(k), k)), cur.month);
@@ -270,8 +270,51 @@
     { h: "Avg score", c: "num" }, { h: "Wise %", c: "num" }, { h: "Emails", c: "num" }],
       rows.slice().reverse().map((r) => ({ cls: r.k === sel ? "cur" : "", cells: [label(r.k), fmt(r.games), fmt(r.posted), fmt(r.quizTakers), pc(r.quizPassPct), fmt(r.avgScore), pc(r.wisePct), fmt(r.emails)] })), "mid stack");
   }
+  function renderTrendChart(rows, targetPct = 70) {
+    if (!rows || !rows.length) return el("p", "msg", "No weekly chart data yet.");
+    const data = rows.slice(-12);
+    const W = 640, H = 190, L = 40, R = 40, T = 16, B = 32, cw = W - L - R, ch = H - T - B;
+    const maxG = Math.max(1, ...data.map((r) => r.games || 0));
+    const NS = "http://www.w3.org/2000/svg";
+    const s = (tag, attrs, ...kids) => {
+      const node = document.createElementNS(NS, tag);
+      for (const [k, v] of Object.entries(attrs || {})) if (v != null) node.setAttribute(k, String(v));
+      node.append(...kids.filter(Boolean));
+      return node;
+    };
+    const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Weekly games played and quiz pass rate chart" });
+    for (const p of [0, 50, 100]) {
+      const y = T + ch - (ch * p) / 100;
+      svg.append(s("line", { x1: L, y1: y, x2: W - R, y2: y, stroke: "#EADBC4", "stroke-width": 1 }));
+      svg.append(s("text", { x: W - R + 6, y: y + 4, fill: "#5B516C", "font-size": 10 }, p + "%"));
+    }
+    const ty = T + ch - (ch * targetPct) / 100;
+    svg.append(s("line", { x1: L, y1: ty, x2: W - R, y2: ty, stroke: "#2F9A4C", "stroke-dasharray": "4 4", "stroke-width": 1.5 }));
+    svg.append(s("text", { x: L - 6, y: T + 8, "text-anchor": "end", fill: "#5B516C", "font-size": 10 }, maxG));
+    svg.append(s("text", { x: L - 6, y: T + ch + 4, "text-anchor": "end", fill: "#5B516C", "font-size": 10 }, 0));
+    const step = cw / data.length, bw = Math.min(28, Math.max(10, step * 0.56)), pts = [];
+    data.forEach((r, i) => {
+      const cx = L + step * (i + 0.5), bh = (ch * (r.games || 0)) / maxG, by = T + ch - bh;
+      const tip = `${weekLabel(r.k)}: ${fmt(r.games)} games · quiz 2/3+ ${pc(r.quizPassPct)}`;
+      svg.append(s("rect", { x: cx - bw / 2, y: by, width: bw, height: Math.max(2, bh), rx: 4, fill: "#14968B", opacity: 0.28 }, s("title", null, tip)));
+      svg.append(s("text", { x: cx, y: H - 10, "text-anchor": "middle", fill: "#5B516C", "font-size": 10 }, String(r.k).replace(/^\d{4}-/, "")));
+      if (r.quizPassPct != null) {
+        const py = T + ch - (ch * Math.min(100, Math.max(0, r.quizPassPct))) / 100;
+        pts.push([cx, py, tip, r.quizPassPct]);
+      }
+    });
+    if (pts.length > 1) {
+      svg.append(s("polyline", { fill: "none", stroke: "#E8418B", "stroke-width": 2.5, "stroke-linecap": "round", "stroke-linejoin": "round",
+        points: pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ") }));
+    }
+    for (const [cx, py, tip] of pts) {
+      svg.append(s("circle", { cx, cy: py, r: 4, fill: "#E8418B", stroke: "#fff", "stroke-width": 1.5 }, s("title", null, tip)));
+    }
+    return svg;
+  }
   function renderTrends(a, q) {
     const [kind, key] = q ? q.split("=") : [];
+    $("trendChartBox").replaceChildren(renderTrendChart(a.byWeek, (a.overview && a.overview.quizTargetPct) || 70));
     $("weekBox").replaceChildren(trendTable(a.byWeek, "Week", weekLabel, kind === "week" && key, a.overview));
     $("monthBox").replaceChildren(trendTable(a.byMonth, "Month", monthLabel, kind === "month" && key, a.overview));
   }
@@ -395,10 +438,18 @@
       return [...lead(r), i + 1, c.card, card ? card.tag[0] : "", card ? stageName(card.st) : "", card ? (C.TRAPS[card.trap] || {}).en : "", choice(c), card && card.who ? card.who : "", c.power || "", r.hidden ? 1 : 0];
     })));
   }
-  async function allRows(progress) { // every game, page by page
-    const rows = [];
+  function dlScopeParams() {
+    const q = new URLSearchParams();
+    const [k, v] = ($("dlPeriod") && $("dlPeriod").value || "").split("=");
+    if (v) q.set(k, v);
+    return q;
+  }
+  async function allRows(progress) { // every matching game, page by page
+    const rows = [], base = dlScopeParams();
     for (let after = 0; ;) {
-      const j = await call(`/api/admin/rows?limit=${ROWS}&after=${after}`);
+      const q = new URLSearchParams(base);
+      q.set("limit", ROWS); q.set("after", after);
+      const j = await call(`/api/admin/rows?${q}`);
       rows.push(...j.rows); progress(rows.length);
       if (j.next == null || j.next <= after) return rows;
       after = j.next;
@@ -417,7 +468,8 @@
       try {
         const rows = await allRows((n) => say("dlMsg", `Loading ${fmt(n)} games…`));
         say("dlMsg", `Building the file from ${fmt(rows.length)} games…`);
-        const name = `3-fall-fun-${file}-${hkt(new Date().toISOString()).slice(0, 10)}.csv`;
+        const scope = ($("dlPeriod") && $("dlPeriod").value || "").split("=")[1] || "";
+        const name = `3-fall-fun-${file}${scope ? "-" + scope : ""}-${hkt(new Date().toISOString()).slice(0, 10)}.csv`;
         saveBlob(new Blob([build(rows)], { type: "text/csv;charset=utf-8" }), name);
         say("dlMsg", `Saved ${name} (${fmt(rows.length)} games).`);
       } catch (e) { oops("dlMsg")(e); }
@@ -427,7 +479,8 @@
   $("csvBtn").addEventListener("click", async () => {
     busy(true);
     try {
-      const r = await call("/api/admin/export");
+      const q = dlScopeParams().toString();
+      const r = await call("/api/admin/export" + (q ? "?" + q : ""));
       saveBlob(await r.blob(), ((r.headers.get("content-disposition") || "").match(/filename="([^"]+)"/) || [])[1] || "3-fall-fun-scores.csv");
     } catch (e) { oops("dlMsg")(e); }
     busy(false);
@@ -435,6 +488,14 @@
 
   // ---------- games table ----------
   const quizText = (r) => (r.quiz == null ? "–" : `${r.quiz}/${QN}` + (r.quiz_answered != null && r.quiz_answered < QN ? ` (${r.quiz_answered} answered)` : ""));
+  function syncBatchUI() {
+    const bar = $("batchBar"), allChk = $("gAll"), boxes = [...$("rows").querySelectorAll("input[type=checkbox]")];
+    if (bar) { bar.hidden = !selected.size; $("batchCount").textContent = `${fmt(selected.size)} selected`; }
+    if (allChk) {
+      allChk.checked = boxes.length > 0 && boxes.every((c) => selected.has(Number(c.dataset.id)));
+      allChk.indeterminate = !allChk.checked && boxes.some((c) => selected.has(Number(c.dataset.id)));
+    }
+  }
   function stats(j) {
     cur = { week: j.week, month: j.month };
     $("sTotal").textContent = fmt(j.total); $("sHidden").textContent = fmt(j.hiddenTotal); $("sBoard").textContent = fmt(j.postedTotal);
@@ -446,6 +507,11 @@
   }
   function gameRow(r) {
     const tr = el("tr", r.hidden ? "hidden" : "");
+    tr.dataset.id = r.id;
+    const chk = document.createElement("input"); chk.type = "checkbox"; chk.dataset.id = r.id; chk.checked = selected.has(r.id);
+    chk.setAttribute("aria-label", `Select game ${r.id}`);
+    chk.addEventListener("change", () => { if (chk.checked) selected.add(r.id); else selected.delete(r.id); syncBatchUI(); });
+    tr.append(el("td", "chk", chk));
     const td = (v, cls, title) => { const c = el("td", cls, v); if (title) c.title = title; tr.append(c); };
     td(r.id, "num"); td(when(r.created_at)); td(r.week);
     td(r.posted ? r.name : "–", "n", r.posted ? r.name : "Saved anonymously");
@@ -480,19 +546,26 @@
   }
   async function loadGames(reset) { // false when a newer request or Lock got in first
     const my = ++seq.games;
-    if (reset) { offset = 0; seen = new Set(); }
-    const q = new URLSearchParams({ limit: PAGE, offset }), [k, v] = $("gPeriod").value.split("=");
+    if (reset) { nextBefore = null; seen = new Set(); selected.clear(); syncBatchUI(); }
+    const q = new URLSearchParams({ limit: PAGE }), [k, v] = $("gPeriod").value.split("=");
     if (v) q.set(k, v);
+    if (!reset && nextBefore) q.set("before", nextBefore);
     if ($("gBoard").value) q.set("board", $("gBoard").value);
+    if ($("gStatus") && $("gStatus").value) q.set("status", $("gStatus").value);
+    if ($("gFlag") && $("gFlag").value) q.set("flag", $("gFlag").value);
+    const search = $("gSearch") ? $("gSearch").value.trim() : "";
+    if (search) q.set("q", search);
     const j = await call("/api/admin/scores?" + q);
     if (my !== seq.games) return false;
     stats(j);
     if (reset) $("rows").replaceChildren();
-    for (const r of j.rows) if (!seen.has(r.id)) { seen.add(r.id); $("rows").append(gameRow(r)); } // new games can shift the pages: skip repeats
-    offset += j.rows.length;
-    $("moreBtn").hidden = j.rows.length < PAGE;
-    if (reset && !j.rows.length) { const c = el("td", "", "No games match."); c.colSpan = 14; $("rows").append(el("tr", "", c)); }
-    $("gCount").textContent = seen.size ? `Showing ${fmt(seen.size)} ${seen.size === 1 ? "game" : "games"}` : "";
+    for (const r of j.rows) if (!seen.has(r.id)) { seen.add(r.id); $("rows").append(gameRow(r)); }
+    nextBefore = j.nextBefore || null;
+    $("moreBtn").hidden = !nextBefore;
+    if (reset && !j.rows.length) { const c = el("td", "", "No games match."); c.colSpan = 15; $("rows").append(el("tr", "", c)); }
+    const ft = j.filteredTotal != null ? ` of ${fmt(j.filteredTotal)}` : "";
+    $("gCount").textContent = seen.size ? `Showing ${fmt(seen.size)}${ft} ${j.filteredTotal === 1 ? "game" : "games"}` : "";
+    syncBatchUI();
     return true;
   }
 
@@ -560,7 +633,28 @@
     $(K + "Sel").addEventListener("change", () => loadWinners(kind));
     $(K + "Copy").addEventListener("click", () => { const n = mails[kind].length; copy(mails[kind].join("; "), $(K + "Copy"), K + "Msg", n + (n === 1 ? " email" : " emails")); });
   }
-  for (const id of ["gPeriod", "gBoard"]) $(id).addEventListener("change", () => loadGames(true).catch(oops("panelMsg")));
+  for (const id of ["gPeriod", "gBoard", "gStatus", "gFlag"]) $(id).addEventListener("change", () => loadGames(true).catch(oops("panelMsg")));
+  let searchTimer = 0;
+  $("gSearch").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => loadGames(true).catch(oops("panelMsg")), 220); });
+  $("gAll").addEventListener("change", () => {
+    const on = $("gAll").checked;
+    for (const c of $("rows").querySelectorAll("input[type=checkbox]")) { c.checked = on; const id = Number(c.dataset.id); if (on) selected.add(id); else selected.delete(id); }
+    syncBatchUI();
+  });
+  async function runBatch(action) {
+    const ids = [...selected]; if (!ids.length) return;
+    for (const id of ["batchHide", "batchUnhide", "batchRename", "batchClear"]) $(id).disabled = true;
+    try {
+      await call("/api/admin/batch", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, ids }) });
+      selected.clear(); await loadGames(true); afterHide();
+    } catch (e) { oops("panelMsg")(e); }
+    for (const id of ["batchHide", "batchUnhide", "batchRename", "batchClear"]) $(id).disabled = false;
+    syncBatchUI();
+  }
+  $("batchHide").addEventListener("click", () => runBatch("hide"));
+  $("batchUnhide").addEventListener("click", () => runBatch("unhide"));
+  $("batchRename").addEventListener("click", () => runBatch("rename"));
+  $("batchClear").addEventListener("click", () => { selected.clear(); for (const c of $("rows").querySelectorAll("input[type=checkbox]")) c.checked = false; syncBatchUI(); });
   $("moreBtn").addEventListener("click", async () => {
     $("moreBtn").disabled = true;
     try { await loadGames(false); } catch (e) { oops("panelMsg")(e); }

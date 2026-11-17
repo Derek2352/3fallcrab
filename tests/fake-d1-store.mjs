@@ -3,7 +3,38 @@
 // and what the board exposes, without a database.
 const COLS = ["id", "gid", "edit_hash", "name", "email", "score", "stage", "height", "drops", "wise", "risky",
   "missed", "fall_spend", "fall_scam", "fall_delay", "choices", "habit", "quiz", "quiz_answered", "quiz_answers",
-  "ended", "week", "month", "persona", "title", "sil", "ip_hash", "posted", "hidden", "created_at", "updated_at", "edits"];
+  "ended", "week", "month", "persona", "title", "sil", "ip_hash", "posted", "hidden", "created_at", "updated_at", "edits",
+  "items", "real_ms", "quiz_prior", "jackpot", "troll_revive", "troll_invest", "troll_tickets", "avatar", "mtype", "via"];
+
+function applyAdminWhere(list, sql, args) {
+  const m = /\bWHERE\s+([\s\S]+?)(?:\s+ORDER BY|\s+LIMIT|\s*$)/i.exec(sql);
+  if (!m) return list;
+  const w = m[1], arg = (tok) => args[Number(tok.slice(1)) - 1];
+  const wk = /\bweek = (\?\d+)/.exec(w); if (wk) list = list.filter((r) => r.week === arg(wk[1]));
+  const mo = /\bmonth = (\?\d+)/.exec(w); if (mo) list = list.filter((r) => r.month === arg(mo[1]));
+  if (/\bhidden = 0\b/.test(w)) list = list.filter((r) => !r.hidden);
+  if (/\bhidden = 1\b/.test(w)) list = list.filter((r) => !!r.hidden);
+  if (/\bposted = 1\b/.test(w)) list = list.filter((r) => r.posted === 1);
+  if (/\bposted = 0\b/.test(w)) list = list.filter((r) => !r.posted);
+  if (/ended = 'time' AND real_ms > 270000/.test(w)) list = list.filter((r) => r.ended === "time" && (r.real_ms || 0) > 270000);
+  if (/via = 'c'/.test(w)) list = list.filter((r) => r.via === "c");
+  if (/troll_invest >= 2 OR troll_tickets > 0/.test(w)) list = list.filter((r) => (r.troll_invest || 0) >= 2 || (r.troll_tickets || 0) > 0);
+  const lt = /\bid < (\?\d+)/.exec(w); if (lt) list = list.filter((r) => r.id < arg(lt[1]));
+  const gt = /\bid > (\?\d+)/.exec(w); if (gt) list = list.filter((r) => r.id > arg(gt[1]));
+  const like = /LOWER\(name\) LIKE (\?\d+)/.exec(w);
+  if (like) {
+    const rawPat = String(arg(like[1]) || "").slice(1, -1).replace(/\\(.)/g, "$1");
+    const idEq = /\(id = (\?\d+)/.exec(w);
+    const idNum = idEq ? arg(idEq[1]) : null;
+    list = list.filter((r) =>
+      (idNum != null && r.id === idNum) ||
+      String(r.name || "").toLowerCase().includes(rawPat) ||
+      String(r.email || "").toLowerCase().includes(rawPat) ||
+      String(r.title || "").toLowerCase().includes(rawPat)
+    );
+  }
+  return list;
+}
 
 export function makeStore() {
   const rows = [];
@@ -11,20 +42,29 @@ export function makeStore() {
 
   const select = (sql, args) => {
     let list = rows.slice();
-    if (/WHERE id = \?1/.test(sql)) list = list.filter((r) => r.id === args[0]);
-    if (/WHERE gid = \?1/.test(sql)) list = list.filter((r) => r.gid === args[0]);
-    if (/month IS NULL/.test(sql)) list = list.filter((r) => r.month == null);
-    if (/WHERE week = \?1/.test(sql)) list = list.filter((r) => r.week === args[0]);
-    if (/hidden = 0/.test(sql)) list = list.filter((r) => !r.hidden);
-    if (/posted = 1/.test(sql)) list = list.filter((r) => r.posted === 1);
-    if (/score < \?1/.test(sql)) list = list.filter((r) => (r.score || 0) < args[0]);
+    if (/WHERE id = \?1\b/.test(sql)) list = list.filter((r) => r.id === args[0]);
+    else if (/WHERE gid = \?1\b/.test(sql)) list = list.filter((r) => r.gid === args[0]);
+    else if (/month IS NULL/.test(sql)) list = list.filter((r) => r.month == null);
+    else if (/WHERE week = \?1\b/.test(sql) && /hidden = 0/.test(sql) && /posted = 1/.test(sql)) {
+      list = list.filter((r) => r.week === args[0] && !r.hidden && r.posted === 1);
+    } else if (/score < \?1\b/.test(sql)) {
+      list = list.filter((r) => !r.hidden && (r.score || 0) < args[0]);
+    } else {
+      list = applyAdminWhere(list, sql, args);
+    }
     if (/ORDER BY score DESC, id ASC/.test(sql)) list.sort((a, b) => (b.score - a.score) || (a.id - b.id));
+    else if (/ORDER BY id DESC/.test(sql)) list.sort((a, b) => b.id - a.id);
+    else if (/ORDER BY id ASC/.test(sql)) list.sort((a, b) => a.id - b.id);
+    const offP = /OFFSET \?(\d+)/.exec(sql);
+    if (offP) list = list.slice(args[Number(offP[1]) - 1] || 0);
+    const limP = /LIMIT \?(\d+)/.exec(sql);
     const lim = /LIMIT (\d+)/.exec(sql);
-    if (lim) list = list.slice(0, +lim[1]);
+    if (limP) list = list.slice(0, args[Number(limP[1]) - 1]);
+    else if (lim) list = list.slice(0, +lim[1]);
     // honour the SELECT list, including aliases: a row must carry only what was asked for (never, for example,
     // the email, which the public board deliberately does not project)
     const proj = /SELECT (.+?) FROM scores/.exec(sql);
-    if (proj && !/COUNT\(/i.test(proj[1])) {
+    if (proj && !/COUNT\(/i.test(proj[1]) && !/SUM\(/i.test(proj[1])) {
       const cols = proj[1].split(",").map((c) => c.trim()).map((c) => {
         const as = /^(.+?)\s+AS\s+(\w+)$/i.exec(c);
         return as ? { src: as[1].trim(), key: as[2] } : { src: c, key: c.split(".").pop() };
@@ -61,6 +101,16 @@ export function makeStore() {
       const r = rows.find((x) => x.id === args[1]); if (r) r.month = args[0];
       return { meta: { changes: r ? 1 : 0 } };
     }
+    if (/UPDATE scores SET hidden = \?1 WHERE id IN \(/.test(sql)) {
+      const ids = new Set(args.slice(1)); let changes = 0;
+      for (const r of rows) if (ids.has(r.id)) { r.hidden = args[0]; changes++; }
+      return { meta: { changes } };
+    }
+    if (/UPDATE scores SET name = \?1 WHERE id IN \(/.test(sql)) {
+      const ids = new Set(args.slice(1)); let changes = 0;
+      for (const r of rows) if (ids.has(r.id)) { r.name = args[0]; changes++; }
+      return { meta: { changes } };
+    }
     if (/UPDATE scores SET hidden = \?1 WHERE id = \?2/.test(sql)) {
       const r = rows.find((x) => x.id === args[1]); if (r) r.hidden = args[0];
       return { meta: { changes: r ? 1 : 0 } };
@@ -80,6 +130,14 @@ export function makeStore() {
         email: r.email ?? email, edits: (r.edits || 0) + 1, updated_at: updated, week, month: month ?? r.month });
       return { meta: { changes: r ? 1 : 0 } };
     }
+    if (/SELECT COUNT\(\*\) AS n, COALESCE\(SUM\(hidden\), 0\)/.test(sql)) {
+      return { results: [{
+        n: rows.length,
+        hidden: rows.filter((r) => !!r.hidden).length,
+        posted: rows.filter((r) => r.posted === 1 && !r.hidden).length,
+        emails: rows.filter((r) => r.email != null).length,
+      }] };
+    }
     if (/^\s*SELECT COUNT\(\*\) AS n FROM \(SELECT 1 FROM scores WHERE week/.test(sql)) {
       const [week, score, id] = args;
       const list = rows.filter((r) => r.week === week && !r.hidden && r.posted === 1 &&
@@ -88,8 +146,16 @@ export function makeStore() {
     }
     if (/SELECT COUNT\(\*\) AS n FROM scores WHERE hidden = 0 AND score < \?1/.test(sql))
       return { results: [{ n: rows.filter((r) => !r.hidden && (r.score || 0) < args[0]).length }] };
-    if (/SELECT COUNT\(\*\) AS n FROM scores WHERE hidden = 0/.test(sql))
+    if (/SELECT COUNT\(\*\) AS n FROM scores WHERE hidden = 0\s*$/.test(sql))
       return { results: [{ n: rows.filter((r) => !r.hidden).length }] };
+    if (/SELECT COUNT\(\*\) AS n FROM scores WHERE/.test(sql))
+      return { results: [{ n: applyAdminWhere(rows.slice(), sql, args).length }] };
+    if (/SELECT DISTINCT week AS k FROM scores/.test(sql)) {
+      return { results: [...new Set(rows.map((r) => r.week).filter(Boolean))].sort().reverse().map((k) => ({ k })) };
+    }
+    if (/SELECT DISTINCT month AS k FROM scores/.test(sql)) {
+      return { results: [...new Set(rows.map((r) => r.month).filter(Boolean))].sort().reverse().map((k) => ({ k })) };
+    }
     if (/SELECT COUNT\(\*\) AS n FROM admin_fails/.test(sql)) return { results: [{ n: 0 }] };
     if (/^\s*SELECT/i.test(sql)) return { results: select(sql, args) };
     return { meta: { changes: 0 } };
