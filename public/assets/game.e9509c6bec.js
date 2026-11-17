@@ -1840,6 +1840,10 @@ for (const ev of ["fullscreenchange", "webkitfullscreenchange"]) document.addEve
 let endShownAt = 0;
 document.addEventListener("keydown", e => {
   if (BOOTH) bumpBooth();
+  if (!$("igModal").hidden){
+    if (e.key === "Escape"){ closeIg(); e.preventDefault(); }
+    return;
+  }
   if (!S) return;
   if (!$("rollModal").hidden){   // the roll: Enter or Space on its button, Esc goes back (the roll is kept)
     if (e.key === "Escape"){ closeRoll(); e.preventDefault(); }
@@ -1913,9 +1917,17 @@ document.addEventListener("keyup", e => {
   if (e.key === "ArrowDown") softHeld = false;
 });
 window.addEventListener("blur", () => { keys.left = keys.right = false; softHeld = false; });
+let igHiddenAt = 0;
 document.addEventListener("visibilitychange", () => {
-  if (document.hidden){ if (S && S.mode === "playing") togglePause(); A.suspend(); flushRecord(S, true); }
-  else A.resume();
+  if (document.hidden){
+    igHiddenAt = performance.now();
+    if (S && S.mode === "playing") togglePause();
+    A.suspend(); flushRecord(S, true);
+  } else {
+    A.resume();
+    const away = igHiddenAt ? performance.now() - igHiddenAt : 0; igHiddenAt = 0;
+    if (away > 1200 && performance.now() - outboundAt > 4000 && igEligible()) setTimeout(() => { if (!document.hidden && igEligible()) openIg(true); }, 220);
+  }
 });
 $("pad").querySelectorAll("button").forEach(b => {
   const a = b.dataset.act;
@@ -2252,6 +2264,74 @@ $("tsStory").addEventListener("click", () => { if (window.TFF_INTRO && TFF_INTRO
 $("tsMute").addEventListener("click", toggleMute);
 $("tsFs").addEventListener("click", () => toggleFs(false));
 
+// ---------- Instagram follow prompt (manual buttons + gentle exit intent) ----------
+const igPageAt = performance.now();
+let igReturnTo = null, igWasEnd = false, igBackArmed = false, outboundAt = 0;
+function igEligible(){
+  if (BOOTH || lsGet("tff_ig_done", false) || ssGet("tff_ig_seen") === "1") return false;
+  if (window.TFF_INTRO && TFF_INTRO.on()) return false;
+  if (S && S.dragX != null) return false;
+  for (const id of ["igModal", "cardModal", "offerModal", "reviveModal", "pickModal", "rollModal", "infoModal"]){
+    const el = $(id); if (el && !el.hidden) return false;
+  }
+  return true;
+}
+function openIg(auto){
+  const m = $("igModal"); if (!m || !m.hidden) return;
+  if (auto && !igEligible()) return;
+  hideIabTip();
+  if (S && S.mode === "playing") togglePause();
+  igReturnTo = document.activeElement;
+  igWasEnd = !$("endModal").hidden;
+  if (igWasEnd) $("endModal").inert = true;
+  ssSet("tff_ig_seen", "1");
+  m.hidden = false; modalOpen(true); A.sfx("uiOpen");
+  ($("igGo") || $("igClose")).focus({preventScroll: true});
+}
+function closeIg(quiet){
+  const m = $("igModal"); if (!m || m.hidden) return;
+  if (!quiet) A.sfx("uiClose");
+  m.hidden = true;
+  if (igWasEnd) $("endModal").inert = false;
+  const anyModal = ["cardModal", "offerModal", "reviveModal", "pickModal", "rollModal", "infoModal", "endModal"].some(id => { const el = $(id); return el && !el.hidden; });
+  if (!anyModal) modalOpen(false);
+  if (!quiet && !played && (!S || S.mode === "idle") && !anyModal) iabTip();
+  const back = igReturnTo; igReturnTo = null; igWasEnd = false;
+  if (back && back.focus && !back.closest("[hidden]")) back.focus({preventScroll: true});
+}
+for (const id of ["tsIg", "endIgBtn"]){ const b = $(id); if (b) b.addEventListener("click", () => openIg(false)); }
+if ($("igClose")) $("igClose").addEventListener("click", () => closeIg());
+if ($("igDismiss")) $("igDismiss").addEventListener("click", () => closeIg());
+if ($("igModal")) $("igModal").addEventListener("click", e => { if (e.target === e.currentTarget) closeIg(); });
+function markIgFollowed(){ outboundAt = performance.now(); lsSet("tff_ig_done", true); ssSet("tff_ig_seen", "1"); A.sfx("uiDone"); }
+for (const id of ["igGo", "igQrLink"]){ const el = $(id); if (el) el.addEventListener("click", () => { markIgFollowed(); closeIg(true); }); }
+if ($("footIg")) $("footIg").addEventListener("click", markIgFollowed);
+document.addEventListener("click", e => {
+  const a = e.target && e.target.closest && e.target.closest("#threadsBtn, #iabOpen, #igGo, #igQrLink, #footIg, a[target='_blank'], a[href^='mailto:']");
+  if (a) outboundAt = performance.now();
+}, {capture: true, passive: true});
+function maybeExitIg(e){
+  if (!e || typeof e.clientY !== "number" || e.clientY > 12) return;
+  if (e.pointerType && e.pointerType !== "mouse") return;
+  if (e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) return;
+  if (typeof matchMedia === "function" && !matchMedia("(hover: hover)").matches) return;
+  if (S && S.mode === "playing" && e.clientX > window.innerWidth - 180) return;
+  if (performance.now() - igPageAt < 1500) return;
+  if (igEligible()) openIg(true);
+}
+document.addEventListener("mouseout", e => { if (!e.relatedTarget && !e.toElement) maybeExitIg(e); });
+document.addEventListener("mouseleave", maybeExitIg);
+function armExitBack(){
+  if (igBackArmed || BOOTH || lsGet("tff_ig_done", false) || ssGet("tff_ig_seen") === "1") return;
+  igBackArmed = true;
+  try { if (!(history.state && history.state.tffExit)) history.pushState({tffExit: 1}, ""); } catch(e){}
+}
+for (const ev of ["pointerdown", "keydown"]) document.addEventListener(ev, armExitBack, {capture: true, once: true, passive: true});
+window.addEventListener("popstate", () => {
+  if (!$("igModal").hidden){ closeIg(true); return; }
+  if (igEligible()) openIg(true);
+});
+
 // ---------- How to play: a short clip of each move, filmed from the game itself ----------
 // tools/clips.mjs films them from real play (src/clips/). A clip loads when it first comes on screen, and whole (fetched
 // into a blob): the host answers a range request with the full file, and Safari won't play a video from a server that
@@ -2329,6 +2409,12 @@ function pollPad(now){
   let nav = 0;
   if (dir && (hit("up") || hit("left") || hit("down") || hit("right"))){ nav = dir; GP.repAt = now + 400; }
   else if (dir && now >= GP.repAt){ nav = dir; GP.repAt = now + 150; }
+  if (!$("igModal").hidden){
+    if (nav) padMove($("igModal"), nav);
+    if (hit("a")) padPress($("igModal"));
+    if (hit("b") || hit("start")) closeIg();
+    return;
+  }
   if (!$("endModal").hidden){   // the statement
     if (nav) padMove($("endModal"), nav);
     if (hit("a") && performance.now() - endShownAt > 900) padPress($("endModal"));
@@ -2441,7 +2527,7 @@ const endDrag = e => {
 cv.addEventListener("pointerup", endDrag); cv.addEventListener("pointercancel", endDrag);
 // Every press answers. What has a sound of its own (Start, steps, sheets, toggles, picks, the game's own moves) plays
 // it where it happens, so keys and a controller get it too; any other button gets a tap. A locked button says no.
-const OWN_SOUND = "#startBtn,#pickGo,#rollGo,#chalSame,#againBtn,#againBtn2,#replayBtn,#stNext,#stBack,#tsLb,#tsHow,#tsPriv,#tsWear,#tsStory,.wtile,#infoClose,.who,#tsMute,#muteBtn,#fsBtn,#tsFs,#fsStartBtn,#pauseBtn,#resumeBtn,#resultsBtn,#closeEnd,.choice,.qopt,.pad button,#hudHoldBtn,label.habit,.ctime label";
+const OWN_SOUND = "#startBtn,#pickGo,#rollGo,#chalSame,#againBtn,#againBtn2,#replayBtn,#stNext,#stBack,#tsLb,#tsHow,#tsPriv,#tsWear,#tsStory,#tsIg,#endIgBtn,#igClose,#igGo,#igQrLink,#igDismiss,.wtile,#infoClose,.who,#tsMute,#muteBtn,#fsBtn,#tsFs,#fsStartBtn,#pauseBtn,#resumeBtn,#resultsBtn,#closeEnd,.choice,.qopt,.pad button,#hudHoldBtn,label.habit,.ctime label";
 document.addEventListener("click", e => { const t = e.target.closest && e.target.closest(".btn,.tab,.iconbtn,.ov-chip,.hbtn,button,[role=tab]"); if (t && !t.disabled){ haptic(8, 0.12, 0.2); if (!t.closest(OWN_SOUND)) A.sfx("click"); } });
 document.addEventListener("pointerdown", e => { const t = e.target.closest && e.target.closest("button:disabled,[aria-disabled=true]"); if (t){ A.unlock(); A.sfx("uiNope"); haptic([22, 30, 30], 0.45, 0.35); } });
 // Sound from the first touch: a page may make sound only after a tap or a key, so the first one anywhere (the title

@@ -207,6 +207,7 @@
               <button class="ov-chip" id="tsHow" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.6a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5v.6M12 16.8v.2"/></svg><span>How to play<span class="zh" lang="zh-HK">玩法</span></span></button>
               <button class="ov-chip" id="tsWear" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16.5h16M6.5 16.5c0-4 2.2-6.5 5.5-6.5s5.500 2.500 5.500 6.500M12 10V7.500M10 7.500h4"/></svg><span>Wardrobe<span class="zh" lang="zh-HK">衣櫃</span></span></button>
               <button class="ov-chip" id="tsStory" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M10 9l5 3-5 3z"/></svg><span>Story<span class="zh" lang="zh-HK">故事</span></span></button>
+              <button class="ov-chip igchip" id="tsIg" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.2" cy="6.8" r="1.1" fill="currentColor" stroke="none"/></svg><span>Instagram<span class="zh" lang="zh-HK">追蹤IG</span></span></button>
             </div>
             <div class="ov-opts">
               <button class="ov-chip" id="fsStartBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg><span>Full screen<span class="zh" lang="zh-HK">全螢幕</span></span></button>
@@ -305,6 +306,7 @@
   <footer class="foot">
     <p><b>Privacy</b> · Game records, including scores, choices, quiz answers and habit pledges, are stored anonymously for programme evaluation and game development. Only your nickname appears on the leaderboard. The email address you give when posting a score can be accessed only by authorised team members and is used solely to contact prize winners. You have the right to request access to and correction of your personal data. For enquiries, please email <a href="mailto:%%CONTACT_EMAIL%%">%%CONTACT_EMAIL%%</a>.</p>
     <p class="zh" lang="zh-HK">私隱聲明：遊戲紀錄（包括分數、選擇、測驗答案及習慣承諾）會以匿名方式儲存，用於計劃評估及遊戲開發。排行榜只會顯示你的暱稱。你上榜時提供的電郵地址，只有獲授權人員可以查閱，並只會用於聯絡得獎者。你有權要求查閱及更正你的個人資料。如有查詢，請電郵至 <a href="mailto:%%CONTACT_EMAIL%%">%%CONTACT_EMAIL%%</a>。</p>
+    <p class="foot-ig">Instagram: <a id="footIg" href="https://www.instagram.com/3fallfun_campaign?dlrf=azdibDNjdTk4MzQ4" target="_blank" rel="noopener">@3fallfun_campaign</a></p>
   </footer>
 </div>
 
@@ -405,6 +407,22 @@
   </div>
 </div>
 
+<div class="modal igm" id="igModal" role="dialog" aria-modal="true" aria-labelledby="igTitle" aria-describedby="igDesc" hidden>
+  <div class="sheet igsheet" id="igSheet" tabindex="-1">
+    <button class="iconbtn ig-x" id="igClose" type="button" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="#2E2838" stroke-width="2.6" stroke-linecap="round"/></svg></button>
+    <div class="ig-badge" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1.1" fill="currentColor" stroke="none"/></svg><span>@3FALLFUN_CAMPAIGN</span></div>
+    <h2 class="ig-title" id="igTitle">Follow us before you go!<span class="zh" lang="zh-HK">走之前，記得追蹤我哋 Instagram！</span></h2>
+    <p class="ig-lead" id="igDesc">Scan the QR code or tap below to follow @3fallfun_campaign for the latest tips, activities and monthly prize winner updates!<span class="zh" lang="zh-HK">掃一掃 QR Code 或撳下面追蹤 @3fallfun_campaign，唔會錯過最新貼士、活動同每月得獎消息！</span></p>
+    <a class="ig-qrwrap" id="igQrLink" href="https://www.instagram.com/3fallfun_campaign?dlrf=azdibDNjdTk4MzQ4" target="_blank" rel="noopener" aria-label="Follow @3fallfun_campaign on Instagram">
+      <img class="ig-qr" src="%%asset:art/ig-qr.webp%%" width="520" height="520" decoding="async" alt="Instagram QR code for @3fallfun_campaign" />
+    </a>
+    <div class="ig-acts">
+      <a class="btn igbtn" id="igGo" href="https://www.instagram.com/3fallfun_campaign?dlrf=azdibDNjdTk4MzQ4" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1.1" fill="currentColor" stroke="none"/></svg>Follow Instagram<span class="zh" lang="zh-HK">追蹤 Instagram</span></a>
+      <button class="btn alt" id="igDismiss" type="button">Maybe later<span class="zh" lang="zh-HK">遲啲先</span></button>
+    </div>
+  </div>
+</div>
+
 <div class="filmgrain" aria-hidden="true"></div>
 <div class="filmvig" aria-hidden="true"></div>
 <div class="fbars t" aria-hidden="true"></div>
@@ -474,6 +492,7 @@
         <div class="sh-share">
           <button class="btn teal" id="saveImg" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10.5l5 5 5-5M5 19h14"/></svg>Save image<span class="zh" lang="zh-HK">下載圖片</span></button>
           <a class="btn threads" id="threadsBtn" href="https://www.threads.com/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.6 11.3c-.4-2.5-2-3.8-4.4-3.8-2.6 0-4.4 1.9-4.4 4.6s1.8 4.5 4.3 4.5c2 0 3.6-1.2 3.6-3 0-1.6-1.4-2.5-3.4-2.4-1.7.1-2.6.9-2.6 1.9 0 .9.8 1.5 1.9 1.5 2.3 0 3.4-1.8 3.2-4.6"/><path d="M19.2 7.6C17.9 4.9 15.4 3.5 12 3.5 7 3.5 3.8 7 3.8 12s3.2 8.5 8.2 8.5c3.4 0 5.8-1.5 7-4.2"/></svg>Post to Threads<span class="zh" lang="zh-HK">分享到Threads</span></a>
+          <button class="btn igbtn" id="endIgBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1.1" fill="currentColor" stroke="none"/></svg>Follow Instagram<span class="zh" lang="zh-HK">追蹤 IG</span></button>
           <button class="btn alt" id="shareImg" type="button" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="M8.2 10.8l7.6-4M8.2 13.2l7.6 4"/></svg>Share<span class="zh" lang="zh-HK">分享</span></button>
         </div>
         <p class="iab-save" id="iabSave" hidden>In this app, press and hold the picture to save it.<span class="zl" lang="zh-HK">喺呢個App入面，長按圖片就可以儲存。</span></p>

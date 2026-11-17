@@ -75,3 +75,11 @@ test("drop grace, lower-floor anchoring, and emergency/last-chance net protect r
   assert.ok(game.includes("ANCHOR_DEPTH"), "lower-floor auto-anchoring is missing");
   assert.ok(game.includes("lastChanceNet"), "last-chance safety net at 2/3 drops is missing");
 });
+
+test("Instagram follow popup and exit-intent prompts are wired without trapping users", () => {
+  const html = readFileSync(new URL("../src/index.html", import.meta.url), "utf8");
+  assert.ok(html.includes('id="igModal"'), "Instagram modal markup missing in index.html");
+  assert.ok(html.includes("https://www.instagram.com/3fallfun_campaign?dlrf=azdibDNjdTk4MzQ4"), "Instagram URL missing in index.html");
+  assert.ok(game.includes("function openIg(") && game.includes("function closeIg("), "openIg/closeIg missing in game.js");
+  assert.ok(game.includes("popstate") && game.includes("mouseleave"), "exit-intent listeners missing in game.js");
+});
