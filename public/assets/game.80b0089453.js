@@ -155,6 +155,16 @@ function makeEngine(){
       const rv = (a.velocity.x - b.velocity.x) * n.x + (a.velocity.y - b.velocity.y) * n.y;
       const st = clamp((Math.abs(rv) - 0.7) / 6, 0, 1); if (st < 0.06) continue;
       const loud = (a.isStatic ? b : (b.isStatic ? a : (a.mass > b.mass ? a : b)));
+      if (loud.tff && loud.tff.released && !loud.tff.landed && st > 0.08){
+        loud.tff.landed = true; loud.tff.sqAt = S.steps; loud.tff.sqAmt = clamp(st * 0.14, 0.04, 0.11);
+        if (!reduceMotion){
+          const pt = (p.collision.supports && p.collision.supports[0]) || {x: loud.position.x, y: loud.bounds.max.y};
+          for (let i = 0; i < 4; i++){
+            const dir = (i < 2 ? -1 : 1) * (0.6 + Math.random() * 1.1);
+            S.leaves.push({puff: true, x: pt.x + dir * 4, y: pt.y, vx: dir * (0.9 + st * 1.2), vy: -0.3 - Math.random() * 0.7, r: 2.8 + Math.random() * 2.2, t: 0});
+          }
+        }
+      }
       const key = loud.id, now = S.steps;
       if ((S.lastImpact.get(key) || -99) > now - 6) continue; S.lastImpact.set(key, now);
       const mat = (a.isStatic || b.isStatic) && st > 0.5 ? "platform" : ((loud.plugin && loud.plugin.material) || "card");
@@ -354,6 +364,9 @@ function physicsStep(){
         ledger({zh: "早儲複息", en: "Compound interest"}, div, dx > 1 ? "×" + dx : "");
       }
       A.sfx(ns === STAGES.length - 1 ? "win" : "stage", {stage: ns}); A.stage(ns);
+      const sy = -st.at * FLOOR;
+      burst(W * 0.24, sy, ["#FFE45C", "#FF5FA2", "#20C1B3", "#FF7B35"], "255,228,92");
+      burst(W * 0.76, sy, ["#FFE45C", "#FF5FA2", "#8B6CF2", "#4CC36A"], "255,95,162");
       stamp(st.en, st.zh, "gold"); quip("stage" + ns, 3);
       crab("Welcome to " + st.en + ". Items fall faster from here.", "去到「" + st.zh + "」喇！由而家起，啲嘢會跌得快啲。");
       setTimeout(() => { if (S && S.mode === "playing" && S.stage === ns) raiseNet("New stage, new cover: insurance net", "新階段，新保障：保險網"); }, 1100);
@@ -833,10 +846,17 @@ function drawLeaves(c, f){   // f: this frame's length in 60 Hz steps
   for (const q of S.leaves){
     q.t += f;
     if (q.ring){ const k = Math.min(1, q.t / 16); c.strokeStyle = "rgba(" + (q.rgb || "76,195,106") + "," + (1 - k).toFixed(3) + ")"; c.lineWidth = 3 * (1 - k) + 0.5; c.beginPath(); c.arc(q.x, q.y, 4 + 18 * k, 0, 7); c.stroke(); continue; }
+    if (q.puff){
+      const k = Math.min(1, q.t / 18);
+      q.x += q.vx * f; q.y += q.vy * f; q.vx *= Math.pow(0.92, f);
+      c.save(); c.globalAlpha = (1 - k) * 0.65; c.fillStyle = "#FFF8EC";
+      c.beginPath(); c.arc(q.x, q.y, q.r * (0.7 + 0.7 * k), 0, 7); c.fill(); c.restore();
+      continue;
+    }
     q.vy += 0.09 * f; q.vx *= Math.pow(0.98, f); q.x += q.vx * f; q.y += q.vy * f; q.a += q.va * f;
     c.globalAlpha = Math.max(0, 1 - q.t / 42); drawLeaf(c, q.x, q.y, q.a, 5, q.col); c.globalAlpha = 1;
   }
-  S.leaves = S.leaves.filter(q => q.t < (q.ring ? 16 : 42));
+  S.leaves = S.leaves.filter(q => q.t < (q.ring ? 16 : q.puff ? 18 : 42));
   needDraw = true;   // the last frame of the burst clears it
 }
 // the vine wrap on a vine-wrapped item's sprite: clay strands across the front, leaves rooted on the item
@@ -2444,9 +2464,18 @@ function drawBody(c, b, shadow){
   const q = qOf(ang);
   if (b.tff.q !== q){ b.tff.q = q; b.tff.qAt = drawN; }
   const s = spriteNear(b.tff.def, q, drawN - b.tff.qAt >= 6), rest = ang - s.q * QA;
+  let sx = 1, sy = 1;
+  if (!reduceMotion && b.tff.sqAt && S.steps - b.tff.sqAt < 10){
+    const u = clamp((S.steps + ALPHA - b.tff.sqAt) / 10, 0, 1), wv = Math.sin(u * Math.PI * 1.5) * (1 - u) * (b.tff.sqAmt || 0.07);
+    sx = 1 + wv; sy = 1 - wv;
+  }
+  if (!reduceMotion && b.tff.repPop > 0 && b.tff.repPop < 1){
+    const u = b.tff.repPop, sc = u < 0.6 ? 0.72 + (u / 0.6) * 0.33 : 1.05 - ((u - 0.6) / 0.4) * 0.05;
+    sx *= sc; sy *= sc;
+  }
   c.save();
-  if (shadow){ c.translate(ax + 4, ay + 6); c.rotate(rest); c.drawImage(s.sh, s.x0 - s.m, s.y0 - s.m, s.w + s.m*2, s.h + s.m*2); }
-  else { c.translate(ax, ay); c.rotate(rest); c.drawImage(s.img, s.x0, s.y0, s.w, s.h); }
+  if (shadow){ c.translate(ax + 4, ay + 6); c.rotate(rest); if (sx !== 1 || sy !== 1) c.scale(sx, sy); c.drawImage(s.sh, s.x0 - s.m, s.y0 - s.m, s.w + s.m*2, s.h + s.m*2); }
+  else { c.translate(ax, ay); c.rotate(rest); if (sx !== 1 || sy !== 1) c.scale(sx, sy); c.drawImage(s.img, s.x0, s.y0, s.w, s.h); }
   c.restore();
 }
 
@@ -2547,6 +2576,19 @@ function buildLayers(soft, only){
   // sun + clouds (screen space, drawn with slow parallax)
   make.sky = () => layer(W + 2 * XV, 260, g => {
     g.save(); g.translate(XV, 0);
+    if (duskStep >= 0.5){
+      const sr = K.rng(53);
+      for (let i = 0; i < (duskStep >= 1 ? 14 : 6); i++){
+        const sx = 24 + sr() * (W - 48), sy = 18 + sr() * 120;
+        if (Math.hypot(sx - 110, sy - 95) < 52) continue;
+        twinkle(g, sx, sy, 2.2 + sr() * 2.2, duskStep >= 1 ? 0.85 : 0.45);
+      }
+      if (duskStep >= 1){
+        g.save(); g.translate(W - 64, 52); g.rotate(-0.35);
+        g.fillStyle = "#FFF1A8"; g.beginPath(); g.moveTo(0, -14); g.quadraticCurveTo(-20, 0, 0, 14); g.quadraticCurveTo(-6, 0, 0, -14); g.fill();
+        g.restore();
+      }
+    }
     for (let i = 0; i < 8; i++){ const a = i * Math.PI / 4 + 0.2, r0 = 36, r1 = 47;
       K.blob(g, K.tube([[110 + r0*Math.cos(a), 95 + r0*Math.sin(a)], [110 + r1*Math.cos(a), 95 + r1*Math.sin(a)]], 6), "orange", {depth:1.4, soft:2, sheen:false, rim:0.5}); }
     K.blob(g, K.ball(110, 95, 30, 30, {lump:0.6, seed:3}), "#FFE45C", {sheen:{x:100, y:83, rx:9, ry:5}});
@@ -2571,6 +2613,8 @@ function buildLayers(soft, only){
     if (XV) hill.unshift([-20 - XV, 160], [-20 - XV * 0.65, 132], [-20 - XV * 0.3, 152]), hill.push([W + 80 + XV * 0.35, 126], [W + 80 + XV * 0.7, 148], [W + 80 + XV, 138]);
     hill.unshift([hill[0][0], 260]); hill.push([hill[hill.length - 1][0], 260]);
     K.blob(g, K.blobPoly(hill, {lump:1.2, seed:4, step:14}), "#3FAE6A", {depth:5, soft:9, sheen:false});
+    K.blob(g, K.slab(154, 93, 10, 6, 1.5, {lump:0.2, seed:19}), "#D9C3B0", {depth:1, soft:1.5, sheen:false});
+    K.blob(g, K.blobPoly([[144, 90], [164, 90], [168, 84], [140, 84]], {lump:0.25, seed:23}), "orange", {depth:1.2, soft:1.8, sheen:false});
     const r = K.rng(77); const cols = ["pink", "teal", "purple", "orange", "blue", "green", "red", "yellow"];
     const tower = (x, w, h, c, i, r) => {
       const top = 260 - h;
@@ -2823,7 +2867,7 @@ function picturesOK(b){
   }
   return true;
 }
-const settled = b => (b.isSleeping || b.tff.sn >= 24) && picturesOK(b);
+const settled = b => (b.isSleeping || b.tff.sn >= 24) && (!b.tff.sqAt || S.steps - b.tff.sqAt >= 10) && picturesOK(b);
 function stale(b){   // a settled item's sprite has been remade since the pile was drawn (the web fonts arrived)
   for (const m of membersOf(b)){ const s = SPR.get(m.tff.def.id + "|" + qOf(poseOf(m).a)); if (s && !kOK(s)) return true; }
   return false;
@@ -2955,18 +2999,34 @@ function draw(dt){
   if (still && !bare) updatePile(k, T);
   c.setTransform(k, 0, 0, k, k * (sx + XV), (YT - S.camTop) * k);
   if (!bare) drawRuler(c);
+  if (rise > 140 && !bare && !reduceMotion){
+    c.save(); c.strokeStyle = "rgba(255,253,247,0.88)"; c.lineWidth = 2.2; c.lineCap = "round";
+    for (let i = 0; i < 2; i++){
+      const spanB = W + 80 + 2 * XV, bx = ((T * (0.38 - i * 0.1) + i * 190) % spanB) - 40 - XV;
+      const by = S.camTop + 72 + i * 52 + Math.sin(T / 18 + i) * 5, fY = Math.sin(T / 8 + i * 2) * 3.5;
+      c.beginPath(); c.moveTo(bx - 10, by + fY); c.quadraticCurveTo(bx - 4, by - 4, bx, by);
+      c.quadraticCurveTo(bx + 4, by - 4, bx + 10, by + fY); c.stroke();
+    }
+    c.restore();
+  }
   if (S && S.pw > PW && L.wing && L.shed) drawWide(c);
   c.drawImage(L.plat, W/2 - PW/2 - 20, 0, PW + 40, 200);
   if (S.ghost && !bare && S.mode !== "idle") drawGhost(c, S.ghost);   // behind the tower
   const a = S.active, v0 = S.camTop - YT, v1 = S.camTop + H + YB, live = [];   // what moves, in view (out of view isn't drawn)
-  const repKeep = rep ? new Set(rep.bodies.slice(0, Math.max(1, Math.ceil(rp * rep.bodies.length)))) : null;
+  let repKeep = null;
+  if (rep){
+    const exact = rp * rep.bodies.length, count = Math.max(1, Math.ceil(exact));
+    repKeep = new Set();
+    for (let idx = 0; idx < count && idx < rep.bodies.length; idx++){
+      const rb = rep.bodies[idx]; repKeep.add(rb);
+      if (rb.tff) rb.tff.repPop = rp >= 1 ? 1 : idx === count - 1 ? (exact - Math.floor(exact)) || 1 : 1;
+    }
+  }
   if (!bare) for (const b of engine.world.bodies) if (b.tff && !(still && PILE.set.has(b)) && (!repKeep || repKeep.has(b)) && b.bounds.max.y + PAD >= v0 && b.bounds.min.y - PAD <= v1) live.push(b);
   if (still && !bare) blitPile(c, k, PILE.s);
   for (const b of live) for (const m of membersOf(b)) drawBody(c, m, true);
   if (a && S.mode !== "over"){
-    // dashed guide down to where the item will land, with a landing ring. Only bodies under the item can stop it:
-    // the scan starts at the highest of them, steps on a fixed 5 px grid (so the ring doesn't shimmer while the
-    // item falls), then closes in on the surface.
+    // dashed guide down to where the item will land, with a landing ring and faint silhouette preview.
     const ap = lerpPose(a), x = ap.x, y0 = a.bounds.max.y + (ap.y - a.position.y) + 6, under = [];
     let top = WATER_Y, land = WATER_Y;
     for (const b of engine.world.bodies) if (b !== a && b.bounds.min.x <= x && b.bounds.max.x >= x && b.bounds.max.y >= y0){ under.push(b); top = Math.min(top, b.bounds.min.y); }
@@ -2976,9 +3036,19 @@ function draw(dt){
       for (let i = 0; i < 3; i++){ const mid = (lo + hi) / 2; if (Matter.Query.point(under, {x, y: mid}).length) hi = mid; else lo = mid; }
       land = Math.max(y0, hi); break;
     }
+    const hw = clamp((a.bounds.max.x - a.bounds.min.x) * 0.42, 10, 44);
+    if (land - y0 > 16){
+      const gy = ap.y + (land - a.bounds.max.y) - 2, gs = spriteNear(a.tff.def, qOf(ap.a), false);
+      if (gs){
+        const ca = Math.cos(ap.a), sa = Math.sin(ap.a), gx = x + a.tff.eo.x * ca - a.tff.eo.y * sa, gyy = gy + a.tff.eo.x * sa + a.tff.eo.y * ca;
+        c.save(); c.globalAlpha = 0.22; c.translate(gx, gyy); c.rotate(ap.a - gs.q * QA);
+        c.drawImage(gs.img, gs.x0, gs.y0, gs.w, gs.h); c.restore();
+      }
+    }
     c.save(); c.strokeStyle = "rgba(255,95,162,0.8)"; c.setLineDash([5, 7]); c.lineWidth = 2.2; c.lineCap = "round";
     c.beginPath(); c.moveTo(x, y0); c.lineTo(x, land - 4); c.stroke(); c.setLineDash([]);
-    c.strokeStyle = "rgba(255,95,162,0.9)"; c.lineWidth = 2.4; c.beginPath(); c.ellipse(x, land - 2, 9, 3.2, 0, 0, Math.PI * 2); c.stroke(); c.restore();
+    c.fillStyle = "rgba(255,95,162,0.16)"; c.strokeStyle = "rgba(255,95,162,0.9)"; c.lineWidth = 2.2;
+    c.beginPath(); c.ellipse(x, land - 2, hw, 3.8, 0, 0, Math.PI * 2); c.fill(); c.stroke(); c.restore();
   }
   if (still && !bare) blitPile(c, k, PILE.b);
   for (const b of live) if (b !== a){ for (const m of membersOf(b)) drawBody(c, m, false); if (b.tff.members) drawMarks(c, b, T); }
@@ -2993,11 +3063,30 @@ function draw(dt){
   const off = (T * 0.35) % 60;
   c.drawImage(L.sea, -60 - XV - off, WATER_Y - 6, W + 120 + 2 * XV, 220);
   if (v1 > WATER_Y + 206){ c.fillStyle = seaDeep; c.fillRect(-XV - 2, WATER_Y + 206, W + 2 * XV + 4, v1 - WATER_Y - 200); }   // deeper water, behind the pad
+  if (skyDusk >= 0.45){
+    const wa = clamp((skyDusk - 0.45) / 0.55, 0, 1);
+    c.save();
+    for (let i = 0; i < 6; i++){
+      const sy = WATER_Y + 12 + i * 9, sw = (46 - i * 5) * (0.7 + 0.3 * Math.sin(T / 15 + i));
+      c.fillStyle = i % 2 && skyDusk >= 0.8 ? "rgba(255,115,180," + (0.26 * wa).toFixed(3) + ")" : "rgba(255,216,130," + (0.3 * wa).toFixed(3) + ")";
+      roundRect(c, W / 2 - sw / 2 + Math.sin(T / 20 + i) * 14, sy, sw, 3.2, 1.6); c.fill();
+    }
+    c.restore();
+  }
   c.fillStyle = "rgba(20,30,90,0.28)"; c.beginPath(); c.ellipse(W/2, WATER_Y + 6, 46, 6, 0, 0, Math.PI * 2); c.fill();
   const jx = ((T * 0.22) % (W + 160 + 2 * XV)) - 100 - XV, jy = WATER_Y - 44 + (reduceMotion ? 0 : Math.sin(T / 22) * 1.6);
   const span = W + 260 + 2 * XV, fx = W + 120 + XV - ((T * 0.13 + span * 0.55) % span), fy = WATER_Y - 42 + (reduceMotion ? 0 : Math.sin(T / 30 + 1) * 1.2);   // the ferry, the other way
   if (L.ferry) c.drawImage(L.ferry, fx, fy, 104, 56);
   c.drawImage(L.junk, jx, jy, 80, 60);
+  if (!reduceMotion){
+    c.save(); c.fillStyle = "rgba(255,253,247,0.48)";
+    for (let i = 0; i < 4; i++){
+      const jt = (T * 0.25 + i * 5) % 20, ft = (T * 0.22 + i * 5) % 20;
+      c.beginPath(); c.ellipse(jx + 10 - jt * 1.8, WATER_Y + 8 + i * 1.4, Math.max(1.5, 9 - jt * 0.35), 1.8, 0, 0, 7); c.fill();
+      if (L.ferry){ c.beginPath(); c.ellipse(fx + 94 + ft * 1.8, WATER_Y + 9 + i * 1.4, Math.max(1.5, 10 - ft * 0.38), 1.8, 0, 0, 7); c.fill(); }
+    }
+    c.restore();
+  }
   for (const sp of S.splashes){
     sp.t += f; const t = sp.t / 45, n = sp.big ? 9 : 6;
     for (let i = 0; i < n; i++){
@@ -3018,6 +3107,16 @@ function draw(dt){
   if (S.mode === "playing" && S.play < S.speedUntil){ c.fillStyle = "rgba(255,123,53,0.08)"; c.fillRect(0, 0, W + 2 * XV, H + YT + YB); }
   if (S.mode === "over" && S.over === "drops"){ c.fillStyle = "rgba(242,70,62,0.12)"; c.fillRect(0, 0, W + 2 * XV, H + YT + YB); }
   if (rep){
+    c.save();
+    const vg = c.createRadialGradient((W + 2 * XV) / 2, (H + YT + YB) / 2, W * 0.28, (W + 2 * XV) / 2, (H + YT + YB) / 2, Math.max(W + 2 * XV, H + YT + YB) * 0.72);
+    vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(40,20,10,0.28)");
+    c.fillStyle = vg; c.fillRect(0, 0, W + 2 * XV, H + YT + YB);
+    const lbl = "REPLAY 重溫 · " + floorTxt(Math.max(0, -S.camTop - (H - WATER_Y)) / FLOOR);
+    c.font = "800 12px " + K.FONTS.zh; const lw = c.measureText(lbl).width + 32;
+    c.fillStyle = "rgba(30,26,36,0.82)"; roundRect(c, XV + 14, YT + 14, lw, 24, 12); c.fill();
+    c.fillStyle = "#FF5F56"; c.beginPath(); c.arc(XV + 26, YT + 26, 4, 0, 7); c.fill();
+    c.fillStyle = "#FFD86B"; c.textAlign = "left"; c.textBaseline = "middle"; c.fillText(lbl, XV + 35, YT + 26.5);
+    c.restore();
     if (rp >= 1) S.replay = null;
     needDraw = true;
   }
@@ -3507,7 +3606,12 @@ function drawPosterCard(g, img, medalPic){
   let seed = 11; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   for (let i = 0; i < 2600; i++){ g.fillStyle = "rgba(255,255,255," + (0.02 + rnd() * 0.05).toFixed(3) + ")"; g.fillRect(rnd() * 1080, PANEL + rnd() * (CARD_H - PANEL), 1.6, 1.6); }
   const rule = y => { g.fillStyle = "rgba(201,163,90,0.45)"; g.fillRect(60, y, 960, 2); };
-  const tear = y => { g.save(); g.setLineDash([10, 9]); g.strokeStyle = "rgba(246,240,216,0.55)"; g.lineWidth = 3; g.beginPath(); g.moveTo(NOTCH + 14, y); g.lineTo(1080 - NOTCH - 14, y); g.stroke(); g.restore(); };
+  const tear = y => {
+    g.save(); g.setLineDash([10, 9]); g.strokeStyle = "rgba(246,240,216,0.55)"; g.lineWidth = 3; g.beginPath(); g.moveTo(NOTCH + 14, y); g.lineTo(1080 - NOTCH - 14, y); g.stroke();
+    g.setLineDash([]); g.fillStyle = "rgba(11,12,23,0.42)";
+    for (let px = NOTCH + 24; px < 1080 - NOTCH - 20; px += 22){ g.beginPath(); g.arc(px, y, 2.2, 0, Math.PI * 2); g.fill(); }
+    g.restore();
+  };
   const p0 = PANEL, no = String(Math.abs(Math.round(S.endAt || Date.now())) % 10000000).padStart(7, "0");
   tear(p0);
   // the header: ADMIT ONE, the programme, the ticket's number
@@ -3518,7 +3622,9 @@ function drawPosterCard(g, img, medalPic){
   if (medalPic){ g.save(); g.shadowColor = "rgba(0,0,0,0.5)"; g.shadowBlur = 16; g.shadowOffsetY = 6; g.drawImage(medalPic, 60, p0 + 64, 136, 160); g.restore(); }
   else flatMedal(g, 128, p0 + 150, 48, tierOf(v));
   label("我的稱號 · MY TITLE", 230, p0 + 94);
-  say(v.zh, 230, p0 + 152, 790, 58, 32, zh(700), CREAM);
+  const foil = g.createLinearGradient(230, p0 + 104, 230, p0 + 162);
+  foil.addColorStop(0, "#FFF8DC"); foil.addColorStop(0.5, "#FFE08A"); foil.addColorStop(0.85, "#D4A24C"); foil.addColorStop(1, "#FFFDF0");
+  say(v.zh, 230, p0 + 152, 790, 58, 32, zh(700), foil);
   say(v.en, 230, p0 + 190, 790, 29, 18, it, "#E8C98A");
   say(v.line[1], 230, p0 + 225, 790, 24, 16, zh(500), DIM);
   rule(p0 + 252);
@@ -3558,14 +3664,27 @@ function drawPosterCard(g, img, medalPic){
   let x = bx0; seed = Number(no) + 7;
   while (x < 290){ const w = 2 + Math.floor(rnd() * 4); if (rnd() > 0.35){ g.fillStyle = CREAM; g.fillRect(x, p0 + 504, w, 32); } x += w + 2; }
   say(no.split("").join(" "), bx0 > 62 ? 211 : 175, p0 + 550, bx0 > 62 ? 160 : 230, 13, 10, f => "700 " + f + "px " + F.sans, DIM, "center");
+  if (S.sil && S.sil.length >= 4){
+    const rc = S.sil.length / 4, sy0 = p0 + 498, sx0 = 304, sw = 34, sh = 48, rh = Math.min(4, (sh - 8) / rc);
+    g.save(); g.fillStyle = "rgba(255,255,255,0.06)"; roundRect(g, sx0, sy0, sw, sh, 6); g.fill();
+    g.fillStyle = "rgba(255,217,138,0.85)";
+    for (let i = 0; i < rc; i++){
+      const l = parseInt(S.sil.slice(i * 4, i * 4 + 2), 36), r = parseInt(S.sil.slice(i * 4 + 2, i * 4 + 4), 36);
+      if (r > l) g.fillRect(sx0 + 3 + (l / W) * (sw - 6), sy0 + sh - 4 - (i + 1) * rh, Math.max(1.5, ((r - l) / W) * (sw - 6)), rh + 0.3);
+    }
+    g.restore();
+  }
   say("3fallcrab.com", 540, p0 + 536, 360, 38, 26, f => "900 " + f + "px " + F.display, "#FF7AB4", "center");
   const d = new Date(S.endAt || Date.now()), mon = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"][d.getMonth()];
   label(String(d.getDate()).padStart(2, "0") + " " + mon + " " + d.getFullYear() + " · " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"), 1020, p0 + 518, "right", 300);
   label("ACT " + ACTS[ACT_OF_STAGE[Math.min(3, S.stage)]].n + " · SEAT " + floorTxt(S.best / FLOOR), 1020, p0 + 548, "right", 300);
   g.restore();
-  // the notches at the tear line, cut right through
+  // the notches at the tear lines, cut right through
   g.save(); g.globalCompositeOperation = "destination-out";
-  for (const cx of [0, 1080]){ g.beginPath(); g.arc(cx, p0, NOTCH, 0, Math.PI * 2); g.fill(); }
+  for (const cx of [0, 1080]){
+    g.beginPath(); g.arc(cx, p0, NOTCH, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.arc(cx, p0 + 488, NOTCH * 0.55, 0, Math.PI * 2); g.fill();
+  }
   g.restore();
 }
 let qrP = null;

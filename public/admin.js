@@ -4,9 +4,12 @@
 (() => {
   "use strict";
   // Opened over plain http on the site's own address: move to https before the password is ever sent.
-  { const m = document.querySelector('meta[name="site"]'), home = m && /^https:\/\/([^/]+)/.exec(m.content || "");
+  {
+    const m = document.querySelector('meta[name="site"]'), home = m && /^https:\/\/([^/]+)/.exec(m.content || "");
     if (location.protocol === "http:" && home && (location.host === home[1] || location.host === "www." + home[1])) {
-      location.replace("https://" + location.host + location.pathname + location.search + location.hash); return; } }
+      location.replace("https://" + location.host + location.pathname + location.search + location.hash); return;
+    }
+  }
   const $ = (id) => document.getElementById(id);
   const KEY = "tff_admin_token";
   const PAGE = 100; // games per page in the table
@@ -20,7 +23,7 @@
   const MON = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
   const HIDE_HINT = $("panelMsg").textContent;
   let token = "";
-  try { token = sessionStorage.getItem(KEY) || ""; } catch {}
+  try { token = sessionStorage.getItem(KEY) || ""; } catch { }
   let cur = { week: "", month: "" }, periods = { weeks: [], months: [] }, all = null, lastSum = null; // current week / month, known periods, all-time summary
   let offset = 0, seen = new Set(), mails = { week: [], month: [] };
   const seq = { sum: 0, week: 0, month: 0, games: 0 }; // the newest request wins; Lock bumps them all so late answers are dropped
@@ -70,9 +73,9 @@
       const code = j && j.error;
       const e = new Error(
         code === "unauthorised" ? "That token is not right." :
-        code === "admin_disabled" ? "Admin is off. Set a secret named ADMIN_TOKEN (16+ characters) with npm run admin-token, then try again." :
-        code === "no_database" ? "No database is connected to this site yet. Deploy with npm run deploy." :
-        !j ? "The API is not available here (static-only hosting)." : "Error: " + (code || r.status));
+          code === "admin_disabled" ? "Admin is off. Set a secret named ADMIN_TOKEN (16+ characters) with npm run admin-token, then try again." :
+            code === "no_database" ? "No database is connected to this site yet. Deploy with npm run deploy." :
+              !j ? "The API is not available here (static-only hosting)." : "Error: " + (code || r.status));
       e.code = code; throw e;
     }
     return j;
@@ -81,7 +84,7 @@
     $("loginCard").hidden = unlocked; $("panel").hidden = !unlocked; $("lockBtn").hidden = !unlocked;
   }
   function lock(text, err) {
-    token = ""; try { sessionStorage.removeItem(KEY); } catch {}
+    token = ""; try { sessionStorage.removeItem(KEY); } catch { }
     for (const k in seq) seq[k]++;
     for (const id of VIEWS) $(id).replaceChildren();
     all = null; lastSum = null; mails = { week: [], month: [] }; $("copyBox").value = ""; $("copyBox").hidden = true;
@@ -95,7 +98,7 @@
       const on = t === name;
       $("tab-" + t).setAttribute("aria-selected", on); $("tab-" + t).tabIndex = on ? 0 : -1; $("pane-" + t).hidden = !on;
     }
-    try { history.replaceState(null, "", "#" + name); } catch {}
+    try { history.replaceState(null, "", "#" + name); } catch { }
   }
   function setOpts(sel, nodes, dflt) {
     const keep = sel.value;
@@ -193,13 +196,17 @@
 
     const qrows = [];
     s.quiz.forEach((q, i) => {
-      qrows.push({ cls: "q", span: true, cells: [[el("b", "", `${i + 1}. ${q.en}`), q.zh && zh(q.zh), el("span", "qs", `${fmt(q.n)} answered · `, el("b", "", q.pct == null ? "–" : pc(q.pct) + " right"),
-        q.earlier ? ` · includes ${fmt(q.earlier)} ${q.earlier === 1 ? "answer" : "answers"} to the earlier question (${q.was}), grouped right to right, wrong to wrong` : "")]] });
+      qrows.push({
+        cls: "q", span: true, cells: [[el("b", "", `${i + 1}. ${q.en}`), q.zh && zh(q.zh), el("span", "qs", `${fmt(q.n)} answered · `, el("b", "", q.pct == null ? "–" : pc(q.pct) + " right"),
+          q.earlier ? ` · includes ${fmt(q.earlier)} ${q.earlier === 1 ? "answer" : "answers"} to the earlier question (${q.was}), grouped right to right, wrong to wrong` : "")]]
+      });
       for (const op of q.options) {
         const p = share(op.n, q.n);
-        qrows.push({ cls: "opt" + (op.right ? " right" : ""), cells: [
-          el("div", "opt-t", el("span", "mark", op.right ? ["✓", el("span", "sr", " right answer")] : ""), el("span", "", op.en, op.zh && zh(op.zh))),
-          fmt(op.n), [pc(p), meter(p, op.right ? "ok" : "dim")]] });
+        qrows.push({
+          cls: "opt" + (op.right ? " right" : ""), cells: [
+            el("div", "opt-t", el("span", "mark", op.right ? ["✓", el("span", "sr", " right answer")] : ""), el("span", "", op.en, op.zh && zh(op.zh))),
+            fmt(op.n), [pc(p), meter(p, op.right ? "ok" : "dim")]]
+        });
       }
     });
     $("quizBox").replaceChildren(qrows.length
@@ -239,7 +246,7 @@
     const pws = (s.powers || []).slice().sort((a, b) => b.n - a.n), pwTot = pws.reduce((n, x) => n + x.n, 0);
     $("powerBox").replaceChildren(pwTot
       ? table([{ h: "Reward", c: "t" }, { h: "Picked", c: "num" }, { h: "Share", c: "num" }],
-          pws.map((x) => { const p = share(x.n, pwTot); return { cells: [[x.en, x.zh && zh(x.zh)], fmt(x.n), [pc(p), meter(p, "ok")]] }; }), "sm")
+        pws.map((x) => { const p = share(x.n, pwTot); return { cells: [[x.en, x.zh && zh(x.zh)], fmt(x.n), [pc(p), meter(p, "ok")]] }; }), "sm")
       : el("p", "msg", "No reward picks recorded yet."));
     const stage = (i) => (s.stages.find((x) => x.stage === i) || {}).en || "–";
     const trap = (id) => (s.traps.find((x) => x.id === id) || {}).en || "–";
@@ -249,17 +256,19 @@
     const P = C.PERSONAS || { bg: {}, pe: {} }, whoLabel = (w) => w.split("+").map((k) => (P.bg[k] || P.pe[k] || { zh: k }).zh).join("");   // a card for a rolled type: 劏房, 卷王 or 劏房卷王
     $("cardBox").replaceChildren(table(
       [{ h: "#", c: "num" }, { h: "Card", c: "t" }, { h: "Life stage", c: "hide-sm" }, { h: "Trap", c: "hide-sm" }, { h: "Shown", c: "num", t: "Times the card was shown" }, { h: "Wise %", c: "num" }, { h: "Risky %", c: "num" }, { h: "Missed %", c: "num", t: "The timer ran out" }],
-      sorted.map((c, i) => ({ cells: [i + 1, [c.en, c.zh && zh(c.zh), el("span", "meta", `${stage(c.stage)} · ${trap(c.trap)}` + (c.who ? ` · for ${whoLabel(c.who)}` : ""))], stage(c.stage), trap(c.trap), fmt(c.n), pc(c.wisePct),
-        [el("b", "", pc(c.riskyPct)), c.riskyPct != null && meter(c.riskyPct, "pink")], pc(c.nonePct)] })), "mid cards"));
+      sorted.map((c, i) => ({
+        cells: [i + 1, [c.en, c.zh && zh(c.zh), el("span", "meta", `${stage(c.stage)} · ${trap(c.trap)}` + (c.who ? ` · for ${whoLabel(c.who)}` : ""))], stage(c.stage), trap(c.trap), fmt(c.n), pc(c.wisePct),
+        [el("b", "", pc(c.riskyPct)), c.riskyPct != null && meter(c.riskyPct, "pink")], pc(c.nonePct)]
+      })), "mid cards"));
     if (unseen) $("cardBox").append(el("p", "msg", `${fmt(unseen)} cards for rolled types haven't come up in this period yet.`));
   }
 
   function trendTable(rows, name, label, sel, o) {
     if (!rows.length) return el("p", "msg", "No games yet.");
     return table([{ h: name, c: "t" }, { h: "Games", c: "num" }, { h: "On board", c: "num" }, { h: "Quiz finished", c: "num" },
-      { h: `${o.quizPassMark}/${o.quizQuestions}+ %`, c: "num", t: `Share of those who finished the quiz and scored ${o.quizPassMark}/${o.quizQuestions} or better` },
-      { h: "Avg score", c: "num" }, { h: "Wise %", c: "num" }, { h: "Emails", c: "num" }],
-    rows.slice().reverse().map((r) => ({ cls: r.k === sel ? "cur" : "", cells: [label(r.k), fmt(r.games), fmt(r.posted), fmt(r.quizTakers), pc(r.quizPassPct), fmt(r.avgScore), pc(r.wisePct), fmt(r.emails)] })), "mid stack");
+    { h: `${o.quizPassMark}/${o.quizQuestions}+ %`, c: "num", t: `Share of those who finished the quiz and scored ${o.quizPassMark}/${o.quizQuestions} or better` },
+    { h: "Avg score", c: "num" }, { h: "Wise %", c: "num" }, { h: "Emails", c: "num" }],
+      rows.slice().reverse().map((r) => ({ cls: r.k === sel ? "cur" : "", cells: [label(r.k), fmt(r.games), fmt(r.posted), fmt(r.quizTakers), pc(r.quizPassPct), fmt(r.avgScore), pc(r.wisePct), fmt(r.emails)] })), "mid stack");
   }
   function renderTrends(a, q) {
     const [kind, key] = q ? q.split("=") : [];
@@ -287,10 +296,10 @@
 
   // ---------- winners (private contact list) ----------
   async function copyText(text) {
-    try { await navigator.clipboard.writeText(text); return true; } catch {}
+    try { await navigator.clipboard.writeText(text); return true; } catch { }
     let ok = false;
     const t = el("textarea", "sr"); t.value = text; t.readOnly = true; document.body.append(t); t.select();
-    try { ok = document.execCommand("copy"); } catch {}
+    try { ok = document.execCommand("copy"); } catch { }
     t.remove();
     return ok;
   }
@@ -362,10 +371,10 @@
       const scenes = [0, 1, 2, 3, 4, 5, 6].flatMap((i) => { const c = evs[i]; return c ? [c.card, choice(c), c.power || ""] : ["", "", ""]; });
       const done = r.quiz_answered === QN || (r.quiz_answered == null && r.quiz != null); // older games kept only the score
       return [...lead(r), r.hidden ? 1 : 0, r.posted ? r.name : "", r.email, r.score, r.height, stageName(r.stage), r.ended, r.drops,
-        r.wise, r.risky, r.missed, r.fall_spend, r.fall_scam, r.fall_delay, r.habit, (C.HABITS.find((h) => h.id === C.habitNow(r.habit)) || {}).en,
-        r.quiz_answered, r.quiz, done ? (r.quiz >= pass ? 1 : 0) : "", version,
-        ...C.QUIZ.flatMap((q) => { const a = answers.get(q.id); return a ? [(q.o[a.pick] || [])[0], (a.ok ?? a.pick === q.a) ? 1 : 0] : ["", ""]; }),
-        ...baseCards.map((c) => picks.get(c.id)), ...scenes, r.items, r.real_ms == null ? "" : Math.round(r.real_ms / 1000), r.quiz_prior, r.jackpot ?? "", r.troll_revive ?? "", r.troll_invest ?? "", r.troll_tickets ?? "", r.avatar ?? "", r.mtype ?? "", ((C.TYPES || {})[r.mtype] || {}).en ?? "", r.via ?? "", r.title ?? "", ((C.TITLES || []).find((t) => t.id === r.title) || {}).en ?? "", r.persona ?? "", (personaName(r.persona) || {}).en ?? ""];
+      r.wise, r.risky, r.missed, r.fall_spend, r.fall_scam, r.fall_delay, r.habit, (C.HABITS.find((h) => h.id === C.habitNow(r.habit)) || {}).en,
+      r.quiz_answered, r.quiz, done ? (r.quiz >= pass ? 1 : 0) : "", version,
+      ...C.QUIZ.flatMap((q) => { const a = answers.get(q.id); return a ? [(q.o[a.pick] || [])[0], (a.ok ?? a.pick === q.a) ? 1 : 0] : ["", ""]; }),
+      ...baseCards.map((c) => picks.get(c.id)), ...scenes, r.items, r.real_ms == null ? "" : Math.round(r.real_ms / 1000), r.quiz_prior, r.jackpot ?? "", r.troll_revive ?? "", r.troll_invest ?? "", r.troll_tickets ?? "", r.avatar ?? "", r.mtype ?? "", ((C.TYPES || {})[r.mtype] || {}).en ?? "", r.via ?? "", r.title ?? "", ((C.TITLES || []).find((t) => t.id === r.title) || {}).en ?? "", r.persona ?? "", (personaName(r.persona) || {}).en ?? ""];
     }));
   }
   function answersCsv(rows) {
@@ -376,7 +385,7 @@
       const m = C.answerNow(a), gi = m ? C.QUIZ.findIndex((x) => x.id === m.q) : -1, g = C.QUIZ[gi];
       const w = !q && C.QUIZ_WAS[a.q] ? C.QUIZ_WAS[a.q].was : null;   // an earlier question: its own wording
       return [...lead(r), i < 0 ? "" : i + 1, a.q, q ? q.q[0] : w ? w.q : "", Number.isInteger(a.pick) ? a.pick + 1 : "", q && q.o[a.pick] ? q.o[a.pick][0] : w && w.o[a.pick] ? w.o[a.pick] : "", (a.ok ?? (q && a.pick === q.a)) ? 1 : 0, r.hidden ? 1 : 0,
-        gi < 0 ? "" : gi + 1, g && g.o[m.pick] ? g.o[m.pick][0] : ""];
+      gi < 0 ? "" : gi + 1, g && g.o[m.pick] ? g.o[m.pick][0] : ""];
     })));
   }
   function eventsCsv(rows) {
@@ -492,7 +501,7 @@
     try { if (!(await loadGames(true))) return; }
     catch (e) {
       show(false); say("loginMsg", e.message, true);
-      if (e.code === "unauthorised") { token = ""; try { sessionStorage.removeItem(KEY); } catch {} }
+      if (e.code === "unauthorised") { token = ""; try { sessionStorage.removeItem(KEY); } catch { } }
       return;
     }
     show(true); say("panelMsg", HIDE_HINT);
@@ -501,7 +510,7 @@
   }
   $("loginForm").addEventListener("submit", (ev) => {
     ev.preventDefault(); token = $("token").value.trim(); $("token").value = "";
-    try { sessionStorage.setItem(KEY, token); } catch {}
+    try { sessionStorage.setItem(KEY, token); } catch { }
     unlock();
   });
   $("lockBtn").addEventListener("click", () => lock("Locked."));
