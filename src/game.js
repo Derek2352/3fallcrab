@@ -96,7 +96,7 @@ const SLOW_CARD_MS = 30000, RESULT_MS = 16000;   // Extra reading time: 30 s per
 const STEP = 1000 / 60;
 const FALL = [1.5, 1.8, 2.1, 2.4];
 const WARMUP_MS = 45000, WARMUP_FROM = 0.65;   // a gentle start: items fall at 65% speed, easing up to full over the first 45 s
-const MAX_DROPS = 3;
+const MAX_DROPS = 3, DROP_GRACE_MS = 1800, ANCHOR_DEPTH = FLOOR * 2.5, ANCHOR_REST = 120;
 
 const {STAGES, TRAPS, CARDS, QUIZ, HABITS, ACTS, ACT_OF_STAGE, POWERS, POWER_OF_TRAP, HATS} = window.TFF_CONTENT;   // src/content.js
 const QUIPS = window.TFF_CONTENT.QUIPS || {};
@@ -221,7 +221,7 @@ function newState(){
     said:new Set(), streak:0, wiseRun:0, afterCard:null, overKey:null, pb:0, items:0, realMs:0, endAt:0, prior:0, quizDone:false,
     jpAt:-1, frenzyUntil:0, frenzySec:0, jpExtra:0, pops:[], hand:null,
     troll:{investAt:0, ticketAt:0, invest:0, tickets:0, ticketSeen:0, revive:0, reviveSeen:0, scamSaid:0}, offer:null, pf:null, revive:null, lost:[],
-    net:null, netWob:null, rescues:[], afterNet:false, lockSaid:false, netSaid:false, slimeSaid:false, earlyFloors:0, compounded:0, replay:null};   // jackpot: when it appeared, end of jackpot time, extra it paid
+    net:null, netWob:null, rescues:[], afterNet:false, lockSaid:false, netSaid:false, slimeSaid:false, earlyFloors:0, compounded:0, replay:null, lastDropAt:-1e9, lastChanceNet:false};   // jackpot: when it appeared, end of jackpot time, extra it paid
 }
 function makeEngine(){
   engine = Engine.create({enableSleeping:true});
@@ -404,15 +404,27 @@ function physicsStep(){
       S.splashes.push({x: b.position.x, t: 0, big: b.mass > 8});
       A.sfx("splash"); haptic([45, 35, 75], 0.8, 0.6);
       if (b === S.active){ S.active = null; S.spawnAt = S.play + 300; }
-      for (const m of membersOf(b)){
-        if (!m.tff.player) continue;
-        S.drops++; S.lost.push(m.tff.def); const loss = Math.min(S.score, 1000); S.score -= loss;
-        ledger(m.tff.def, -loss, "落海");
-        mood("cover", 1600);
-        stamp(m.tff.def.en + " fell in!", "跌咗落海 " + S.drops + "/" + MAX_DROPS, "bad");
-        S.streak = 0; if (S.drops === MAX_DROPS - 1) quip("lastDrop", 3); else if (S.drops < MAX_DROPS) quip("drop", 2);
-        updateHUD();
-        if (S.drops >= MAX_DROPS){ endGame("drops"); return; }
+      const pm = membersOf(b).find(m => m.tff.player);
+      if (pm && S.play - S.lastDropAt >= DROP_GRACE_MS){
+        S.lastDropAt = S.play;
+        if (S.drops >= MAX_DROPS - 1 && S.fund > 0){
+          S.fund--; A.sfx("shield"); haptic([20, 35, 30], 0.5, 0.6);
+          stamp("Saved by emergency fund!", "應急錢頂住咗！", "good");
+          crab("Your emergency fund absorbed the fall! Keep stacking.", "好彩有應急錢頂住，冇跌落海！繼續疊！");
+          updateHUD();
+        } else {
+          S.drops++; S.lost.push(pm.tff.def); const loss = Math.min(S.score, 1000); S.score -= loss;
+          ledger(pm.tff.def, -loss, "落海");
+          mood("cover", 1600);
+          stamp(pm.tff.def.en + " fell in!", "跌咗落海 " + S.drops + "/" + MAX_DROPS, "bad");
+          S.streak = 0;
+          if (S.drops === MAX_DROPS - 1){
+            quip("lastDrop", 3);
+            if (!S.lastChanceNet){ S.lastChanceNet = true; if (!netUp()) setTimeout(() => { if (S && S.mode === "playing" && !netUp()) raiseNet("Last-chance net: falls get caught", "最後保障：保險網", 12000, 2); }, 500); }
+          } else if (S.drops < MAX_DROPS) quip("drop", 2);
+          updateHUD();
+          if (S.drops >= MAX_DROPS){ endGame("drops"); return; }
+        }
       }
       continue;
     }
@@ -420,6 +432,7 @@ function physicsStep(){
     const still = b.speed < 0.35 && b.angularSpeed < 0.03 && b.position.y < 5;
     b.tff.restN = still ? (b.tff.restN || 0) + 1 : 0;
     if (!b.isStatic && b.tff.restN >= LOCK_REST && membersOf(b).some(m => m.tff.def.lock)) lockIn(b);
+    if (!b.isStatic && b.tff.restN >= ANCHOR_REST && S.play - b.tff.at > 8000 && S.height >= ANCHOR_DEPTH && b.bounds.min.y > -S.height + ANCHOR_DEPTH){ Body.setStatic(b, true); b.tff.anchored = true; }
     const resting = b.tff.restN >= 30;
     for (const m of membersOf(b)){
       if (!m.tff.player || m.tff.settled || !resting || S.play - m.tff.at <= 450) continue;
@@ -710,8 +723,8 @@ function lockIn(b){   // b: a released body (or a fused group) with a fixed-depo
   if (!S.lockSaid){ S.lockSaid = true; crab("Locked in, like a fixed deposit: money you can't spend on a whim stays put.", "好似定期存款咁鎖住咗：唔可以心血來潮拎嚟使，就企得穩。"); }
 }
 const netUp = () => !!(S && S.net && S.play < S.net.until && S.net.left > 0);
-function raiseNet(en, zh){
-  S.net = {until: S.play + NET_MS, left: NET_CATCHES, fade: 0, goneSaid: false}; S.netWob = null;
+function raiseNet(en, zh, ms = NET_MS, catches = NET_CATCHES){
+  S.net = {until: S.play + ms, left: catches, max: catches, fade: 0, goneSaid: false}; S.netWob = null;
   A.sfx("shield"); stamp(en, zh, "good");
   if (!S.netSaid){ S.netSaid = true; crab("Insurance doesn't stop the fall, but it catches you. Get it before you need it.", "保險唔會令你唔跌，但會接住你。要喺出事之前買。"); }
 }
@@ -751,7 +764,7 @@ function drawNet(c, f){
   c.beginPath(); for (let x = x0; x <= x1; x += 8){ const y = yAt(x); if (x === x0) c.moveTo(x, y); else c.lineTo(x, y); }
   c.strokeStyle = "#7A4B22"; c.lineWidth = 5; c.stroke(); c.strokeStyle = "#F2D49B"; c.lineWidth = 2.6; c.stroke();
   if (L.float) for (let x = x0 + 22; x < x1; x += 46) c.drawImage(L.float, x - 7, yAt(x) - 7, 14, 14);
-  if (L.buoy) for (let i = 0; i < NET_CATCHES; i++){ const x = W - 76 + i * 30; c.globalAlpha = a0 * (i < N.left ? 1 : 0.28); c.drawImage(L.buoy, x - 14, yAt(x) - 15, 28, 28); }   // a lifebuoy for each catch left, clear of the crab
+  if (L.buoy) for (let i = 0; i < (N.max || NET_CATCHES); i++){ const x = W - 76 + i * 30; c.globalAlpha = a0 * (i < N.left ? 1 : 0.28); c.drawImage(L.buoy, x - 14, yAt(x) - 15, 28, 28); }   // a lifebuoy for each catch left, clear of the crab
   c.restore(); needDraw = true;
 }
 // a caught item floats up out of the net in a bubble, and pops

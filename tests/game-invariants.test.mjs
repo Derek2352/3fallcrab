@@ -69,3 +69,9 @@ test("low-graphics mode detects slow/low-spec devices and steps down visuals", (
   assert.ok(game.includes("lowGfx"), "lowGfx graphics scaling flag is missing");
   assert.ok(css.includes("html.low-gfx"), "low-gfx CSS optimizations are missing");
 });
+
+test("drop grace, lower-floor anchoring, and emergency/last-chance net protect runs toward 3 min", () => {
+  assert.ok(game.includes("DROP_GRACE_MS"), "avalanche drop grace window is missing");
+  assert.ok(game.includes("ANCHOR_DEPTH"), "lower-floor auto-anchoring is missing");
+  assert.ok(game.includes("lastChanceNet"), "last-chance safety net at 2/3 drops is missing");
+});
