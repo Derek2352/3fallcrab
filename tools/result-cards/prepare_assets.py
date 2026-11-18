@@ -1,5 +1,5 @@
-"""Prepares full-bleed poster sheets (96.0 x 81.9375 mm) with the sharp 4:5 poster (60.75 x 75.9375 mm)
-centered on the 90x108 mm canvas, plus cast cutouts from src/art/cast.webp.
+"""Prepares 3 mm edge-clamped bleed poster sheets (66.75 x 81.9375 mm) around the sharp
+4:5 poster (60.75 x 75.9375 mm), plus cast cutouts from src/art/cast.webp.
 """
 from pathlib import Path
 import numpy as np
@@ -12,27 +12,28 @@ CAST_PATH = ROOT / "src" / "art" / "cast.webp"
 
 POSTERS = ["ferry", "rooftop", "family", "diner", "trolley", "estate", "diver"]
 
-# Exact 9:16 card centered inside 90x108 mm canvas (+3mm bleed = 96x114 mm)
+# Exact 9:16 card (60.75 x 108.0 mm) + 3 mm bleed around cut contour ONLY (no mirrored strips)
 CARD_W_MM = 60.75
 POSTER_H_MM = 75.9375  # 60.75 * 5 / 4
-CANVAS_BLEED_W_MM = 96.0
-CANVAS_POSTER_BLEED_H_MM = 3.0 + POSTER_H_MM + 3.0  # 81.9375 mm
+BLEED_MM = 3.0
+POSTER_BLEED_W_MM = CARD_W_MM + 2 * BLEED_MM      # 66.75 mm
+POSTER_BLEED_H_MM = BLEED_MM + POSTER_H_MM + BLEED_MM  # 81.9375 mm
 
 
-def make_centered_bleed_poster(img: Image.Image) -> Image.Image:
-    """Keep sharp 1122x1402 poster centered for 60.75x75.9375mm and mirror-extend across 96x81.94mm bleed."""
+def make_edge_bleed_poster(img: Image.Image) -> Image.Image:
+    """Keep sharp 1122x1402 poster centered and extend 3 mm bleed via edge clamping (no mirror)."""
     rgb = img.convert("RGB")
     w, h = rgb.size
     px_per_mm = w / CARD_W_MM
-    pad_x = int(round(((CANVAS_BLEED_W_MM - CARD_W_MM) / 2.0) * px_per_mm))
-    pad_y = int(round(3.0 * px_per_mm))
+    pad_x = int(round(BLEED_MM * px_per_mm))
+    pad_y = int(round(BLEED_MM * px_per_mm))
 
     arr = np.asarray(rgb)
-    padded = np.pad(arr, ((pad_y, pad_y), (pad_x, pad_x), (0, 0)), mode="reflect")
+    padded = np.pad(arr, ((pad_y, pad_y), (pad_x, pad_x), (0, 0)), mode="edge")
     out = Image.fromarray(padded, mode="RGB")
 
-    # Soften only the waste/bleed area outside the exact 60.75 x 75.9375 mm poster
-    blurred = out.filter(ImageFilter.GaussianBlur(radius=3.0))
+    # Lightly soften only the outer 3 mm bleed band while keeping inner 60.75x75.9375mm razor-sharp
+    blurred = out.filter(ImageFilter.GaussianBlur(radius=2.0))
     mask = Image.new("L", out.size, 255)
     inner = Image.new("L", (w, h), 0)
     mask.paste(inner, (pad_x, pad_y))
@@ -48,9 +49,9 @@ def main():
     for name in POSTERS:
         src = POSTER_DIR / f"{name}.jpg"
         im = Image.open(src).convert("RGB")
-        bleed_im = make_centered_bleed_poster(im)
+        bleed_im = make_edge_bleed_poster(im)
         bleed_im.save(CACHE / "posters" / f"{name}-bleed.jpg", "JPEG", quality=96, subsampling=0)
-        print(f"poster {name}: sharp={im.size} -> canvas_bleed={bleed_im.size}")
+        print(f"poster {name}: sharp={im.size} -> edge_bleed={bleed_im.size}")
 
     cast = Image.open(CAST_PATH).convert("RGBA")
     crops = {

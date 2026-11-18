@@ -20,11 +20,16 @@ const PROP_DIR = join(CACHE, "props");
 const GAME_URL = "https://3fallcrab.com/";
 const IG_URL = "https://www.instagram.com/3fallfun_campaign?dlrf=azdibDNjdTk4MzQ4";
 
-// 9:16 card (60.75 x 108.0 mm) centered on 90 x 108 mm trim (+ 3 mm bleed = 96 x 114 mm)
+// 9:16 card (60.75 x 108.0 mm) centered on 90 x 108 mm TrimBox canvas,
+// with artwork clipped strictly to 60.75 mm + 3 mm edge-clamped bleed (66.75 x 114.0 mm)
+// and clean white margins outside on the 96 x 114 mm page.
 const CANVAS_W_MM = 96.0;
 const CANVAS_H_MM = 114.0;
+const BLEED_MM = 3.0;
 const CARD_W_MM = 60.75;
 const CARD_OFFSET_X_MM = 17.625; // 3.0 + (90.0 - 60.75) / 2
+const ART_BLEED_W_MM = CARD_W_MM + 2 * BLEED_MM; // 66.75 mm
+const ART_OFFSET_X_MM = CARD_OFFSET_X_MM - BLEED_MM; // 14.625 mm
 const Y_STUB_PAGE_MM = 78.9375;  // 3.0 + 108.0 * (1350 / 1920)
 const POSTER_BLEED_H_MM = 81.9375; // 3.0 + 75.9375 + 3.0
 
@@ -120,7 +125,7 @@ function silhouetteSvg(rows, worldW = 440) {
   return `<svg class="sil-svg" viewBox="0 0 ${sw} ${sh}" xmlns="http://www.w3.org/2000/svg"><rect width="${sw}" height="${sh}" rx="5" fill="rgba(255,255,255,0.08)"/>${bars}</svg>`;
 }
 
-function grainSvg(seedStart = 11, wMm = CANVAS_W_MM, hMm = CANVAS_H_MM - Y_STUB_PAGE_MM) {
+function grainSvg(seedStart = 11, wMm = ART_BLEED_W_MM, hMm = CANVAS_H_MM - Y_STUB_PAGE_MM) {
   let seed = seedStart;
   const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   let dots = "";
@@ -157,7 +162,7 @@ function buildFrontHtml(card) {
   const savedSize = card.formattedScore.length >= 9 ? "8.2pt" : "8.8pt";
 
   const stubH = CANVAS_H_MM - Y_STUB_PAGE_MM; // 35.0625 mm (32.0625 trim + 3.0 bleed)
-  const padSide = CARD_OFFSET_X_MM + 3.8; // 21.425 mm from page edge -> 3.8 mm inside 60.75 mm card
+  const padSide = BLEED_MM + 3.8; // 6.8 mm inside 66.75 mm bleed box -> 3.8 mm inside 60.75 mm card
 
   return `<!doctype html>
 <html lang="zh-HK">
@@ -169,16 +174,24 @@ ${fontFacesCss()}
 * { box-sizing: border-box; }
 html, body {
   margin: 0; padding: 0; width: ${CANVAS_W_MM}mm; height: ${CANVAS_H_MM}mm; overflow: hidden;
-  background: #0B0C17;
+  background: #FFFFFF;
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
-.page { position: relative; width: ${CANVAS_W_MM}mm; height: ${CANVAS_H_MM}mm; overflow: hidden; }
+.page { position: relative; width: ${CANVAS_W_MM}mm; height: ${CANVAS_H_MM}mm; overflow: hidden; background: #FFFFFF; }
+.card-bleed-box {
+  position: absolute;
+  left: ${ART_OFFSET_X_MM}mm; top: 0;
+  width: ${ART_BLEED_W_MM}mm; height: ${CANVAS_H_MM}mm;
+  border-radius: 8.0mm;
+  overflow: hidden;
+  background: #0B0C17;
+}
 .poster-bleed {
-  position: absolute; left: 0; top: 0; width: ${CANVAS_W_MM}mm; height: ${POSTER_BLEED_H_MM}mm;
+  position: absolute; left: 0; top: 0; width: ${ART_BLEED_W_MM}mm; height: ${POSTER_BLEED_H_MM}mm;
   object-fit: fill; display: block;
 }
 .stub {
-  position: absolute; left: 0; top: ${Y_STUB_PAGE_MM}mm; width: ${CANVAS_W_MM}mm; height: ${stubH}mm;
+  position: absolute; left: 0; top: ${Y_STUB_PAGE_MM}mm; width: ${ART_BLEED_W_MM}mm; height: ${stubH}mm;
   background: linear-gradient(180deg, #171A33 0%, #0B0C17 100%);
   color: #F6F0D8;
   overflow: hidden;
@@ -290,9 +303,10 @@ html, body {
 </head>
 <body>
 <div class="page">
-  <img class="poster-bleed" src="/cache/posters/${card.poster}-bleed.jpg" alt="">
-  <div class="stub">
-    ${grainSvg(11 + card.index * 7)}
+  <div class="card-bleed-box">
+    <img class="poster-bleed" src="/cache/posters/${card.poster}-bleed.jpg" alt="">
+    <div class="stub">
+      ${grainSvg(11 + card.index * 7)}
     <div class="perf-line"></div>
     <div class="stub-inner">
       <div class="hdr">
@@ -367,6 +381,7 @@ html, body {
       </div>
     </div>
   </div>
+  </div>
 </div>
 </body>
 </html>`;
@@ -381,7 +396,7 @@ function buildBackHtml() {
   const qrIg = qrSvgString(IG_URL, { dark: "#171A33", light: "#FFFFFF", quiet: 3, className: "qr-svg" });
 
   const stubH = CANVAS_H_MM - Y_STUB_PAGE_MM; // 35.0625 mm
-  const padSide = CARD_OFFSET_X_MM + 3.8; // 21.425 mm
+  const padSide = BLEED_MM + 3.8; // 6.8 mm inside 66.75 mm bleed box -> 3.8 mm inside 60.75 mm card
 
   const harbourSvg = `
   <svg class="harbour-svg" viewBox="0 0 96 28" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
@@ -431,12 +446,20 @@ ${fontFacesCss()}
 * { box-sizing: border-box; }
 html, body {
   margin: 0; padding: 0; width: ${CANVAS_W_MM}mm; height: ${CANVAS_H_MM}mm; overflow: hidden;
-  background: #FFD23F;
+  background: #FFFFFF;
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
-.page { position: relative; width: ${CANVAS_W_MM}mm; height: ${CANVAS_H_MM}mm; overflow: hidden; }
+.page { position: relative; width: ${CANVAS_W_MM}mm; height: ${CANVAS_H_MM}mm; overflow: hidden; background: #FFFFFF; }
+.card-bleed-box {
+  position: absolute;
+  left: ${ART_OFFSET_X_MM}mm; top: 0;
+  width: ${ART_BLEED_W_MM}mm; height: ${CANVAS_H_MM}mm;
+  border-radius: 8.0mm;
+  overflow: hidden;
+  background: #FFD23F;
+}
 .top-zone {
-  position: absolute; left: 0; top: 0; width: ${CANVAS_W_MM}mm; height: ${Y_STUB_PAGE_MM}mm;
+  position: absolute; left: 0; top: 0; width: ${ART_BLEED_W_MM}mm; height: ${Y_STUB_PAGE_MM}mm;
   background-color: #FFD23F;
   background-image:
     radial-gradient(50mm 32mm at 50% 62%, rgba(255, 250, 224, 0.72) 0%, rgba(255, 250, 224, 0) 75%),
@@ -447,12 +470,12 @@ html, body {
   overflow: hidden;
 }
 .harbour-svg {
-  position: absolute; left: 0; top: 19.5mm; width: ${CANVAS_W_MM}mm; height: 25mm;
+  position: absolute; left: ${-ART_OFFSET_X_MM}mm; top: 19.5mm; width: ${CANVAS_W_MM}mm; height: 25mm;
   pointer-events: none;
 }
-/* Card-width centered stage (60.75 mm) matching original 9:16 Back layout */
+/* Card-width centered stage (60.75 mm) inside 66.75 mm bleed box */
 .card-stage {
-  position: absolute; left: ${CARD_OFFSET_X_MM}mm; top: 3.0mm; width: ${CARD_W_MM}mm; height: ${Y_STUB_PAGE_MM - 3.0}mm;
+  position: absolute; left: ${BLEED_MM}mm; top: 3.0mm; width: ${CARD_W_MM}mm; height: ${Y_STUB_PAGE_MM - 3.0}mm;
 }
 .header {
   position: relative; z-index: 3;
@@ -587,9 +610,9 @@ html, body {
 .qr-handle.game { color: #2275C6; }
 .qr-handle.ig { color: #C12770; }
 
-/* Bottom Ticket Stub extending full-bleed across the 96mm canvas */
+/* Bottom Ticket Stub extending strictly across 66.75 mm (3 mm bleed around 60.75 mm card) */
 .stub {
-  position: absolute; left: 0; top: ${Y_STUB_PAGE_MM}mm; width: ${CANVAS_W_MM}mm; height: ${stubH}mm;
+  position: absolute; left: 0; top: ${Y_STUB_PAGE_MM}mm; width: ${ART_BLEED_W_MM}mm; height: ${stubH}mm;
   background: linear-gradient(180deg, #171A33 0%, #0B0C17 100%);
   color: #F6F0D8; overflow: hidden;
 }
@@ -647,6 +670,7 @@ html, body {
 </head>
 <body>
 <div class="page">
+  <div class="card-bleed-box">
   <div class="top-zone">
     ${harbourSvg}
     <div class="card-stage">
@@ -711,6 +735,7 @@ html, body {
         <span>3 Fall Crab 整冧咗team · HSUHK</span>
       </div>
     </div>
+  </div>
   </div>
 </div>
 </body>

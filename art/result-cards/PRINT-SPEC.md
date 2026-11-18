@@ -6,7 +6,7 @@
 - **Finished Die-Cut Card Size (`實物成品尺寸`, exact `9 : 16` ratio preserved)**: **60.75 mm × 108.0 mm** centered on the `90 × 108 mm` canvas (`x = 14.625..75.375 mm`, `y = 0..108.0 mm`)
   - Top film poster zone: `60.75 mm × 75.9375 mm` (`4 : 5` exact, `469 DPI` native, zero cropping)
   - Bottom ticket stub zone: `60.75 mm × 32.0625 mm`
-- **Bleed (`出血位`)**: Full continuous `3 mm`+ bleed extends across the entire `96 mm × 114 mm` canvas around all sides of the `60.75 × 108.0 mm` die-cut contour (`切勿偷空`).
+- **Bleed (`出血位`)**: Continuous `3 mm` edge-clamped bleed (`66.75 mm × 114.0 mm` with `R 8.0 mm` concentric outer corners) surrounds every edge of the `60.75 × 108.0 mm` die-cut contour with clean white margin outside on the `90 × 108 mm` canvas (`切勿偷空`, no mirrored side border).
 - **Die-Cut Features (`數碼切割幾何`)**:
   - Outer corners: **R 5.0 mm** (`≥ 5 mm`)
   - Left & right stub notches at `y = 75.9375 mm` from top trim: **R 3.0 mm** semicircle (`6.0 mm` opening width `≥ 5 mm`)
@@ -26,7 +26,7 @@ Every PDF in `pdf/` contains **3 explicit PDF Layers (OCGs)** and **Separation S
 |---|---|
 | 1. 數碼切割圖層 (`DieCut`) | Dedicated PDF OCG layer **`DieCut`** (`CutContour`, `100%` Magenta `CMYK 0/100/0/0`) and SVG `<g id="Layer_DieCut">` |
 | 2. 無漸變或特別效果 | Pure solid stroke only (`fill: none`), `opacity: 1`, zero gradients, shadows, blurs, or effects |
-| 3. 切割位置切勿偷空 | Single closed outer contour with zero knocked-out text/logo cuts; continuous bleed extends past cut line across the full `96 × 114 mm` sheet |
+| 3. 切割位置切勿偷空 | Single closed outer contour with zero knocked-out text/logo cuts; continuous `3 mm` edge-clamped bleed (`66.75 × 114.0 mm`) wraps cleanly around every cut edge with white waste margin outside |
 | 4. 壓線於另一個圖層 (`Crease`) | Dedicated separate PDF OCG layer **`Crease`** (`Crease`, `100%` Cyan `CMYK 100/0/0/0`) and SVG `<g id="Layer_Crease">` |
 | 5. 只接受描邊向量圖，無網線 | Pure stroked vector paths (`S`, `0.5 pt` stroke), zero fills, zero raster images, zero dashed/halftone screen (`網線`) |
 | 6. 間隔 ≥ 5 mm，幼線 ≥ 5 mm 粗 | `R 5.0 mm` outer corners, `6.0 mm` notch opening, `54.75 mm` minimum card waist; `10.0 mm` cut-to-cut gap on `press-sheet-sra3-12up.pdf` |

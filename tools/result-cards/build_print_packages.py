@@ -437,9 +437,21 @@ def generate_proofs():
     tech_front = render_pdf_page_image(OUT_PDF / "card-01-ferry.pdf", 0, dpi=280, hide_layers=())
     tech_back = render_pdf_page_image(OUT_PDF / "card-01-ferry.pdf", 1, dpi=280, hide_layers=())
     tw, th = tech_front.size
-    tech_sheet = Image.new("RGB", (margin * 2 + 2 * tw + gap, margin * 2 + th), (255, 255, 255))
-    tech_sheet.paste(tech_front, (margin, margin))
-    tech_sheet.paste(tech_back, (margin + tw + gap, margin))
+    px_per_mm_x = tw / PAGE_W_MM
+    px_per_mm_y = th / PAGE_H_MM
+    tech_sheet = Image.new("RGB", (margin * 2 + 2 * tw + gap, margin * 2 + th), (235, 235, 235))
+    td = ImageDraw.Draw(tech_sheet)
+    for col_idx, tech_im in enumerate((tech_front, tech_back)):
+        ox = margin + col_idx * (tw + gap)
+        oy = margin
+        tech_sheet.paste(tech_im, (ox, oy))
+        # Subtle proof-only frame for 96x114 BleedBox and corner ticks for 90x108 TrimBox
+        td.rectangle([ox, oy, ox + tw - 1, oy + th - 1], outline=(195, 195, 195), width=2)
+        tx0 = ox + int(round(BLEED_MM * px_per_mm_x))
+        tx1 = ox + int(round((BLEED_MM + CANVAS_TRIM_W_MM) * px_per_mm_x))
+        ty0 = oy + int(round(BLEED_MM * px_per_mm_y))
+        ty1 = oy + int(round((BLEED_MM + CANVAS_TRIM_H_MM) * px_per_mm_y))
+        td.rectangle([tx0, ty0, tx1, ty1], outline=(170, 170, 170), width=1)
     tech_sheet.save(OUT_PROOFS / "proof-technical-diecut-layers.png")
 
     sra3_f = render_pdf_page_image(OUT_PDF / "press-sheet-sra3-12up.pdf", 0, dpi=120, hide_layers=())
