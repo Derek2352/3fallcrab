@@ -1,9 +1,9 @@
-"""Prepares full-bleed ambient cinema backdrops (96x73 mm) from each poster, copies sharp 4:5 posters,
-and extracts transparent cast cutouts for the 90x108 mm print cards.
+"""Prepares full-bleed poster sheets (96.0 x 81.9375 mm) with the sharp 4:5 poster (60.75 x 75.9375 mm)
+centered on the 90x108 mm canvas, plus cast cutouts from src/art/cast.webp.
 """
 from pathlib import Path
 import numpy as np
-from PIL import Image, ImageEnhance, ImageFilter
+from PIL import Image, ImageFilter
 
 ROOT = Path(__file__).resolve().parents[2]
 CACHE = Path(__file__).resolve().parent / ".cache"
@@ -12,24 +12,33 @@ CAST_PATH = ROOT / "src" / "art" / "cast.webp"
 
 POSTERS = ["ferry", "rooftop", "family", "diner", "trolley", "estate", "diver"]
 
+# Exact 9:16 card centered inside 90x108 mm canvas (+3mm bleed = 96x114 mm)
+CARD_W_MM = 60.75
+POSTER_H_MM = 75.9375  # 60.75 * 5 / 4
+CANVAS_BLEED_W_MM = 96.0
+CANVAS_POSTER_BLEED_H_MM = 3.0 + POSTER_H_MM + 3.0  # 81.9375 mm
 
-def make_ambient_backdrop(img: Image.Image) -> Image.Image:
-    """Create a rich, softly blurred, darkened full-bleed backdrop matching the poster palette."""
+
+def make_centered_bleed_poster(img: Image.Image) -> Image.Image:
+    """Keep sharp 1122x1402 poster centered for 60.75x75.9375mm and mirror-extend across 96x81.94mm bleed."""
     rgb = img.convert("RGB")
-    # Crop central 16:12 region and scale smoothly to 96x73 ratio (1200x913)
     w, h = rgb.size
-    target_ratio = 96.0 / 73.0
-    crop_h = int(round(w / target_ratio))
-    y0 = max(0, (h - crop_h) // 2)
-    cropped = rgb.crop((0, y0, w, min(h, y0 + crop_h)))
-    scaled = cropped.resize((1200, 913), Image.LANCZOS)
-    blurred = scaled.filter(ImageFilter.GaussianBlur(radius=34))
-    darkened = ImageEnhance.Brightness(blurred).enhance(0.42)
-    # Blend subtly toward deep cinema night-blue (#13162D) for seamless integration with the stub
-    arr = np.asarray(darkened, dtype=np.float32)
-    navy = np.array([19.0, 22.0, 45.0], dtype=np.float32)
-    blended = np.clip(arr * 0.72 + navy * 0.28, 0, 255).astype(np.uint8)
-    return Image.fromarray(blended, mode="RGB")
+    px_per_mm = w / CARD_W_MM
+    pad_x = int(round(((CANVAS_BLEED_W_MM - CARD_W_MM) / 2.0) * px_per_mm))
+    pad_y = int(round(3.0 * px_per_mm))
+
+    arr = np.asarray(rgb)
+    padded = np.pad(arr, ((pad_y, pad_y), (pad_x, pad_x), (0, 0)), mode="reflect")
+    out = Image.fromarray(padded, mode="RGB")
+
+    # Soften only the waste/bleed area outside the exact 60.75 x 75.9375 mm poster
+    blurred = out.filter(ImageFilter.GaussianBlur(radius=3.0))
+    mask = Image.new("L", out.size, 255)
+    inner = Image.new("L", (w, h), 0)
+    mask.paste(inner, (pad_x, pad_y))
+    final = Image.composite(blurred, out, mask)
+    final.paste(rgb, (pad_x, pad_y))
+    return final
 
 
 def main():
@@ -39,12 +48,9 @@ def main():
     for name in POSTERS:
         src = POSTER_DIR / f"{name}.jpg"
         im = Image.open(src).convert("RGB")
-        # Save sharp original copy for the uncropped 4:5 frame
-        im.save(CACHE / "posters" / f"{name}-sharp.jpg", "JPEG", quality=96, subsampling=0)
-        # Save ambient blurred full-bleed backdrop
-        amb = make_ambient_backdrop(im)
-        amb.save(CACHE / "posters" / f"{name}-ambient.jpg", "JPEG", quality=92, subsampling=0)
-        print(f"poster {name}: sharp={im.size}, ambient={amb.size}")
+        bleed_im = make_centered_bleed_poster(im)
+        bleed_im.save(CACHE / "posters" / f"{name}-bleed.jpg", "JPEG", quality=96, subsampling=0)
+        print(f"poster {name}: sharp={im.size} -> canvas_bleed={bleed_im.size}")
 
     cast = Image.open(CAST_PATH).convert("RGBA")
     crops = {

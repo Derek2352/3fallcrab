@@ -1,7 +1,6 @@
-"""Builds print-ready 90x108 mm (96x114 mm with 3 mm bleed) layered PDFs (Artwork, Crease, DieCut),
-editable layered SVGs, an SRA3 9-up imposed press sheet (all 7 unique cards + 2 bonus),
-high-res visual proof mockups, and runs automated preflight checks against all 6 HK digital
-die-cutting & creasing rules.
+"""Builds print-ready 90x108 mm canvas (96x114 mm with 3 mm bleed) layered PDFs & SVGs where
+each souvenir card keeps its exact original 9:16 aspect ratio (60.75 x 108.0 mm finished card)
+centered on the 90x108 mm canvas, plus a 12-up SRA3 press sheet and 300-DPI visual proofs.
 """
 import base64
 import math
@@ -23,19 +22,26 @@ OUT_SVG = OUT_ROOT / "svg"
 OUT_PROOFS = OUT_ROOT / "proofs"
 
 MM_TO_PT = 72.0 / 25.4
-TRIM_W_MM = 90.0
-TRIM_H_MM = 108.0
+
+# 90 x 108 mm canvas (+ 3 mm bleed = 96 x 114 mm)
+CANVAS_TRIM_W_MM = 90.0
+CANVAS_TRIM_H_MM = 108.0
 BLEED_MM = 3.0
-PAGE_W_MM = TRIM_W_MM + 2 * BLEED_MM   # 96.0 mm
-PAGE_H_MM = TRIM_H_MM + 2 * BLEED_MM   # 114.0 mm
+PAGE_W_MM = CANVAS_TRIM_W_MM + 2 * BLEED_MM   # 96.0 mm
+PAGE_H_MM = CANVAS_TRIM_H_MM + 2 * BLEED_MM   # 114.0 mm
 PAGE_W_PT = PAGE_W_MM * MM_TO_PT
 PAGE_H_PT = PAGE_H_MM * MM_TO_PT
 
+# Exact 9:16 card (60.75 x 108.0 mm) centered horizontally on the 90x108 mm canvas
+CARD_W_MM = 60.75
+CARD_H_MM = 108.0
+CARD_OFFSET_X_MM = (CANVAS_TRIM_W_MM - CARD_W_MM) / 2.0  # 14.625 mm inside trim -> 17.625 mm on page
+
 R_CORNER_MM = 5.0      # >= 5 mm rounded corners
-R_NOTCH_MM = 3.5       # 7.0 mm opening mouth >= 5 mm
-Y_STUB_FROM_TOP_TRIM_MM = 70.0
-Y_STUB_TOP_MM = BLEED_MM + Y_STUB_FROM_TOP_TRIM_MM   # 73.0 mm
-Y_STUB_PDF_MM = PAGE_H_MM - Y_STUB_TOP_MM            # 41.0 mm (bottom-up)
+R_NOTCH_MM = 3.0       # 6.0 mm opening mouth >= 5 mm
+Y_STUB_FROM_TOP_TRIM_MM = CARD_H_MM * (1350.0 / 1920.0)   # 75.9375 mm
+Y_STUB_TOP_MM = BLEED_MM + Y_STUB_FROM_TOP_TRIM_MM        # 78.9375 mm (top-down page)
+Y_STUB_PDF_MM = PAGE_H_MM - Y_STUB_TOP_MM                 # 35.0625 mm (bottom-up page)
 
 K_BEZIER = 4.0 * (math.sqrt(2.0) - 1.0) / 3.0
 
@@ -54,15 +60,15 @@ def pt(mm_val: float) -> float:
     return mm_val * MM_TO_PT
 
 
-def diecut_pdf_stream(ox_mm: float = 0.0, oy_mm: float = 0.0, stroke_pt: float = 0.5) -> bytes:
-    """Pure closed stroked vector contour in PDF bottom-up coordinates (no fill, no gradients, no dashes)."""
-    x0 = ox_mm + BLEED_MM
-    x1 = ox_mm + BLEED_MM + TRIM_W_MM
-    y0 = oy_mm + BLEED_MM
-    y1 = oy_mm + BLEED_MM + TRIM_H_MM
+def diecut_pdf_stream(card_x0_mm: float, card_y0_pdf_mm: float, stroke_pt: float = 0.5) -> bytes:
+    """Pure closed stroked 9:16 ticket vector contour in PDF bottom-up coordinates."""
+    x0 = card_x0_mm
+    x1 = card_x0_mm + CARD_W_MM
+    y0 = card_y0_pdf_mm
+    y1 = card_y0_pdf_mm + CARD_H_MM
     rc = R_CORNER_MM
     rn = R_NOTCH_MM
-    yn = oy_mm + Y_STUB_PDF_MM
+    yn = card_y0_pdf_mm + (Y_STUB_PDF_MM - BLEED_MM)
     kc = K_BEZIER * rc
     kn = K_BEZIER * rn
 
@@ -110,11 +116,11 @@ def diecut_pdf_stream(ox_mm: float = 0.0, oy_mm: float = 0.0, stroke_pt: float =
     return ("\n".join(ops) + "\n").encode("ascii")
 
 
-def crease_pdf_stream(ox_mm: float = 0.0, oy_mm: float = 0.0, stroke_pt: float = 0.5) -> bytes:
+def crease_pdf_stream(card_x0_mm: float, card_y0_pdf_mm: float, stroke_pt: float = 0.5) -> bytes:
     """Pure open stroked vector crease line (壓線) connecting the two side notch apexes."""
-    x_left = ox_mm + BLEED_MM + R_NOTCH_MM
-    x_right = ox_mm + BLEED_MM + TRIM_W_MM - R_NOTCH_MM
-    yn = oy_mm + Y_STUB_PDF_MM
+    x_left = card_x0_mm + R_NOTCH_MM
+    x_right = card_x0_mm + CARD_W_MM - R_NOTCH_MM
+    yn = card_y0_pdf_mm + (Y_STUB_PDF_MM - BLEED_MM)
     ops = [
         "q",
         "/OC /OC_Crease BDC",
@@ -132,7 +138,6 @@ def crease_pdf_stream(ox_mm: float = 0.0, oy_mm: float = 0.0, stroke_pt: float =
 
 
 def ensure_spot_resources(doc: pymupdf.Document):
-    """Create Separation ColorSpaces (CutContour = 100% Magenta, Crease = 100% Cyan) + OCG layers."""
     ocg_art = doc.add_ocg("Artwork", on=True)
     ocg_crease = doc.add_ocg("Crease", on=True)
     ocg_cut = doc.add_ocg("DieCut", on=True)
@@ -159,8 +164,8 @@ def ensure_spot_resources(doc: pymupdf.Document):
     }
 
 
-def attach_vector_layers_to_page(doc: pymupdf.Document, page: pymupdf.Page, meta: dict, placements: list[tuple[float, float]]):
-    """Attach pure vector Crease and DieCut streams onto `page` with exact OCG & Spot Color resources."""
+def attach_vector_layers_to_page(doc: pymupdf.Document, page: pymupdf.Page, meta: dict, card_origins_pdf_mm: list[tuple[float, float]]):
+    """Attach pure vector Crease and DieCut streams onto `page` at each card's trim origin (x0, y0_bot_pdf)."""
     page_xref = page.xref
     res_val = doc.xref_get_key(page_xref, "Resources")
     if res_val[0] == "xref":
@@ -175,8 +180,8 @@ def attach_vector_layers_to_page(doc: pymupdf.Document, page: pymupdf.Page, meta
     doc.xref_set_key(res_xref, "Properties/OC_DieCut", f"{meta['ocg_cut']} 0 R")
     doc.xref_set_key(res_xref, "Properties/OC_Crease", f"{meta['ocg_crease']} 0 R")
 
-    crease_bytes = b"".join(crease_pdf_stream(ox, oy) for ox, oy in placements)
-    cut_bytes = b"".join(diecut_pdf_stream(ox, oy) for ox, oy in placements)
+    crease_bytes = b"".join(crease_pdf_stream(cx, cy) for cx, cy in card_origins_pdf_mm)
+    cut_bytes = b"".join(diecut_pdf_stream(cx, cy) for cx, cy in card_origins_pdf_mm)
 
     xref_crease = doc.get_new_xref()
     doc.update_object(xref_crease, "<<>>")
@@ -191,9 +196,9 @@ def attach_vector_layers_to_page(doc: pymupdf.Document, page: pymupdf.Page, meta
     doc.xref_set_key(page_xref, "Contents", "[" + " ".join(all_xrefs) + "]")
 
 
-def set_card_boxes(doc: pymupdf.Document, page: pymupdf.Page):
+def set_canvas_boxes(doc: pymupdf.Document, page: pymupdf.Page):
     b_rect = f"[0 0 {PAGE_W_PT:.4f} {PAGE_H_PT:.4f}]"
-    t_rect = f"[{pt(BLEED_MM):.4f} {pt(BLEED_MM):.4f} {pt(BLEED_MM + TRIM_W_MM):.4f} {pt(BLEED_MM + TRIM_H_MM):.4f}]"
+    t_rect = f"[{pt(BLEED_MM):.4f} {pt(BLEED_MM):.4f} {pt(BLEED_MM + CANVAS_TRIM_W_MM):.4f} {pt(BLEED_MM + CANVAS_TRIM_H_MM):.4f}]"
     doc.xref_set_key(page.xref, "MediaBox", b_rect)
     doc.xref_set_key(page.xref, "CropBox", b_rect)
     doc.xref_set_key(page.xref, "BleedBox", b_rect)
@@ -204,8 +209,8 @@ def build_card_page(out_doc: pymupdf.Document, meta: dict, src_art_pdf: Path):
     src = pymupdf.open(src_art_pdf)
     page = out_doc.new_page(width=PAGE_W_PT, height=PAGE_H_PT)
     page.show_pdf_page(page.rect, src, 0, oc=meta["ocg_art"])
-    set_card_boxes(out_doc, page)
-    attach_vector_layers_to_page(out_doc, page, meta, [(0.0, 0.0)])
+    set_canvas_boxes(out_doc, page)
+    attach_vector_layers_to_page(out_doc, page, meta, [(BLEED_MM + CARD_OFFSET_X_MM, BLEED_MM)])
     src.close()
     return page
 
@@ -219,14 +224,13 @@ def render_clean_artwork_png(src_art_pdf: Path, dpi: int = 350) -> bytes:
 
 
 def build_layered_svg(src_art_pdf: Path, out_svg_path: Path):
-    """Build an Adobe Illustrator / Inkscape compatible layered SVG with 3 explicit layers."""
     png_bytes = render_clean_artwork_png(src_art_pdf, dpi=350)
     b64 = base64.b64encode(png_bytes).decode("ascii")
 
-    x0 = BLEED_MM
-    x1 = BLEED_MM + TRIM_W_MM
+    x0 = BLEED_MM + CARD_OFFSET_X_MM
+    x1 = x0 + CARD_W_MM
     y0 = BLEED_MM
-    y1 = BLEED_MM + TRIM_H_MM
+    y1 = y0 + CARD_H_MM
     rc = R_CORNER_MM
     rn = R_NOTCH_MM
     yn = Y_STUB_TOP_MM
@@ -253,7 +257,7 @@ def build_layered_svg(src_art_pdf: Path, out_svg_path: Path):
      xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
      width="{PAGE_W_MM}mm" height="{PAGE_H_MM}mm"
      viewBox="0 0 {PAGE_W_MM} {PAGE_H_MM}">
-  <title>{escape(out_svg_path.stem)} - 90x108mm (3mm bleed)</title>
+  <title>{escape(out_svg_path.stem)} - 9:16 card (60.75x108mm) on 90x108mm canvas (3mm bleed)</title>
   <g id="Layer_Artwork" inkscape:groupmode="layer" inkscape:label="Artwork (印刷圖稿)">
     <image x="0" y="0" width="{PAGE_W_MM}" height="{PAGE_H_MM}" preserveAspectRatio="none"
            href="data:image/png;base64,{b64}"/>
@@ -270,69 +274,73 @@ def build_layered_svg(src_art_pdf: Path, out_svg_path: Path):
 
 
 def build_sra3_press_sheet(out_path: Path):
-    """Build a 2-page SRA3 (320 x 450 mm) 9-up imposed press sheet (all 7 unique cards + 2 bonus)
-    with 10.0 mm cut-to-cut spacing (>= 5 mm required).
+    """Build a 2-page SRA3 (320 x 450 mm) 12-up imposed press sheet of the 60.75x108.0 mm 9:16 cards
+    (4 cols x 3 rows) with 10.0 mm cut-to-cut spacing (>= 5 mm required).
     """
     SHEET_W_MM = 320.0
     SHEET_H_MM = 450.0
     GAP_MM = 10.0
-    # 3 cols x 3 rows of 90x108 trim cards -> total footprint = 290 x 344 mm
-    x_start = (SHEET_W_MM - (3 * TRIM_W_MM + 2 * GAP_MM)) / 2.0   # 15.0 mm
-    y_start = (SHEET_H_MM - (3 * TRIM_H_MM + 2 * GAP_MM)) / 2.0   # 53.0 mm
+    # 4 cols x 3 rows of 60.75x108 trim cards -> 273.0 x 344.0 mm
+    x_start = (SHEET_W_MM - (4 * CARD_W_MM + 3 * GAP_MM)) / 2.0   # 23.5 mm
+    y_start = (SHEET_H_MM - (3 * CARD_H_MM + 2 * GAP_MM)) / 2.0   # 53.0 mm
 
-    sheet_slots = CARD_SLUGS + ["01-ferry", "04-diner"]
+    sheet_slots = CARD_SLUGS + ["01-ferry", "02-rooftop", "03-family", "04-diner", "05-trolley"]
+
+    # Clip strictly to each card's own 66.75 x 114.0 mm bleed box inside the 96 x 114 mm source page
+    src_clip = pymupdf.Rect(
+        pt(BLEED_MM + CARD_OFFSET_X_MM - BLEED_MM),
+        0.0,
+        pt(BLEED_MM + CARD_OFFSET_X_MM + CARD_W_MM + BLEED_MM),
+        pt(PAGE_H_MM),
+    )
 
     doc = pymupdf.open()
     meta = ensure_spot_resources(doc)
 
-    # Page 1: Fronts (9-up)
+    # Page 1: Fronts (12-up)
     p_front = doc.new_page(width=pt(SHEET_W_MM), height=pt(SHEET_H_MM))
-    front_placements = []
+    front_origins = []
     for idx, slug in enumerate(sheet_slots):
-        col = idx % 3
-        row = idx // 3
-        trim_x = x_start + col * (TRIM_W_MM + GAP_MM)
-        trim_y_top = y_start + row * (TRIM_H_MM + GAP_MM)
-        trim_y_bot_pdf = SHEET_H_MM - (trim_y_top + TRIM_H_MM)
-        ox_mm = trim_x - BLEED_MM
-        oy_mm = trim_y_bot_pdf - BLEED_MM
-        front_placements.append((ox_mm, oy_mm))
+        col = idx % 4
+        row = idx // 4
+        trim_x = x_start + col * (CARD_W_MM + GAP_MM)
+        trim_y_top = y_start + row * (CARD_H_MM + GAP_MM)
+        trim_y_bot_pdf = SHEET_H_MM - (trim_y_top + CARD_H_MM)
+        front_origins.append((trim_x, trim_y_bot_pdf))
 
-        rect = pymupdf.Rect(
-            pt(ox_mm),
+        dest_rect = pymupdf.Rect(
+            pt(trim_x - BLEED_MM),
             pt(trim_y_top - BLEED_MM),
-            pt(ox_mm + PAGE_W_MM),
-            pt(trim_y_top + TRIM_H_MM + BLEED_MM),
+            pt(trim_x + CARD_W_MM + BLEED_MM),
+            pt(trim_y_top + CARD_H_MM + BLEED_MM),
         )
         src = pymupdf.open(ART_PDF_DIR / f"front-{slug}.pdf")
-        p_front.show_pdf_page(rect, src, 0, oc=meta["ocg_art"])
+        p_front.show_pdf_page(dest_rect, src, 0, clip=src_clip, oc=meta["ocg_art"])
         src.close()
 
-    attach_vector_layers_to_page(doc, p_front, meta, front_placements)
+    attach_vector_layers_to_page(doc, p_front, meta, front_origins)
 
-    # Page 2: Universal Backs (mirrored horizontally across columns)
+    # Page 2: Universal Backs (duplex horizontal flip: col -> 3 - col)
     p_back = doc.new_page(width=pt(SHEET_W_MM), height=pt(SHEET_H_MM))
     back_src = pymupdf.open(ART_PDF_DIR / "universal-back.pdf")
-    back_placements = []
-    for idx in range(9):
-        col = 2 - (idx % 3)
-        row = idx // 3
-        trim_x = x_start + col * (TRIM_W_MM + GAP_MM)
-        trim_y_top = y_start + row * (TRIM_H_MM + GAP_MM)
-        trim_y_bot_pdf = SHEET_H_MM - (trim_y_top + TRIM_H_MM)
-        ox_mm = trim_x - BLEED_MM
-        oy_mm = trim_y_bot_pdf - BLEED_MM
-        back_placements.append((ox_mm, oy_mm))
+    back_origins = []
+    for idx in range(12):
+        col = 3 - (idx % 4)
+        row = idx // 4
+        trim_x = x_start + col * (CARD_W_MM + GAP_MM)
+        trim_y_top = y_start + row * (CARD_H_MM + GAP_MM)
+        trim_y_bot_pdf = SHEET_H_MM - (trim_y_top + CARD_H_MM)
+        back_origins.append((trim_x, trim_y_bot_pdf))
 
-        rect = pymupdf.Rect(
-            pt(ox_mm),
+        dest_rect = pymupdf.Rect(
+            pt(trim_x - BLEED_MM),
             pt(trim_y_top - BLEED_MM),
-            pt(ox_mm + PAGE_W_MM),
-            pt(trim_y_top + TRIM_H_MM + BLEED_MM),
+            pt(trim_x + CARD_W_MM + BLEED_MM),
+            pt(trim_y_top + CARD_H_MM + BLEED_MM),
         )
-        p_back.show_pdf_page(rect, back_src, 0, oc=meta["ocg_art"])
+        p_back.show_pdf_page(dest_rect, back_src, 0, clip=src_clip, oc=meta["ocg_art"])
     back_src.close()
-    attach_vector_layers_to_page(doc, p_back, meta, back_placements)
+    attach_vector_layers_to_page(doc, p_back, meta, back_origins)
 
     doc.save(out_path, deflate=True, garbage=4)
     doc.close()
@@ -352,7 +360,7 @@ def render_pdf_page_image(pdf_path: Path, page_idx: int, dpi: int = 300, hide_la
 
 
 def make_diecut_mask(size_px: tuple[int, int]) -> Image.Image:
-    """Create an antialiased alpha mask matching the 90x108 mm rounded + notched ticket contour."""
+    """Create an antialiased alpha mask matching the 60.75x108 mm rounded + notched 9:16 contour."""
     w, h = size_px
     S = 4
     W, H = w * S, h * S
@@ -368,8 +376,10 @@ def make_diecut_mask(size_px: tuple[int, int]) -> Image.Image:
     mask = Image.new("L", (W, H), 0)
     d = ImageDraw.Draw(mask)
 
-    x0, x1 = mx(BLEED_MM), mx(BLEED_MM + TRIM_W_MM)
-    y0, y1 = my(BLEED_MM), my(BLEED_MM + TRIM_H_MM)
+    x0 = mx(BLEED_MM + CARD_OFFSET_X_MM)
+    x1 = mx(BLEED_MM + CARD_OFFSET_X_MM + CARD_W_MM)
+    y0 = my(BLEED_MM)
+    y1 = my(BLEED_MM + CARD_H_MM)
     rc_x = mx(R_CORNER_MM)
     rc_y = my(R_CORNER_MM)
 
@@ -385,16 +395,18 @@ def make_diecut_mask(size_px: tuple[int, int]) -> Image.Image:
 
 def generate_proofs():
     OUT_PROOFS.mkdir(parents=True, exist_ok=True)
-    dpi = 250
+    dpi = 280
 
     def cut_card_rgba(pdf_path: Path, page_idx: int) -> Image.Image:
         rgb = render_pdf_page_image(pdf_path, page_idx, dpi=dpi, hide_layers=("DieCut", "Crease"))
         mask = make_diecut_mask(rgb.size)
         rgba = rgb.convert("RGBA")
         rgba.putalpha(mask)
-        pad_x = int(round(BLEED_MM * rgb.width / PAGE_W_MM))
-        pad_y = int(round(BLEED_MM * rgb.height / PAGE_H_MM))
-        return rgba.crop((pad_x, pad_y, rgb.width - pad_x, rgb.height - pad_y))
+        x0 = int(round((BLEED_MM + CARD_OFFSET_X_MM) * rgb.width / PAGE_W_MM))
+        x1 = int(round((BLEED_MM + CARD_OFFSET_X_MM + CARD_W_MM) * rgb.width / PAGE_W_MM))
+        y0 = int(round(BLEED_MM * rgb.height / PAGE_H_MM))
+        y1 = int(round((BLEED_MM + CARD_H_MM) * rgb.height / PAGE_H_MM))
+        return rgba.crop((x0, y0, x1, y1))
 
     cards_1_4 = [cut_card_rgba(OUT_PDF / f"card-{slug}.pdf", 0) for slug in CARD_SLUGS[:4]]
     cw, ch = cards_1_4[0].size
@@ -430,8 +442,8 @@ def generate_proofs():
     tech_sheet.paste(tech_back, (margin + tw + gap, margin))
     tech_sheet.save(OUT_PROOFS / "proof-technical-diecut-layers.png")
 
-    sra3_f = render_pdf_page_image(OUT_PDF / "press-sheet-sra3-9up.pdf", 0, dpi=120, hide_layers=())
-    sra3_b = render_pdf_page_image(OUT_PDF / "press-sheet-sra3-9up.pdf", 1, dpi=120, hide_layers=())
+    sra3_f = render_pdf_page_image(OUT_PDF / "press-sheet-sra3-12up.pdf", 0, dpi=120, hide_layers=())
+    sra3_b = render_pdf_page_image(OUT_PDF / "press-sheet-sra3-12up.pdf", 1, dpi=120, hide_layers=())
     sw, sh_p = sra3_f.size
     sra3_sheet = Image.new("RGB", (margin * 2 + 2 * sw + gap, margin * 2 + sh_p), (235, 235, 235))
     sra3_sheet.paste(sra3_f, (margin, margin))
@@ -468,7 +480,7 @@ def verify_pdf_compliance(pdf_path: Path):
             nums = [float(x) for x in tb.strip("[]").split()]
             tw_mm = (nums[2] - nums[0]) / MM_TO_PT
             th_mm = (nums[3] - nums[1]) / MM_TO_PT
-            assert abs(tw_mm - TRIM_W_MM) < 0.05 and abs(th_mm - TRIM_H_MM) < 0.05, f"{pdf_path.name} bad TrimBox {tw_mm}x{th_mm}"
+            assert abs(tw_mm - CANVAS_TRIM_W_MM) < 0.05 and abs(th_mm - CANVAS_TRIM_H_MM) < 0.05, f"{pdf_path.name} bad TrimBox {tw_mm}x{th_mm}"
 
     doc.close()
 
@@ -478,10 +490,10 @@ def main():
     OUT_SVG.mkdir(parents=True, exist_ok=True)
     OUT_PROOFS.mkdir(parents=True, exist_ok=True)
 
-    # Remove old 6-up sheet if present
-    old_6up = OUT_PDF / "press-sheet-sra3-6up.pdf"
-    if old_6up.exists():
-        old_6up.unlink()
+    for old_name in ("press-sheet-sra3-6up.pdf", "press-sheet-sra3-9up.pdf"):
+        p = OUT_PDF / old_name
+        if p.exists():
+            p.unlink()
 
     back_art = ART_PDF_DIR / "universal-back.pdf"
 
@@ -519,7 +531,7 @@ def main():
     build_layered_svg(back_art, OUT_SVG / "universal-back.svg")
     print("Built universal-back.pdf + universal-back.svg")
 
-    sra3_path = OUT_PDF / "press-sheet-sra3-9up.pdf"
+    sra3_path = OUT_PDF / "press-sheet-sra3-12up.pdf"
     build_sra3_press_sheet(sra3_path)
     print(f"Built {sra3_path.name}")
 

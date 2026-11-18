@@ -1,6 +1,6 @@
-// Renders the 7 Front Result Cards and 1 Universal Back Card as high-precision 96 mm x 114 mm
-// (90 mm x 108 mm trim + 3 mm bleed) Artwork PDFs using headless Chromium (CDP),
-// self-hosted web fonts, Three.js 3D medals, CLAY engine sprites, and crisp vector SVG QR codes.
+// Renders the 7 Front Result Cards and 1 Universal Back Card keeping the original 9:16 card
+// aspect ratio (60.75 mm x 108.0 mm finished card) centered on the 90 mm x 108 mm print canvas
+// (+ 3 mm bleed = 96 mm x 114 mm).
 
 import { createServer } from "node:http";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -19,6 +19,14 @@ const PROP_DIR = join(CACHE, "props");
 
 const GAME_URL = "https://3fallcrab.com/";
 const IG_URL = "https://www.instagram.com/3fallfun_campaign?dlrf=azdibDNjdTk4MzQ4";
+
+// 9:16 card (60.75 x 108.0 mm) centered on 90 x 108 mm trim (+ 3 mm bleed = 96 x 114 mm)
+const CANVAS_W_MM = 96.0;
+const CANVAS_H_MM = 114.0;
+const CARD_W_MM = 60.75;
+const CARD_OFFSET_X_MM = 17.625; // 3.0 + (90.0 - 60.75) / 2
+const Y_STUB_PAGE_MM = 78.9375;  // 3.0 + 108.0 * (1350 / 1920)
+const POSTER_BLEED_H_MM = 81.9375; // 3.0 + 75.9375 + 3.0
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -112,15 +120,15 @@ function silhouetteSvg(rows, worldW = 440) {
   return `<svg class="sil-svg" viewBox="0 0 ${sw} ${sh}" xmlns="http://www.w3.org/2000/svg"><rect width="${sw}" height="${sh}" rx="5" fill="rgba(255,255,255,0.08)"/>${bars}</svg>`;
 }
 
-function grainSvg(seedStart = 11, wMm = 96, hMm = 41) {
+function grainSvg(seedStart = 11, wMm = CANVAS_W_MM, hMm = CANVAS_H_MM - Y_STUB_PAGE_MM) {
   let seed = seedStart;
   const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   let dots = "";
-  for (let i = 0; i < 520; i++) {
+  for (let i = 0; i < 480; i++) {
     const x = (rnd() * wMm).toFixed(2);
     const y = (rnd() * hMm).toFixed(2);
     const a = (0.025 + rnd() * 0.055).toFixed(3);
-    const r = (0.08 + rnd() * 0.09).toFixed(2);
+    const r = (0.07 + rnd() * 0.08).toFixed(2);
     dots += `<circle cx="${x}" cy="${y}" r="${r}" fill="rgba(255,255,255,${a})"/>`;
   }
   return `<svg class="grain-svg" viewBox="0 0 ${wMm} ${hMm}" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">${dots}</svg>`;
@@ -141,15 +149,15 @@ function buildFrontHtml(card) {
   const challengeQr = qrSvgString(card.challengeUrl, { dark: "#171A33", light: "#F6F0D8", quiet: 2, className: "mini-qr-svg" });
 
   const zhLen = Array.from(card.verdict.zh).length;
-  const zhSvgSize = zhLen >= 6 ? 17.5 : 20;
-  const enTitleSize = card.verdict.en.length >= 24 ? "6.1pt" : "6.8pt";
+  const zhSvgSize = zhLen >= 6 ? 18.0 : 20.5;
+  const enTitleSize = card.verdict.en.length >= 24 ? "4.9pt" : "5.4pt";
   const billingStr = `領銜主演  ${card.playerName}  ·  ${card.personaZh} ${card.comboEn}`;
-  const billingSize = billingStr.length > 36 ? "5.6pt" : "6.0pt";
-  const stageSize = stageLabel.length > 14 ? "6.9pt" : "7.8pt";
-  const savedSize = card.formattedScore.length >= 9 ? "10.6pt" : "11.4pt";
+  const billingSize = billingStr.length > 36 ? "4.3pt" : "4.7pt";
+  const stageSize = stageLabel.length > 14 ? "5.2pt" : "5.9pt";
+  const savedSize = card.formattedScore.length >= 9 ? "8.2pt" : "8.8pt";
 
-  // Subtle 35mm cinema sprocket perforations along outer wings of the zoomed-out poster frame
-  const sprockets = Array.from({ length: 11 }, (_, i) => `<i style="top:${(9.2 + i * 5.6).toFixed(1)}mm"></i>`).join("");
+  const stubH = CANVAS_H_MM - Y_STUB_PAGE_MM; // 35.0625 mm (32.0625 trim + 3.0 bleed)
+  const padSide = CARD_OFFSET_X_MM + 3.8; // 21.425 mm from page edge -> 3.8 mm inside 60.75 mm card
 
   return `<!doctype html>
 <html lang="zh-HK">
@@ -157,179 +165,132 @@ function buildFrontHtml(card) {
 <meta charset="utf-8">
 <style>
 ${fontFacesCss()}
-@page { size: 96mm 114mm; margin: 0; }
+@page { size: ${CANVAS_W_MM}mm ${CANVAS_H_MM}mm; margin: 0; }
 * { box-sizing: border-box; }
 html, body {
-  margin: 0; padding: 0; width: 96mm; height: 114mm; overflow: hidden;
+  margin: 0; padding: 0; width: ${CANVAS_W_MM}mm; height: ${CANVAS_H_MM}mm; overflow: hidden;
   background: #0B0C17;
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
-.page { position: relative; width: 96mm; height: 114mm; overflow: hidden; }
-.top-stage {
-  position: absolute; left: 0; top: 0; width: 96mm; height: 75mm;
-  overflow: hidden; background: #13162D;
+.page { position: relative; width: ${CANVAS_W_MM}mm; height: ${CANVAS_H_MM}mm; overflow: hidden; }
+.poster-bleed {
+  position: absolute; left: 0; top: 0; width: ${CANVAS_W_MM}mm; height: ${POSTER_BLEED_H_MM}mm;
+  object-fit: fill; display: block;
 }
-.ambient-bg {
-  position: absolute; left: 0; top: 0; width: 96mm; height: 74mm;
-  object-fit: cover; display: block;
-}
-.stage-vignette {
-  position: absolute; inset: 0;
-  background: radial-gradient(54mm 42mm at 50% 48%, rgba(23,26,51,0.0) 40%, rgba(11,12,23,0.58) 100%);
-}
-.cinema-frame {
-  position: absolute; left: 8.5mm; right: 8.5mm; top: 5.5mm; height: 65.5mm;
-  border: 0.25mm solid rgba(201, 163, 90, 0.34);
-  border-radius: 2.6mm;
-  pointer-events: none;
-}
-.sprockets-l, .sprockets-r {
-  position: absolute; top: 0; width: 2.8mm; height: 72mm; pointer-events: none;
-}
-.sprockets-l { left: 10.3mm; }
-.sprockets-r { right: 10.3mm; }
-.sprockets-l i, .sprockets-r i {
-  position: absolute; left: 0; width: 2.8mm; height: 2.0mm;
-  border-radius: 0.5mm;
-  background: rgba(246, 240, 216, 0.16);
-  border: 0.16mm solid rgba(201, 163, 90, 0.28);
-}
-.poster-wrap {
-  position: absolute; left: 50%; top: 6.2mm; transform: translateX(-50%);
-  width: 51.2mm; height: 64.0mm;
-  border-radius: 2.0mm;
-  overflow: hidden;
-  border: 0.35mm solid rgba(232, 201, 138, 0.78);
-  box-shadow: 0 1.4mm 4.2mm rgba(0, 0, 0, 0.68);
-}
-.poster-sharp {
-  width: 100%; height: 100%; object-fit: cover; display: block;
-}
-
 .stub {
-  position: absolute; left: 0; top: 73.0mm; width: 96mm; height: 41.0mm;
+  position: absolute; left: 0; top: ${Y_STUB_PAGE_MM}mm; width: ${CANVAS_W_MM}mm; height: ${stubH}mm;
   background: linear-gradient(180deg, #171A33 0%, #0B0C17 100%);
   color: #F6F0D8;
   overflow: hidden;
 }
 .grain-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .perf-line {
-  position: absolute; left: 8.5mm; right: 8.5mm; top: 0;
-  border-top: 0.32mm dashed rgba(246, 240, 216, 0.48);
+  position: absolute; left: ${padSide}mm; right: ${padSide}mm; top: 0;
+  border-top: 0.25mm dashed rgba(246, 240, 216, 0.48);
 }
 .stub-inner {
   position: absolute;
-  left: 8.5mm; right: 8.5mm; top: 3.1mm; bottom: 7.5mm;
+  left: ${padSide}mm; right: ${padSide}mm; top: 2.3mm; bottom: 6.4mm;
   display: flex; flex-direction: column; justify-content: space-between;
 }
 .hdr {
   display: flex; align-items: baseline; justify-content: space-between; line-height: 1;
 }
 .gold-label {
-  font-family: ${fSans}; font-weight: 800; font-size: 4.4pt;
-  letter-spacing: 0.30mm; color: #C9A35A; text-transform: uppercase;
+  font-family: ${fSans}; font-weight: 800; font-size: 3.45pt;
+  letter-spacing: 0.22mm; color: #C9A35A; text-transform: uppercase;
 }
 .hdr-mid {
-  font-family: ${fZh}; font-weight: 500; font-size: 4.2pt; color: #B5AFC4;
+  font-family: ${fZh}; font-weight: 500; font-size: 3.2pt; color: #B5AFC4;
 }
 .verdict-row {
-  display: flex; align-items: center; gap: 2.0mm;
+  display: flex; align-items: center; gap: 1.5mm;
 }
 .medal-pic {
-  width: 9.0mm; height: 10.6mm; flex: none; object-fit: contain;
-  filter: drop-shadow(0 0.5mm 0.9mm rgba(0,0,0,0.55));
+  width: 7.5mm; height: 8.8mm; flex: none; object-fit: contain;
+  filter: drop-shadow(0 0.4mm 0.75mm rgba(0,0,0,0.55));
 }
 .verdict-text { min-width: 0; flex: 1; }
 .title-zh-svg {
-  display: block; width: 100%; height: 4.3mm; overflow: visible;
+  display: block; width: 100%; height: 3.6mm; overflow: visible;
 }
 .title-zh-txt {
   font-family: ${fZh}; font-weight: 700;
 }
 .title-en {
-  margin: 0.15mm 0 0; font-family: ${fSerif}; font-style: italic; font-weight: 700;
+  margin: 0.1mm 0 0; font-family: ${fSerif}; font-style: italic; font-weight: 700;
   font-size: ${enTitleSize}; line-height: 1.08; color: #E8C98A; white-space: nowrap;
 }
 .roast {
-  margin: 0.3mm 0 0; font-family: ${fZh}; font-weight: 500; font-size: 5.4pt;
+  margin: 0.25mm 0 0; font-family: ${fZh}; font-weight: 500; font-size: 4.3pt;
   line-height: 1.12; color: #C3BDD3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .rule {
-  height: 0.20mm; width: 100%; background: rgba(201, 163, 90, 0.45);
+  height: 0.16mm; width: 100%; background: rgba(201, 163, 90, 0.45);
 }
 .metrics {
-  display: grid; grid-template-columns: 27.5mm 1fr 19.5mm; align-items: start; gap: 2.0mm;
+  display: grid; grid-template-columns: 19.8mm 1fr 13.5mm; align-items: start; gap: 1.3mm;
 }
-.m-label { display: block; margin-bottom: 0.4mm; }
+.m-label { display: block; margin-bottom: 0.35mm; }
 .saved-val {
   font-family: ${fSerif}; font-weight: 700; font-size: ${savedSize}; line-height: 1.02;
   color: #FFD98A; white-space: nowrap;
 }
 .stage-val {
-  font-family: ${fZh}; font-weight: 700; font-size: ${stageSize}; line-height: 1.05;
+  font-family: ${fZh}; font-weight: 700; font-size: ${stageSize}; line-height: 1.06;
   color: #F6F0D8; white-space: nowrap;
 }
 .best-val {
-  margin-top: 0.3mm; font-family: ${fZh}; font-weight: 500; font-size: 5.0pt;
+  margin-top: 0.25mm; font-family: ${fZh}; font-weight: 500; font-size: 4.0pt;
   line-height: 1.08; color: #B5AFC4;
 }
 .falls-wrap { text-align: right; }
 .falls-row {
-  display: flex; justify-content: flex-end; gap: 1.1mm; margin-top: 0.25mm;
+  display: flex; justify-content: flex-end; gap: 0.85mm; margin-top: 0.2mm;
 }
 .fall-badge {
-  width: 3.9mm; height: 3.9mm; border-radius: 50%;
-  border: 0.25mm solid rgba(255,255,255,0.88);
+  width: 3.1mm; height: 3.1mm; border-radius: 50%;
+  border: 0.20mm solid rgba(255,255,255,0.88);
   display: inline-flex; align-items: center; justify-content: center;
-  font-family: ${fDisplay}; font-weight: 900; font-size: 4.8pt; line-height: 1; color: #FFFFFF;
+  font-family: ${fDisplay}; font-weight: 900; font-size: 3.9pt; line-height: 1; color: #FFFFFF;
 }
-.billing { text-align: center; line-height: 1.14; }
+.billing { text-align: center; line-height: 1.12; }
 .billing-main {
   font-family: ${fZh}; font-weight: 700; font-size: ${billingSize};
-  color: #F6F0D8; letter-spacing: 0.10mm; white-space: nowrap;
+  color: #F6F0D8; letter-spacing: 0.08mm; white-space: nowrap;
 }
 .billing-sub {
-  margin-top: 0.2mm; font-family: ${fZh}; font-weight: 500; font-size: 4.8pt; color: #B5AFC4;
+  margin-top: 0.18mm; font-family: ${fZh}; font-weight: 500; font-size: 3.9pt; color: #B5AFC4;
 }
 .dash-foot {
-  border-top: 0.28mm dashed rgba(246, 240, 216, 0.42);
+  border-top: 0.22mm dashed rgba(246, 240, 216, 0.42);
 }
 .foot {
   display: flex; align-items: center; justify-content: space-between;
-  padding-top: 0.25mm;
+  padding-top: 0.2mm;
 }
-.foot-left { display: flex; align-items: center; gap: 1.1mm; }
-.mini-qr-svg { width: 4.4mm; height: 4.4mm; display: block; border-radius: 0.35mm; }
-.bc-col { display: flex; flex-direction: column; align-items: center; width: 11.5mm; }
-.barcode { width: 11.5mm; height: 2.6mm; display: block; }
+.foot-left { display: flex; align-items: center; gap: 0.85mm; }
+.mini-qr-svg { width: 3.7mm; height: 3.7mm; display: block; border-radius: 0.3mm; }
+.bc-col { display: flex; flex-direction: column; align-items: center; width: 9.0mm; }
+.barcode { width: 9.0mm; height: 2.1mm; display: block; }
 .bc-no {
-  margin-top: 0.3mm; font-family: ${fSans}; font-weight: 700; font-size: 3.3pt;
-  letter-spacing: 0.20mm; color: #B5AFC4; line-height: 1;
+  margin-top: 0.25mm; font-family: ${fSans}; font-weight: 700; font-size: 2.6pt;
+  letter-spacing: 0.14mm; color: #B5AFC4; line-height: 1;
 }
-.sil-svg { width: 2.7mm; height: 3.9mm; display: block; }
+.sil-svg { width: 2.2mm; height: 3.2mm; display: block; }
 .foot-url {
-  font-family: ${fDisplay}; font-weight: 900; font-size: 8.1pt; line-height: 1;
-  color: #FF7AB4; letter-spacing: 0.04mm;
+  font-family: ${fDisplay}; font-weight: 900; font-size: 6.4pt; line-height: 1;
+  color: #FF7AB4; letter-spacing: 0.03mm;
 }
 .foot-right { text-align: right; line-height: 1.22; }
 .foot-right div {
-  font-family: ${fSans}; font-weight: 800; font-size: 4.1pt; letter-spacing: 0.22mm; color: #C9A35A;
+  font-family: ${fSans}; font-weight: 800; font-size: 3.25pt; letter-spacing: 0.16mm; color: #C9A35A;
 }
 </style>
 </head>
 <body>
 <div class="page">
-  <div class="top-stage">
-    <img class="ambient-bg" src="/cache/posters/${card.poster}-ambient.jpg" alt="">
-    <div class="stage-vignette"></div>
-    <div class="cinema-frame"></div>
-    <div class="sprockets-l">${sprockets}</div>
-    <div class="sprockets-r">${sprockets}</div>
-    <div class="poster-wrap">
-      <img class="poster-sharp" src="/cache/posters/${card.poster}-sharp.jpg" alt="">
-    </div>
-  </div>
-
+  <img class="poster-bleed" src="/cache/posters/${card.poster}-bleed.jpg" alt="">
   <div class="stub">
     ${grainSvg(11 + card.index * 7)}
     <div class="perf-line"></div>
@@ -343,7 +304,7 @@ html, body {
       <div class="verdict-row">
         <img class="medal-pic" src="/cache/medals/medal-${card.tier}.png" alt="">
         <div class="verdict-text">
-          <span class="gold-label" style="display:block;margin-bottom:0.25mm;">我的稱號 · MY TITLE</span>
+          <span class="gold-label" style="display:block;margin-bottom:0.2mm;">我的稱號 · MY TITLE</span>
           <svg class="title-zh-svg" viewBox="0 0 240 22" preserveAspectRatio="xMinYMid meet" xmlns="http://www.w3.org/2000/svg">
             <defs>
               <linearGradient id="goldFoil" x1="0" y1="0" x2="0" y2="1">
@@ -419,39 +380,44 @@ function buildBackHtml() {
   const qrGame = qrSvgString(GAME_URL, { dark: "#171A33", light: "#FFFFFF", quiet: 3, className: "qr-svg" });
   const qrIg = qrSvgString(IG_URL, { dark: "#171A33", light: "#FFFFFF", quiet: 3, className: "qr-svg" });
 
+  const stubH = CANVAS_H_MM - Y_STUB_PAGE_MM; // 35.0625 mm
+  const padSide = CARD_OFFSET_X_MM + 3.8; // 21.425 mm
+
   const harbourSvg = `
-  <svg class="harbour-svg" viewBox="0 0 96 24" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+  <svg class="harbour-svg" viewBox="0 0 96 28" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
     <defs>
       <linearGradient id="skyBack" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" stop-color="rgba(127,211,255,0)"/>
         <stop offset="55%" stop-color="rgba(142,219,255,0.40)"/>
-        <stop offset="100%" stop-color="rgba(58,155,240,0.30)"/>
+        <stop offset="100%" stop-color="rgba(58,155,240,0.32)"/>
       </linearGradient>
     </defs>
-    <rect width="96" height="24" fill="url(#skyBack)"/>
-    <path d="M0 19 Q14 12 26 15 Q38 9 52 14 Q68 10 82 14 L96 16 L96 24 L0 24 Z" fill="rgba(76,195,106,0.20)"/>
+    <rect width="96" height="28" fill="url(#skyBack)"/>
+    <path d="M0 22 Q16 14 28 17 Q42 10 54 16 Q69 11 82 16 L96 18 L96 28 L0 28 Z" fill="rgba(76,195,106,0.22)"/>
     <g fill="rgba(58,155,240,0.22)">
-      <rect x="3" y="10" width="7" height="14" rx="0.8"/>
-      <rect x="11" y="7" width="6" height="17" rx="0.8"/>
-      <polygon points="21,24 21,11 25,5 29,11 29,24"/>
-      <rect x="32" y="9" width="7" height="15" rx="0.8"/>
-      <rect x="44" y="4" width="8" height="20" rx="1.2"/>
-      <rect x="55" y="8" width="7" height="16" rx="0.8"/>
-      <rect x="65" y="7" width="7" height="17" rx="0.8"/>
-      <rect x="75" y="10" width="6" height="14" rx="0.8"/>
-      <rect x="83" y="6" width="8" height="18" rx="0.8"/>
+      <rect x="6" y="13" width="6" height="15" rx="0.8"/>
+      <rect x="14" y="10" width="5" height="18" rx="0.8"/>
+      <rect x="22" y="11" width="6" height="17" rx="0.8"/>
+      <polygon points="30,28 30,13 33.5,6 37,13 37,28"/>
+      <rect x="39" y="10" width="6" height="18" rx="0.8"/>
+      <rect x="47" y="5" width="7" height="23" rx="1.1"/>
+      <rect x="56" y="10" width="6" height="18" rx="0.8"/>
+      <rect x="64" y="8" width="6" height="20" rx="0.8"/>
+      <rect x="72" y="12" width="5.5" height="16" rx="0.8"/>
+      <rect x="80" y="9" width="7" height="19" rx="0.8"/>
     </g>
-    <path d="M0 19.5 Q12 18 24 19.5 T48 19.5 T72 19.5 T96 19.5 L96 24 L0 24 Z" fill="rgba(58,155,240,0.36)"/>
+    <path d="M0 22.5 Q12 21 24 22.5 T48 22.5 T72 22.5 T96 22.5 L96 28 L0 28 Z" fill="rgba(58,155,240,0.36)"/>
+    <path d="M0 24.5 Q12 23.2 24 24.5 T48 24.5 T72 24.5 T96 24.5" fill="none" stroke="rgba(255,253,247,0.55)" stroke-width="0.45"/>
   </svg>`;
 
   const letters = [
-    ["3", "#FF5FA2", -6, "0", "0.7mm"],
+    ["3", "#FF5FA2", -6, "0", "0.6mm"],
     ["F", "#3A9BF0", 0, "0", "0"],
-    ["a", "#4CC36A", 0, "0.3mm", "0"],
+    ["a", "#4CC36A", 0, "0.28mm", "0"],
     ["l", "#FF7B35", 0, "0", "0"],
-    ["l", "#8B6CF2", 4, "0", "0.6mm"],
+    ["l", "#8B6CF2", 4, "0", "0.55mm"],
     ["F", "#F2463E", 0, "0", "0"],
-    ["u", "#20C1B3", 0, "-0.25mm", "0"],
+    ["u", "#20C1B3", 0, "-0.22mm", "0"],
     ["n", "#FF5FA2", 5, "0", "0"],
   ];
 
@@ -461,218 +427,221 @@ function buildBackHtml() {
 <meta charset="utf-8">
 <style>
 ${fontFacesCss()}
-@page { size: 96mm 114mm; margin: 0; }
+@page { size: ${CANVAS_W_MM}mm ${CANVAS_H_MM}mm; margin: 0; }
 * { box-sizing: border-box; }
 html, body {
-  margin: 0; padding: 0; width: 96mm; height: 114mm; overflow: hidden;
+  margin: 0; padding: 0; width: ${CANVAS_W_MM}mm; height: ${CANVAS_H_MM}mm; overflow: hidden;
   background: #FFD23F;
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
-.page { position: relative; width: 96mm; height: 114mm; overflow: hidden; }
+.page { position: relative; width: ${CANVAS_W_MM}mm; height: ${CANVAS_H_MM}mm; overflow: hidden; }
 .top-zone {
-  position: absolute; left: 0; top: 0; width: 96mm; height: 73.0mm;
+  position: absolute; left: 0; top: 0; width: ${CANVAS_W_MM}mm; height: ${Y_STUB_PAGE_MM}mm;
   background-color: #FFD23F;
   background-image:
-    radial-gradient(66mm 36mm at 50% 62%, rgba(255, 250, 224, 0.72) 0%, rgba(255, 250, 224, 0) 75%),
-    radial-gradient(80mm 34mm at 50% 0%, #FFE682 0%, rgba(255, 230, 130, 0) 72%),
-    radial-gradient(circle at 12% 18%, rgba(255,255,255,0.42) 0 0.5mm, transparent 0.65mm),
-    radial-gradient(circle at 72% 60%, rgba(160,90,10,0.09) 0 0.5mm, transparent 0.65mm);
-  background-size: auto, auto, 9.0mm 9.0mm, 11.0mm 11.0mm;
+    radial-gradient(50mm 32mm at 50% 62%, rgba(255, 250, 224, 0.72) 0%, rgba(255, 250, 224, 0) 75%),
+    radial-gradient(64mm 30mm at 50% 0%, #FFE682 0%, rgba(255, 230, 130, 0) 72%),
+    radial-gradient(circle at 12% 18%, rgba(255,255,255,0.42) 0 0.42mm, transparent 0.55mm),
+    radial-gradient(circle at 72% 60%, rgba(160,90,10,0.09) 0 0.42mm, transparent 0.55mm);
+  background-size: auto, auto, 7.0mm 7.0mm, 8.5mm 8.5mm;
   overflow: hidden;
 }
 .harbour-svg {
-  position: absolute; left: 0; top: 15.5mm; width: 96mm; height: 22mm;
+  position: absolute; left: 0; top: 19.5mm; width: ${CANVAS_W_MM}mm; height: 25mm;
   pointer-events: none;
+}
+/* Card-width centered stage (60.75 mm) matching original 9:16 Back layout */
+.card-stage {
+  position: absolute; left: ${CARD_OFFSET_X_MM}mm; top: 3.0mm; width: ${CARD_W_MM}mm; height: ${Y_STUB_PAGE_MM - 3.0}mm;
 }
 .header {
   position: relative; z-index: 3;
-  padding-top: 7.5mm; text-align: center;
-  width: 56mm; margin: 0 auto;
+  padding-top: 3.4mm; text-align: center;
 }
 .edition-pill {
   display: inline-block;
-  padding: 0.6mm 2.4mm;
+  padding: 0.52mm 2.0mm;
   border-radius: 999px;
   background: #25317A;
   color: #FFE45C;
-  font-family: ${fSans}; font-weight: 800; font-size: 4.1pt; letter-spacing: 0.25mm;
-  box-shadow: 0 0.4mm 0 rgba(0,0,0,0.16);
+  font-family: ${fSans}; font-weight: 800; font-size: 3.2pt; letter-spacing: 0.22mm;
+  box-shadow: 0 0.35mm 0 rgba(0,0,0,0.16);
 }
 .word {
-  margin: 1.1mm 0 0;
-  font-family: ${fDisplay}; font-weight: 900; font-size: 18.0pt; line-height: 0.92;
+  margin: 1.0mm 0 0;
+  font-family: ${fDisplay}; font-weight: 900; font-size: 16.0pt; line-height: 0.92;
   white-space: nowrap;
 }
 .word span {
   display: inline-block;
-  -webkit-text-stroke: 0.72mm #FFFDF7;
+  -webkit-text-stroke: 0.62mm #FFFDF7;
   paint-order: stroke fill;
-  filter: drop-shadow(0 0.5mm 0 rgba(37, 49, 122, 0.28));
+  filter: drop-shadow(0 0.45mm 0 rgba(37, 49, 122, 0.28));
 }
 .zh-title {
   margin: 0.4mm 0 0;
-  font-family: ${fZh}; font-weight: 700; font-size: 9.8pt; line-height: 1.08;
-  letter-spacing: 1.2mm; color: #25317A;
-  text-shadow: 0 0.3mm 0 rgba(255,255,255,0.75);
+  font-family: ${fZh}; font-weight: 700; font-size: 8.4pt; line-height: 1.08;
+  letter-spacing: 1.0mm; color: #25317A;
+  text-shadow: 0 0.25mm 0 rgba(255,255,255,0.75);
 }
 .tagline {
   margin: 0.35mm 0 0;
-  font-family: ${fSans}; font-weight: 700; font-size: 4.6pt; color: #5B516C; white-space: nowrap;
+  font-family: ${fSans}; font-weight: 700; font-size: 3.7pt; color: #5B516C;
 }
-/* Protagonists flanking header & perched on the yellow shelf right above the Dual-QR plaque */
+/* Protagonists stage resting cleanly on yellow Savings Foundation bar */
 .stage-cast {
-  position: absolute; left: 3mm; right: 3mm; top: 8.0mm; height: 28.5mm; z-index: 6;
+  position: absolute; left: 2.0mm; right: 2.0mm; top: 18.2mm; height: 22.8mm; z-index: 6;
   pointer-events: none;
 }
 .cast-jack {
-  position: absolute; left: 6.2mm; bottom: 0; height: 26.2mm; width: auto;
-  filter: drop-shadow(0 0.65mm 0.85mm rgba(60,30,15,0.28));
+  position: absolute; left: 2.0mm; bottom: 0; height: 21.4mm; width: auto;
+  filter: drop-shadow(0 0.55mm 0.7mm rgba(60,30,15,0.28));
 }
 .cast-jackie {
-  position: absolute; right: 6.2mm; bottom: 0; height: 26.2mm; width: auto;
-  filter: drop-shadow(0 0.65mm 0.85mm rgba(60,30,15,0.28));
+  position: absolute; right: 2.0mm; bottom: 0; height: 21.4mm; width: auto;
+  filter: drop-shadow(0 0.55mm 0.7mm rgba(60,30,15,0.28));
 }
 .prop-books {
-  position: absolute; left: 19.5mm; bottom: 0; width: 9.2mm; height: auto;
-  filter: drop-shadow(0 0.4mm 0.55mm rgba(60,30,15,0.24));
+  position: absolute; left: 11.4mm; bottom: 0; width: 7.5mm; height: auto;
+  filter: drop-shadow(0 0.35mm 0.45mm rgba(60,30,15,0.24));
 }
 .prop-bun {
-  position: absolute; left: 21.0mm; bottom: 3.3mm; width: 6.2mm; height: auto;
+  position: absolute; left: 12.6mm; bottom: 2.7mm; width: 5.1mm; height: auto;
   transform: rotate(-5deg);
-  filter: drop-shadow(0 0.35mm 0.45mm rgba(60,30,15,0.22));
+  filter: drop-shadow(0 0.3mm 0.4mm rgba(60,30,15,0.22));
 }
 .prop-piggy {
-  position: absolute; right: 19.2mm; bottom: 0; width: 8.8mm; height: auto;
-  filter: drop-shadow(0 0.4mm 0.55mm rgba(60,30,15,0.24));
+  position: absolute; right: 11.2mm; bottom: 0; width: 7.1mm; height: auto;
+  filter: drop-shadow(0 0.35mm 0.45mm rgba(60,30,15,0.24));
 }
 .prop-laisee {
-  position: absolute; right: 27.6mm; bottom: 0.1mm; width: 6.8mm; height: auto;
+  position: absolute; right: 17.8mm; bottom: 0.1mm; width: 5.5mm; height: auto;
   transform: rotate(-7deg);
-  filter: drop-shadow(0 0.35mm 0.45mm rgba(60,30,15,0.22));
+  filter: drop-shadow(0 0.3mm 0.4mm rgba(60,30,15,0.22));
 }
 .cast-crab {
   position: absolute; left: 50%; bottom: 0; transform: translateX(-50%);
-  width: 12.2mm; height: auto; z-index: 7;
-  filter: drop-shadow(0 0.5mm 0.75mm rgba(60,30,15,0.30));
+  width: 10.6mm; height: auto; z-index: 7;
+  filter: drop-shadow(0 0.45mm 0.65mm rgba(60,30,15,0.30));
 }
 .platform-bar {
-  position: absolute; left: 50%; top: 36.2mm; transform: translateX(-50%);
-  width: 74mm; height: 2.8mm; z-index: 5;
-  border-radius: 1.4mm;
+  position: absolute; left: 50%; top: 40.8mm; transform: translateX(-50%);
+  width: 50.0mm; height: 2.3mm; z-index: 5;
+  border-radius: 1.15mm;
   background: linear-gradient(180deg, #FFE169 0%, #FFC83D 65%, #E8A622 100%);
-  border: 0.3mm solid #FFF6D6;
-  box-shadow: 0 0.55mm 0 rgba(120,62,12,0.24);
-  display: flex; align-items: center; justify-content: center; gap: 1.8mm;
-  font-family: ${fZh}; font-weight: 700; font-size: 3.9pt; color: #25317A; letter-spacing: 0.15mm;
+  border: 0.25mm solid #FFF6D6;
+  box-shadow: 0 0.48mm 0 rgba(120,62,12,0.24);
+  display: flex; align-items: center; justify-content: center; gap: 1.3mm;
+  font-family: ${fZh}; font-weight: 700; font-size: 3.1pt; color: #25317A; letter-spacing: 0.14mm;
 }
-/* Centerpiece Dual-QR Collector Plaque right in the middle of the 90x108 mm card */
+/* Dual-QR Collector Plaque centered right in the middle of the 60.75x108mm card */
 .qr-plaque {
-  position: absolute; left: 9.5mm; right: 9.5mm; top: 38.4mm; height: 32.4mm; z-index: 4;
+  position: absolute; left: 4.1mm; right: 4.1mm; top: 42.6mm; height: 30.6mm; z-index: 4;
   background: #FFFDF7;
-  border-radius: 3.4mm;
-  border: 0.45mm solid #F2CB6B;
-  box-shadow: 0 1.1mm 0 rgba(120, 62, 12, 0.24), 0 2.4mm 4.0mm rgba(120, 62, 12, 0.14);
-  padding: 1.8mm 3.0mm 1.6mm;
+  border-radius: 2.8mm;
+  border: 0.35mm solid #F2CB6B;
+  box-shadow: 0 0.95mm 0 rgba(120, 62, 12, 0.24), 0 2.0mm 3.4mm rgba(120, 62, 12, 0.14);
+  padding: 1.8mm 2.2mm 1.5mm;
   display: flex; flex-direction: column; justify-content: space-between;
 }
 .qr-head {
   text-align: center;
-  font-family: ${fZh}; font-weight: 700; font-size: 4.8pt; color: #25317A; letter-spacing: 0.20mm;
+  font-family: ${fZh}; font-weight: 700; font-size: 3.8pt; color: #25317A; letter-spacing: 0.16mm;
 }
 .qr-grid {
-  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 1.8mm;
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 1.4mm;
 }
 .qr-sep {
-  width: 0.22mm; height: 24.5mm; background: linear-gradient(180deg, transparent, #E6D3A8 20%, #E6D3A8 80%, transparent);
+  width: 0.18mm; height: 22.0mm; background: linear-gradient(180deg, transparent, #E6D3A8 20%, #E6D3A8 80%, transparent);
 }
 .qr-col {
   display: flex; flex-direction: column; align-items: center; text-align: center;
 }
 .qr-frame {
-  width: 18.8mm; height: 18.8mm; padding: 0.65mm;
-  background: #FFFFFF; border-radius: 1.8mm;
+  width: 16.8mm; height: 16.8mm; padding: 0.6mm;
+  background: #FFFFFF; border-radius: 1.6mm;
 }
 .qr-frame.game {
-  border: 0.4mm solid #3A9BF0;
-  box-shadow: 0 0.5mm 0 rgba(58, 155, 240, 0.20);
+  border: 0.32mm solid #3A9BF0;
+  box-shadow: 0 0.45mm 0 rgba(58, 155, 240, 0.20);
 }
 .qr-frame.ig {
-  border: 0.4mm solid #FF5FA2;
-  box-shadow: 0 0.5mm 0 rgba(255, 95, 162, 0.20);
+  border: 0.32mm solid #FF5FA2;
+  box-shadow: 0 0.45mm 0 rgba(255, 95, 162, 0.20);
 }
 .qr-svg { width: 100%; height: 100%; display: block; }
 .qr-pill {
-  margin-top: 1.0mm; padding: 0.45mm 2.2mm; border-radius: 999px;
-  font-family: ${fSans}; font-weight: 900; font-size: 4.3pt; color: #FFFFFF; letter-spacing: 0.20mm;
+  margin-top: 0.95mm; padding: 0.42mm 1.8mm; border-radius: 999px;
+  font-family: ${fSans}; font-weight: 900; font-size: 3.55pt; color: #FFFFFF; letter-spacing: 0.16mm;
 }
 .qr-pill.game { background: #2275C6; }
 .qr-pill.ig { background: linear-gradient(90deg, #E1306C 0%, #F77737 100%); }
 .qr-zh {
-  margin-top: 0.65mm; font-family: ${fZh}; font-weight: 700; font-size: 4.9pt;
+  margin-top: 0.6mm; font-family: ${fZh}; font-weight: 700; font-size: 4.0pt;
   line-height: 1.08; color: #2E2838; white-space: nowrap;
 }
 .qr-handle {
-  margin-top: 0.3mm; font-family: ${fSans}; font-weight: 800; font-size: 4.5pt;
+  margin-top: 0.3mm; font-family: ${fSans}; font-weight: 800; font-size: 3.6pt;
   line-height: 1.08; white-space: nowrap;
 }
 .qr-handle.game { color: #2275C6; }
 .qr-handle.ig { color: #C12770; }
 
-/* Bottom Ticket Stub matching front stub back-to-back */
+/* Bottom Ticket Stub extending full-bleed across the 96mm canvas */
 .stub {
-  position: absolute; left: 0; top: 73.0mm; width: 96mm; height: 41.0mm;
+  position: absolute; left: 0; top: ${Y_STUB_PAGE_MM}mm; width: ${CANVAS_W_MM}mm; height: ${stubH}mm;
   background: linear-gradient(180deg, #171A33 0%, #0B0C17 100%);
   color: #F6F0D8; overflow: hidden;
 }
 .grain-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .perf-line {
-  position: absolute; left: 8.5mm; right: 8.5mm; top: 0;
-  border-top: 0.32mm dashed rgba(246, 240, 216, 0.48);
+  position: absolute; left: ${padSide}mm; right: ${padSide}mm; top: 0;
+  border-top: 0.25mm dashed rgba(246, 240, 216, 0.48);
 }
 .stub-inner {
-  position: absolute; left: 8.5mm; right: 8.5mm; top: 3.3mm; bottom: 7.5mm;
+  position: absolute; left: ${padSide}mm; right: ${padSide}mm; top: 2.5mm; bottom: 6.4mm;
   display: flex; flex-direction: column; justify-content: space-between; text-align: center;
 }
 .gold-label {
-  font-family: ${fSans}; font-weight: 800; font-size: 4.4pt;
-  letter-spacing: 0.28mm; color: #C9A35A; text-transform: uppercase;
+  font-family: ${fSans}; font-weight: 800; font-size: 3.45pt;
+  letter-spacing: 0.22mm; color: #C9A35A; text-transform: uppercase;
 }
 .falls-pills {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5mm;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.1mm;
 }
 .fpill {
-  border-radius: 1.8mm; padding: 1.0mm 0.8mm;
-  border: 0.22mm solid rgba(255,255,255,0.22);
+  border-radius: 1.5mm; padding: 0.85mm 0.6mm;
+  border: 0.18mm solid rgba(255,255,255,0.22);
   color: #FFFFFF;
 }
 .fpill b {
-  display: block; font-family: ${fZh}; font-weight: 700; font-size: 5.8pt; line-height: 1.12;
+  display: block; font-family: ${fZh}; font-weight: 700; font-size: 4.6pt; line-height: 1.12;
 }
 .fpill small {
-  display: block; margin-top: 0.2mm; font-family: ${fSans}; font-weight: 700;
-  font-size: 4.0pt; opacity: 0.92;
+  display: block; margin-top: 0.18mm; font-family: ${fSans}; font-weight: 700;
+  font-size: 3.0pt; opacity: 0.92;
 }
 .stages-strip {
   background: rgba(255,255,255,0.07);
-  border: 0.20mm solid rgba(201,163,90,0.32);
+  border: 0.16mm solid rgba(201,163,90,0.32);
   border-radius: 999px;
-  padding: 0.8mm 2.0mm;
-  font-family: ${fZh}; font-weight: 700; font-size: 4.6pt; color: #FFE7A0;
+  padding: 0.65mm 1.4mm;
+  font-family: ${fZh}; font-weight: 700; font-size: 3.55pt; color: #FFE7A0;
   white-space: nowrap;
 }
-.stages-strip span { color: #C9A35A; margin: 0 0.6mm; }
+.stages-strip span { color: #C9A35A; margin: 0 0.45mm; }
 .quote-zh {
-  font-family: ${fZh}; font-weight: 700; font-size: 5.8pt; color: #F6F0D8; line-height: 1.15;
+  font-family: ${fZh}; font-weight: 700; font-size: 4.6pt; color: #F6F0D8; line-height: 1.16;
 }
 .quote-en {
-  margin-top: 0.2mm; font-family: ${fSans}; font-weight: 500; font-size: 4.6pt; color: #B5AFC4;
+  margin-top: 0.18mm; font-family: ${fSans}; font-weight: 500; font-size: 3.55pt; color: #B5AFC4;
 }
-.rule { height: 0.20mm; width: 100%; background: rgba(201, 163, 90, 0.38); }
+.rule { height: 0.16mm; width: 100%; background: rgba(201, 163, 90, 0.38); }
 .credit-row {
   display: flex; justify-content: space-between; align-items: baseline;
-  font-family: ${fZh}; font-size: 4.3pt;
+  font-family: ${fZh}; font-size: 3.35pt;
 }
-.credit-row b { color: #C9A35A; font-family: ${fSans}; font-weight: 800; letter-spacing: 0.16mm; }
+.credit-row b { color: #C9A35A; font-family: ${fSans}; font-weight: 800; letter-spacing: 0.12mm; }
 .credit-row span { color: #B5AFC4; }
 </style>
 </head>
@@ -680,40 +649,42 @@ html, body {
 <div class="page">
   <div class="top-zone">
     ${harbourSvg}
-    <div class="header">
-      <span class="edition-pill">SOUVENIR EDITION · HSUHK 2026</span>
-      <h1 class="word">${letters.map(([ch, c, r, y, mr]) => `<span style="color:${c};transform:rotate(${r}deg) translateY(${y});margin-right:${mr}">${ch}</span>`).join("")}</h1>
-      <p class="zh-title">人生跌塔</p>
-      <p class="tagline">Build your future, one block at a time · 疊出你嘅未來</p>
-    </div>
+    <div class="card-stage">
+      <div class="header">
+        <span class="edition-pill">SOUVENIR EDITION · HSUHK 2026</span>
+        <h1 class="word">${letters.map(([ch, c, r, y, mr]) => `<span style="color:${c};transform:rotate(${r}deg) translateY(${y});margin-right:${mr}">${ch}</span>`).join("")}</h1>
+        <p class="zh-title">人生跌塔</p>
+        <p class="tagline">Build your future, one block at a time · 疊出你嘅未來</p>
+      </div>
 
-    <div class="stage-cast">
-      <img class="cast-jack" src="/cache/cast/jack_uni.png" alt="">
-      <img class="prop-books" src="/cache/props/textbooks.png" alt="">
-      <img class="prop-bun" src="/cache/props/polobun.png" alt="">
-      <img class="prop-laisee" src="/cache/props/laisee.png" alt="">
-      <img class="prop-piggy" src="/cache/props/piggybank.png" alt="">
-      <img class="cast-jackie" src="/cache/cast/jackie_uni.png" alt="">
-      <img class="cast-crab" src="/cache/cast/crab_happy.png" alt="">
-    </div>
+      <div class="stage-cast">
+        <img class="cast-jack" src="/cache/cast/jack_uni.png" alt="">
+        <img class="prop-books" src="/cache/props/textbooks.png" alt="">
+        <img class="prop-bun" src="/cache/props/polobun.png" alt="">
+        <img class="prop-laisee" src="/cache/props/laisee.png" alt="">
+        <img class="prop-piggy" src="/cache/props/piggybank.png" alt="">
+        <img class="cast-jackie" src="/cache/cast/jackie_uni.png" alt="">
+        <img class="cast-crab" src="/cache/cast/crab_happy.png" alt="">
+      </div>
 
-    <div class="platform-bar"><span>儲蓄基礎</span><span>·</span><span style="font-family:${fDisplay};font-weight:900;">SAVINGS FOUNDATION</span></div>
+      <div class="platform-bar"><span>儲蓄基礎</span><span>·</span><span style="font-family:${fDisplay};font-weight:900;">SAVINGS FOUNDATION</span></div>
 
-    <div class="qr-plaque">
-      <div class="qr-head">SCAN TO PLAY &amp; FOLLOW · 掃碼即玩 追蹤最新消息</div>
-      <div class="qr-grid">
-        <div class="qr-col">
-          <div class="qr-frame game">${qrGame}</div>
-          <span class="qr-pill game">PLAY GAME</span>
-          <div class="qr-zh">掃一掃即玩（3分鐘）</div>
-          <div class="qr-handle game">3fallcrab.com</div>
-        </div>
-        <div class="qr-sep"></div>
-        <div class="qr-col">
-          <div class="qr-frame ig">${qrIg}</div>
-          <span class="qr-pill ig">INSTAGRAM</span>
-          <div class="qr-zh">最新貼士同每月有獎</div>
-          <div class="qr-handle ig">@3fallfun_campaign</div>
+      <div class="qr-plaque">
+        <div class="qr-head">SCAN TO PLAY &amp; FOLLOW · 掃碼即玩 追蹤最新消息</div>
+        <div class="qr-grid">
+          <div class="qr-col">
+            <div class="qr-frame game">${qrGame}</div>
+            <span class="qr-pill game">PLAY GAME</span>
+            <div class="qr-zh">掃一掃即玩（3分鐘）</div>
+            <div class="qr-handle game">3fallcrab.com</div>
+          </div>
+          <div class="qr-sep"></div>
+          <div class="qr-col">
+            <div class="qr-frame ig">${qrIg}</div>
+            <span class="qr-pill ig">INSTAGRAM</span>
+            <div class="qr-zh">最新貼士同每月有獎</div>
+            <div class="qr-handle ig">@3fallfun_campaign</div>
+          </div>
         </div>
       </div>
     </div>
@@ -841,8 +812,8 @@ async function main() {
       marginBottom: 0,
       marginLeft: 0,
       marginRight: 0,
-      paperWidth: 96 / 25.4,
-      paperHeight: 114 / 25.4,
+      paperWidth: CANVAS_W_MM / 25.4,
+      paperHeight: CANVAS_H_MM / 25.4,
       scale: 1,
     };
 
