@@ -35,7 +35,13 @@ const MAX_BODY = 4096;
 const RANK_CAP = 500;
 const STATS_SAMPLE = 1000; // Stats tab uses the latest N games, so each request reads at most N rows
 const HABITS = HABIT_LIST.map((h) => h.id);
+const HABIT_WAS_IDS = new Set(HABIT_LIST.filter((h) => h.was).map((h) => h.was));
+const VALID_HABITS = new Set([...HABITS, ...HABIT_WAS_IDS]);
+const safeHabitNow = (id) => (typeof id === "string" && VALID_HABITS.has(id) ? habitNow(id) : null);
 const QUIZ_BY_ID = new Map(QUIZ.map((q, i) => [q.id, { ...q, i }]));
+const QUIZ_WAS_IDS = new Set(QUIZ.filter((q) => q.was).map((q) => q.was.id));
+const VALID_Q = new Set([...QUIZ_BY_ID.keys(), ...QUIZ_WAS_IDS]);
+const safeAnswerNow = (a) => (a && typeof a.q === "string" && VALID_Q.has(a.q) ? answerNow(a) : null);
 const QUIZ_PASS = Math.ceil((QUIZ.length * 2) / 3); // the programme's target: 70%+ of players score 2/3 or better
 // Finished the quiz. Games saved before per-question answers were kept only have the number right (quiz).
 const QUIZ_TAKER = `(quiz_answered = ${QUIZ.length} OR (quiz_answered IS NULL AND quiz IS NOT NULL))`;
@@ -122,11 +128,137 @@ const SCHEMA_2 = [
   `CREATE UNIQUE INDEX IF NOT EXISTS idx_scores_gid ON scores (gid)`,
   `CREATE INDEX IF NOT EXISTS idx_scores_month ON scores (month, hidden, score DESC, id)`,
 ];
+const SCHEMA_2_TABLES = [
+  `CREATE TABLE IF NOT EXISTS score_choices (
+    score_id INTEGER NOT NULL,
+    idx INTEGER NOT NULL,
+    week TEXT NOT NULL,
+    month TEXT,
+    hidden INTEGER NOT NULL DEFAULT 0,
+    card TEXT,
+    pick TEXT,
+    power TEXT,
+    PRIMARY KEY (score_id, idx)
+  )`,
+  `CREATE TABLE IF NOT EXISTS score_quiz_answers (
+    score_id INTEGER NOT NULL,
+    idx INTEGER NOT NULL,
+    week TEXT NOT NULL,
+    month TEXT,
+    hidden INTEGER NOT NULL DEFAULT 0,
+    q TEXT,
+    pick INTEGER,
+    ok INTEGER,
+    PRIMARY KEY (score_id, idx)
+  )`,
+];
+const SCHEMA_2_OPT = [
+  `CREATE INDEX IF NOT EXISTS idx_sc_card_all ON score_choices (hidden, card, pick) WHERE hidden = 0`,
+  `CREATE INDEX IF NOT EXISTS idx_sc_card_week ON score_choices (hidden, week, card, pick) WHERE hidden = 0`,
+  `CREATE INDEX IF NOT EXISTS idx_sc_card_month ON score_choices (hidden, month, card, pick) WHERE hidden = 0`,
+  `CREATE INDEX IF NOT EXISTS idx_sc_power_all ON score_choices (hidden, power) WHERE hidden = 0 AND power IS NOT NULL`,
+  `CREATE INDEX IF NOT EXISTS idx_sc_power_week ON score_choices (hidden, week, power) WHERE hidden = 0 AND power IS NOT NULL`,
+  `CREATE INDEX IF NOT EXISTS idx_sc_power_month ON score_choices (hidden, month, power) WHERE hidden = 0 AND power IS NOT NULL`,
+  `CREATE INDEX IF NOT EXISTS idx_sqa_all ON score_quiz_answers (hidden, q, pick, ok) WHERE hidden = 0`,
+  `CREATE INDEX IF NOT EXISTS idx_sqa_week ON score_quiz_answers (hidden, week, q, pick, ok) WHERE hidden = 0`,
+  `CREATE INDEX IF NOT EXISTS idx_sqa_month ON score_quiz_answers (hidden, month, q, pick, ok) WHERE hidden = 0`,
+  `CREATE INDEX IF NOT EXISTS idx_scores_qs_all ON scores (hidden, quiz, quiz_answered) WHERE hidden = 0 AND (quiz_answered = 3 OR (quiz_answered IS NULL AND quiz IS NOT NULL))`,
+  `CREATE INDEX IF NOT EXISTS idx_scores_qs_week ON scores (hidden, week, quiz, quiz_answered) WHERE hidden = 0 AND (quiz_answered = 3 OR (quiz_answered IS NULL AND quiz IS NOT NULL))`,
+  `CREATE INDEX IF NOT EXISTS idx_scores_qs_month ON scores (hidden, month, quiz, quiz_answered) WHERE hidden = 0 AND (quiz_answered = 3 OR (quiz_answered IS NULL AND quiz IS NOT NULL))`,
+  `CREATE INDEX IF NOT EXISTS idx_scores_hb_all ON scores (hidden, habit) WHERE hidden = 0`,
+  `CREATE INDEX IF NOT EXISTS idx_scores_hb_week ON scores (hidden, week, habit) WHERE hidden = 0`,
+  `CREATE INDEX IF NOT EXISTS idx_scores_hb_month ON scores (hidden, month, habit) WHERE hidden = 0`,
+  `CREATE INDEX IF NOT EXISTS idx_scores_st_all ON scores (hidden, stage) WHERE hidden = 0`,
+  `CREATE INDEX IF NOT EXISTS idx_scores_st_week ON scores (hidden, week, stage) WHERE hidden = 0`,
+  `CREATE INDEX IF NOT EXISTS idx_scores_st_month ON scores (hidden, month, stage) WHERE hidden = 0`,
+  `CREATE INDEX IF NOT EXISTS idx_scores_mt_all ON scores (hidden, mtype) WHERE hidden = 0 AND mtype IS NOT NULL`,
+  `CREATE INDEX IF NOT EXISTS idx_scores_mt_week ON scores (hidden, week, mtype) WHERE hidden = 0 AND mtype IS NOT NULL`,
+  `CREATE INDEX IF NOT EXISTS idx_scores_mt_month ON scores (hidden, month, mtype) WHERE hidden = 0 AND mtype IS NOT NULL`,
+  `CREATE INDEX IF NOT EXISTS idx_scores_vc_week ON scores (hidden, week, month) WHERE hidden = 0 AND via = 'c'`,
+  `CREATE INDEX IF NOT EXISTS idx_scores_vc_month ON scores (hidden, month) WHERE hidden = 0 AND via = 'c'`,
+  `CREATE INDEX IF NOT EXISTS idx_scores_tt_all ON scores (hidden, title) WHERE hidden = 0 AND title IS NOT NULL`,
+  `CREATE INDEX IF NOT EXISTS idx_scores_tt_week ON scores (hidden, week, title) WHERE hidden = 0 AND title IS NOT NULL`,
+  `CREATE INDEX IF NOT EXISTS idx_scores_tt_month ON scores (hidden, month, title) WHERE hidden = 0 AND title IS NOT NULL`,
+  `CREATE INDEX IF NOT EXISTS idx_scores_ps_all ON scores (hidden, persona) WHERE hidden = 0 AND persona IS NOT NULL`,
+  `CREATE INDEX IF NOT EXISTS idx_scores_ps_week ON scores (hidden, week, persona) WHERE hidden = 0 AND persona IS NOT NULL`,
+  `CREATE INDEX IF NOT EXISTS idx_scores_ps_month ON scores (hidden, month, persona) WHERE hidden = 0 AND persona IS NOT NULL`,
+  `CREATE INDEX IF NOT EXISTS idx_scores_summary_week ON scores (hidden, week, month, posted, quiz_answered, quiz, habit, email, score, wise, risky, missed, fall_spend, fall_scam, fall_delay, avatar, quiz_prior, height, ended, troll_invest, troll_tickets, troll_revive) WHERE hidden = 0`,
+  `CREATE INDEX IF NOT EXISTS idx_scores_summary_month ON scores (hidden, month, week, posted, quiz_answered, quiz, habit, email, score, wise, risky, missed, fall_spend, fall_scam, fall_delay, avatar, quiz_prior, height, ended, troll_invest, troll_tickets, troll_revive) WHERE hidden = 0`,
+  `CREATE INDEX IF NOT EXISTS idx_scores_board_week ON scores (week, score DESC, id) WHERE hidden = 0 AND posted = 1`,
+  `CREATE INDEX IF NOT EXISTS idx_scores_board_all ON scores (score DESC, id) WHERE hidden = 0 AND posted = 1`,
+  `CREATE INDEX IF NOT EXISTS idx_scores_board_month ON scores (month, score DESC, id) WHERE hidden = 0 AND posted = 1`,
+  `CREATE TRIGGER IF NOT EXISTS trg_scores_ai_children AFTER INSERT ON scores
+BEGIN
+  INSERT OR IGNORE INTO score_choices (score_id, idx, week, month, hidden, card, pick, power)
+  SELECT NEW.id, c.key, NEW.week, NEW.month, NEW.hidden,
+    json_extract(c.value, '$.card'), json_extract(c.value, '$.pick'), json_extract(c.value, '$.power')
+  FROM json_each(NEW.choices) c
+  WHERE NEW.choices IS NOT NULL AND json_valid(NEW.choices) AND json_type(NEW.choices) = 'array'
+    AND json_type(c.value) = 'object';
 
-let schemaReady = null;
+  INSERT OR IGNORE INTO score_quiz_answers (score_id, idx, week, month, hidden, q, pick, ok)
+  SELECT NEW.id, a.key, NEW.week, NEW.month, NEW.hidden,
+    json_extract(a.value, '$.q'), json_extract(a.value, '$.pick'), json_extract(a.value, '$.ok')
+  FROM json_each(NEW.quiz_answers) a
+  WHERE NEW.quiz_answers IS NOT NULL AND json_valid(NEW.quiz_answers) AND json_type(NEW.quiz_answers) = 'array'
+    AND json_type(a.value) = 'object';
+END`,
+  `CREATE TRIGGER IF NOT EXISTS trg_scores_au_meta AFTER UPDATE OF hidden, week, month ON scores
+WHEN OLD.hidden IS NOT NEW.hidden OR OLD.week IS NOT NEW.week OR OLD.month IS NOT NEW.month
+BEGIN
+  UPDATE score_choices SET hidden = NEW.hidden, week = NEW.week, month = NEW.month WHERE score_id = NEW.id;
+  UPDATE score_quiz_answers SET hidden = NEW.hidden, week = NEW.week, month = NEW.month WHERE score_id = NEW.id;
+END`,
+  `CREATE TRIGGER IF NOT EXISTS trg_scores_au_choices AFTER UPDATE OF choices ON scores
+WHEN OLD.choices IS NOT NEW.choices
+BEGIN
+  DELETE FROM score_choices WHERE score_id = OLD.id;
+  INSERT OR IGNORE INTO score_choices (score_id, idx, week, month, hidden, card, pick, power)
+  SELECT NEW.id, c.key, NEW.week, NEW.month, NEW.hidden,
+    json_extract(c.value, '$.card'), json_extract(c.value, '$.pick'), json_extract(c.value, '$.power')
+  FROM json_each(NEW.choices) c
+  WHERE NEW.choices IS NOT NULL AND json_valid(NEW.choices) AND json_type(NEW.choices) = 'array'
+    AND json_type(c.value) = 'object';
+END`,
+  `CREATE TRIGGER IF NOT EXISTS trg_scores_au_qa AFTER UPDATE OF quiz_answers ON scores
+WHEN OLD.quiz_answers IS NOT NEW.quiz_answers
+BEGIN
+  DELETE FROM score_quiz_answers WHERE score_id = OLD.id;
+  INSERT OR IGNORE INTO score_quiz_answers (score_id, idx, week, month, hidden, q, pick, ok)
+  SELECT NEW.id, a.key, NEW.week, NEW.month, NEW.hidden,
+    json_extract(a.value, '$.q'), json_extract(a.value, '$.pick'), json_extract(a.value, '$.ok')
+  FROM json_each(NEW.quiz_answers) a
+  WHERE NEW.quiz_answers IS NOT NULL AND json_valid(NEW.quiz_answers) AND json_type(NEW.quiz_answers) = 'array'
+    AND json_type(a.value) = 'object';
+END`,
+  `CREATE TRIGGER IF NOT EXISTS trg_scores_ad_children AFTER DELETE ON scores
+BEGIN
+  DELETE FROM score_choices WHERE score_id = OLD.id;
+  DELETE FROM score_quiz_answers WHERE score_id = OLD.id;
+END`,
+];
+const BACKFILL_2 = [
+  `INSERT OR IGNORE INTO score_choices (score_id, idx, week, month, hidden, card, pick, power)
+SELECT s.id, c.key, s.week, s.month, s.hidden,
+  json_extract(c.value, '$.card'), json_extract(c.value, '$.pick'), json_extract(c.value, '$.power')
+FROM scores s, json_each(s.choices) c
+WHERE s.choices IS NOT NULL AND s.choices != '[]' AND json_valid(s.choices) AND json_type(s.choices) = 'array'
+  AND json_type(c.value) = 'object'`,
+  `INSERT OR IGNORE INTO score_quiz_answers (score_id, idx, week, month, hidden, q, pick, ok)
+SELECT s.id, a.key, s.week, s.month, s.hidden,
+  json_extract(a.value, '$.q'), json_extract(a.value, '$.pick'), json_extract(a.value, '$.ok')
+FROM scores s, json_each(s.quiz_answers) a
+WHERE s.quiz_answers IS NOT NULL AND s.quiz_answers != '[]' AND json_valid(s.quiz_answers) AND json_type(s.quiz_answers) = 'array'
+  AND json_type(a.value) = 'object'`,
+];
+
+const schemaReady = new WeakMap();
 function ensureSchema(env) {
-  if (!schemaReady) schemaReady = migrate(env.DB, timeZone(env)).catch((e) => { schemaReady = null; throw e; });
-  return schemaReady;
+  if (!schemaReady.has(env.DB)) {
+    const p = migrate(env.DB, timeZone(env)).catch((e) => { schemaReady.delete(env.DB); throw e; });
+    schemaReady.set(env.DB, p);
+  }
+  return schemaReady.get(env.DB);
 }
 async function migrate(db, tz) {
   await db.batch(SCHEMA.map((s) => db.prepare(s)));
@@ -146,6 +278,10 @@ async function migrate(db, tz) {
       return db.prepare("UPDATE scores SET month = ?1 WHERE id = ?2").bind(Number.isNaN(d.getTime()) ? "unknown" : monthKey(d, tz), r.id);
     }));
   }
+  const hadChildTables = (await db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table' AND name IN ('score_choices', 'score_quiz_answers')").first())?.n === 2;
+  await db.batch(SCHEMA_2_TABLES.map((s) => db.prepare(s)));
+  await db.batch(SCHEMA_2_OPT.map((s) => db.prepare(s)));
+  if (!hadChildTables) await db.batch(BACKFILL_2.map((s) => db.prepare(s)));
 }
 
 const SECURE = { "strict-transport-security": "max-age=31536000", "x-content-type-options": "nosniff" };
@@ -157,6 +293,7 @@ const json = (data, status = 200, headers = {}) =>
 const fail = (error, status, headers) => json({ ok: false, error }, status, headers);
 
 const int = (v, lo, hi) => {
+  if (typeof v !== "number" && (typeof v !== "string" || !v.trim())) return lo;
   const n = Math.round(Number(v));
   return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : lo;
 };
@@ -188,9 +325,10 @@ export function isoWeek(date, tz) {
 }
 
 export function cleanName(raw) {
+  if (typeof raw !== "string") return NAME_DEFAULT;
   if (raw === NAME_DEFAULT) return NAME_DEFAULT; // longer than 16 characters, so it must skip the cut below
   const name = cut(
-    String(raw ?? "")
+    raw.slice(0, 512)
       .normalize("NFC")
       .replace(/[<>]/g, "")
       // Control and format characters (bidi overrides, zero-width space, soft hyphen, tag characters...) and
@@ -205,14 +343,18 @@ export function cleanName(raw) {
 
 // First `max` code points, never cutting through an emoji or other joined character.
 function cut(text, max) {
-  const parts = typeof Intl.Segmenter === "function"
-    ? Array.from(new Intl.Segmenter("en", { granularity: "grapheme" }).segment(text), (x) => x.segment)
-    : Array.from(text);
   let out = "", n = 0;
-  for (const g of parts) {
-    const len = Array.from(g).length;
-    if (n + len > max) break;
-    out += g; n += len;
+  if (typeof Intl.Segmenter === "function") {
+    for (const { segment: g } of new Intl.Segmenter("en", { granularity: "grapheme" }).segment(text)) {
+      const len = Array.from(g).length;
+      if (n + len > max) break;
+      out += g; n += len;
+    }
+  } else {
+    for (const g of text) {
+      if (n + 1 > max) break;
+      out += g; n += 1;
+    }
   }
   return out;
 }
@@ -284,10 +426,13 @@ export function implausible(v, wise, items, now = Date.now()) {
 // Returns undefined when none was given and null when it doesn't look like an email address.
 const EMAIL = /^[^\s@<>()[\]\\,;:"]{1,64}@[^\s@<>()[\]\\,;:"]+\.[^\s@<>()[\]\\,;:".]{2,}$/;
 export function cleanEmail(raw) {
-  const s = String(raw ?? "").trim();
+  if (raw === undefined || raw === null) return undefined;
+  if (typeof raw !== "string") return null;
+  const s = raw.trim();
   if (!s) return undefined;
+  if (s.length > 254) return null;
   const control = [...s].some((ch) => ch.charCodeAt(0) < 32 || ch.charCodeAt(0) === 127);
-  return s.length <= 254 && !control && EMAIL.test(s) ? s : null;
+  return !control && EMAIL.test(s) ? s : null;
 }
 
 // Quiz answers from the game page, [{q: "mule", pick: 1}, ...]: unknown questions and repeats are dropped and
@@ -297,7 +442,7 @@ export function cleanAnswers(list) {
   if (!Array.isArray(list)) return out;
   for (const a of list.slice(0, 20)) {
     // an earlier question (a page opened before the quiz changed) is saved as the question that replaced it
-    const n = Number.isInteger(a && a.pick) ? answerNow(a) : null, q = n ? QUIZ_BY_ID.get(n.q) : undefined;
+    const n = Number.isInteger(a && a.pick) ? safeAnswerNow(a) : null, q = n ? QUIZ_BY_ID.get(n.q) : undefined;
     if (!q || out.some((x) => x.q === q.id) || n.pick < 0 || n.pick >= q.o.length) continue;
     out.push({ q: q.id, pick: n.pick, ok: n.ok });
   }
@@ -315,7 +460,7 @@ function mergeAnswers(saved, add) {
 function savedAnswers(text) {
   try {
     const v = JSON.parse(text || "[]");
-    return Array.isArray(v) ? v.filter((a) => a && typeof a.q === "string").map((a) => { const m = answerNow(a); return m ? { q: m.q, pick: m.pick, ok: m.ok } : a; }) : [];
+    return Array.isArray(v) ? v.filter((a) => a && typeof a.q === "string").map((a) => { const m = safeAnswerNow(a); return m ? { q: m.q, pick: m.pick, ok: m.ok } : a; }) : [];
   }
   catch { return []; }
 }
@@ -327,12 +472,18 @@ async function readBody(request, max) {
   const reader = request.body.getReader();
   const chunks = [];
   let size = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.byteLength;
-    if (size > max) { await reader.cancel().catch(() => {}); return null; }
-    chunks.push(value);
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value || !value.byteLength) continue;
+      size += value.byteLength;
+      if (size > max) { await reader.cancel().catch(() => {}); return null; }
+      chunks.push(value);
+    }
+  } catch {
+    await reader.cancel().catch(() => {});
+    return "";
   }
   const buf = new Uint8Array(size);
   let o = 0;
@@ -390,13 +541,15 @@ async function percentile(db, raw) {
 // A tower's outline as the game page sends it: rows of 4 base-36 characters (left x, right x on the 440 px board),
 // 120 rows at most. Anything else is dropped (the game is still saved).
 export function cleanSil(v) {
-  if (typeof v !== "string" || !/^(?:[0-9a-z]{4}){1,120}$/.test(v)) return null;
+  if (typeof v !== "string" || v.length < 4 || v.length > 480 || v.length % 4 !== 0 || !/^(?:[0-9a-z]{4})+$/.test(v)) return null;
   for (let i = 0; i < v.length; i += 4) { const l = parseInt(v.slice(i, i + 2), 36), r = parseInt(v.slice(i + 2, i + 4), 36); if (l > r || r > 440) return null; }
   return v;
 }
 // The ghosts a game shows: this week's games on the board, highest first, with their outlines where they have one.
 // Only what the board already makes public (nickname, score, height), never a hidden game.
 let ghostMemo = null;
+let statsMemo = null;
+export function resetCaches() { ghostMemo = null; statsMemo = null; }
 async function ghosts(env, db) {
   const week = isoWeek(new Date(), timeZone(env));
   if (ghostMemo && ghostMemo.week === week && Date.now() - ghostMemo.at < 30000) return json(ghostMemo.body);
@@ -407,7 +560,6 @@ async function ghosts(env, db) {
 }
 
 // Every saved game counts here, posted to the board or not.
-let statsMemo = null;
 async function stats(db) {
   if (statsMemo && Date.now() - statsMemo.at < 30000) return json(statsMemo.body);
   const v = (col) => `COALESCE(SUM(CASE WHEN hidden = 0 THEN ${col} END), 0)`;
@@ -454,8 +606,8 @@ async function post(request, env, db) {
   let b;
   try { b = JSON.parse(text); } catch { return fail("bad_json", 400); }
   if (!b || typeof b !== "object" || Array.isArray(b)) return fail("bad_json", 400);
-  const score = Number(b.score);
-  if (!Number.isFinite(score) || score < 0 || score > MAX_SCORE) return fail("bad_score", 400);
+  if (typeof b.score !== "number" || !Number.isFinite(b.score) || b.score < 0 || b.score > MAX_SCORE) return fail("bad_score", 400);
+  const score = b.score;
   const board = b.board !== false;
   const email = board ? cleanEmail(b.email) : undefined;
   if (email === null) return fail("bad_email", 400);
@@ -466,7 +618,7 @@ async function post(request, env, db) {
     if (!gid || !key) return fail("bad_key", 400);
   }
   const answers = cleanAnswers(b.answers);
-  const habit = typeof b.habit === "string" ? habitNow(b.habit) : null;   // an earlier habit counts as the one that replaced it
+  const habit = typeof b.habit === "string" ? safeHabitNow(b.habit) : null;   // an earlier habit counts as the one that replaced it
   const now = new Date(), tz = timeZone(env);
   const change = { key, board, name: b.name, email, answers, habit, now, tz };
   if (gid) {
@@ -487,10 +639,10 @@ async function post(request, env, db) {
   if (items !== null && items > MAX_ITEMS) return fail("implausible", 422);
   const values = {
     name: board ? cleanName(b.name) : NAME_DEFAULT,
-    score: Math.round(score),
-    stage: int(b.stage, 0, 3),
-    height: Math.round(Math.min(999, Math.max(0, Number(b.height) || 0)) * 10) / 10,
-    drops: int(b.drops, 0, 3),
+    score: Math.round(score) || 0,
+    stage: typeof b.stage === "number" ? int(b.stage, 0, 3) : 0,
+    height: typeof b.height === "number" && Number.isFinite(b.height) ? Math.round(Math.min(999, Math.max(0, b.height)) * 10) / 10 : 0,
+    drops: typeof b.drops === "number" ? int(b.drops, 0, 3) : 0,
     ...counts,
     choices: JSON.stringify(choices),
     habit,
@@ -508,7 +660,7 @@ async function post(request, env, db) {
     gid,
     edit_hash: key ? await sha256(key) : null,
     items,
-    real_ms: Number.isFinite(Number(b.real_ms)) && b.real_ms !== null ? int(b.real_ms, 0, 3600000) : null,
+    real_ms: typeof b.real_ms === "number" && Number.isFinite(b.real_ms) ? int(b.real_ms, 0, 3600000) : null,
     quiz_prior: Number.isInteger(b.prior) && b.prior >= 0 ? Math.min(99, b.prior) : null,
     jackpot: b.jackpot === 1 || b.jackpot === true ? 1 : b.jackpot === 0 || b.jackpot === false ? 0 : null,
     // the three "too good to be true" moments only ever lower the score, so implausible() does not look at them
@@ -643,6 +795,7 @@ function period(url) {
 // are. Hidden games are left out. Every saved game counts, posted to the board or not.
 async function summary(db, p) {
   const where = "s.hidden = 0" + (p.key ? " AND s." + p.where : "");
+  const cWhere = "hidden = 0" + (p.key ? " AND " + p.where : "");
   const q = (sql) => (p.key ? db.prepare(sql).bind(p.key) : db.prepare(sql));
   const sum = (expr) => `COALESCE(SUM(${expr}), 0)`;
   const TREND = `COUNT(*) AS games, ${sum("posted")} AS posted, ${sum(QUIZ_TAKER)} AS quizTakers,
@@ -664,12 +817,10 @@ async function summary(db, p) {
         ${sum("COALESCE(troll_tickets, 0)")} AS ttCards,
         ${sum("troll_revive IS NOT NULL")} AS trSeen, ${sum("troll_revive = 1")} AS trPressed
       FROM scores s WHERE ${where}`),
-    q(`SELECT json_extract(a.value, '$.q') AS q, json_extract(a.value, '$.pick') AS pick, json_extract(a.value, '$.ok') AS ok, COUNT(*) AS n
-      FROM scores s, json_each(s.quiz_answers) a WHERE ${where} AND s.quiz_answers IS NOT NULL GROUP BY 1, 2, 3`),
+    q(`SELECT q, pick, ok, COUNT(*) AS n FROM score_quiz_answers WHERE ${cWhere} GROUP BY q, pick, ok`),
     q(`SELECT quiz AS k, COUNT(*) AS n FROM scores s WHERE ${where} AND ${QUIZ_TAKER} GROUP BY quiz`),
     q(`SELECT habit AS k, COUNT(*) AS n FROM scores s WHERE ${where} GROUP BY habit`),
-    q(`SELECT json_extract(c.value, '$.card') AS card, json_extract(c.value, '$.pick') AS pick, COUNT(*) AS n
-      FROM scores s, json_each(s.choices) c WHERE ${where} GROUP BY 1, 2`),
+    q(`SELECT card, pick, COUNT(*) AS n FROM score_choices WHERE ${cWhere} GROUP BY card, pick`),
     q(`SELECT stage AS k, COUNT(*) AS n FROM scores s WHERE ${where} GROUP BY stage`),
     q(`SELECT week AS k, ${TREND} FROM scores s WHERE ${where} GROUP BY week ORDER BY week`),
     q(`SELECT month AS k, ${TREND} FROM scores s WHERE ${where} GROUP BY month ORDER BY month`),
@@ -679,8 +830,7 @@ async function summary(db, p) {
     q(`SELECT persona AS k, COUNT(*) AS n FROM scores s WHERE ${where} AND persona IS NOT NULL GROUP BY persona`),
     db.prepare("SELECT DISTINCT week AS k FROM scores ORDER BY week DESC"),
     db.prepare("SELECT DISTINCT month AS k FROM scores WHERE month IS NOT NULL ORDER BY month DESC"),
-    q(`SELECT json_extract(c.value, '$.power') AS k, COUNT(*) AS n
-      FROM scores s, json_each(s.choices) c WHERE ${where} AND json_extract(c.value, '$.power') IS NOT NULL GROUP BY 1`),
+    q(`SELECT power AS k, COUNT(*) AS n FROM score_choices WHERE ${cWhere} AND power IS NOT NULL GROUP BY power`),
   ]);
   const [ov, qa, qs, hb, cd, st, wk, mo, mt, vc, tt, ps, weeks, months, pw] = res.map((r) => r.results || []);
   const o = ov[0] || {};
@@ -688,7 +838,7 @@ async function summary(db, p) {
   const count = (rows, test) => rows.filter(test).reduce((s, r) => s + (r.n || 0), 0);
   const trend = (r) => ({ ...r, quizPassPct: pct(r.quizPass, r.quizTakers), wisePct: pct(r.wise, r.wise + r.risky + r.missed) });
   // answers to an earlier question count on the one that replaced it (right to right, wrong to a wrong option)
-  const qaNow = qa.map((r) => { const m = answerNow({ q: r.q, pick: r.pick }); return m ? { ...r, q: m.q, pick: m.pick, ok: m.ok, earlier: m.earlier } : r; });
+  const qaNow = qa.map((r) => { const m = safeAnswerNow({ q: r.q, pick: r.pick }); return m ? { ...r, q: m.q, pick: m.pick, ok: m.ok, earlier: m.earlier } : r; });
   const question = (id, en, zh, options, answer) => {
     const rows = qaNow.filter((r) => r.q === id), n = count(rows, () => true), right = count(rows, (r) => r.ok === 1);
     return { id, en, zh, answer, n, right, pct: pct(right, n), earlier: count(rows, (r) => r.earlier),
@@ -722,8 +872,8 @@ async function summary(db, p) {
     ],
     quizScores: Array.from({ length: QUIZ.length + 1 }, (_, k) => ({ score: k, n: count(qs, (r) => r.k === k) })),
     habits: [
-      ...HABIT_LIST.map((h) => ({ id: h.id, en: h.en, zh: h.zh, was: h.was || null, n: count(hb, (r) => r.k != null && habitNow(r.k) === h.id), earlier: count(hb, (r) => r.k === h.was) })),
-      { id: null, en: "No habit picked", zh: "冇揀", n: count(hb, (r) => r.k == null || !habitNow(r.k)) },
+      ...HABIT_LIST.map((h) => ({ id: h.id, en: h.en, zh: h.zh, was: h.was || null, n: count(hb, (r) => r.k != null && safeHabitNow(r.k) === h.id), earlier: count(hb, (r) => r.k === h.was) })),
+      { id: null, en: "No habit picked", zh: "冇揀", n: count(hb, (r) => r.k == null || !safeHabitNow(r.k)) },
     ],
     traps: Object.keys(TRAPS).map((k) => {
       const g = o["g" + k[0].toUpperCase() + k.slice(1)] || 0;
@@ -810,36 +960,51 @@ async function admin(path, request, env, db) {
     return json({ ok: true, period: { type: p.type, key: p.key }, current, rows: results });
   }
   if (path === "hide" && request.method === "POST") {
+    const text = await readBody(request, MAX_BODY);
+    if (text === null) return fail("too_large", 413);
     let b;
-    try { b = JSON.parse((await readBody(request, MAX_BODY)) ?? "x"); } catch { return fail("bad_json", 400); }
-    const id = int(b && b.id, 0, Number.MAX_SAFE_INTEGER);
+    try { b = JSON.parse(text); } catch { return fail("bad_json", 400); }
+    if (!b || typeof b !== "object" || Array.isArray(b)) return fail("bad_json", 400);
+    const id = int(b.id, 0, Number.MAX_SAFE_INTEGER);
     if (!id) return fail("bad_id", 400);
     const res = await db.prepare("UPDATE scores SET hidden = ?1 WHERE id = ?2").bind(b.hidden === false ? 0 : 1, id).run();
     statsMemo = null; ghostMemo = null;
     return json({ ok: true, id, hidden: b.hidden !== false, changed: res.meta.changes || 0 });
   }
   if (path === "rename" && request.method === "POST") { // a rude nickname: the game stays on the board and in the analysis
+    const text = await readBody(request, MAX_BODY);
+    if (text === null) return fail("too_large", 413);
     let b;
-    try { b = JSON.parse((await readBody(request, MAX_BODY)) ?? "x"); } catch { return fail("bad_json", 400); }
-    const id = int(b && b.id, 0, Number.MAX_SAFE_INTEGER);
+    try { b = JSON.parse(text); } catch { return fail("bad_json", 400); }
+    if (!b || typeof b !== "object" || Array.isArray(b)) return fail("bad_json", 400);
+    const id = int(b.id, 0, Number.MAX_SAFE_INTEGER);
     if (!id) return fail("bad_id", 400);
     const res = await db.prepare("UPDATE scores SET name = ?1 WHERE id = ?2").bind(NAME_DEFAULT, id).run();
     statsMemo = null; ghostMemo = null;
     return json({ ok: true, id, name: NAME_DEFAULT, changed: res.meta.changes || 0 });
   }
   if (path === "batch" && request.method === "POST") {
+    const text = await readBody(request, MAX_BODY);
+    if (text === null) return fail("too_large", 413);
     let b;
-    try { b = JSON.parse((await readBody(request, MAX_BODY)) ?? "x"); } catch { return fail("bad_json", 400); }
-    const act = b && b.action;
+    try { b = JSON.parse(text); } catch { return fail("bad_json", 400); }
+    if (!b || typeof b !== "object" || Array.isArray(b)) return fail("bad_json", 400);
+    const act = b.action;
     if (!["hide", "unhide", "rename"].includes(act)) return fail("bad_action", 400);
     const ids = [...new Set((Array.isArray(b.ids) ? b.ids : []).map((x) => int(x, 0, Number.MAX_SAFE_INTEGER)).filter((x) => x > 0))].slice(0, 100);
     if (!ids.length) return fail("bad_id", 400);
-    const ph = ids.map((_, i) => `?${i + 2}`).join(", ");
-    const sql = act === "rename" ? `UPDATE scores SET name = ?1 WHERE id IN (${ph})` : `UPDATE scores SET hidden = ?1 WHERE id IN (${ph})`;
     const val = act === "rename" ? NAME_DEFAULT : (act === "hide" ? 1 : 0);
-    const res = await db.prepare(sql).bind(val, ...ids).run();
+    const stmts = [];
+    for (let i = 0; i < ids.length; i += 99) {
+      const chunk = ids.slice(i, i + 99);
+      const ph = chunk.map((_, j) => `?${j + 2}`).join(", ");
+      const sql = act === "rename" ? `UPDATE scores SET name = ?1 WHERE id IN (${ph})` : `UPDATE scores SET hidden = ?1 WHERE id IN (${ph})`;
+      stmts.push(db.prepare(sql).bind(val, ...chunk));
+    }
+    const results = await db.batch(stmts);
+    const changed = results.reduce((s, r) => s + (r?.meta?.changes || 0), 0);
     statsMemo = null; ghostMemo = null;
-    return json({ ok: true, action: act, count: ids.length, changed: res.meta.changes || 0 });
+    return json({ ok: true, action: act, count: ids.length, changed });
   }
   if (path === "export" && request.method === "GET") {
     const f = adminFilter(url), where = f.conds.length ? f.conds.join(" AND ") + " AND " : "";
@@ -861,7 +1026,7 @@ async function admin(path, request, env, db) {
         if (results.length < 500) ctrl.close();
       },
     });
-    const scope = (url.searchParams.get("week") || url.searchParams.get("month") || "").replace(/[^A-Za-z0-9_-]/g, "");
+    const scope = (url.searchParams.get("week") || url.searchParams.get("month") || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 32);
     return new Response(stream, {
       headers: {
         "content-type": "text/csv; charset=utf-8",

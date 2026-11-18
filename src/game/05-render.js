@@ -751,7 +751,7 @@ function drawRuler(c){
     if (!st && f % 5){   // in between: a small tick, not a number on every floor (that read like a chart's axis)
       c.fillStyle = skyDusk >= .5 ? "rgba(37,49,122,0.55)" : "rgba(37,49,122,0.32)"; roundRect(c, 19, y - 2, 12, 4, 2); c.fill(); continue;
     }
-    c.fillStyle = st ? "#FFE45C" : skyDusk >= .5 ? "rgba(37,49,122,0.8)" : "rgba(37,49,122,0.55)";
+    c.fillStyle = st ? "#FFE45C" : skyDusk >= .5 ? "rgba(37,49,122,0.8)" : "rgba(37,49,122,0.82)";
     roundRect(c, 8, y - 10, 34, 20, 8); c.fill();
     c.fillStyle = st ? "#25317A" : "#FFFFFF"; c.textAlign = "center"; c.fillText(f + "F", 25, y + 1);
   }

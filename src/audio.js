@@ -5,7 +5,7 @@
    All synthesis functions take a "rig" (context + buses) so the same code renders live or offline. */
 (function () {
   "use strict";
-  var W = window;
+  var W = typeof window !== "undefined" ? window : globalThis;
   var noop = function () {};
   var STORE_KEY = "tff_muted";
   var MUSIC_BASE = 0.12;       // music bus level at setMusicVolume(1) (calibrated: music RMS ~ -20 dBFS, well under SFX)
@@ -14,6 +14,7 @@
   var LOOKAHEAD = 0.12, TICK_MS = 25;
 
   // ------------------------------------------------------------------ utils
+  function own(map, k) { return k != null && Object.prototype.hasOwnProperty.call(map, k) ? map[k] : null; }
   function clamp(x, a, b) { return x < a ? a : x > b ? b : x; }
   function mtof(m) { return 440 * Math.pow(2, (m - 69) / 12); }
   function prng(seed) {
@@ -97,7 +98,8 @@
   var BASS_PAT = [
     { 0: [0, 3], 6: [0, 2], 8: [0, 3], 14: [12, 2] },
     { 0: [0, 3], 3: [0, 1], 6: [0, 2], 8: [0, 3], 11: [0, 1], 12: [12, 2], 14: [0, 2] },
-    { 0: [0, 2], 2: [12, 2], 4: [0, 2], 6: [12, 2], 8: [0, 2], 10: [12, 2], 12: [0, 2], 14: [12, 2] }
+    { 0: [0, 2], 2: [12, 2], 4: [0, 2], 6: [12, 2], 8: [0, 2], 10: [12, 2], 12: [0, 2], 14: [12, 2] },
+    { 0: [0, 2], 2: [0, 1], 3: [12, 1], 4: [0, 2], 6: [12, 2], 8: [0, 2], 10: [12, 1], 11: [0, 1], 12: [12, 2], 14: [24, 1], 15: [12, 1] }
   ];
 
   // ------------------------------------------------------------------ rig (context + master chain)
@@ -178,8 +180,8 @@
   function Voice(r, dest, level, pan) {
     this.r = r; this.c = r.ctx; this.n = []; this.live = 0; this.end = 0; this.done = false;
     if (level == null) { this.out = dest; return; }
-    var g = this.gain(level), c = this.c;
-    if (pan && c.createStereoPanner) { var p = this.track(c.createStereoPanner()); p.pan.value = clamp(pan, -1, 1); g.connect(p); p.connect(dest); }
+    var g = this.gain(level), c = this.c, pn = +pan || 0;
+    if (pn && c.createStereoPanner) { var p = this.track(c.createStereoPanner()); p.pan.value = clamp(pn, -1, 1); g.connect(p); p.connect(dest); }
     else g.connect(dest);
     this.out = g;
   }
@@ -192,7 +194,7 @@
     if (q != null) b.Q.value = q; if (dest) b.connect(dest); return b;
   };
   VP.osc = function (wave, f, t0, t1, dest) {
-    var o = this.track(this.c.createOscillator()), pw = this.r.waves[wave];
+    var o = this.track(this.c.createOscillator()), pw = own(this.r.waves, wave);
     if (pw) o.setPeriodicWave(pw); else o.type = wave;
     o.frequency.setValueAtTime(f, t0);
     o.connect(dest || this.out); this.src(o, t0, t1, 0); return o;
@@ -333,7 +335,7 @@
       noiseHit(v, t + 0.2, 0.002, 0.1, 0.12, "highpass", 7000, 0.7);
     },
     reel: function (v, t) {                                // a slot reel ticking past a symbol
-      tone(v, "square", 1500 + Math.random() * 200, t, 0.001, 0.12, 0.018);
+      tone(v, "square", 1500 + v.r.rand() * 200, t, 0.001, 0.12, 0.018);
       noiseHit(v, t, 0.001, 0.12, 0.012, "highpass", 4000, 0.7);
     },
     reelStop: function (v, t) {                            // and stopping: a wooden thunk and a bell
@@ -891,7 +893,8 @@
   };
   var IMP_LEVEL = { card: 0.75, wood: 0.7, plastic: 2.1, metal: 0.6, glass: 0.6, fabric: 0.8, rubber: 0.6, food: 0.75, slick: 1.7, platform: 0.8 };
   function playImpact(r, material, s, pan, t) {
-    var fn = IMPACT[material] || IMPACT.card, lvl = (IMP_LEVEL[material] || 0.6) * (0.14 + 0.86 * Math.pow(s, 1.3));
+    var m = own(IMPACT, material) ? material : "card";
+    var fn = IMPACT[m], lvl = (own(IMP_LEVEL, m) || 0.6) * (0.14 + 0.86 * Math.pow(s, 1.3));
     var v = new Voice(r, r.sfxIn, lvl, pan || 0);
     fn(v, t, s, r.rand);
     return v;
@@ -922,6 +925,8 @@
       this.arpR = N(c.createStereoPanner()); this.arpR.pan.value = 0.4; this.arpR.connect(this.arpF);
     } else { this.arpL = this.arpR = this.arpF; }
     this.ctrF = filt("lowpass", 2400, 0, this.bus);
+    this.padF = filt("lowpass", 1300, 0.5, this.bus);
+    this.brassF = filt("lowpass", 3600, 0.7, this.bus);
     this.pos = 0; this.next = 0; this.stage = 0; this.pend = null; this.key = 0; this.mul = 1; this.solo = null; this.frenzy = false;
     this.halted = false; this.dead = false;
   }
@@ -932,6 +937,8 @@
     this.stage = st; this.key = st >= 3 ? 2 : 0; this.r.key = this.key;
     this.leadF.frequency.setTargetAtTime(st >= 3 ? 5200 : 3400, t, 0.05);
     this.arpF.frequency.setTargetAtTime(st >= 3 ? 3600 : 2600, t, 0.05);
+    this.padF.frequency.setTargetAtTime(st >= 3 ? 2400 : 1300, t, 0.05);
+    this.brassF.frequency.setTargetAtTime(st >= 3 ? 4600 : 3200, t, 0.05);
   };
   EP.setMul = function (m, t) {
     this.mul = m;
@@ -965,7 +972,7 @@
       if (st >= 3 && s === 0 && bar % 8 === 0) this.crash(t, 0.55);
     }
     if (this.on("bass")) {
-      var bp = BASS_PAT[Math.min(st, 2)][s];
+      var bp = BASS_PAT[Math.min(st, 3)][s];
       if (bp) this.bass(t, ch.bass + bp[0] + k, bp[1] * sd * 0.85, s === 0 ? 1 : 0.8);
     }
     var ev = SONG.lead[bar][s];
@@ -978,6 +985,12 @@
     }
     var ce = SONG.ctr[bar][s];
     if (st >= 2 && ce && this.on("counter")) this.counter(t, ce.m + k, ce.len * sd);
+    if (st >= 2 && s === 0 && this.on("pad")) this.pad(t, ch.arp, 16 * sd, k, st);
+    if (st >= 3 && this.on("brass")) {
+      if (s === 0) this.brass(t, [ch.arp[0] + k, ch.arp[2] + k], 2 * sd, 0.15, bar % 4 === 0 ? ch.arp[3] + 12 + k : 0);
+      else if (s === 10) this.brass(t, [ch.arp[1] + k, ch.arp[3] + k], 1.5 * sd, 0.13, 0);
+      else if ((bar % 4) === 3 && s === 14) this.brass(t, [ch.arp[0] + k, ch.arp[3] + k], 1.2 * sd, 0.14, 0);
+    }
     if (this.frenzy && this.on("arp") && s % 2 === 1) this.ping(t, ch.arp[COIN_SEQ[(s >> 1) % 8]] + 12 + k, s % 4 === 1 ? 1 : 0.65);   // jackpot time: coins on the off-beats
   };
   EP.kick = function (t, vel) {
@@ -1034,6 +1047,26 @@
     var e = ahdsr(g.gain, t, d, 0.3, 0.04, 0.15, 0.8, 0.12);
     var o = x.osc("flute", mtof(m), t, e + 0.005, g);
     if (d > 0.35) curveAt(o.detune, vibCurve(this.r, d, 5, 10, 0.2), t, d);
+  };
+  EP.pad = function (t, notes, dur, k, st) {
+    var x = this.voice(this.padF), list = st >= 3 ? notes : notes.slice(0, 3);
+    var pk = (st >= 3 ? 0.18 : 0.14) / list.length, d = dur * 0.96;
+    var g = x.gain(0, x.out);
+    ahdsr(g.gain, t, d, pk, 0.18, 0.2, 0.82, 0.14);
+    for (var i = 0; i < list.length; i++) {
+      var f = mtof(list[i] + k);
+      if (st >= 3) {
+        var o1 = x.osc("sawtooth", f, t, t + d + 0.16, g); o1.detune.value = -6;
+        var o2 = x.osc("sawtooth", f, t, t + d + 0.16, g); o2.detune.value = 6;
+      } else {
+        x.osc("triangle", f, t, t + d + 0.16, g);
+      }
+    }
+  };
+  EP.brass = function (t, notes, dur, pk, chime) {
+    var x = this.voice(this.brassF);
+    for (var i = 0; i < notes.length; i++) brass(x, notes[i], t, dur, pk);
+    if (chime) bell(x, t, mtof(chime), 0.08, 0.55);
   };
   EP.dispose = function () {
     this.dead = true;
@@ -1105,36 +1138,47 @@
     if (!timer) timer = W.setInterval(tick, TICK_MS);
     tick();
   }
+  function cleanFade(sec) {
+    var s = +sec;
+    return Number.isFinite(s) ? clamp(s, 0, 60) : 0;
+  }
   function stopMusic(fade) {
     wantMusic = false;
     if (timer) { W.clearInterval(timer); timer = null; }
     var E = engine; engine = null;
     if (!E || !ctx) return;
+    fade = cleanFade(fade);
     rampTo(E.bus.gain, 0, Math.max(0.01, fade / 4));
     W.setTimeout(function () { E.dispose(); }, (fade + 0.8) * 1000);
   }
   function filmFade(sec) {
     var v = filmV; filmV = null;
     if (!v || !ctx) return;
+    sec = cleanFade(sec);
     var t = ctx.currentTime;
-    try { v.out.gain.cancelScheduledValues(t); v.out.gain.setValueAtTime(v.out.gain.value, t); v.out.gain.linearRampToValueAtTime(0, t + sec); } catch (e) {}
+    try {
+      v.out.gain.cancelScheduledValues(t);
+      if (sec > 0) { v.out.gain.setValueAtTime(v.out.gain.value, t); v.out.gain.linearRampToValueAtTime(0, t + sec); }
+      else { v.out.gain.setValueAtTime(0, t); }
+    } catch (e) {}
     for (var i = 0; i < v.n.length; i++) { var x = v.n[i]; if (x && typeof x.stop === "function") { try { x.stop(t + sec + 0.05); } catch (e) {} } }
   }
   function filmCue(name, o) {
-    if (!ctx || !rig || muted || !FILM[name]) return false;
+    var fn = own(FILM, name);
+    if (!ctx || !rig || muted || !fn) return false;
     var tok = ++filmTok;
     var play = function () {
       if (tok !== filmTok || !running() || muted) return;
       filmFade(0.35);
       var v = new Voice(rig, rig.sfxIn, 0.85, 0), t = ctx.currentTime + 0.01;
-      try { if (o && VIA[o.via]) VIA[o.via](v, t); FILM[name](v, t); } catch (e) {}
+      try { var viaFn = o && own(VIA, o.via); if (viaFn) viaFn(v, t); fn(v, t); } catch (e) {}
       filmV = v;
     };
     if (ctx.state === "running") play();
     else { try { var p = ctx.resume(); if (p && typeof p.then === "function") p.then(play, noop); } catch (e) {} }
     return true;
   }
-  function onVisibility() { hidden = !!document.hidden; applyRun(); }
+  function onVisibility() { hidden = !!(W.document && W.document.hidden); applyRun(); }
 
   // ------------------------------------------------------------------ offline rendering (tests)
   var SFX_OPT_KEY = { floor: "floor", stage: "stage", deposit: "amount", cardTick: "n", debt: "part", frenzyTick: "n" };
@@ -1145,32 +1189,59 @@
         if (!OAC) throw new Error("OfflineAudioContext unavailable");
         var sr = 44100;
         seconds = +seconds || (kind === "music" ? 16 : kind === "impact" ? 1.5 : 3);
-        var oc = new OAC(2, Math.ceil(sr * seconds), sr), r = buildRig(oc, 1234567), o = opts || {};
-        var parts = String(name || "").split(":");
+        var oc = new OAC(2, Math.ceil(sr * seconds), sr), r = buildRig(oc, 1234567), o = {};
+        if (opts) { for (var k in opts) if (Object.prototype.hasOwnProperty.call(opts, k)) o[k] = opts[k]; }
+        if (o.musicVolume != null) r.musicVol.gain.value = MUSIC_BASE * clamp(Number.isFinite(+o.musicVolume) ? +o.musicVolume : 0, 0, 1);
+        if (o.sfxVolume != null) r.sfxIn.gain.value = SFX_BASE * clamp(Number.isFinite(+o.sfxVolume) ? +o.sfxVolume : 0, 0, 1);
+        if (o.muted) r.out.gain.value = 0;
+        var parts = String(name || "").split(":"), sv = null, fv = null, iv = null, E = null;
         if (kind === "sfx") {
-          var fn = SFX[parts[0]]; if (!fn) throw new Error("unknown sfx " + parts[0]);
-          if (parts.length > 1 && SFX_OPT_KEY[parts[0]]) o[SFX_OPT_KEY[parts[0]]] = isNaN(+parts[1]) ? parts[1] : +parts[1];
-          fn(new Voice(r, r.sfxIn, LEVEL[parts[0]] || 0.8, o.pan || 0), 0.01, o);
+          var fn = own(SFX, parts[0]); if (!fn) throw new Error("unknown sfx " + parts[0]);
+          var optKey = parts.length > 1 ? own(SFX_OPT_KEY, parts[0]) : null;
+          if (optKey) o[optKey] = isNaN(+parts[1]) ? parts[1] : +parts[1];
+          sv = new Voice(r, r.sfxIn, own(LEVEL, parts[0]) || 0.8, +o.pan || 0);
+          fn(sv, 0.01, o);
         } else if (kind === "film") {
-          if (!FILM[parts[0]]) throw new Error("unknown film cue " + parts[0]);
-          var fv = new Voice(r, r.sfxIn, 0.85, 0);
-          if (VIA[o.via]) VIA[o.via](fv, 0.01);
-          FILM[parts[0]](fv, 0.01);
+          var filmFn = own(FILM, parts[0]); if (!filmFn) throw new Error("unknown film cue " + parts[0]);
+          fv = new Voice(r, r.sfxIn, 0.85, 0);
+          var viaFn = own(VIA, o.via);
+          if (viaFn) viaFn(fv, 0.01);
+          filmFn(fv, 0.01);
         } else if (kind === "impact") {
-          playImpact(r, parts[0], clamp(parts.length > 1 ? +parts[1] : 0.6, 0, 1), o.pan || 0, 0.01);
+          var st = parts.length > 1 ? +parts[1] : 0.6;
+          iv = playImpact(r, parts[0], clamp(Number.isFinite(st) ? st : 0.6, 0, 1), +o.pan || 0, 0.01);
         } else if (kind === "music") {
-          var E = new Engine(r), stg = 0, mode = "normal";
+          E = new Engine(r);
+          var stg = 0, mode = "normal";
           String(name || "").split(/[:,\s]+/).forEach(function (tok) {
             if (/^[0-3]$/.test(tok)) stg = +tok;
-            else if (/^(normal|fast|frenzy|card|paused)$/.test(tok)) mode = tok;
+            else if (/^(normal|fast|frenzy|card|paused|menu)$/.test(tok)) mode = tok;
             else if (/^bar=\d+$/.test(tok)) E.pos = (+tok.slice(4) % BARS) * 16;
             else if (/^solo=\w+$/.test(tok)) E.solo = tok.slice(5);
           });
           E.setStage(stg, 0); E.setMul(mode === "fast" ? FAST_MUL : mode === "frenzy" ? FRENZY_MUL : 1, 0); E.frenzy = mode === "frenzy";
           if (mode === "card") { r.musicIn.gain.value = 0.3; r.musicLP.frequency.value = 900; }
+          else if (mode === "menu") { r.musicIn.gain.value = 0.55; r.musicLP.frequency.value = 2200; }
+          else if (mode === "paused") { r.musicIn.gain.value = 0; r.musicLP.frequency.value = 700; }
           E.next = 0.05;
-          while (E.next < seconds) E.step(E.next, false);
+          while (E.next < seconds) E.step(E.next, mode === "paused" || !!o.muted);
         } else throw new Error("unknown kind " + kind);
+        if (o.fade != null) {
+          var fd = cleanFade(o.fade), ft = Number.isFinite(+o.fadeAt) ? Math.max(0, +o.fadeAt) : (kind === "music" ? 0 : 0.01);
+          if (kind === "music") {
+            E.bus.gain.setValueAtTime(1, ft);
+            if (fd > 0) E.bus.gain.setTargetAtTime(0, ft, Math.max(0.01, fd / 4));
+            else E.bus.gain.setValueAtTime(0, ft);
+          } else {
+            var fTarget = sv || fv || iv;
+            if (fTarget && fTarget.out && fTarget.out.gain) {
+              var lvl = fTarget.out.gain.value;
+              fTarget.out.gain.setValueAtTime(lvl, ft);
+              if (fd > 0) fTarget.out.gain.linearRampToValueAtTime(0, ft + fd);
+              else fTarget.out.gain.setValueAtTime(0, ft);
+            }
+          }
+        }
         var done = function (buf) { resolve([buf.getChannelData(0), buf.getChannelData(1)]); };
         var p = oc.startRendering();
         if (p && typeof p.then === "function") p.then(done, reject);
@@ -1191,8 +1262,8 @@
           rig.musicVol.gain.value = MUSIC_BASE * musicVolume;
           rig.sfxIn.gain.value = SFX_BASE * sfxVolume;
           rig.out.gain.value = muted ? 0 : 1;
-          hidden = !!(W.document && document.hidden);
-          if (W.document) document.addEventListener("visibilitychange", onVisibility);
+          hidden = !!(W.document && W.document.hidden);
+          if (W.document) W.document.addEventListener("visibilitychange", onVisibility);
         }
         if (!unlockedOnce) {                     // iOS: play one silent sample inside the gesture
           unlockedOnce = true;
@@ -1214,14 +1285,15 @@
     sfx: function (name, opts) {
       try {
         if (!running() || muted) return;
-        var fn = SFX[name]; if (!fn) return;
-        var t = ctx.currentTime, gap = THROTTLE[name] || 0.03;
-        if (lastSfx[name] != null && t - lastSfx[name] < gap) return;
+        var fn = own(SFX, name); if (!fn) return;
+        var t = ctx.currentTime, gap = own(THROTTLE, name) || 0.03;
+        if (own(lastSfx, name) != null && t - lastSfx[name] < gap) return;
         var live = 0; for (var i = sfxEnds.length - 1; i >= 0; i--) { if (sfxEnds[i] <= t) sfxEnds.splice(i, 1); else live++; }
-        if (live >= 24 || (live >= 14 && LOW_PRIORITY[name])) return;
+        if (live >= 24 || (live >= 14 && own(LOW_PRIORITY, name))) return;
         lastSfx[name] = t;
         opts = opts || {};
-        var v = new Voice(rig, rig.sfxIn, (LEVEL[name] || 0.8) * (opts.volume == null ? 1 : clamp(+opts.volume, 0, 1)), opts.pan || 0);
+        var vol = opts.volume == null ? 1 : +opts.volume;
+        var v = new Voice(rig, rig.sfxIn, (own(LEVEL, name) || 0.8) * clamp(Number.isFinite(vol) ? vol : 0, 0, 1), +opts.pan || 0);
         fn(v, t + 0.005, opts);
         sfxEnds.push(v.end);
       } catch (e) {}
@@ -1235,8 +1307,8 @@
         if (impTokens < 1 || (impTokens < 2 && s < 0.3)) return;
         for (var i = impEnds.length - 1; i >= 0; i--) if (impEnds[i] <= t) impEnds.splice(i, 1);
         if (impEnds.length >= 8) return;
-        var m = IMPACT[material] ? material : "card";
-        if (impLastMat[m] != null && t - impLastMat[m] < 0.025) return;
+        var m = own(IMPACT, material) ? material : "card";
+        if (own(impLastMat, m) != null && t - impLastMat[m] < 0.025) return;
         impTokens -= 1; impLastMat[m] = t;
         var v = playImpact(rig, m, s, clamp(+pan || 0, -1, 1), t + 0.003);
         impEnds.push(v.end);

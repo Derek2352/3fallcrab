@@ -21,6 +21,16 @@ after(async () => {
 
 // Time-acceleration preload script used ONLY in the full-game simulation test.
 const CLOCK_HOOK = `(() => {
+  let prng = 0x2468ace1;
+  const origRand = Math.random.bind(Math);
+  Math.random = () => {
+    const st = new Error().stack || "";
+    if (st.includes("kaspersky-labs.com") || st.includes("NoCacheParameter")) return origRand();
+    prng = (prng + 0x6d2b79f5) | 0;
+    let t = Math.imul(prng ^ (prng >>> 15), 1 | prng);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
   const origRAF = window.requestAnimationFrame.bind(window);
   let rafCbs = [], simNow = performance.now(), hooksEnabled = false;
   const origNow = performance.now.bind(performance);
@@ -37,9 +47,11 @@ const CLOCK_HOOK = `(() => {
   window.__enableSimClock = () => {
     if (hooksEnabled) return;
     hooksEnabled = true;
+    prng = 0x2468ace1;
     simNow = origNow();
     performance.now = () => simNow;
   };
+  window.__simReady = () => hooksEnabled && rafCbs.length > 0;
   window.__advanceFrames = (count, stepMs = 50) => {
     for (let i = 0; i < count; i++) {
       simNow += stepMs;
@@ -179,13 +191,12 @@ test("E2E 3: full gameplay -> pause/resume -> Life Event -> 3-min end -> 4-step 
     await ctx.click("#startBtn");
     await ctx.waitFor(() => !document.getElementById("pickModal").hidden);
     await ctx.click('#pickModal .who[data-who="jackie"]');
-    await ctx.click("#pickGo");
-    await ctx.waitFor(() => document.getElementById("pickModal").hidden && document.getElementById("startOv").hidden);
-
-    // Enable accelerated simulation clock and step initial placement
     await ctx.evalJs("window.__enableSimClock()");
+    await ctx.click("#pickGo");
+    await ctx.waitFor(() => document.getElementById("pickModal").hidden && document.getElementById("startOv").hidden && window.__simReady());
+
+    // Step initial placement under accelerated simulation clock
     await ctx.pressKey("ArrowLeft", "ArrowLeft", 37);
-    await ctx.pressKey(" ", "Space", 32);
     await ctx.evalJs("window.__advanceFrames(20, 50)");
 
     // Test Pause -> Resume via UI button
@@ -195,6 +206,7 @@ test("E2E 3: full gameplay -> pause/resume -> Life Event -> 3-min end -> 4-step 
     await ctx.waitFor(() => document.getElementById("pauseOv").hidden);
 
     // Step forward cleanly through the 180s round, answering any Life Event / Offer dialogs that pop up!
+    let playStep = 0;
     for (let round = 0; round < 320; round++) {
       const done = await ctx.evalJs(`(() => !document.getElementById('endModal').hidden)()`);
       if (done) break;
@@ -205,21 +217,53 @@ test("E2E 3: full gameplay -> pause/resume -> Life Event -> 3-min end -> 4-step 
         revive: !document.getElementById('reviveModal').hidden,
       }))()`);
       if (state.card && !state.cardFlip) {
-        await ctx.click("#cardChoices .choice");
         await ctx.evalJs("window.__advanceFrames(10, 50)");
+        if (await ctx.evalJs("document.getElementById('cardOutcome').hidden")) {
+          const wiseIdx = await ctx.evalJs(`(() => {
+            const firstTxt = document.querySelector('#cardChoices .choice b')?.textContent || '';
+            return window.TFF_CONTENT.CARDS.some(c => c.w[0] === firstTxt) ? 0 : 1;
+          })()`);
+          await ctx.click(`#cardChoices .choice:nth-child(${wiseIdx + 1})`);
+          await ctx.evalJs("window.__advanceFrames(10, 50)");
+        }
       } else if (state.cardFlip) {
-        await ctx.click("#cardContinue");
-        await ctx.evalJs("window.__advanceFrames(5, 50)");
+        await ctx.evalJs("window.__advanceFrames(10, 50)");
+        if (await ctx.evalJs("!document.getElementById('cardModal').hidden")) {
+          await ctx.evalJs(`(() => {
+            const pws = [...document.querySelectorAll('#ocPowerRow .pw')];
+            const best = pws.find(b => /Fixed/i.test(b.textContent)) || pws.find(b => /Wider/i.test(b.textContent)) || pws.find(b => /Insurance/i.test(b.textContent));
+            if (best) best.click();
+          })()`);
+          await ctx.click("#cardContinue");
+          await ctx.evalJs("window.__advanceFrames(5, 50)");
+        }
       } else if (state.offer) {
-        const hasNo = await ctx.evalJs("!document.getElementById('offerNo').hidden");
-        await ctx.click(hasNo ? "#offerNo" : "#offerYes");
-        await ctx.evalJs("window.__advanceFrames(5, 50)");
+        await ctx.evalJs("window.__advanceFrames(10, 50)");
+        if (await ctx.evalJs("!document.getElementById('offerModal').hidden")) {
+          const hasNo = await ctx.evalJs("!document.getElementById('offerNo').hidden");
+          await ctx.click(hasNo ? "#offerNo" : "#offerYes");
+          await ctx.evalJs("window.__advanceFrames(5, 50)");
+        }
       } else if (state.revive) {
-        const canNo = await ctx.evalJs("!document.getElementById('rvNo').closest('[hidden]') && !document.getElementById('rvActions').hidden");
-        await ctx.click(canNo ? "#rvNo" : "#rvGo");
+        await ctx.evalJs("window.__advanceFrames(15, 50)");
+        if (await ctx.evalJs("!document.getElementById('reviveModal').hidden")) {
+          const canNo = await ctx.evalJs("!document.getElementById('rvNo').closest('[hidden]') && !document.getElementById('rvActions').hidden");
+          await ctx.click(canNo ? "#rvNo" : "#rvGo");
+          await ctx.evalJs("window.__advanceFrames(15, 50)");
+        }
       } else {
-        await ctx.pressKey(" ", "Space", 32);
-        await ctx.evalJs("window.__advanceFrames(20, 50)");
+        const top = [-2, 2, 0];
+        const nudge = playStep % 3 === 0 ? top[Math.floor(playStep / 3) % top.length] : 0;
+        if (nudge !== 0) {
+          const dir = nudge < 0 ? "ArrowLeft" : "ArrowRight";
+          const kc = nudge < 0 ? 37 : 39;
+          for (let t = 0; t < Math.abs(nudge); t++) {
+            await ctx.cdp("Input.dispatchKeyEvent", { type: "keyDown", key: dir, code: dir, windowsVirtualKeyCode: kc });
+            await ctx.cdp("Input.dispatchKeyEvent", { type: "keyUp", key: dir, code: dir, windowsVirtualKeyCode: kc });
+          }
+        }
+        playStep++;
+        await ctx.evalJs("window.__advanceFrames(30, 50)");
       }
     }
     await ctx.waitFor(() => !document.getElementById("endModal").hidden, 5000);

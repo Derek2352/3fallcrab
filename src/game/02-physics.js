@@ -473,12 +473,13 @@ function showPowers(c){   // three to pick from: the card's own (by its Fall) fi
   });
   box.hidden = false; pickPower(0, true);
 }
-function pickPower(i, quiet){
+function pickPower(i, quiet, focus){
   if (!S.card || !S.card.powers || !S.card.powers[i]) return;
   const k = S.card.power = S.card.powers[i], P = POWERS[k];
   [...$("ocPowerRow").children].forEach((b, j) => { b.setAttribute("aria-checked", String(j === i)); b.tabIndex = j === i ? 0 : -1; });
   const d = $("ocPowerWhat"), z = document.createElement("small"); z.lang = "zh-HK"; z.textContent = P.d[1] + "（" + P.m[1] + "）";
   d.replaceChildren(P.d[0] + " (" + P.m[0][0].toLowerCase() + P.m[0].slice(1) + ")", z);
+  if (focus){ const btn = $("ocPowerRow").children[i]; if (btn) btn.focus({preventScroll: true}); }
   if (!quiet){ A.sfx("uiSelect"); fitOutcome(); }
 }
 function lockIn(b){   // b: a released body (or a fused group) with a fixed-deposit item, at rest

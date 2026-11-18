@@ -1,6 +1,11 @@
 // A small in-memory stand-in for D1, storing real rows in a `scores` table. It implements only the statements
 // server/api.js issues, matched on their shape -- enough to test ordering, ranking, uniqueness, the rate limit
 // and what the board exposes, without a database.
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
 const COLS = ["id", "gid", "edit_hash", "name", "email", "score", "stage", "height", "drops", "wise", "risky",
   "missed", "fall_spend", "fall_scam", "fall_delay", "choices", "habit", "quiz", "quiz_answered", "quiz_answers",
   "ended", "week", "month", "persona", "title", "sil", "ip_hash", "posted", "hidden", "created_at", "updated_at", "edits",
@@ -40,8 +45,8 @@ function summarizeTrend(list) {
 
 function summaryQuery(rows, sql, args) {
   let list = rows.filter((r) => !r.hidden);
-  if (/AND s\.week = \?1/.test(sql)) list = list.filter((r) => r.week === args[0]);
-  else if (/AND s\.month = \?1/.test(sql)) list = list.filter((r) => r.month === args[0]);
+  if (/AND (?:s\.)?week = \?1/.test(sql)) list = list.filter((r) => r.week === args[0]);
+  else if (/AND (?:s\.)?month = \?1/.test(sql)) list = list.filter((r) => r.month === args[0]);
   if (/AS quizStarted/.test(sql)) {
     const tr = summarizeTrend(list);
     const quizTakers = list.filter((r) => (r.quiz_answered === 3) || (r.quiz_answered == null && r.quiz != null));
@@ -74,7 +79,7 @@ function summaryQuery(rows, sql, args) {
       trPressed: list.filter((r) => r.troll_revive === 1).length,
     }];
   }
-  if (/json_each\(s\.quiz_answers\)/.test(sql)) {
+  if (/json_each\(s\.quiz_answers\)|FROM score_quiz_answers\b/.test(sql)) {
     const out = new Map();
     for (const r of list) {
       let arr = []; try { arr = JSON.parse(r.quiz_answers || "[]"); } catch {}
@@ -86,7 +91,7 @@ function summaryQuery(rows, sql, args) {
     }
     return [...out.values()];
   }
-  if (/json_each\(s\.choices\).*AS card/.test(sql)) {
+  if (/json_each\(s\.choices\).*AS card|FROM score_choices\b.*GROUP BY card/.test(sql)) {
     const out = new Map();
     for (const r of list) {
       let arr = []; try { arr = JSON.parse(r.choices || "[]"); } catch {}
@@ -98,7 +103,7 @@ function summaryQuery(rows, sql, args) {
     }
     return [...out.values()];
   }
-  if (/json_each\(s\.choices\).*AS k/.test(sql)) {
+  if (/json_each\(s\.choices\).*AS k|FROM score_choices\b.*power IS NOT NULL/.test(sql)) {
     const out = new Map();
     for (const r of list) {
       let arr = []; try { arr = JSON.parse(r.choices || "[]"); } catch {}
@@ -213,7 +218,9 @@ export function makeStore() {
 
   const run = (sql, args) => {
     if (/^PRAGMA table_info/i.test(sql)) return { results: COLS.map((name) => ({ name })) };
-    if (/^(CREATE|ALTER|DROP)/i.test(sql)) return { meta: { changes: 0 } };
+    if (/^\s*(CREATE|ALTER|DROP)/i.test(sql)) return { meta: { changes: 0 } };
+    if (/FROM sqlite_master\b/i.test(sql)) return { results: [{ n: 0 }] };
+    if (/INSERT OR IGNORE INTO score_(?:choices|quiz_answers)/i.test(sql)) return { meta: { changes: 0 } };
     if (/INSERT INTO scores/.test(sql)) return { meta: insert(sql, args) };
     if (/UPDATE scores SET month = \?1 WHERE id = \?2/.test(sql)) {
       const r = rows.find((x) => x.id === args[1]); if (r) r.month = args[0];
@@ -279,7 +286,7 @@ export function makeStore() {
       const tr = summarizeTrend(sample);
       return { results: [{ scanned: rows.length, games: tr.games, wise: tr.wise, risky: tr.risky, missed: tr.missed, spend: tr.spend, scam: tr.scam, delay: tr.delay, quizSum: sample.reduce((s, r) => s + (r.quiz || 0), 0), quizN: tr.quizTakers, quizPass: tr.quizPass }] };
     }
-    if (/FROM scores s\b|json_each\(s\./.test(sql)) return { results: summaryQuery(rows, sql, args) };
+    if (/FROM (?:scores s|score_choices|score_quiz_answers)\b|json_each\(s\./.test(sql)) return { results: summaryQuery(rows, sql, args) };
     if (/SELECT COUNT\(\*\) AS n FROM admin_fails/.test(sql)) return { results: [{ n: 0 }] };
     if (/^\s*SELECT/i.test(sql)) return { results: select(sql, args) };
     return { meta: { changes: 0 } };
@@ -298,5 +305,137 @@ export function makeStore() {
     batch: async (list) => (list || []).map((s) => run(s.sql, s.args)),
     exec: async () => {},
     _rows: rows,
+  };
+}
+
+const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "migrations");
+const MAX_D1_PARAMS = 100;
+
+function validateBind(sql, args) {
+  if (args.length > MAX_D1_PARAMS) throw new Error("D1_ERROR: too many SQL variables");
+  const stripped = sql
+    .replace(/'(?:''|[^'])*'/g, "''")
+    .replace(/"(?:""|[^"])*"/g, '""')
+    .replace(/--[^\n]*/g, "")
+    .replace(/\/\*[\s\S]*?\*\//g, "");
+  let anon = 0;
+  for (const m of stripped.matchAll(/\?(\d+)?/g)) {
+    if (m[1]) {
+      const n = Number(m[1]);
+      if (n < 1 || n > MAX_D1_PARAMS) throw new Error("D1_ERROR: too many SQL variables");
+    } else {
+      anon++;
+      if (anon > MAX_D1_PARAMS) throw new Error("D1_ERROR: too many SQL variables");
+    }
+  }
+  for (let i = 0; i < args.length; i++) {
+    const v = args[i];
+    const ok =
+      v === null ||
+      typeof v === "string" ||
+      (typeof v === "number" && Number.isFinite(v)) ||
+      v instanceof Uint8Array ||
+      v instanceof ArrayBuffer;
+    if (!ok) {
+      throw new TypeError(`D1_TYPE_ERROR: Type '${v === undefined ? "undefined" : typeof v}' not supported for parameter ${i + 1}`);
+    }
+  }
+}
+
+export function makeSqliteDB(opts = {}) {
+  const require = createRequire(import.meta.url);
+  const { DatabaseSync } = require("node:sqlite");
+  const rawDb = opts.readonly
+    ? new DatabaseSync(opts.path || ":memory:", { readOnly: true })
+    : new DatabaseSync(opts.path || ":memory:");
+
+  const migrationList = [];
+  if (opts.migrations === "0001") {
+    migrationList.push(readFileSync(join(MIGRATIONS_DIR, "0001_create_scores.sql"), "utf8"));
+  } else if (opts.migrations === "0001+0002") {
+    migrationList.push(readFileSync(join(MIGRATIONS_DIR, "0001_create_scores.sql"), "utf8"));
+    migrationList.push(readFileSync(join(MIGRATIONS_DIR, "0002_optimize_summary.sql"), "utf8"));
+  } else if (Array.isArray(opts.migrations)) {
+    for (const m of opts.migrations) {
+      migrationList.push(m.endsWith(".sql") ? readFileSync(join(MIGRATIONS_DIR, m), "utf8") : m);
+    }
+  }
+  if (Array.isArray(opts.sql)) migrationList.push(...opts.sql);
+  for (const sqlText of migrationList) rawDb.exec(sqlText);
+
+  const prepare = (sql) => {
+    let compiled = null;
+    const getStmt = () => (compiled ||= rawDb.prepare(sql));
+
+    const makeBound = (args) => {
+      const execSync = () => {
+        validateBind(sql, args);
+        const st = getStmt();
+        if (st.columns().length > 0) {
+          const results = st.all(...args).map((r) => ({ ...r }));
+          return {
+            results,
+            success: true,
+            meta: { served_by: "node:sqlite", duration: 0, changes: 0, last_row_id: 0, changed_db: false },
+          };
+        }
+        const r = st.run(...args);
+        const changes = Number(r.changes);
+        return {
+          results: [],
+          success: true,
+          meta: {
+            served_by: "node:sqlite",
+            duration: 0,
+            changes,
+            last_row_id: changes > 0 ? Number(r.lastInsertRowid) : 0,
+            changed_db: changes > 0,
+          },
+        };
+      };
+
+      return {
+        sql,
+        args,
+        _execSync: execSync,
+        bind: (...a) => {
+          validateBind(sql, a);
+          return makeBound(a);
+        },
+        all: async () => execSync(),
+        run: async () => execSync(),
+        first: async (col) => {
+          const r = execSync();
+          const row = r.results[0] ?? null;
+          if (!row) return null;
+          return col !== undefined ? (Object.hasOwn(row, col) ? row[col] : null) : row;
+        },
+        raw: async () => execSync().results.map(Object.values),
+      };
+    };
+
+    return makeBound([]);
+  };
+
+  return {
+    prepare,
+    batch: async (stmts) => {
+      if (!stmts || !stmts.length) return [];
+      rawDb.exec("SAVEPOINT d1_batch");
+      try {
+        const out = stmts.map((s) => s._execSync());
+        rawDb.exec("RELEASE SAVEPOINT d1_batch");
+        return out;
+      } catch (e) {
+        rawDb.exec("ROLLBACK TO SAVEPOINT d1_batch; RELEASE SAVEPOINT d1_batch");
+        throw e;
+      }
+    },
+    exec: async (sqlText) => {
+      rawDb.exec(sqlText);
+      return { count: 1, duration: 0 };
+    },
+    close: () => rawDb.close(),
+    _raw: rawDb,
   };
 }

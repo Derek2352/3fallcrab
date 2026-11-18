@@ -38,6 +38,7 @@ function setStep(n, focus) {
   if (S.step && n !== S.step) A.sfx(n > S.step ? "uiNext" : "uiBack");
   S.step = n; if (n === 4) S.flowDone = true;
   const sheet = document.querySelector("#endModal .statement"); sheet.dataset.step = n;
+  $("endModal").setAttribute("aria-labelledby", STEP_FOCUS[n - 1]);
   [...$("stSteps").children].forEach((li, i) => { li.classList.toggle("done", i + 1 < n); if (i + 1 === n) li.setAttribute("aria-current", "step"); else li.removeAttribute("aria-current"); });
   stepButtons();
   const body = $("stBody"); body.classList.remove("enter"); void body.offsetWidth; if (!reduceMotion) body.classList.add("enter");
@@ -553,7 +554,7 @@ function showEnd() {
       b.addEventListener("click", () => {
         if (S.quiz[qi]) return;
         const ok = oi === q.a; S.quiz[qi] = { pick: oi, ok }; A.sfx(ok ? "deposit" : "risky"); haptic(ok ? [12, 25, 22] : [30, 35, 45], ok ? 0.35 : 0.6, 0.5);
-        [...box.children].forEach(bb => { const bj = +bb.dataset.oi; bb.disabled = true; bb.classList.add(bj === q.a ? "is-right" : bj === oi ? "is-wrong" : "is-dim"); });
+        [...box.children].forEach(bb => { const bj = +bb.dataset.oi; bb.setAttribute("aria-disabled", "true"); bb.classList.add(bj === q.a ? "is-right" : bj === oi ? "is-wrong" : "is-dim"); });
         b.setAttribute("aria-pressed", "true");
         const head = document.createElement("b"); head.className = "qh";
         head.append(svgUse(ok ? "i-good" : "i-bad"), ok ? "Correct!" : "Not quite. The answer is “" + q.o[q.a][0] + "”");
@@ -581,7 +582,7 @@ function showEnd() {
   $("nickname").value = BOOTH ? "" : lsGet("tff_name", "");
   const live = apiAllowed && !apiGone && dbWritable;
   $("email").value = BOOTH ? "" : lsGet("tff_email", ""); emailError(false); $("email").closest(".fld").hidden = $("emailNote").closest(".email-note").hidden = !live;   // kept on this device only, so a returning player does not retype it
-  $("postBtn").disabled = false; postLabel("Post score", "上榜");
+  $("postBtn").disabled = false; $("postBtn").removeAttribute("aria-disabled"); postLabel("Post score", "上榜");
   const ps = $("postStatus"); ps.className = "post-status";
   ps.textContent = live ? "Only your nickname and score will appear on the leaderboard. 排行榜只會顯示你的暱稱及分數。" : "Your score will be saved on this device only. 分數只會儲存在這部裝置。";
   // end credits: the post-mortem, as a credit sequence
@@ -829,7 +830,7 @@ $("postBtn").addEventListener("click", async () => {
     title: st.verdict ? st.verdict.id : undefined, persona: st.persona ? personaKey(st.persona) : undefined,
     answers, quiz: answers.length ? right : null, ended: st.over, at: new Date().toISOString(), week: localWeek()
   };   // the device copy never holds the email
-  btn.disabled = true; postLabel("Posting…", "上載中"); ps.className = "post-status";
+  btn.setAttribute("aria-disabled", "true"); postLabel("Posting…", "上載中"); ps.className = "post-status";
   if (!db && apiAllowed && !apiGone) await refreshLB();
   const saveLocal = () => { const arr = localScores(); arr.push(entry); lsSet("tff_scores_v3", arr.slice(-100)); };
   if (db && dbWritable) {
@@ -853,7 +854,7 @@ $("postBtn").addEventListener("click", async () => {
       if (e.code === "bad_email") {
         st.posting = false;
         if (st === S) {
-          btn.disabled = false; postLabel("Post score", "上榜"); emailError(true); em.focus(); ps.className = "post-status bad";
+          btn.removeAttribute("aria-disabled"); postLabel("Post score", "上榜"); emailError(true); em.focus(); ps.className = "post-status bad";
           ps.textContent = "That email doesn't look right. Please check it. 電郵地址好似唔啱，請再檢查。";
         }
         return;
@@ -862,7 +863,7 @@ $("postBtn").addEventListener("click", async () => {
         // Busy or offline: keep the button so they can try again.
         st.posting = false;
         if (st === S) {
-          btn.disabled = false; postLabel("Try again", "再試");
+          btn.removeAttribute("aria-disabled"); postLabel("Try again", "再試");
           ps.textContent = e.status === 429 ? "Lots of crabs posting at once. Wait a moment, then try again. 太多人同時上榜，等陣再試吓。"
             : "Couldn't reach the live board. Check your connection, then try again. 連唔到排行榜，檢查吓網絡再試。";
           showStatus();

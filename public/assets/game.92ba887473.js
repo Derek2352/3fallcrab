@@ -605,12 +605,13 @@ row.appendChild(b);
 });
 box.hidden = false; pickPower(0, true);
 }
-function pickPower(i, quiet){
+function pickPower(i, quiet, focus){
 if (!S.card || !S.card.powers || !S.card.powers[i]) return;
 const k = S.card.power = S.card.powers[i], P = POWERS[k];
 [...$("ocPowerRow").children].forEach((b, j) => { b.setAttribute("aria-checked", String(j === i)); b.tabIndex = j === i ? 0 : -1; });
 const d = $("ocPowerWhat"), z = document.createElement("small"); z.lang = "zh-HK"; z.textContent = P.d[1] + "（" + P.m[1] + "）";
 d.replaceChildren(P.d[0] + " (" + P.m[0][0].toLowerCase() + P.m[0].slice(1) + ")", z);
+if (focus){ const btn = $("ocPowerRow").children[i]; if (btn) btn.focus({preventScroll: true}); }
 if (!quiet){ A.sfx("uiSelect"); fitOutcome(); }
 }
 function lockIn(b){
@@ -1409,7 +1410,7 @@ c.lineWidth = 4.5 * s; c.strokeStyle = "rgba(96,52,0,0.9)"; c.strokeText(q.txt, 
 c.fillStyle = "#FFE45C"; c.fillText(q.txt, x, y);
 c.font = "900 " + (11 * s).toFixed(1) + "px " + K.FONTS.display;
 const tag = "×" + FRENZY_X, bx = x + tw / 2 + 4 * s, bw = c.measureText(tag).width + 10 * s, bh = 15 * s;
-c.fillStyle = "#FF7B35"; roundRect(c, bx, y - bh / 2, bw, bh, bh / 2); c.fill();
+c.fillStyle = "#C35117"; roundRect(c, bx, y - bh / 2, bw, bh, bh / 2); c.fill();
 c.fillStyle = "#fff"; c.fillText(tag, bx + bw / 2, y + 0.5);
 }
 c.restore();
@@ -1519,6 +1520,7 @@ g.clearRect(0, 0, R.w, R.h); R.cv.hidden = true; R.raf = 0; R.parts = []; R.spar
 function startGame(){
 clearTimeout(boothTimer);
 A.unlock(); A.sfx("go"); closeInfo(true); closePicker(true); closeRoll(true);
+pickFromEnd = false; pickReturnTo = null; rollFromEnd = false; rollReturnTo = null;
 hideIabTip();
 if (root.classList.contains("title")){ played = true; root.classList.remove("title"); enterBrowserFs(); lastFit = ""; resize(); }
 played = true;
@@ -1530,7 +1532,7 @@ const cg = chalGhost(); GHOSTS = cg ? [cg] : []; loadGhosts();
 root.classList.remove("rotlock");
 S.persona = ROLL; rollKept = false; showWho();
 if (firstQueue){ S.queue = firstQueue; S.lastId = firstQueue[2].id; S.jackpot = firstQueue.some(d => d.jackpot); firstQueue = null; }
-$("startOv").hidden = true; $("pauseOv").hidden = true; $("endModal").hidden = true; $("cardModal").hidden = true; $("seeOv").hidden = true; modalOpen(false);
+$("startOv").hidden = true; $("pauseOv").hidden = true; pauseInert(false); $("endModal").hidden = true; $("cardModal").hidden = true; $("seeOv").hidden = true; modalOpen(false);
 $("offerModal").hidden = true; $("reviveModal").hidden = true; $("pfChip").hidden = true; $("boardWrap").classList.remove("glitch"); planTrolls();
 A.stage(0); A.mode("normal"); A.start();
 renderLedger();
@@ -1566,11 +1568,20 @@ updateHUD();
 setTimeout(reason === "drops" ? openRevive : showEnd, reason === "drops" ? 1000 : 700);
 }
 function modalOpen(on){ const set = document.querySelector(".set"); if (set) set.inert = !!on; }
+function pauseInert(on){
+const set = document.querySelector(".set"), ov = $("pauseOv");
+if (!set || !ov) return;
+for (let cur = ov; cur && cur !== set; cur = cur.parentElement){
+const p = cur.parentElement;
+if (!p) break;
+for (const sib of p.children) if (sib !== cur) sib.inert = !!on;
+}
+}
 function setPauseUI(){ const pb = $("pauseBtn"); const live = S && (S.mode === "playing" || S.mode === "paused"); pb.disabled = !live; document.documentElement.classList.toggle("ingame", !!live); const p = !!(S && S.mode === "paused"); pb.setAttribute("aria-pressed", String(p)); }
 function togglePause(){
 if (S.mode === "playing" || S.mode === "paused") A.sfx("uiToggle");
-if (S.mode === "playing"){ S.mode = "paused"; $("pauseOv").hidden = false; A.mode("paused"); $("resumeBtn").focus({preventScroll:true}); }
-else if (S.mode === "paused"){ S.mode = "playing"; $("pauseOv").hidden = true; A.resume(); A.mode(musicMode()); $("board").focus({preventScroll:true}); }
+if (S.mode === "playing"){ S.mode = "paused"; $("pauseOv").hidden = false; pauseInert(true); A.mode("paused"); $("resumeBtn").focus({preventScroll:true}); }
+else if (S.mode === "paused"){ S.mode = "playing"; $("pauseOv").hidden = true; pauseInert(false); A.resume(); A.mode(musicMode()); $("board").focus({preventScroll:true}); }
 setPauseUI();
 }
 const keys = {left:false, right:false};
@@ -1632,8 +1643,68 @@ else if (fsEl()) try { Promise.resolve(document.exitFullscreen ? document.exitFu
 }
 for (const ev of ["fullscreenchange", "webkitfullscreenchange"]) document.addEventListener(ev, () => { lastFit = ""; resize(); });
 let endShownAt = 0;
+const DIALOG_IDS = ["igModal", "endModal", "rollModal", "pickModal", "infoModal", "reviveModal", "offerModal", "cardModal", "pauseOv"];
+function activeDialog(){
+for (const id of DIALOG_IDS){
+const el = $(id);
+if (el && !el.hidden && !el.inert) return el;
+}
+return null;
+}
+function dialogTabbables(dlg){
+const raw = [...dlg.querySelectorAll('a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])')];
+const vis = raw.filter(el => {
+if (el.disabled || el.closest("[hidden]") || el.closest("[inert]")) return false;
+if (el.tabIndex < 0) return false;
+const cs = getComputedStyle(el);
+if (cs.display === "none" || cs.visibility === "hidden") return false;
+return el.getClientRects().length > 0;
+});
+const seenRadio = new Set(), out = [];
+for (const el of vis){
+if (el.tagName === "INPUT" && el.type === "radio" && el.name){
+if (seenRadio.has(el.name)) continue;
+seenRadio.add(el.name);
+const group = vis.filter(x => x.tagName === "INPUT" && x.type === "radio" && x.name === el.name);
+out.push(group.find(x => x.checked) || group[0]);
+continue;
+}
+out.push(el);
+}
+return out;
+}
+{
+const _openCard = openCard, _choose = choose;
+openCard = function(...args){
+$("cardModal").setAttribute("aria-labelledby", "cardTitle cardTitleZh");
+return _openCard.apply(this, args);
+};
+choose = function(...args){
+const res = _choose.apply(this, args);
+if (S && S.card && S.card.flip) $("cardModal").setAttribute("aria-labelledby", "ocHead cardTag");
+return res;
+};
+}
 document.addEventListener("keydown", e => {
 if (BOOTH) bumpBooth();
+if (e.key === "Tab"){
+const dlg = activeDialog();
+if (dlg){
+const list = dialogTabbables(dlg);
+if (!list.length){ e.preventDefault(); return; }
+const first = list[0], last = list[list.length - 1], cur = document.activeElement;
+if (!dlg.contains(cur)){ (e.shiftKey ? last : first).focus({preventScroll: true}); e.preventDefault(); return; }
+const idx = (cur && cur.tagName === "INPUT" && cur.type === "radio" && cur.name)
+? list.findIndex(x => x.tagName === "INPUT" && x.type === "radio" && x.name === cur.name)
+: list.indexOf(cur);
+if (e.shiftKey){
+if (idx <= 0){ last.focus({preventScroll: true}); e.preventDefault(); }
+} else {
+if (idx === -1 || idx >= list.length - 1){ first.focus({preventScroll: true}); e.preventDefault(); }
+}
+return;
+}
+}
 if (!$("igModal").hidden){
 if (e.key === "Escape"){ closeIg(); e.preventDefault(); }
 return;
@@ -1659,6 +1730,7 @@ if (!$("endModal").hidden){
 if ((e.key === " " || e.key === "Enter") && performance.now() - endShownAt < 900){ e.preventDefault(); return; }
 if (e.key === "Escape"){ $("closeEnd").click(); e.preventDefault(); return; }
 }
+if (!$("pauseOv").hidden && e.key === "Escape"){ togglePause(); e.preventDefault(); return; }
 const tag = (e.target && e.target.tagName) || "";
 if (tag === "INPUT" || tag === "TEXTAREA") return;
 const k = e.key;
@@ -1685,8 +1757,15 @@ if (!S.card.flip && ["1","2","a","b","A","B"].includes(k)){
 const idx = (k === "1" || k.toLowerCase() === "a") ? 0 : 1;
 choose(S.card.order[idx] === "w" ? "wise" : "risky"); e.preventDefault();
 } else if (S.card.flip && (k === "Enter" || k === " ")){ if (!(e.target && e.target.classList && e.target.classList.contains("pw"))){ closeCard(); e.preventDefault(); } }
-else if (S.card.flip && S.card.powers && ["1", "2", "3"].includes(k)){ pickPower(+k - 1); e.preventDefault(); }
-else if (S.card.flip && S.card.powers && (k === "ArrowLeft" || k === "ArrowRight")){ const n = S.card.powers.length, i = S.card.powers.indexOf(S.card.power); pickPower((i + (k === "ArrowLeft" ? n - 1 : 1)) % n); e.preventDefault(); }
+else if (S.card.flip && S.card.powers && ["1", "2", "3"].includes(k)){
+const inPow = !!(e.target && e.target.closest && e.target.closest("#ocPowerRow"));
+pickPower(+k - 1, false, inPow); e.preventDefault();
+}
+else if (S.card.flip && S.card.powers && (k === "ArrowLeft" || k === "ArrowRight" || ((k === "ArrowUp" || k === "ArrowDown") && e.target && e.target.closest && e.target.closest("#ocPowerRow")))){
+const n = S.card.powers.length, i = S.card.powers.indexOf(S.card.power);
+const back = k === "ArrowLeft" || k === "ArrowUp";
+pickPower((i + (back ? n - 1 : 1)) % n, false, true); e.preventDefault();
+}
 return;
 }
 if (S.mode === "idle" && S.viewing && !$("seeOv").hidden && (k === "Escape" || k === "r" || k === "R")){ openResults(); e.preventDefault(); return; }
@@ -1815,9 +1894,10 @@ pickSel = who;
 for (const b of document.querySelectorAll("#pickModal .who")){ const on = b.dataset.who === who; b.setAttribute("aria-checked", String(on)); b.tabIndex = on ? 0 : -1; }
 for (const b of document.querySelectorAll("#pickModal .who")) paintAvatar(b.querySelector("canvas"), {who: b.dataset.who, stage: 0, tier: 1, hand: null, mood: b.dataset.who === who ? "happy" : "idle", drops: 0, boost: false});
 }
-let pickFromEnd = false;
+let pickFromEnd = false, pickReturnTo = null;
 function openPicker(){
 pickFromEnd = !$("endModal").hidden; $("endModal").hidden = true;
+pickReturnTo = !pickFromEnd && document.activeElement && document.activeElement !== document.body && !document.activeElement.closest("#pickModal") ? document.activeElement : null;
 hideIabTip();
 $("pickModal").hidden = false; modalOpen(true); setPick(WHO, true); A.sfx("uiOpen");
 fitLine($("pickTitle"));
@@ -1826,11 +1906,26 @@ document.querySelector('#pickModal .who[aria-checked="true"]').focus({preventScr
 function closePicker(quiet){
 if ($("pickModal").hidden) return;
 if (!quiet) A.sfx("uiClose"); $("pickModal").hidden = true; modalOpen(false);
-if (pickFromEnd && !quiet && S && S.mode === "over"){ $("endModal").hidden = false; modalOpen(true); $("againBtn").focus({preventScroll: true}); }
-else if (!quiet && !played) iabTip();
-pickFromEnd = false;
+if ((pickFromEnd || ($("startOv").hidden && $("seeOv").hidden)) && !quiet && S && S.mode === "over"){
+$("endModal").hidden = false; modalOpen(true);
+$(S.step === 4 ? "againBtn" : STEP_FOCUS[S.step - 1]).focus({preventScroll: true});
+} else if (!quiet){
+if (!played) iabTip();
+const fb = !$("startOv").hidden ? $("startBtn") : !$("seeOv").hidden ? $("againBtn2") : null;
+const tgt = (pickReturnTo && pickReturnTo.isConnected && !pickReturnTo.closest("[hidden]") && pickReturnTo.getClientRects().length) ? pickReturnTo : fb;
+if (tgt) tgt.focus({preventScroll: true});
+else if (S && S.mode === "playing") $("board").focus({preventScroll: true});
 }
-function pickGo(){ WHO = pickSel; if (!BOOTH) lsSet("tff_who", WHO); whoPicked = true; ssSet("tff_picked", "1"); closePicker(true); newLife(); }
+pickFromEnd = false; pickReturnTo = null;
+}
+function pickGo(){
+const fromEnd = pickFromEnd, ret = pickReturnTo;
+WHO = pickSel; if (!BOOTH) lsSet("tff_who", WHO); whoPicked = true; ssSet("tff_picked", "1");
+closePicker(true);
+if (fromEnd) pickFromEnd = true;
+if (ret) pickReturnTo = ret;
+newLife();
+}
 function beginGame(){
 if (root.classList.contains("title")) enterBrowserFs();
 if (whoPicked) newLife(); else openPicker();
@@ -1840,6 +1935,7 @@ b.addEventListener("click", () => setPick(b.dataset.who));
 b.addEventListener("dblclick", pickGo);
 }
 $("pickGo").addEventListener("click", pickGo);
+if ($("pickClose")) $("pickClose").addEventListener("click", () => closePicker());
 const PERSONAS = window.TFF_CONTENT.PERSONAS || {bg: {}, pe: {}, combos: {}};
 const BG_KEYS = Object.keys(PERSONAS.bg), PE_KEYS = Object.keys(PERSONAS.pe), REPS = 6;
 const ROLL_AUTO = /[?&]roll=0(&|$)/.test(location.search) || ssGet("tff_roll_auto") === "1";
@@ -1884,10 +1980,14 @@ b.lang = "zh-HK"; b.textContent = set[k].zh; sm.textContent = set[k].en; tx.appe
 }
 const tileH = strip => strip.firstElementChild ? strip.firstElementChild.getBoundingClientRect().height : 84;
 function placeStrip(strip, keys, k, cycle){ strip.style.transition = "none"; strip.style.transform = "translateY(" + (-(cycle * keys.length + keys.indexOf(k)) * tileH(strip)) + "px)"; }
-let rollFromEnd = false;
+let rollFromEnd = false, rollReturnTo = null;
 function openRoll(){
-closeInfo(true); closePicker(true); hideIabTip();
-rollFromEnd = !$("endModal").hidden; $("endModal").hidden = true;
+const ae = document.activeElement;
+const savedReturn = (ae && ae !== document.body && !ae.closest("#pickModal, #infoModal, #rollModal")) ? ae : pickReturnTo;
+const wasEnd = !$("endModal").hidden || pickFromEnd;
+closeInfo(true); closePicker(true); pickFromEnd = false; pickReturnTo = null; hideIabTip();
+rollFromEnd = wasEnd; $("endModal").hidden = true;
+rollReturnTo = !rollFromEnd ? savedReturn : null;
 buildStrip($("stripBg"), BG_KEYS, PERSONAS.bg); buildStrip($("stripPe"), PE_KEYS, PERSONAS.pe);
 const m = $("rollModal"); m.hidden = false; modalOpen(true); A.sfx("uiOpen");
 paintAvatar($("rollAvatar"), {who: WHO, stage: 0, tier: 1, hand: null, mood: "happy", drops: 0, boost: false});
@@ -1916,9 +2016,17 @@ function closeRoll(quiet){
 if ($("rollModal").hidden) return;
 if (rollPhase === "spinning") rollFinish(true);
 if (!quiet) A.sfx("uiClose"); $("rollModal").hidden = true; modalOpen(false);
-if (rollFromEnd && !quiet && S && S.mode === "over"){ $("endModal").hidden = false; modalOpen(true); $("againBtn").focus({preventScroll: true}); }
-else if (!quiet && !played) iabTip();
-rollFromEnd = false;
+if ((rollFromEnd || ($("startOv").hidden && $("seeOv").hidden)) && !quiet && S && S.mode === "over"){
+$("endModal").hidden = false; modalOpen(true);
+$(S.step === 4 ? "againBtn" : STEP_FOCUS[S.step - 1]).focus({preventScroll: true});
+} else if (!quiet){
+if (!played) iabTip();
+const fb = !$("startOv").hidden ? $("startBtn") : !$("seeOv").hidden ? $("againBtn2") : null;
+const tgt = (rollReturnTo && rollReturnTo.isConnected && !rollReturnTo.closest("[hidden]") && rollReturnTo.getClientRects().length) ? rollReturnTo : fb;
+if (tgt) tgt.focus({preventScroll: true});
+else if (S && S.mode === "playing") $("board").focus({preventScroll: true});
+}
+rollFromEnd = false; rollReturnTo = null;
 }
 function spinReel(reel, strip, keys, k, ms){
 const target = (REPS - 1) * keys.length + keys.indexOf(k), y = -target * tileH(strip);
@@ -1960,6 +2068,7 @@ $("rollGo").addEventListener("click", () => {
 if (rollPhase === "ready") rollSpin(); else if (rollPhase === "spinning") rollFinish(); else if (rollPhase === "done") startGame();
 });
 $("rollModal").addEventListener("click", e => { if (e.target === e.currentTarget) closeRoll(); });
+if ($("rollClose")) $("rollClose").addEventListener("click", () => closeRoll());
 function showWho(){
 const P = personaOf(S && S.persona), w = $("hudWho"); w.hidden = !P; if (P){ w.textContent = P.zh; w.title = P.en; }
 }
@@ -1986,7 +2095,8 @@ bi($("wardrobeNote"), n + " of " + HATS.length + " unlocked. Earn a title to unl
 [{id: null, en: "None", zh: "冇"}, ...HATS].forEach(h => {
 const own = !h.id || have.includes(h.title), t = h.title && TITLES.find(x => x.id === h.title);
 const b = document.createElement("button"); b.type = "button"; b.className = "wtile" + (own ? "" : " locked"); b.setAttribute("role", "radio");
-b.setAttribute("aria-checked", String((h.id || null) === HAT)); if (!own) b.setAttribute("aria-disabled", "true");
+const checked = (h.id || null) === HAT;
+b.setAttribute("aria-checked", String(checked)); b.tabIndex = checked ? 0 : -1; if (!own) b.setAttribute("aria-disabled", "true");
 const cv = document.createElement("canvas"); cv.width = 160; cv.height = 128; cv.setAttribute("aria-hidden", "true");
 const g = cv.getContext("2d"); g.setTransform(2, 0, 0, 2, 80, 64); crabArt(g, "happy", h.id);
 const nm = document.createElement("span"); nm.className = "wn"; const z = document.createElement("small"); z.lang = "zh-HK"; z.textContent = h.zh; nm.append(h.en, z);
@@ -1994,10 +2104,37 @@ b.append(cv, nm);
 if (!own && t){ const w = document.createElement("span"); w.className = "ww"; const wz = document.createElement("small"); wz.lang = "zh-HK"; wz.textContent = "攞到「" + t.zh + "」解鎖"; w.append("Locked: earn " + t.en, wz); b.appendChild(w); }
 b.addEventListener("click", () => {
 if (!own){ A.sfx("uiNope"); return; }
-wearHat(h.id); A.sfx("uiSelect"); [...box.children].forEach(x => x.setAttribute("aria-checked", String(x === b)));
+wearHat(h.id); A.sfx("uiSelect"); [...box.children].forEach(x => { const on = x === b; x.setAttribute("aria-checked", String(on)); x.tabIndex = on ? 0 : -1; });
 });
 box.appendChild(b);
 });
+if (box.children.length && ![...box.children].some(x => x.tabIndex === 0)) box.children[0].tabIndex = 0;
+if (!box.dataset.kb){
+box.dataset.kb = "1";
+box.addEventListener("keydown", e => {
+const tiles = [...box.children]; if (!tiles.length) return;
+const i = tiles.indexOf(document.activeElement); if (i < 0) return;
+let ni = -1;
+if (e.key === "ArrowRight") ni = (i + 1) % tiles.length;
+else if (e.key === "ArrowLeft") ni = (i - 1 + tiles.length) % tiles.length;
+else if (e.key === "ArrowDown") ni = i + 3 < tiles.length ? i + 3 : i % 3;
+else if (e.key === "ArrowUp") ni = i - 3 >= 0 ? i - 3 : i + Math.floor((tiles.length - 1 - i) / 3) * 3;
+else if (e.key === "Home") ni = 0;
+else if (e.key === "End") ni = tiles.length - 1;
+if (ni < 0) return;
+e.preventDefault();
+tiles.forEach((x, k) => { x.tabIndex = k === ni ? 0 : -1; });
+const next = tiles[ni];
+next.focus({preventScroll: true});
+if (!next.classList.contains("locked")) next.click();
+});
+box.addEventListener("focusout", e => {
+if (box.contains(e.relatedTarget)) return;
+const tiles = [...box.children];
+const chk = tiles.find(x => x.getAttribute("aria-checked") === "true") || tiles[0];
+tiles.forEach(x => { x.tabIndex = x === chk ? 0 : -1; });
+});
+}
 const wt = $("wardrobeTitles");
 if (wt){
 wt.replaceChildren();
@@ -2272,7 +2409,7 @@ if (S) S.dragX = null; drag = null;
 };
 cv.addEventListener("pointerup", endDrag); cv.addEventListener("pointercancel", endDrag);
 const OWN_SOUND = "#startBtn,#pickGo,#rollGo,#chalSame,#againBtn,#againBtn2,#replayBtn,#stNext,#stBack,#tsLb,#tsHow,#tsPriv,#tsWear,#tsStory,#tsIg,#endIgBtn,#igClose,#igGo,#igQrLink,#igDismiss,.wtile,#infoClose,.who,#tsMute,#muteBtn,#fsBtn,#tsFs,#fsStartBtn,#pauseBtn,#resumeBtn,#resultsBtn,#closeEnd,.choice,.qopt,.pad button,#hudHoldBtn,label.habit,.ctime label";
-document.addEventListener("click", e => { const t = e.target.closest && e.target.closest(".btn,.tab,.iconbtn,.ov-chip,.hbtn,button,[role=tab]"); if (t && !t.disabled){ haptic(8, 0.12, 0.2); if (!t.closest(OWN_SOUND)) A.sfx("click"); } });
+document.addEventListener("click", e => { const t = e.target.closest && e.target.closest(".btn,.tab,.iconbtn,.ov-chip,.hbtn,button,[role=tab]"); if (t && !t.disabled && t.getAttribute("aria-disabled") !== "true"){ haptic(8, 0.12, 0.2); if (!t.closest(OWN_SOUND)) A.sfx("click"); } });
 document.addEventListener("pointerdown", e => { const t = e.target.closest && e.target.closest("button:disabled,[aria-disabled=true]"); if (t){ A.unlock(); A.sfx("uiNope"); haptic([22, 30, 30], 0.45, 0.35); } });
 let audioOn = false;
 function soundHint(){ const h = $("tsSound"); if (h) h.hidden = audioOn || A.muted(); const z = $("tsSilent"); if (z) z.hidden = !IOS; }
@@ -3038,7 +3175,7 @@ c.beginPath(); c.moveTo(XV ? -XV : 44, y); c.lineTo(W + XV, y); c.stroke(); c.se
 if (!st && f % 5){
 c.fillStyle = skyDusk >= .5 ? "rgba(37,49,122,0.55)" : "rgba(37,49,122,0.32)"; roundRect(c, 19, y - 2, 12, 4, 2); c.fill(); continue;
 }
-c.fillStyle = st ? "#FFE45C" : skyDusk >= .5 ? "rgba(37,49,122,0.8)" : "rgba(37,49,122,0.55)";
+c.fillStyle = st ? "#FFE45C" : skyDusk >= .5 ? "rgba(37,49,122,0.8)" : "rgba(37,49,122,0.82)";
 roundRect(c, 8, y - 10, 34, 20, 8); c.fill();
 c.fillStyle = st ? "#25317A" : "#FFFFFF"; c.textAlign = "center"; c.fillText(f + "F", 25, y + 1);
 }
@@ -3406,6 +3543,7 @@ function setStep(n, focus) {
 if (S.step && n !== S.step) A.sfx(n > S.step ? "uiNext" : "uiBack");
 S.step = n; if (n === 4) S.flowDone = true;
 const sheet = document.querySelector("#endModal .statement"); sheet.dataset.step = n;
+$("endModal").setAttribute("aria-labelledby", STEP_FOCUS[n - 1]);
 [...$("stSteps").children].forEach((li, i) => { li.classList.toggle("done", i + 1 < n); if (i + 1 === n) li.setAttribute("aria-current", "step"); else li.removeAttribute("aria-current"); });
 stepButtons();
 const body = $("stBody"); body.classList.remove("enter"); void body.offsetWidth; if (!reduceMotion) body.classList.add("enter");
@@ -3865,7 +4003,7 @@ b.textContent = o[0]; const z = document.createElement("small"); z.textContent =
 b.addEventListener("click", () => {
 if (S.quiz[qi]) return;
 const ok = oi === q.a; S.quiz[qi] = { pick: oi, ok }; A.sfx(ok ? "deposit" : "risky"); haptic(ok ? [12, 25, 22] : [30, 35, 45], ok ? 0.35 : 0.6, 0.5);
-[...box.children].forEach(bb => { const bj = +bb.dataset.oi; bb.disabled = true; bb.classList.add(bj === q.a ? "is-right" : bj === oi ? "is-wrong" : "is-dim"); });
+[...box.children].forEach(bb => { const bj = +bb.dataset.oi; bb.setAttribute("aria-disabled", "true"); bb.classList.add(bj === q.a ? "is-right" : bj === oi ? "is-wrong" : "is-dim"); });
 b.setAttribute("aria-pressed", "true");
 const head = document.createElement("b"); head.className = "qh";
 head.append(svgUse(ok ? "i-good" : "i-bad"), ok ? "Correct!" : "Not quite. The answer is “" + q.o[q.a][0] + "”");
@@ -3892,7 +4030,7 @@ lab.append(inp, t); hb.appendChild(lab);
 $("nickname").value = BOOTH ? "" : lsGet("tff_name", "");
 const live = apiAllowed && !apiGone && dbWritable;
 $("email").value = BOOTH ? "" : lsGet("tff_email", ""); emailError(false); $("email").closest(".fld").hidden = $("emailNote").closest(".email-note").hidden = !live;
-$("postBtn").disabled = false; postLabel("Post score", "上榜");
+$("postBtn").disabled = false; $("postBtn").removeAttribute("aria-disabled"); postLabel("Post score", "上榜");
 const ps = $("postStatus"); ps.className = "post-status";
 ps.textContent = live ? "Only your nickname and score will appear on the leaderboard. 排行榜只會顯示你的暱稱及分數。" : "Your score will be saved on this device only. 分數只會儲存在這部裝置。";
 try {
@@ -4118,7 +4256,7 @@ wise: st.wise, risky: st.risky, missed: st.missed, falls: { ...st.falls }, choic
 title: st.verdict ? st.verdict.id : undefined, persona: st.persona ? personaKey(st.persona) : undefined,
 answers, quiz: answers.length ? right : null, ended: st.over, at: new Date().toISOString(), week: localWeek()
 };
-btn.disabled = true; postLabel("Posting…", "上載中"); ps.className = "post-status";
+btn.setAttribute("aria-disabled", "true"); postLabel("Posting…", "上載中"); ps.className = "post-status";
 if (!db && apiAllowed && !apiGone) await refreshLB();
 const saveLocal = () => { const arr = localScores(); arr.push(entry); lsSet("tff_scores_v3", arr.slice(-100)); };
 if (db && dbWritable) {
@@ -4142,7 +4280,7 @@ r.board = false; r.name = ""; r.email = "";
 if (e.code === "bad_email") {
 st.posting = false;
 if (st === S) {
-btn.disabled = false; postLabel("Post score", "上榜"); emailError(true); em.focus(); ps.className = "post-status bad";
+btn.removeAttribute("aria-disabled"); postLabel("Post score", "上榜"); emailError(true); em.focus(); ps.className = "post-status bad";
 ps.textContent = "That email doesn't look right. Please check it. 電郵地址好似唔啱，請再檢查。";
 }
 return;
@@ -4150,7 +4288,7 @@ return;
 if (!e.status || e.status === 429 || (e.status >= 500 && e.code !== "no_database")) {
 st.posting = false;
 if (st === S) {
-btn.disabled = false; postLabel("Try again", "再試");
+btn.removeAttribute("aria-disabled"); postLabel("Try again", "再試");
 ps.textContent = e.status === 429 ? "Lots of crabs posting at once. Wait a moment, then try again. 太多人同時上榜，等陣再試吓。"
 : "Couldn't reach the live board. Check your connection, then try again. 連唔到排行榜，檢查吓網絡再試。";
 showStatus();

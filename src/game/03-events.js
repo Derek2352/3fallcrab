@@ -550,7 +550,7 @@ function drawPops(c, f){
     c.fillStyle = "#FFE45C"; c.fillText(q.txt, x, y);
     c.font = "900 " + (11 * s).toFixed(1) + "px " + K.FONTS.display;   // the ×1.5 tag
     const tag = "×" + FRENZY_X, bx = x + tw / 2 + 4 * s, bw = c.measureText(tag).width + 10 * s, bh = 15 * s;
-    c.fillStyle = "#FF7B35"; roundRect(c, bx, y - bh / 2, bw, bh, bh / 2); c.fill();
+    c.fillStyle = "#C35117"; roundRect(c, bx, y - bh / 2, bw, bh, bh / 2); c.fill();
     c.fillStyle = "#fff"; c.fillText(tag, bx + bw / 2, y + 0.5);
   }
   c.restore();

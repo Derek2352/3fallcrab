@@ -26,7 +26,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preload" href="/assets/gluten.5b0fb221b0.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/noto-sans-hk.ef21e72e0e.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/assets/style.91653e2391.css">
+<link rel="stylesheet" href="/assets/style.224a291a2e.css">
 <meta name="tff-medal3d" content="/assets/medal3d.ae2e6aba60.js">
 <meta name="tff-cast" content="/assets/cast.1b7cde7a64.webp">
 <meta name="tff-posters" content='{"estate":"/assets/estate.5926b66573.jpg","trolley":"/assets/trolley.2f088eccdb.jpg","rooftop":"/assets/rooftop.9892748998.jpg","diner":"/assets/diner.76b3a7984a.jpg","family":"/assets/family.5be00e178e.jpg","ferry":"/assets/ferry.2913ff209f.jpg","diver":"/assets/diver.4c796e2835.jpg"}'>
@@ -116,10 +116,10 @@
 <svg viewBox="0 0 24 24" aria-hidden="true"><path class="fo" d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="#2E2838" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path class="fx" d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5" fill="none" stroke="#DF1B72" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
 </button>
 <button class="iconbtn" id="pauseBtn" aria-label="Pause game" aria-pressed="false" disabled>
-<svg viewBox="0 0 24 24" aria-hidden="true"><g class="pz"><rect x="6" y="5" width="4.2" height="14" rx="1.6" fill="#2E2838"/><rect x="13.8" y="5" width="4.2" height="14" rx="1.6" fill="#2E2838"/></g><path class="pl" d="M8 5.5v13l11-6.5z" fill="#20C1B3"/></svg>
+<svg viewBox="0 0 24 24" aria-hidden="true"><g class="pz"><rect x="6" y="5" width="4.2" height="14" rx="1.6" fill="#2E2838"/><rect x="13.8" y="5" width="4.2" height="14" rx="1.6" fill="#2E2838"/></g><path class="pl" d="M8 5.5v13l11-6.5z" fill="#11837B"/></svg>
 </button>
 <button class="iconbtn" id="muteBtn" aria-pressed="false" aria-label="Mute sound">
-<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="#2E2838"/><path class="w" d="M16 8.5c1.6 1.8 1.6 5.2 0 7M18.6 6c3 3.2 3 8.8 0 12" fill="none" stroke="#FF5FA2" stroke-width="2.2" stroke-linecap="round"/><path class="x" d="M16.5 9.5l5 5M21.5 9.5l-5 5" stroke="#F2463E" stroke-width="2.4" stroke-linecap="round"/></svg>
+<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="#2E2838"/><path class="w" d="M16 8.5c1.6 1.8 1.6 5.2 0 7M18.6 6c3 3.2 3 8.8 0 12" fill="none" stroke="#DF1B72" stroke-width="2.2" stroke-linecap="round"/><path class="x" d="M16.5 9.5l5 5M21.5 9.5l-5 5" stroke="#C42A24" stroke-width="2.4" stroke-linecap="round"/></svg>
 </button>
 </div>
 </header>
@@ -157,8 +157,8 @@
 <div class="hs"><span class="k"><svg class="hi" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V8l7-4.5L19 8v13M3 21h18M9 21v-4h6v4M9 10.5h1.5M13.5 10.5H15M9 14h1.5M13.5 14H15"/></svg><span class="sr">Height</span></span><span class="v" id="hudH">G/F</span></div>
 <div class="hs dr"><span class="k"><svg class="hi" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5s-6 6.6-6 10.6a6 6 0 0 0 12 0c0-4-6-10.6-6-10.6z"/></svg><span class="sr">Drops</span></span><span class="v" id="hudDrops">0/3</span></div>
 <div class="mini">
-<button class="hbtn" id="hudHoldBtn" aria-label="Hold item"><canvas id="hudHold" width="88" height="88" data-slot="+"></canvas><span>Hold</span></button>
-<div class="hbtn" aria-label="Next item"><canvas id="hudNext" width="88" height="88"></canvas><span>Next</span></div>
+<button class="hbtn" id="hudHoldBtn" type="button" aria-label="Hold item"><canvas id="hudHold" width="88" height="88" data-slot="+" aria-hidden="true"></canvas><span>Hold</span></button>
+<div class="hbtn" role="group" aria-label="Next item"><canvas id="hudNext" width="88" height="88" aria-hidden="true"></canvas><span>Next</span></div>
 </div>
 </div>
 <div class="board-wrap" id="boardWrap">
@@ -212,11 +212,11 @@
 <p class="ts-only ts-sound" id="tsSound" hidden><span aria-hidden="true">♪ </span>Tap anywhere for music<span class="zh" lang="zh-HK">輕觸任何地方播放音樂</span><small class="ts-silent" id="tsSilent" hidden>iPhone: turn off silent mode<span lang="zh-HK"> 請關閉靜音模式</span></small></p>
 </div>
 <button class="ts-only ts-priv" id="tsPriv" type="button">Privacy<span class="zh" lang="zh-HK">私隱聲明</span></button>
-<button class="iconbtn ts-only ts-mute" id="tsMute" type="button" aria-pressed="false" aria-label="Mute sound"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="#2E2838"/><path class="w" d="M16 8.5c1.6 1.8 1.6 5.2 0 7M18.6 6c3 3.2 3 8.8 0 12" fill="none" stroke="#FF5FA2" stroke-width="2.2" stroke-linecap="round"/><path class="x" d="M16.5 9.5l5 5M21.5 9.5l-5 5" stroke="#F2463E" stroke-width="2.4" stroke-linecap="round"/></svg></button>
+<button class="iconbtn ts-only ts-mute" id="tsMute" type="button" aria-pressed="false" aria-label="Mute sound"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="#2E2838"/><path class="w" d="M16 8.5c1.6 1.8 1.6 5.2 0 7M18.6 6c3 3.2 3 8.8 0 12" fill="none" stroke="#DF1B72" stroke-width="2.2" stroke-linecap="round"/><path class="x" d="M16.5 9.5l5 5M21.5 9.5l-5 5" stroke="#C42A24" stroke-width="2.4" stroke-linecap="round"/></svg></button>
 </div>
 <div class="overlay seeov" id="seeOv" hidden><button class="btn alt" id="resultsBtn" aria-label="Back to results">Results<span class="zh" lang="zh-HK">睇返結算</span></button><button class="btn alt" id="replayBtn" type="button">Replay<span class="zh" lang="zh-HK">重溫</span></button><button class="btn" id="againBtn2">Play again<span class="zh" lang="zh-HK">再玩</span></button></div>
-<div class="overlay" id="pauseOv" hidden>
-<div class="ov-card"><h2>Paused</h2><p class="zh" lang="zh-HK">暫停</p><button class="btn go" id="resumeBtn">Resume<span class="zh" lang="zh-HK">繼續</span></button>
+<div class="overlay" id="pauseOv" role="dialog" aria-modal="true" aria-labelledby="pauseTitle pauseTitleZh" hidden>
+<div class="ov-card"><h2 id="pauseTitle">Paused</h2><p class="zh" id="pauseTitleZh" lang="zh-HK">暫停</p><button class="btn go" id="resumeBtn">Resume<span class="zh" lang="zh-HK">繼續</span></button>
 <div class="ov-opts"><div class="ov-chip ctime" role="radiogroup" aria-labelledby="ctPauseK"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V9.8M9.5 2.6h5M12 2.6V6M18.2 6.8l1.6-1.6"/></svg><span class="k" id="ctPauseK">Card timer<span class="zh" lang="zh-HK">揀答案時間</span></span>
 <label><input type="radio" name="ctPause" value="10"><span>10<span aria-hidden="true">s</span><span class="sr"> seconds</span></span></label><label><input type="radio" name="ctPause" value="30"><span>30<span aria-hidden="true">s</span><span class="sr"> seconds</span></span></label></div></div></div>
 </div>
@@ -324,7 +324,7 @@
 </div>
 </div>
 </div>
-<div class="modal offerm" id="offerModal" role="dialog" aria-modal="true" aria-labelledby="offerTitle" aria-describedby="offerPitch offerHint" hidden>
+<div class="modal offerm" id="offerModal" role="dialog" aria-modal="true" aria-labelledby="offerTitle offerTitleZh" aria-describedby="offerPitch offerHint" hidden>
 <div class="sheet offer" id="offerSheet" tabindex="-1">
 <div class="of-band"><span class="of-tag" id="offerTag"></span><span class="of-clock" id="offerClock" aria-hidden="true"><i id="offerBar"></i><b id="offerSec"></b></span></div>
 <div class="of-body">
@@ -353,6 +353,7 @@
 </div>
 <div class="modal pickm" id="pickModal" role="dialog" aria-modal="true" aria-labelledby="pickTitle" aria-describedby="pickNote" hidden>
 <div class="sheet picksheet" id="pickSheet" tabindex="-1">
+<button class="iconbtn modal-x" id="pickClose" type="button" aria-label="Close 關閉"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="#2E2838" stroke-width="2.6" stroke-linecap="round"/></svg></button>
 <h2 id="pickTitle" data-fit="18">Choose your player<span class="zh" lang="zh-HK">揀你嘅角色</span></h2>
 <div class="picks" role="radiogroup" aria-labelledby="pickTitle">
 <button class="who" id="pickJack" type="button" role="radio" aria-checked="true" data-who="jack"><canvas width="240" height="460" aria-hidden="true"></canvas><b>Jack</b></button>
@@ -364,6 +365,7 @@
 </div>
 <div class="modal rollm" id="rollModal" role="dialog" aria-modal="true" aria-labelledby="rollTitle" aria-describedby="rollNote" hidden>
 <div class="sheet rollsheet" id="rollSheet" tabindex="-1">
+<button class="iconbtn modal-x" id="rollClose" type="button" aria-label="Close 關閉"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="#2E2838" stroke-width="2.6" stroke-linecap="round"/></svg></button>
 <h2 id="rollTitle" data-fit="18">Roll your uni life<span class="zh" lang="zh-HK">抽你嘅大學人生</span></h2>
 <p class="roll-note" id="rollNote">Who you are was all prepared for you the moment you were made. Off you go!<span class="zl" lang="zh-HK">你係咩人上帝做你個刻已經為你預備好～ 行得㗎喇！</span></p>
 <div class="reels">
@@ -446,8 +448,8 @@
 <p class="esec-note">Tap an answer to see if you're right (saved anonymously).<span class="zl" lang="zh-HK">撳一個答案，即刻知啱唔啱（匿名記錄）。</span></p>
 <div id="quiz"></div></div>
 <div class="esec" data-s="2">
-<h4>Commit to one habit<span class="zh" lang="zh-HK">揀一個好習慣，堅持落去</span></h4>
-<div class="habits" id="habits"></div>
+<h4 id="habitsHead">Commit to one habit<span class="zh" lang="zh-HK">揀一個好習慣，堅持落去</span></h4>
+<div class="habits" id="habits" role="radiogroup" aria-labelledby="habitsHead"></div>
 <p class="gate" id="surveyGate" aria-live="polite"></p>
 </div>
 <div class="esec" data-s="3">
@@ -487,8 +489,8 @@
 </div>
 </div>
 <script src="/assets/matter-0.19.0.min.d9be33d851.js"></script>
-<script src="/assets/prelude.db78e26ec8.js"></script>
-<script src="/assets/game.9ca9f5e463.js"></script>
+<script src="/assets/prelude.08d2f23c8a.js"></script>
+<script src="/assets/game.92ba887473.js"></script>
 <script src="/assets/intro.418e7b8611.js"></script>
 </body>
 </html>

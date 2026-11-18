@@ -84,11 +84,13 @@
     $("loginCard").hidden = unlocked; $("panel").hidden = !unlocked; $("lockBtn").hidden = !unlocked;
   }
   function lock(text, err) {
+    const hadFocusInPanel = ($("panel") && $("panel").contains(document.activeElement)) || $("lockBtn").contains(document.activeElement);
     token = ""; try { sessionStorage.removeItem(KEY); } catch { }
     for (const k in seq) seq[k]++;
     for (const id of VIEWS) $(id).replaceChildren();
     all = null; lastSum = null; selected.clear(); mails = { week: [], month: [] }; $("copyBox").value = ""; $("copyBox").hidden = true; if ($("batchBar")) $("batchBar").hidden = true;
     show(false); say("loginMsg", text, err);
+    if (hadFocusInPanel || document.activeElement === document.body) $("token").focus({ preventScroll: true });
   }
 
   // ---------- tabs and period selectors ----------
@@ -296,7 +298,7 @@
     data.forEach((r, i) => {
       const cx = L + step * (i + 0.5), bh = (ch * (r.games || 0)) / maxG, by = T + ch - bh;
       const tip = `${weekLabel(r.k)}: ${fmt(r.games)} games · quiz 2/3+ ${pc(r.quizPassPct)}`;
-      svg.append(s("rect", { x: cx - bw / 2, y: by, width: bw, height: Math.max(2, bh), rx: 4, fill: "#14968B", opacity: 0.28 }, s("title", null, tip)));
+      svg.append(s("rect", { x: cx - bw / 2, y: by, width: bw, height: Math.max(2, bh), rx: 4, fill: "#0E7C73", opacity: 0.78 }, s("title", null, tip)));
       svg.append(s("text", { x: cx, y: H - 10, "text-anchor": "middle", fill: "#5B516C", "font-size": 10 }, String(r.k).replace(/^\d{4}-/, "")));
       if (r.quizPassPct != null) {
         const py = T + ch - (ch * Math.min(100, Math.max(0, r.quizPassPct))) / 100;
@@ -304,8 +306,9 @@
       }
     });
     if (pts.length > 1) {
-      svg.append(s("polyline", { fill: "none", stroke: "#E8418B", "stroke-width": 2.5, "stroke-linecap": "round", "stroke-linejoin": "round",
-        points: pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ") }));
+      const ptsAttr = pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+      svg.append(s("polyline", { fill: "none", stroke: "#fff", "stroke-width": 5, "stroke-linecap": "round", "stroke-linejoin": "round", points: ptsAttr }));
+      svg.append(s("polyline", { fill: "none", stroke: "#E8418B", "stroke-width": 2.5, "stroke-linecap": "round", "stroke-linejoin": "round", points: ptsAttr }));
     }
     for (const [cx, py, tip] of pts) {
       svg.append(s("circle", { cx, cy: py, r: 4, fill: "#E8418B", stroke: "#fff", "stroke-width": 1.5 }, s("title", null, tip)));
@@ -460,9 +463,17 @@
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
   }
   const DOWNLOADS = [["dlGames", "games", gamesCsv], ["dlAnswers", "quiz-answers", answersCsv], ["dlEvents", "life-events", eventsCsv]];
-  const busy = (on) => { for (const id of ["dlGames", "dlAnswers", "dlEvents", "csvBtn"]) $(id).disabled = on; };
+  let dlBusy = false;
+  const busy = (on) => {
+    dlBusy = on;
+    for (const id of ["dlGames", "dlAnswers", "dlEvents", "csvBtn"]) {
+      if (on) $(id).setAttribute("aria-disabled", "true");
+      else $(id).removeAttribute("aria-disabled");
+    }
+  };
   for (const [btn, file, build] of DOWNLOADS) {
     $(btn).addEventListener("click", async () => {
+      if (dlBusy) return;
       if (!window.TFF_CONTENT) return say("dlMsg", "The game content file did not load, so the labels are missing. Reload this page.", true);
       busy(true); say("dlMsg", "Loading games…");
       try {
@@ -477,6 +488,7 @@
     });
   }
   $("csvBtn").addEventListener("click", async () => {
+    if (dlBusy) return;
     busy(true);
     try {
       const q = dlScopeParams().toString();
@@ -521,24 +533,32 @@
     td(`${r.wise} / ${r.risky} / ${r.missed}`, "num"); td(r.habit || "–"); td(quizText(r), "num w"); td(r.ended || "–");
     td(el("span", "pill" + (r.hidden ? " h" : ""), r.hidden ? "hidden" : "shown"));
     const b = el("button", r.hidden ? "show" : "hide", r.hidden ? "Unhide" : "Hide");
+    b.type = "button";
     b.setAttribute("aria-label", `${b.textContent} game ${r.id}`);
     b.addEventListener("click", async () => {
-      b.disabled = true;
+      if (b.getAttribute("aria-disabled") === "true") return;
+      const wasFocused = document.activeElement === b;
+      b.setAttribute("aria-disabled", "true");
       try {
         await call("/api/admin/hide", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: r.id, hidden: !r.hidden }) });
-        r.hidden = r.hidden ? 0 : 1; tr.replaceWith(gameRow(r)); afterHide();
-      } catch (e) { oops("panelMsg")(e); b.disabled = false; }
+        r.hidden = r.hidden ? 0 : 1; const nr = gameRow(r); tr.replaceWith(nr); afterHide();
+        if (wasFocused) { const nb = nr.querySelector("td:last-child button"); if (nb) nb.focus({ preventScroll: true }); }
+      } catch (e) { oops("panelMsg")(e); b.removeAttribute("aria-disabled"); }
     });
     // a rude nickname: replaced with the anonymous one, and the game stays on the board and in the analysis
     const anon = r.posted && r.name !== ANON && el("button", "ghost mini", "Anonymise name");
     if (anon) {
+      anon.type = "button";
       anon.setAttribute("aria-label", `Anonymise the nickname of game ${r.id}`);
       anon.addEventListener("click", async () => {
-        anon.disabled = true;
+        if (anon.getAttribute("aria-disabled") === "true") return;
+        const wasFocused = document.activeElement === anon;
+        anon.setAttribute("aria-disabled", "true");
         try {
           await call("/api/admin/rename", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: r.id }) });
-          r.name = ANON; tr.replaceWith(gameRow(r)); afterHide();
-        } catch (e) { oops("panelMsg")(e); anon.disabled = false; }
+          r.name = ANON; const nr = gameRow(r); tr.replaceWith(nr); afterHide();
+          if (wasFocused) { const nb = nr.querySelector("td:last-child button"); if (nb) nb.focus({ preventScroll: true }); }
+        } catch (e) { oops("panelMsg")(e); anon.removeAttribute("aria-disabled"); }
       });
     }
     td(anon ? [b, " ", anon] : b);
@@ -571,6 +591,7 @@
 
   // ---------- start-up and events ----------
   async function unlock() {
+    const fromLogin = $("loginCard").contains(document.activeElement) || document.activeElement === document.body;
     try { if (!(await loadGames(true))) return; }
     catch (e) {
       show(false); say("loginMsg", e.message, true);
@@ -579,6 +600,10 @@
     }
     show(true); say("panelMsg", HIDE_HINT);
     fillPeriods(); openTab(location.hash.slice(1));
+    if (fromLogin) {
+      const activeTab = document.querySelector('#tabs [aria-selected="true"]') || $("tab-survey");
+      if (activeTab) activeTab.focus({ preventScroll: true });
+    }
     loadSummary(); loadWinners("week"); loadWinners("month");
   }
   $("loginForm").addEventListener("submit", (ev) => {
@@ -641,24 +666,53 @@
     for (const c of $("rows").querySelectorAll("input[type=checkbox]")) { c.checked = on; const id = Number(c.dataset.id); if (on) selected.add(id); else selected.delete(id); }
     syncBatchUI();
   });
+  let batchBusy = false, moreBusy = false;
   async function runBatch(action) {
-    const ids = [...selected]; if (!ids.length) return;
-    for (const id of ["batchHide", "batchUnhide", "batchRename", "batchClear"]) $(id).disabled = true;
+    const ids = [...selected]; if (!ids.length || batchBusy) return;
+    const fromBatch = $("batchBar") && $("batchBar").contains(document.activeElement);
+    batchBusy = true;
+    for (const id of ["batchHide", "batchUnhide", "batchRename", "batchClear"]) $(id).setAttribute("aria-disabled", "true");
+    let done = false;
     try {
       await call("/api/admin/batch", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, ids }) });
-      selected.clear(); await loadGames(true); afterHide();
+      selected.clear(); syncBatchUI();
+      if ((fromBatch || document.activeElement === document.body) && $("batchBar").hidden && !$("panel").hidden) $("gAll").focus({ preventScroll: true });
+      await loadGames(true); afterHide();
+      done = true;
     } catch (e) { oops("panelMsg")(e); }
-    for (const id of ["batchHide", "batchUnhide", "batchRename", "batchClear"]) $(id).disabled = false;
+    batchBusy = false;
+    for (const id of ["batchHide", "batchUnhide", "batchRename", "batchClear"]) $(id).removeAttribute("aria-disabled");
     syncBatchUI();
+    if (done) say("panelMsg", `Updated ${fmt(ids.length)} ${ids.length === 1 ? "game" : "games"} (${action}).`);
+    if ((fromBatch || document.activeElement === document.body) && $("batchBar").hidden && !$("panel").hidden) $("gAll").focus({ preventScroll: true });
   }
   $("batchHide").addEventListener("click", () => runBatch("hide"));
   $("batchUnhide").addEventListener("click", () => runBatch("unhide"));
   $("batchRename").addEventListener("click", () => runBatch("rename"));
-  $("batchClear").addEventListener("click", () => { selected.clear(); for (const c of $("rows").querySelectorAll("input[type=checkbox]")) c.checked = false; syncBatchUI(); });
+  $("batchClear").addEventListener("click", () => {
+    if (batchBusy) return;
+    const fromBatch = $("batchBar") && $("batchBar").contains(document.activeElement);
+    selected.clear();
+    for (const c of $("rows").querySelectorAll("input[type=checkbox]")) c.checked = false;
+    syncBatchUI();
+    if ((fromBatch || document.activeElement === document.body) && $("batchBar").hidden && !$("panel").hidden) $("gAll").focus({ preventScroll: true });
+  });
   $("moreBtn").addEventListener("click", async () => {
-    $("moreBtn").disabled = true;
+    if (moreBusy) return;
+    const wasFocused = document.activeElement === $("moreBtn");
+    const prevCount = $("rows").children.length;
+    moreBusy = true;
+    $("moreBtn").setAttribute("aria-disabled", "true");
     try { await loadGames(false); } catch (e) { oops("panelMsg")(e); }
-    $("moreBtn").disabled = false;
+    moreBusy = false;
+    $("moreBtn").removeAttribute("aria-disabled");
+    if (wasFocused && $("moreBtn").hidden && !$("panel").hidden) {
+      const newRow = $("rows").children[prevCount];
+      const target = (newRow && newRow.querySelector("input, button")) || $("gAll");
+      if (target) target.focus({ preventScroll: true });
+    } else if (wasFocused && !$("moreBtn").hidden && !$("panel").hidden && document.activeElement !== $("moreBtn")) {
+      $("moreBtn").focus({ preventScroll: true });
+    }
   });
   if (token) unlock(); else show(false);
 })();
