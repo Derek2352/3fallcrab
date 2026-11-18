@@ -103,25 +103,25 @@ const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 function lsGet(k, d){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch(e){ return d; } }
 function lsSet(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
 const ssGet = k => { try { return sessionStorage.getItem(k); } catch(e){ return null; } }, ssSet = (k, v) => { try { sessionStorage.setItem(k, v); } catch(e){} };
+try { sessionStorage.removeItem("tff_low_gfx"); } catch(e){}
 const gfxForceHigh = /[?&]gfx=high(&|$)/.test(location.search), gfxForceLow = /[?&]gfx=low(&|$)/.test(location.search);
-let lowGfx = !gfxForceHigh && (gfxForceLow || ssGet("tff_low_gfx") === "1" || (navigator.hardwareConcurrency > 0 && navigator.hardwareConcurrency <= 2) || (navigator.deviceMemory > 0 && navigator.deviceMemory <= 2));
+let lowGfx = !gfxForceHigh && gfxForceLow;
 if (lowGfx) document.documentElement.classList.add("low-gfx");
 let perfAvg = 16.7, perfN = 0, perfBad = 0;
 function enableLowGfx(){
 if (lowGfx) return;
 lowGfx = true;
 document.documentElement.classList.add("low-gfx");
-ssSet("tff_low_gfx", "1");
-if (DPR > 1){ lastFit = ""; resize(); dropCaches(); }
+if (DPR > 2){ lastFit = ""; resize(); dropCaches(); }
 }
 function checkPerf(raw){
 if (lowGfx || gfxForceHigh || document.hidden || raw <= 0 || raw > 200) return;
-const active = (S && S.mode === "playing" && S.play > 1500) || (document.documentElement.classList.contains("title") && !(window.TFF_INTRO && TFF_INTRO.on()));
+const active = S && S.mode === "playing" && S.play > 3000;
 if (!active) return;
 perfN++;
 perfAvg = perfAvg * 0.92 + raw * 0.08;
-perfBad = raw > 28 ? perfBad + 2 : raw < 20 ? Math.max(0, perfBad - 1) : perfBad;
-if (perfBad >= 36 || (perfN >= 45 && perfAvg > 28)) enableLowGfx();
+perfBad = raw > 48 ? perfBad + 2 : raw < 34 ? Math.max(0, perfBad - 1) : perfBad;
+if (perfBad >= 60 || (perfN >= 90 && perfAvg > 45)) enableLowGfx();
 }
 const ZH_RUN = /[「『（]*\p{Script=Han}(?:[\p{Script=Han}、。「」『』（）！？：；，～…]|(?:[0-9$%.,:/+×~\- ]|[A-Za-z](?![A-Za-z]{2})){1,14}(?=[\p{Script=Han}「『（！？。，、：；」』）]))*[、。」』）！？：；，～…]*/gu;
 const HAS_HAN = /\p{Script=Han}/u;
@@ -1825,7 +1825,7 @@ return {who: WHO, stage: S.stage, tier, hand: S.hand, mood: md, drops: Math.min(
 function paintAvatar(c, look){
 if (avFx.has(c)) return;
 const r = c.getBoundingClientRect(); if (!r.width) return;
-const dpr = Math.min(2, window.devicePixelRatio || 1), w = Math.round(r.width * dpr), h = Math.round(r.height * dpr), key = AV.keyOf(look) + "|" + w + "x" + h;
+const dpr = Math.min(3, window.devicePixelRatio || 1), w = Math.round(r.width * dpr), h = Math.round(r.height * dpr), key = AV.keyOf(look) + "|" + w + "x" + h;
 if (avKeys.get(c) === key) return; avKeys.set(c, key);
 if (c.width !== w || c.height !== h){ c.width = w; c.height = h; }
 const g = c.getContext("2d"), s = Math.min(w / AV.W, h / AV.H);
@@ -1847,7 +1847,7 @@ for (const id of AV_IDS) paintAvatar($(id), L);
 const easeBack = p => 1 + 2.2 * Math.pow(p - 1, 3) + 1.2 * Math.pow(p - 1, 2);
 function avTransition(c, from, to, kind){
 const r = c.getBoundingClientRect(); if (!r.width || !r.height) return;
-const dpr = Math.min(2, window.devicePixelRatio || 1), w = Math.round(r.width * dpr), h = Math.round(r.height * dpr);
+const dpr = Math.min(3, window.devicePixelRatio || 1), w = Math.round(r.width * dpr), h = Math.round(r.height * dpr);
 const shot = (look, white) => { const o = document.createElement("canvas"); o.width = w; o.height = h; const g = o.getContext("2d"), s = Math.min(w / AV.W, h / AV.H);
 g.setTransform(s, 0, 0, s, (w - AV.W * s) / 2, h - AV.H * s); AV.draw(g, look);
 if (white){ g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = "source-atop"; g.fillStyle = "#fff"; g.fillRect(0, 0, w, h); } return o; };
@@ -2866,7 +2866,7 @@ const r = wrap.getBoundingClientRect();
 YT = Math.max(0, r.top / SC); YB = Math.max(0, (vh - r.bottom) / SC);
 cv.style.top = -Math.round(YT * SC) + "px";
 } else { YT = YB = 0; wrap.style.width = wrap.style.height = ""; cv.style.top = ""; }
-DPR = lowGfx ? 1 : Math.min(2, window.devicePixelRatio || 1, Math.max(1, Math.sqrt(1925000 / (vw * (H + YT + YB) * SC * SC))));
+DPR = Math.min(lowGfx ? 2 : 3, window.devicePixelRatio || 1);
 const cw = Math.round(vw * SC * DPR), ch = Math.round((H + YT + YB) * SC * DPR);
 if (cv.width !== cw || cv.height !== ch){ cv.width = cw; cv.height = ch; needDraw = true; }
 cv.style.width = Math.round(vw * SC) + "px"; cv.style.height = Math.round((H + YT + YB) * SC) + "px";

@@ -326,7 +326,7 @@ function lookNow(){
 function paintAvatar(c, look){
   if (avFx.has(c)) return;   // mid-transition: it paints the new look when it ends
   const r = c.getBoundingClientRect(); if (!r.width) return;
-  const dpr = Math.min(2, window.devicePixelRatio || 1), w = Math.round(r.width * dpr), h = Math.round(r.height * dpr), key = AV.keyOf(look) + "|" + w + "x" + h;
+  const dpr = Math.min(3, window.devicePixelRatio || 1), w = Math.round(r.width * dpr), h = Math.round(r.height * dpr), key = AV.keyOf(look) + "|" + w + "x" + h;
   if (avKeys.get(c) === key) return; avKeys.set(c, key);
   if (c.width !== w || c.height !== h){ c.width = w; c.height = h; }
   const g = c.getContext("2d"), s = Math.min(w / AV.W, h / AV.H);
@@ -351,7 +351,7 @@ function updateAvatar(force){
 const easeBack = p => 1 + 2.2 * Math.pow(p - 1, 3) + 1.2 * Math.pow(p - 1, 2);
 function avTransition(c, from, to, kind){
   const r = c.getBoundingClientRect(); if (!r.width || !r.height) return;
-  const dpr = Math.min(2, window.devicePixelRatio || 1), w = Math.round(r.width * dpr), h = Math.round(r.height * dpr);
+  const dpr = Math.min(3, window.devicePixelRatio || 1), w = Math.round(r.width * dpr), h = Math.round(r.height * dpr);
   const shot = (look, white) => { const o = document.createElement("canvas"); o.width = w; o.height = h; const g = o.getContext("2d"), s = Math.min(w / AV.W, h / AV.H);
     g.setTransform(s, 0, 0, s, (w - AV.W * s) / 2, h - AV.H * s); AV.draw(g, look);
     if (white){ g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = "source-atop"; g.fillStyle = "#fff"; g.fillRect(0, 0, w, h); } return o; };

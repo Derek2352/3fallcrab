@@ -111,25 +111,25 @@ const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 function lsGet(k, d){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch(e){ return d; } }
 function lsSet(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
 const ssGet = k => { try { return sessionStorage.getItem(k); } catch(e){ return null; } }, ssSet = (k, v) => { try { sessionStorage.setItem(k, v); } catch(e){} };
+try { sessionStorage.removeItem("tff_low_gfx"); } catch(e){}
 const gfxForceHigh = /[?&]gfx=high(&|$)/.test(location.search), gfxForceLow = /[?&]gfx=low(&|$)/.test(location.search);
-let lowGfx = !gfxForceHigh && (gfxForceLow || ssGet("tff_low_gfx") === "1" || (navigator.hardwareConcurrency > 0 && navigator.hardwareConcurrency <= 2) || (navigator.deviceMemory > 0 && navigator.deviceMemory <= 2));
+let lowGfx = !gfxForceHigh && gfxForceLow;
 if (lowGfx) document.documentElement.classList.add("low-gfx");
 let perfAvg = 16.7, perfN = 0, perfBad = 0;
 function enableLowGfx(){
   if (lowGfx) return;
   lowGfx = true;
   document.documentElement.classList.add("low-gfx");
-  ssSet("tff_low_gfx", "1");
-  if (DPR > 1){ lastFit = ""; resize(); dropCaches(); }
+  if (DPR > 2){ lastFit = ""; resize(); dropCaches(); }
 }
 function checkPerf(raw){
   if (lowGfx || gfxForceHigh || document.hidden || raw <= 0 || raw > 200) return;
-  const active = (S && S.mode === "playing" && S.play > 1500) || (document.documentElement.classList.contains("title") && !(window.TFF_INTRO && TFF_INTRO.on()));
+  const active = S && S.mode === "playing" && S.play > 3000;
   if (!active) return;
   perfN++;
   perfAvg = perfAvg * 0.92 + raw * 0.08;
-  perfBad = raw > 28 ? perfBad + 2 : raw < 20 ? Math.max(0, perfBad - 1) : perfBad;
-  if (perfBad >= 36 || (perfN >= 45 && perfAvg > 28)) enableLowGfx();
+  perfBad = raw > 48 ? perfBad + 2 : raw < 34 ? Math.max(0, perfBad - 1) : perfBad;
+  if (perfBad >= 60 || (perfN >= 90 && perfAvg > 45)) enableLowGfx();
 }
 // Screen readers read Chinese with an English voice unless it's marked, so every run of Chinese text on the page
 // is wrapped in lang="zh-HK" as it appears. Numbers and short codes inside a Chinese phrase (HK$3,600, 18222)

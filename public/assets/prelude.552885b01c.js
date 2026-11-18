@@ -126,7 +126,7 @@ texCache.set(g, p); return p;
 function texTile(q){
 const S = 90; const c = document.createElement("canvas"); c.width = c.height = S*q; const x = c.getContext("2d"); x.scale(q, q);
 const r = rng(42);
-x.strokeStyle = "rgba(0,0,0,0.55)"; x.lineCap = "round";
+x.strokeStyle = "rgba(0,0,0,0.22)"; x.lineCap = "round";
 for (let f = 0; f < 3; f++){
 const fx = r()*S, fy = r()*S, rot = r()*Math.PI;
 for (let k = 2; k < 13; k += 1.6){ x.lineWidth = 0.35; x.beginPath();
@@ -134,15 +134,15 @@ const a0 = rot + r()*0.6, a1 = a0 + Math.PI*(0.7 + r()*0.6);
 for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]){ x.moveTo(fx + ox + k*Math.cos(a0), fy + oy + k*0.8*Math.sin(a0)); x.ellipse(fx + ox, fy + oy, k, k*0.8, 0, a0, a1); }
 x.stroke(); }
 }
-for (let i = 0; i < 260; i++){ x.fillStyle = r() > 0.5 ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.9)"; x.beginPath(); x.arc(r()*S, r()*S, 0.25 + r()*0.45, 0, 7); x.fill(); }
+for (let i = 0; i < 90; i++){ x.fillStyle = r() > 0.5 ? "rgba(0,0,0,0.18)" : "rgba(255,255,255,0.28)"; x.beginPath(); x.arc(r()*S, r()*S, 0.25 + r()*0.45, 0, 7); x.fill(); }
 return c;
 }
 function texIn(g, path, amount){ g.save(); g.globalAlpha = amount; g.globalCompositeOperation = "overlay"; g.fillStyle = texPattern(g); g.fill(path); g.restore(); }
-function texture(g, path, amount = 0.12){ g.save(); g.clip(path); texIn(g, path, amount); g.restore(); }
+function texture(g, path, amount = 0.03){ g.save(); g.clip(path); texIn(g, path, amount); g.restore(); }
 function blob(g, path, color, opt = {}){
 const c = col(color);
 g.save(); g.fillStyle = c; g.fill(path);
-const depth = opt.depth ?? 4.2, soft = opt.soft ?? 6.5, tex = opt.texture ?? 0.12, rim = opt.rim ?? 1, bb = path.bb, k = scaleOf(g);
+const depth = opt.depth ?? 4.2, soft = opt.soft ?? 6.5, tex = opt.texture ?? 0.03, rim = opt.rim ?? 1, bb = path.bb, k = scaleOf(g);
 const shd = !opt.flat, sp = shd && opt.sheen !== false && bb, mr = rim > 0 && path.merged;
 if (shd){
 const m1 = invMask(g, path, pad(soft, depth, depth*1.15));
@@ -165,7 +165,7 @@ function press(g, path, color, opt = {}){
 const k = scaleOf(g); g.save();
 g.shadowColor = "rgba(40,20,50,0.35)"; g.shadowBlur = 1.6*k; g.shadowOffsetX = 0.8*k; g.shadowOffsetY = 1.1*k;
 g.fillStyle = col(color); g.fill(path); g.restore();
-blob(g, path, color, Object.assign({depth: 1.6, soft: 2.6, texture: 0.08, rim: 0.7}, opt));
+blob(g, path, color, Object.assign({depth: 1.6, soft: 2.6, texture: 0.02, rim: 0.7}, opt));
 }
 function groove(g, path, w = 1.4, opt = {}){
 g.save(); g.lineCap = "round"; g.lineJoin = "round";

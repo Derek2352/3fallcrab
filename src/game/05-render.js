@@ -418,8 +418,8 @@ function resize(){
     YT = Math.max(0, r.top / SC); YB = Math.max(0, (vh - r.bottom) / SC);
     cv.style.top = -Math.round(YT * SC) + "px";
   } else { YT = YB = 0; wrap.style.width = wrap.style.height = ""; cv.style.top = ""; }
-  // a very big board draws fewer pixels per point: never more than the biggest normal board (550 x 875 points at 2x)
-  DPR = lowGfx ? 1 : Math.min(2, window.devicePixelRatio || 1, Math.max(1, Math.sqrt(1925000 / (vw * (H + YT + YB) * SC * SC))));
+  // render at full native devicePixelRatio (capped at 3x on high, 2x on low-gfx) so Retina/mobile screens stay crisp
+  DPR = Math.min(lowGfx ? 2 : 3, window.devicePixelRatio || 1);
   const cw = Math.round(vw * SC * DPR), ch = Math.round((H + YT + YB) * SC * DPR);
   if (cv.width !== cw || cv.height !== ch){ cv.width = cw; cv.height = ch; needDraw = true; }
   cv.style.width = Math.round(vw * SC) + "px"; cv.style.height = Math.round((H + YT + YB) * SC) + "px";
