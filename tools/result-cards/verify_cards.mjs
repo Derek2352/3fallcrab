@@ -22,7 +22,7 @@ async function main() {
   for (const f of [
     "pdf/all-7-result-cards-print.pdf",
     "pdf/universal-back.pdf",
-    "pdf/press-sheet-sra3-6up.pdf",
+    "pdf/press-sheet-sra3-9up.pdf",
     "svg/universal-back.svg",
     "proofs/proof-fronts-1-to-4.png",
     "proofs/proof-fronts-5-to-7-and-back.png",
