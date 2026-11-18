@@ -126,6 +126,17 @@ test("E2E 1: desktop intro, title sheets, Instagram modal, and exit-intent promp
     const swScope = await ctx.evalJs(`navigator.serviceWorker ? navigator.serviceWorker.ready.then(r => r.scope) : ''`);
     assert.ok(swScope.startsWith(srv.baseUrl), "Service Worker did not become ready: " + swScope);
 
+    // 7) Service load balancer waiting room (?hold=1) opens #holdModal and bypasses cleanly via #holdSkipBtn
+    await ctx.goto(`${srv.baseUrl}/?intro=0&hold=1`);
+    await ctx.waitFor(() => !document.getElementById("startBtn").hidden);
+    await ctx.click("#startBtn");
+    await ctx.waitFor(() => !document.getElementById("holdModal").hidden);
+    assert.match(await ctx.evalJs("document.getElementById('holdPos').textContent"), /^#\d+/);
+    assert.match(await ctx.evalJs("document.getElementById('holdEta').textContent"), /~\d+s/);
+    assert.equal(await ctx.evalJs("document.querySelector('.set').inert"), true);
+    await ctx.click("#holdSkipBtn");
+    await ctx.waitFor(() => document.getElementById("holdModal").hidden && !document.getElementById("pickModal").hidden);
+
     assert.deepEqual(ctx.errors, [], "Unexpected browser errors: " + ctx.errors.join(" | "));
   } finally {
     await ctx.close();

@@ -139,7 +139,7 @@ function toggleFs(want = !fsOn){
 // leaving the browser's full screen (Esc, the phone's back gesture) only brings its bars back: the layout stays
 for (const ev of ["fullscreenchange", "webkitfullscreenchange"]) document.addEventListener(ev, () => { lastFit = ""; resize(); });
 let endShownAt = 0;
-const DIALOG_IDS = ["igModal", "endModal", "rollModal", "pickModal", "infoModal", "reviveModal", "offerModal", "cardModal", "pauseOv"];
+const DIALOG_IDS = ["igModal", "holdModal", "endModal", "rollModal", "pickModal", "infoModal", "reviveModal", "offerModal", "cardModal", "pauseOv"];
 function activeDialog(){
   for (const id of DIALOG_IDS){
     const el = $(id);
@@ -203,6 +203,10 @@ document.addEventListener("keydown", e => {
   }
   if (!$("igModal").hidden){
     if (e.key === "Escape"){ closeIg(); e.preventDefault(); }
+    return;
+  }
+  if (!$("holdModal").hidden){
+    if (e.key === "Escape"){ closeHold(true); e.preventDefault(); }
     return;
   }
   if (!S) return;
@@ -432,10 +436,61 @@ function pickGo(){
   if (ret) pickReturnTo = ret;
   newLife();
 }
-// Start from the title or the start card: the player is chosen first (once a visit); Play again goes straight on
-function beginGame(){
+// Start from the title or the start card: if traffic is surging, hold the player in line briefly (with an offline bypass)
+let holdAdmitted = false, holdSkipped = false, holdTimer = 0, holdReadyCb = null, holdReturnTo = null;
+const HOLD_CID = (() => { let c = ssGet("tff_cid"); if (!c){ c = "c" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36); ssSet("tff_cid", c); } return c; })();
+function closeHold(skip){
+  clearTimeout(holdTimer); holdTimer = 0;
+  const m = $("holdModal"), cb = holdReadyCb; holdReadyCb = null;
+  if (skip) holdSkipped = true; else holdAdmitted = true;
+  if (m && !m.hidden){ m.hidden = true; modalOpen(false); }
+  if (skip && window.__tffServerHold) try { fetch("/api/queue?leave=1&cid=" + encodeURIComponent(HOLD_CID), { keepalive: true }).catch(() => {}); } catch(e){}
+  if (cb) cb();
+  else if (holdReturnTo && holdReturnTo.focus && !holdReturnTo.closest("[hidden]")) holdReturnTo.focus({preventScroll: true});
+  holdReturnTo = null;
+}
+function openHold(onReady){
+  const m = $("holdModal"); if (!m){ if (onReady) onReady(); return; }
+  clearTimeout(holdTimer); holdReadyCb = onReady || null;
+  holdReturnTo = document.activeElement;
+  hideIabTip(); m.hidden = false; modalOpen(true); A.sfx("uiOpen");
+  const posEl = $("holdPos"), etaEl = $("holdEta"), barEl = $("holdBar");
+  if ($("holdSkipBtn")) $("holdSkipBtn").focus({preventScroll: true});
+  const preview = /[?&]hold=1(&|$)/.test(location.search);
+  let left = 3, pct = 25;
+  const paint = (pos, eta, w) => { if (posEl) posEl.textContent = "#" + pos; if (etaEl) etaEl.textContent = "~" + eta + "s"; if (barEl) barEl.style.width = w + "%"; };
+  const step = async () => {
+    if (m.hidden) return;
+    if (preview){
+      paint(Math.max(1, left), left, Math.min(95, pct));
+      if (left <= 0){ closeHold(false); return; }
+      left--; pct += 25;
+      holdTimer = setTimeout(step, 1000);
+      return;
+    }
+    try {
+      const r = await fetch("/api/queue?cid=" + encodeURIComponent(HOLD_CID), { cache: "no-store" });
+      const j = await r.json();
+      if (!j || !j.onHold){ closeHold(false); return; }
+      pct = Math.min(92, pct + 18);
+      paint(j.position || 1, j.etaSec || 2, pct);
+      holdTimer = setTimeout(step, Math.max(1500, Math.min(5000, (j.retryAfter || 2) * 1000)));
+    } catch(e){ closeHold(false); }
+  };
+  step();
+}
+if ($("holdSkipBtn")) $("holdSkipBtn").addEventListener("click", () => closeHold(true));
+window.TFF_HOLD = { open: openHold, close: closeHold };
+function proceedBeginGame(){
   if (root.classList.contains("title")) enterBrowserFs();   // on the tap itself: browsers allow it only then
   if (whoPicked) newLife(); else openPicker();
+}
+function beginGame(){
+  if (!holdAdmitted && !holdSkipped && (/[?&]hold=1(&|$)/.test(location.search) || window.__tffServerHold)){
+    openHold(proceedBeginGame);
+    return;
+  }
+  proceedBeginGame();
 }
 for (const b of document.querySelectorAll("#pickModal .who")){
   b.addEventListener("click", () => setPick(b.dataset.who));
@@ -698,7 +753,7 @@ function igEligible(){
   if (BOOTH || lsGet("tff_ig_done", false) || ssGet("tff_ig_seen") === "1") return false;
   if (window.TFF_INTRO && TFF_INTRO.on()) return false;
   if (S && S.dragX != null) return false;
-  for (const id of ["igModal", "cardModal", "offerModal", "reviveModal", "pickModal", "rollModal", "infoModal"]){
+  for (const id of ["igModal", "holdModal", "cardModal", "offerModal", "reviveModal", "pickModal", "rollModal", "infoModal"]){
     const el = $(id); if (el && !el.hidden) return false;
   }
   return true;
@@ -720,7 +775,7 @@ function closeIg(quiet){
   if (!quiet) A.sfx("uiClose");
   m.hidden = true;
   if (igWasEnd) $("endModal").inert = false;
-  const anyModal = ["cardModal", "offerModal", "reviveModal", "pickModal", "rollModal", "infoModal", "endModal"].some(id => { const el = $(id); return el && !el.hidden; });
+  const anyModal = ["holdModal", "cardModal", "offerModal", "reviveModal", "pickModal", "rollModal", "infoModal", "endModal"].some(id => { const el = $(id); return el && !el.hidden; });
   if (!anyModal) modalOpen(false);
   if (!quiet && !played && (!S || S.mode === "idle") && !anyModal) iabTip();
   const back = igReturnTo; igReturnTo = null; igWasEnd = false;

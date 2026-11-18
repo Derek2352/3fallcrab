@@ -426,6 +426,23 @@
   </div>
 </div>
 
+<div class="modal holdm" id="holdModal" role="dialog" aria-modal="true" aria-labelledby="holdTitle" aria-describedby="holdDesc" hidden>
+  <div class="sheet holdsheet" id="holdSheet" tabindex="-1">
+    <div class="hold-badge"><span class="hold-dot" aria-hidden="true"></span><span>TRAFFIC CONTROL · 系統分流</span></div>
+    <h2 class="hold-title" id="holdTitle">Hang tight — lots of crabs playing!<span class="zh" lang="zh-HK">人流好多，你依家喺等候區排緊隊！</span></h2>
+    <p class="hold-lead" id="holdDesc">We're holding your spot in line so the live leaderboard stays fast for everyone.<span class="zh" lang="zh-HK">系統正為你保留位置，令排行榜保持高速，好快就輪到你。</span></p>
+    <div class="hold-box" aria-live="polite">
+      <div class="hold-stat"><span>Position 排隊位置</span><strong id="holdPos">#1</strong></div>
+      <div class="hold-stat"><span>Est. wait 預計等候</span><strong id="holdEta">~3s</strong></div>
+      <div class="hold-track" aria-hidden="true"><div class="hold-bar" id="holdBar"></div></div>
+    </div>
+    <p class="hold-tip" id="holdTip">Your spot advances automatically—or jump straight in offline anytime.<span class="zh" lang="zh-HK">畫面會自動帶你入場；想即刻開波亦可以隨時跳過排隊玩單機版。</span></p>
+    <div class="hold-acts">
+      <button class="btn alt" id="holdSkipBtn" type="button">Play offline now<span class="zh" lang="zh-HK">即刻玩單機版</span></button>
+    </div>
+  </div>
+</div>
+
 <div class="filmgrain" aria-hidden="true"></div>
 <div class="filmvig" aria-hidden="true"></div>
 <div class="fbars t" aria-hidden="true"></div>

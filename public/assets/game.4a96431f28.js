@@ -1643,7 +1643,7 @@ else if (fsEl()) try { Promise.resolve(document.exitFullscreen ? document.exitFu
 }
 for (const ev of ["fullscreenchange", "webkitfullscreenchange"]) document.addEventListener(ev, () => { lastFit = ""; resize(); });
 let endShownAt = 0;
-const DIALOG_IDS = ["igModal", "endModal", "rollModal", "pickModal", "infoModal", "reviveModal", "offerModal", "cardModal", "pauseOv"];
+const DIALOG_IDS = ["igModal", "holdModal", "endModal", "rollModal", "pickModal", "infoModal", "reviveModal", "offerModal", "cardModal", "pauseOv"];
 function activeDialog(){
 for (const id of DIALOG_IDS){
 const el = $(id);
@@ -1707,6 +1707,10 @@ return;
 }
 if (!$("igModal").hidden){
 if (e.key === "Escape"){ closeIg(); e.preventDefault(); }
+return;
+}
+if (!$("holdModal").hidden){
+if (e.key === "Escape"){ closeHold(true); e.preventDefault(); }
 return;
 }
 if (!S) return;
@@ -1926,9 +1930,60 @@ if (fromEnd) pickFromEnd = true;
 if (ret) pickReturnTo = ret;
 newLife();
 }
-function beginGame(){
+let holdAdmitted = false, holdSkipped = false, holdTimer = 0, holdReadyCb = null, holdReturnTo = null;
+const HOLD_CID = (() => { let c = ssGet("tff_cid"); if (!c){ c = "c" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36); ssSet("tff_cid", c); } return c; })();
+function closeHold(skip){
+clearTimeout(holdTimer); holdTimer = 0;
+const m = $("holdModal"), cb = holdReadyCb; holdReadyCb = null;
+if (skip) holdSkipped = true; else holdAdmitted = true;
+if (m && !m.hidden){ m.hidden = true; modalOpen(false); }
+if (skip && window.__tffServerHold) try { fetch("/api/queue?leave=1&cid=" + encodeURIComponent(HOLD_CID), { keepalive: true }).catch(() => {}); } catch(e){}
+if (cb) cb();
+else if (holdReturnTo && holdReturnTo.focus && !holdReturnTo.closest("[hidden]")) holdReturnTo.focus({preventScroll: true});
+holdReturnTo = null;
+}
+function openHold(onReady){
+const m = $("holdModal"); if (!m){ if (onReady) onReady(); return; }
+clearTimeout(holdTimer); holdReadyCb = onReady || null;
+holdReturnTo = document.activeElement;
+hideIabTip(); m.hidden = false; modalOpen(true); A.sfx("uiOpen");
+const posEl = $("holdPos"), etaEl = $("holdEta"), barEl = $("holdBar");
+if ($("holdSkipBtn")) $("holdSkipBtn").focus({preventScroll: true});
+const preview = /[?&]hold=1(&|$)/.test(location.search);
+let left = 3, pct = 25;
+const paint = (pos, eta, w) => { if (posEl) posEl.textContent = "#" + pos; if (etaEl) etaEl.textContent = "~" + eta + "s"; if (barEl) barEl.style.width = w + "%"; };
+const step = async () => {
+if (m.hidden) return;
+if (preview){
+paint(Math.max(1, left), left, Math.min(95, pct));
+if (left <= 0){ closeHold(false); return; }
+left--; pct += 25;
+holdTimer = setTimeout(step, 1000);
+return;
+}
+try {
+const r = await fetch("/api/queue?cid=" + encodeURIComponent(HOLD_CID), { cache: "no-store" });
+const j = await r.json();
+if (!j || !j.onHold){ closeHold(false); return; }
+pct = Math.min(92, pct + 18);
+paint(j.position || 1, j.etaSec || 2, pct);
+holdTimer = setTimeout(step, Math.max(1500, Math.min(5000, (j.retryAfter || 2) * 1000)));
+} catch(e){ closeHold(false); }
+};
+step();
+}
+if ($("holdSkipBtn")) $("holdSkipBtn").addEventListener("click", () => closeHold(true));
+window.TFF_HOLD = { open: openHold, close: closeHold };
+function proceedBeginGame(){
 if (root.classList.contains("title")) enterBrowserFs();
 if (whoPicked) newLife(); else openPicker();
+}
+function beginGame(){
+if (!holdAdmitted && !holdSkipped && (/[?&]hold=1(&|$)/.test(location.search) || window.__tffServerHold)){
+openHold(proceedBeginGame);
+return;
+}
+proceedBeginGame();
 }
 for (const b of document.querySelectorAll("#pickModal .who")){
 b.addEventListener("click", () => setPick(b.dataset.who));
@@ -2175,7 +2230,7 @@ function igEligible(){
 if (BOOTH || lsGet("tff_ig_done", false) || ssGet("tff_ig_seen") === "1") return false;
 if (window.TFF_INTRO && TFF_INTRO.on()) return false;
 if (S && S.dragX != null) return false;
-for (const id of ["igModal", "cardModal", "offerModal", "reviveModal", "pickModal", "rollModal", "infoModal"]){
+for (const id of ["igModal", "holdModal", "cardModal", "offerModal", "reviveModal", "pickModal", "rollModal", "infoModal"]){
 const el = $(id); if (el && !el.hidden) return false;
 }
 return true;
@@ -2197,7 +2252,7 @@ const m = $("igModal"); if (!m || m.hidden) return;
 if (!quiet) A.sfx("uiClose");
 m.hidden = true;
 if (igWasEnd) $("endModal").inert = false;
-const anyModal = ["cardModal", "offerModal", "reviveModal", "pickModal", "rollModal", "infoModal", "endModal"].some(id => { const el = $(id); return el && !el.hidden; });
+const anyModal = ["holdModal", "cardModal", "offerModal", "reviveModal", "pickModal", "rollModal", "infoModal", "endModal"].some(id => { const el = $(id); return el && !el.hidden; });
 if (!anyModal) modalOpen(false);
 if (!quiet && !played && (!S || S.mode === "idle") && !anyModal) iabTip();
 const back = igReturnTo; igReturnTo = null; igWasEnd = false;
@@ -4134,7 +4189,7 @@ if (fetching) return force ? fetching.then(() => refreshLB()) : fetching;
 lastFetch = performance.now();
 fetching = api(API).then(j => {
 const first = !db;
-db = db || { live: true }; liveWeek = j.week || null; dbWritable = !j.closed;
+db = db || { live: true }; liveWeek = j.week || null; dbWritable = !j.closed; window.__tffServerHold = !!j.onHold;
 lbWeek = (j.weekTop || []).map(e => ({ ...e, _id: e.id }));
 lbAll = (j.allTop || []).map(e => ({ ...e, _id: e.id }));
 if (tab !== "insights" || first) renderLB();
@@ -4283,6 +4338,23 @@ if (st === S) {
 btn.removeAttribute("aria-disabled"); postLabel("Post score", "上榜"); emailError(true); em.focus(); ps.className = "post-status bad";
 ps.textContent = "That email doesn't look right. Please check it. 電郵地址好似唔啱，請再檢查。";
 }
+return;
+}
+if (e.status === 429 && (st.holdRetries || 0) < 2) {
+st.holdRetries = (st.holdRetries || 0) + 1;
+btn.setAttribute("aria-disabled", "true");
+let left = 3;
+const tickHold = () => {
+if (st !== S || !st.posting) return;
+postLabel(`On hold (${left}s)…`, `排隊中 (${left}秒)…`);
+ps.className = "post-status";
+ps.textContent = `High traffic — holding your spot in line, auto-posting in ${left}s… 太多人同時上榜，系統正自動為你排隊（${left}秒後自動上載）…`;
+showStatus();
+if (left-- > 0) { setTimeout(tickHold, 1000); return; }
+st.posting = false;
+btn.click();
+};
+tickHold();
 return;
 }
 if (!e.status || e.status === 429 || (e.status >= 500 && e.code !== "no_database")) {

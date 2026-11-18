@@ -1877,3 +1877,25 @@ html.low-gfx .fzglow, html.low-gfx #startOv #startBtn{animation:none}
   .ig-acts .btn{padding:8px 12px 9px;font-size:14px}
 }
 @media (prefers-reduced-motion: reduce){ .igsheet, .ig-qrwrap{animation:none;transition:none} }
+
+/* ---------- service load balancer / waiting queue modal ---------- */
+.holdm{z-index:35}
+.holdsheet{position:relative;max-width:420px;padding:20px 22px;text-align:center;border-radius:26px;background:var(--cream);animation:igdeal .18s ease-out}
+.holdsheet:focus{outline:none}
+.hold-badge{display:inline-flex;align-items:center;gap:7px;padding:4px 12px 5px;border-radius:999px;background:#25317A;color:#fff;font-family:var(--f-display);font-weight:800;font-size:12px;letter-spacing:.04em}
+.hold-dot{width:8px;height:8px;border-radius:50%;background:#FFE45C;animation:holdpulse 1.1s ease-in-out infinite}
+@keyframes holdpulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.82)}}
+.hold-title{margin:12px 0 6px;font-family:var(--f-display);font-weight:900;font-size:22px;line-height:1.15;color:var(--ink);text-wrap:balance}
+.hold-title .zh{display:block;margin-top:4px;font-family:var(--f-zh);font-size:17px;font-weight:700;color:#0E716A}
+.hold-lead{margin:0 0 14px;font-size:13.5px;line-height:1.45;color:var(--ink-2)}
+.hold-lead .zh{display:block;margin-top:3px;font-family:var(--f-zh);font-size:13.5px;color:var(--ink)}
+.hold-box{background:#fff;border:2px solid var(--cream-d);border-radius:18px;padding:12px 14px;margin:0 0 12px;text-align:left}
+.hold-stat{display:flex;align-items:baseline;justify-content:space-between;font-size:13px;font-weight:700;color:var(--ink-2);padding:3px 0}
+.hold-stat strong{font-family:var(--f-display);font-size:17px;font-weight:900;color:#25317A}
+.hold-track{height:10px;border-radius:99px;background:#EFE4D2;overflow:hidden;margin-top:8px}
+.hold-bar{height:100%;width:25%;border-radius:99px;background:linear-gradient(90deg, #11837B, #25317A);transition:width .35s ease}
+.hold-tip{margin:0 0 14px;font-size:12.5px;line-height:1.45;color:var(--ink-2)}
+.hold-tip .zh{display:block;margin-top:2px;font-family:var(--f-zh);color:var(--ink)}
+.hold-acts .btn{width:100%;font-size:15px;padding:10px 14px;background:#fff}
+.hold-acts .btn .zh{display:block;margin-top:2px;font-family:var(--f-zh);font-size:12.5px;font-weight:700;color:var(--ink-2)}
+@media (prefers-reduced-motion: reduce){ .holdsheet, .hold-dot{animation:none} .hold-bar{transition:none} }

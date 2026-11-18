@@ -518,12 +518,19 @@ async function netHash(ip, scope, env) {
 
 async function board(env, db) {
   const week = isoWeek(new Date(), timeZone(env));
+  const cl = closed(env);
   const cols = "id, name, score, height, stage, title, persona, created_at AS at"; // never the email
-  const [w, a] = await db.batch([
-    db.prepare(`SELECT ${cols} FROM scores WHERE week = ?1 AND hidden = 0 AND posted = 1 ORDER BY score DESC, id ASC LIMIT 10`).bind(week),
-    db.prepare(`SELECT ${cols} FROM scores WHERE hidden = 0 AND posted = 1 ORDER BY score DESC, id ASC LIMIT 10`),
-  ]);
-  return json({ ok: true, week, closed: closed(env), weekTop: w.results, allTop: a.results });
+  if (!boardInFlight || boardInFlight.db !== db || boardInFlight.week !== week || boardInFlight.closed !== cl) {
+    const p = (async () => {
+      const [w, a] = await db.batch([
+        db.prepare(`SELECT ${cols} FROM scores WHERE week = ?1 AND hidden = 0 AND posted = 1 ORDER BY score DESC, id ASC LIMIT 10`).bind(week),
+        db.prepare(`SELECT ${cols} FROM scores WHERE hidden = 0 AND posted = 1 ORDER BY score DESC, id ASC LIMIT 10`),
+      ]);
+      return { ok: true, week, closed: cl, onHold: waitQueue.length > 0, weekTop: w.results, allTop: a.results };
+    })().finally(() => { if (boardInFlight && boardInFlight.p === p) boardInFlight = null; });
+    boardInFlight = { db, week, closed: cl, p };
+  }
+  return json(await boardInFlight.p);
 }
 
 // Share of games below a score, for the end screen ("beat N% of players"). Counts the games stats() counts (not hidden).
@@ -549,7 +556,93 @@ export function cleanSil(v) {
 // Only what the board already makes public (nickname, score, height), never a hidden game.
 let ghostMemo = null;
 let statsMemo = null;
-export function resetCaches() { ghostMemo = null; statsMemo = null; }
+let boardInFlight = null;
+const activeLeases = new Map();
+let waitQueue = [];
+let inFlight = 0;
+const flightWaiters = [];
+export function resetCaches() {
+  ghostMemo = null; statsMemo = null; boardInFlight = null;
+  activeLeases.clear(); waitQueue = []; inFlight = 0;
+  while (flightWaiters.length) {
+    const w = flightWaiters.shift();
+    clearTimeout(w.to);
+    w.resolve(false);
+  }
+}
+
+// Service load balancer: queues in-flight D1 leaderboard requests and places surging players in an admission queue.
+async function checkQueue(url, request, env) {
+  const now = Date.now();
+  const cap = int(env.QUEUE_CAPACITY || 120, 1, 10000);
+  const HOLD_TTL = 45000, WAIT_TTL = 60000;
+  for (const [k, exp] of activeLeases) if (exp <= now) activeLeases.delete(k);
+  waitQueue = waitQueue.filter((w) => now - w.seenAt < WAIT_TTL);
+  const rawCid = url.searchParams.get("cid") || request.headers.get("x-client-id") || "";
+  const ip = request.headers.get("cf-connecting-ip") || "";
+  const cid = /^[A-Za-z0-9_-]{1,64}$/.test(rawCid) ? rawCid : (ip ? await netHash(ip, "queue", env) : "anon");
+  const forceHold = url.searchParams.get("hold") === "1" || truthy(String(env.FORCE_HOLD || ""));
+  if (url.searchParams.get("leave") === "1") {
+    activeLeases.delete(cid);
+    waitQueue = waitQueue.filter((w) => w.cid !== cid);
+  }
+  if (!forceHold) {
+    while (activeLeases.size < cap && waitQueue.length) {
+      const next = waitQueue.shift();
+      if (next) activeLeases.set(next.cid, now + HOLD_TTL);
+    }
+  }
+  if (url.searchParams.get("leave") === "1") {
+    return json({ ok: true, onHold: false, position: 0, ahead: 0, etaSec: 0, retryAfter: 0, active: activeLeases.size, capacity: cap });
+  }
+  if (!forceHold && (activeLeases.has(cid) || (activeLeases.size < cap && waitQueue.length === 0))) {
+    if (activeLeases.size < 2000 || activeLeases.has(cid)) activeLeases.set(cid, now + HOLD_TTL);
+    return json({ ok: true, onHold: false, position: 0, ahead: 0, etaSec: 0, retryAfter: 0, active: activeLeases.size, capacity: cap });
+  }
+  let idx = waitQueue.findIndex((w) => w.cid === cid);
+  if (idx === -1) {
+    if (waitQueue.length >= 2000) waitQueue.shift();
+    waitQueue.push({ cid, joinedAt: now, seenAt: now });
+    idx = waitQueue.length - 1;
+  } else {
+    waitQueue[idx].seenAt = now;
+  }
+  const position = idx + 1, etaSec = Math.max(2, Math.min(60, position * 2)), retryAfter = Math.max(2, Math.min(8, Math.ceil(etaSec / 2)));
+  return json(
+    { ok: true, onHold: true, position, ahead: position - 1, etaSec, retryAfter, active: activeLeases.size, capacity: cap },
+    200,
+    { "retry-after": String(retryAfter) },
+  );
+}
+
+async function withLoadSlot(env, fn) {
+  const maxConc = int(env.MAX_CONCURRENT || 25, 1, 500);
+  const maxQ = int(env.MAX_QUEUE || 50, 0, 2000);
+  if (inFlight >= maxConc) {
+    if (flightWaiters.length >= maxQ) return fail("rate_limited", 429, { "retry-after": "3", "x-on-hold": "1" });
+    const got = await new Promise((resolve) => {
+      const w = { resolve, to: null };
+      w.to = setTimeout(() => {
+        const idx = flightWaiters.indexOf(w);
+        if (idx !== -1) flightWaiters.splice(idx, 1);
+        resolve(false);
+      }, 2500);
+      flightWaiters.push(w);
+    });
+    if (!got) return fail("rate_limited", 429, { "retry-after": "3", "x-on-hold": "1" });
+  }
+  inFlight++;
+  try {
+    return await fn();
+  } finally {
+    inFlight--;
+    if (flightWaiters.length) {
+      const w = flightWaiters.shift();
+      clearTimeout(w.to);
+      w.resolve(true);
+    }
+  }
+}
 async function ghosts(env, db) {
   const week = isoWeek(new Date(), timeZone(env));
   if (ghostMemo && ghostMemo.week === week && Date.now() - ghostMemo.at < 30000) return json(ghostMemo.body);
@@ -1057,16 +1150,22 @@ export async function handle(request, env) {
       await ensureSchema(env);
       return json({ ok: true, database: true, closed: closed(env), week: isoWeek(new Date(), timeZone(env)), admin: String(env.ADMIN_TOKEN || "").length >= 16 });
     }
+    if (path === "/api/queue") {
+      if (method === "GET" || method === "HEAD" || method === "POST") return await checkQueue(u, request, env);
+      return fail("method_not_allowed", 405, { allow: "GET, HEAD, POST" });
+    }
     if (path === "/api/scores" || path.startsWith("/api/admin/")) {
       if (!env.DB) return fail("no_database", 503);
       await ensureSchema(env);
       if (path.startsWith("/api/admin/")) return await admin(path.slice("/api/admin/".length), request, env, env.DB);
-      if (method === "GET" || method === "HEAD") {
-        const sp = new URL(request.url).searchParams, view = sp.get("view");
-        return view === "stats" ? await stats(env.DB) : view === "pct" ? await percentile(env.DB, sp.get("score")) : view === "ghosts" ? await ghosts(env, env.DB) : await board(env, env.DB);
-      }
-      if (method === "POST") return await post(request, env, env.DB);
-      return fail("method_not_allowed", 405, { allow: "GET, HEAD, POST" });
+      return await withLoadSlot(env, async () => {
+        if (method === "GET" || method === "HEAD") {
+          const sp = new URL(request.url).searchParams, view = sp.get("view");
+          return view === "stats" ? await stats(env.DB) : view === "pct" ? await percentile(env.DB, sp.get("score")) : view === "ghosts" ? await ghosts(env, env.DB) : await board(env, env.DB);
+        }
+        if (method === "POST") return await post(request, env, env.DB);
+        return fail("method_not_allowed", 405, { allow: "GET, HEAD, POST" });
+      });
     }
     return fail("not_found", 404);
   } catch (e) {

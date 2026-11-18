@@ -696,7 +696,7 @@ function refreshLB(force) {
   lastFetch = performance.now();
   fetching = api(API).then(j => {
     const first = !db;
-    db = db || { live: true }; liveWeek = j.week || null; dbWritable = !j.closed;
+    db = db || { live: true }; liveWeek = j.week || null; dbWritable = !j.closed; window.__tffServerHold = !!j.onHold;
     lbWeek = (j.weekTop || []).map(e => ({ ...e, _id: e.id }));
     lbAll = (j.allTop || []).map(e => ({ ...e, _id: e.id }));
     if (tab !== "insights" || first) renderLB();
@@ -857,6 +857,23 @@ $("postBtn").addEventListener("click", async () => {
           btn.removeAttribute("aria-disabled"); postLabel("Post score", "上榜"); emailError(true); em.focus(); ps.className = "post-status bad";
           ps.textContent = "That email doesn't look right. Please check it. 電郵地址好似唔啱，請再檢查。";
         }
+        return;
+      }
+      if (e.status === 429 && (st.holdRetries || 0) < 2) {
+        st.holdRetries = (st.holdRetries || 0) + 1;
+        btn.setAttribute("aria-disabled", "true");
+        let left = 3;
+        const tickHold = () => {
+          if (st !== S || !st.posting) return;
+          postLabel(`On hold (${left}s)…`, `排隊中 (${left}秒)…`);
+          ps.className = "post-status";
+          ps.textContent = `High traffic — holding your spot in line, auto-posting in ${left}s… 太多人同時上榜，系統正自動為你排隊（${left}秒後自動上載）…`;
+          showStatus();
+          if (left-- > 0) { setTimeout(tickHold, 1000); return; }
+          st.posting = false;
+          btn.click();
+        };
+        tickHold();
         return;
       }
       if (!e.status || e.status === 429 || (e.status >= 500 && e.code !== "no_database")) {

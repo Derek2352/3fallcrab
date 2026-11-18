@@ -2,7 +2,7 @@
 // an admin surface that does not advertise itself.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { handle } from "../server/api.js";
+import { handle, resetCaches } from "../server/api.js";
 import { makeDB } from "./fake-d1.mjs";
 import { makeStore } from "./fake-d1-store.mjs";
 
@@ -118,5 +118,91 @@ test("challenge route passes validated persona and silhouette into tff-chal meta
   } finally {
     if (PrevRewriter === undefined) delete globalThis.HTMLRewriter;
     else globalThis.HTMLRewriter = PrevRewriter;
+  }
+});
+
+test("service load balancer /api/queue admits within capacity, holds excess visitors in order, and promotes on leave", async () => {
+  resetCaches();
+  const db = makeStore();
+  const env = { DB: db, QUEUE_CAPACITY: "1" };
+  try {
+    const r1 = await handle(new Request("https://game.test/api/queue?cid=c1"), env);
+    assert.equal(r1.status, 200);
+    assert.deepEqual((await r1.json()).onHold, false);
+
+    const r2 = await handle(new Request("https://game.test/api/queue?cid=c2"), env);
+    assert.equal(r2.status, 200);
+    const j2 = await r2.json();
+    assert.equal(j2.onHold, true);
+    assert.equal(j2.position, 1);
+    assert.ok(Number(r2.headers.get("retry-after")) >= 2);
+
+    const r3 = await handle(new Request("https://game.test/api/queue?cid=c3"), env);
+    const j3 = await r3.json();
+    assert.equal(j3.onHold, true);
+    assert.equal(j3.position, 2);
+
+    const boardRes = await (await handle(new Request("https://game.test/api/scores"), env)).json();
+    assert.equal(boardRes.onHold, true);
+
+    const leave1 = await (await handle(new Request("https://game.test/api/queue?cid=c1&leave=1"), env)).json();
+    assert.equal(leave1.onHold, false);
+
+    const p2 = await (await handle(new Request("https://game.test/api/queue?cid=c2"), env)).json();
+    assert.equal(p2.onHold, false);
+    assert.equal(p2.position, 0);
+
+    const p3 = await (await handle(new Request("https://game.test/api/queue?cid=c3"), env)).json();
+    assert.equal(p3.onHold, true);
+    assert.equal(p3.position, 1);
+  } finally {
+    resetCaches();
+  }
+});
+
+test("service load balancer queues in-flight /api/scores load and returns 429 x-on-hold when saturated", async () => {
+  resetCaches();
+  let releaseDb, slow = false;
+  const gate = new Promise((r) => { releaseDb = r; });
+  const safety = setTimeout(() => releaseDb?.(), 2000);
+  const fastDb = makeDB();
+  const slowDb = {
+    prepare: (sql) => {
+      let stmt = fastDb.prepare(sql);
+      const wrap = {
+        sql,
+        bind: (...args) => { stmt = stmt.bind(...args); return wrap; },
+        first: (...args) => stmt.first(...args),
+        all: async (...args) => {
+          if (slow && /ORDER BY score DESC/.test(sql)) await gate;
+          return stmt.all(...args);
+        },
+        run: (...args) => stmt.run(...args),
+      };
+      return wrap;
+    },
+    batch: async (stmts) => {
+      if (slow && stmts.some((s) => /ORDER BY score DESC/.test(String(s?.sql || "")))) await gate;
+      return fastDb.batch(stmts);
+    },
+  };
+  const env = { DB: slowDb, MAX_CONCURRENT: "1", MAX_QUEUE: "0" };
+  try {
+    await handle(new Request("https://game.test/api/health"), env);
+    slow = true;
+    const firstReq = handle(new Request("https://game.test/api/scores?view=ghosts"), env);
+    await new Promise((r) => setTimeout(r, 20));
+    const overflowRes = await handle(new Request("https://game.test/api/scores"), env);
+    assert.equal(overflowRes.status, 429);
+    assert.equal(overflowRes.headers.get("x-on-hold"), "1");
+    assert.equal((await overflowRes.json()).error, "rate_limited");
+    releaseDb();
+    assert.equal((await firstReq).status, 200);
+    const recoveredRes = await handle(new Request("https://game.test/api/scores"), env);
+    assert.equal(recoveredRes.status, 200);
+  } finally {
+    clearTimeout(safety);
+    releaseDb?.();
+    resetCaches();
   }
 });
