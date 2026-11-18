@@ -1396,13 +1396,24 @@ html.fs.title .ts-sound .ts-silent[hidden]{display:none}
 
 /* ---------- the opening film: Jack and Jackie, Year 1 at HSUHK (src/intro.js, pictures in src/film/) ---------- */
 .intro{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  padding:var(--fpad-t, 0px) 0 var(--fpad-b, 0px);background:#09080C;color:#F6F0E2;transition:opacity .6s ease;overflow:hidden}
+  padding:var(--fpad-t, 0px) 0 var(--fpad-b, 0px);background:var(--amb-bg, linear-gradient(#9AD6FF, #E9D9B8));color:#F6F0E2;transition:opacity .6s ease;overflow:hidden}
 .intro[hidden]{display:none}
 .intro.out{opacity:0;pointer-events:none}
-/* the screen: sized by intro.js (a 4:5 to 1.85:1 window on the square shots), black round it like a cinema */
-.fscreen{position:relative;flex:none;width:var(--fw, 100vw);height:var(--fh, 100vh)}
-.fframe{position:absolute;inset:0;overflow:hidden;background:#09080C}
-.fshot{position:absolute;inset:0;opacity:0;visibility:hidden;background:var(--bg, #09080C)}
+.intro[data-amb="campus"]{--amb-bg:linear-gradient(#9AD6FF, #E9D9B8)}
+.intro[data-amb="pay"]{--amb-bg:linear-gradient(#FFD99A, #C98F4E)}
+.intro[data-amb="spend"]{--amb-bg:linear-gradient(#5B2D6E, #2A1838)}
+.intro[data-amb="scam"]{--amb-bg:linear-gradient(#2C1F57, #120E22)}
+.intro[data-amb="delay"]{--amb-bg:linear-gradient(#18305E, #0E1A36)}
+.intro[data-amb="tower"]{--amb-bg:linear-gradient(#FFC2A8, #F2B35A)}
+.intro[data-amb="title"]{--amb-bg:linear-gradient(#BFDDF6, #FFC6C8 45%, #FFC870)}
+.famb{position:absolute;inset:-10%;z-index:0;pointer-events:none;background-image:var(--amb-bg, linear-gradient(#9AD6FF, #E9D9B8));background-size:cover;background-position:center;filter:blur(28px) saturate(1.25) brightness(.72);transform:scale(1.08);transition:background-image .65s ease}
+.famb::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg, rgba(14,10,22,.22) 0%, transparent 22%, transparent 64%, rgba(14,10,22,.72) 100%)}
+/* the screen: sized by intro.js (a 0.68 portrait to 1.85:1 window on the square shots), over an ambient backdrop */
+.fscreen{position:relative;flex:none;z-index:2;width:var(--fw, 100vw);height:var(--fh, 100vh)}
+.fframe{position:absolute;inset:0;overflow:hidden;background:transparent}
+.intro.port .fframe{-webkit-mask-image:linear-gradient(180deg, transparent 0%, #000 5.5%, #000 93.5%, transparent 100%);mask-image:linear-gradient(180deg, transparent 0%, #000 5.5%, #000 93.5%, transparent 100%)}
+.intro.port .fframe::after{display:none}
+.fshot{position:absolute;inset:0;opacity:0;visibility:hidden;background:var(--bg, transparent)}
 .fshot img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:var(--pos, 50% 45%);transform-origin:var(--fo, 50% 45%);opacity:0;transition:opacity .5s}
 .fshot img.ok{opacity:1}
 .fshot.on, .fshot.off{visibility:visible;opacity:1}
@@ -1448,8 +1459,8 @@ html.fs.title .ts-sound .ts-silent[hidden]{display:none}
 .fbeat p{margin:0}
 .fbeat [lang="zh-HK"]{font-family:var(--f-zh)}
 .fpresents{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;
-  font-weight:700;font-size:clamp(17px, 3.4vmin, 28px);letter-spacing:.12em;color:#F6F0E2;opacity:0}
-.fpresents small{font-family:var(--f-body);font-weight:600;font-size:.62em;letter-spacing:.38em;text-transform:uppercase;color:#C9B98F}
+  font-weight:700;font-size:clamp(17px, 3.4vmin, 28px);letter-spacing:.12em;color:#F6F0E2;text-shadow:0 2px 12px rgba(10,8,14,.85), 0 1px 3px rgba(10,8,14,.95);opacity:0}
+.fpresents small{font-family:var(--f-body);font-weight:600;font-size:.62em;letter-spacing:.38em;text-transform:uppercase;color:#FFE89A}
 .fbeat.on .fpresents{animation:credit 2s ease both}
 @keyframes credit{0%{opacity:0;transform:scale(.97)}25%,75%{opacity:1}100%{opacity:0;transform:scale(1.01)}}
 /* a place slug, typed in */
@@ -1476,7 +1487,7 @@ html.fs.title .ts-sound .ts-silent[hidden]{display:none}
 .fsub.vo{font-style:italic} .fsub.vo .fwho{color:#9DD8FF}
 .fbeat.on .fsub.now{animation:subIn .45s .35s ease both}
 @keyframes subIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-.intro.port .fsub{top:calc(100% + 16px);bottom:auto;max-width:94%}
+.intro.port .fsub{top:calc(100% + 12px);bottom:auto;max-width:94%;background:rgba(10,8,14,.72);padding:6px 14px 8px;border-radius:12px}
 /* the title */
 .fbeat .mlogo{position:absolute;left:50%;top:30%;translate:-50% -50%;margin:0;display:flex;flex-direction:column;align-items:center;gap:4px;
   background:none;border:0;box-shadow:none;padding:0;text-align:center}
@@ -1820,6 +1831,7 @@ body:has(#cardModal:not([hidden])) .fbars{height:min(9vh,86px)}   /* follows the
 
 /* ---------- automatic low-graphics mode on slow / low-spec devices ---------- */
 html.low-gfx .filmgrain, html.low-gfx .filmvig{display:none}
+html.low-gfx .famb{filter:none;transform:none;opacity:.88}
 html.low-gfx .iab, html.low-gfx .hud, html.low-gfx .pad button, html.low-gfx .iconbtn{-webkit-backdrop-filter:none;backdrop-filter:none}
 html.low-gfx .fzglow, html.low-gfx #startOv #startBtn{animation:none}
 

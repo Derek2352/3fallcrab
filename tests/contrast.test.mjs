@@ -423,6 +423,23 @@ test("Part D: Live headless Chromium computed-style contrast on / (mobile & desk
     try {
       await ctx.goto(`${srv.baseUrl}/?intro=1&roll=0`);
       await ctx.waitFor(() => !document.getElementById("intro").hidden);
+      const introAmb = await ctx.evalJs(`(() => {
+        const intro = document.getElementById("intro");
+        const amb = document.getElementById("fAmb");
+        const frame = document.querySelector(".fframe");
+        const r = amb ? amb.getBoundingClientRect() : { width: 0, height: 0 };
+        return {
+          hasPort: intro.classList.contains("port"),
+          hasAmb: !!amb,
+          w: r.width,
+          h: r.height,
+          frameBg: frame ? getComputedStyle(frame).backgroundColor : "",
+        };
+      })()`);
+      assert.equal(introAmb.hasPort, true);
+      assert.equal(introAmb.hasAmb, true);
+      assert.ok(introAmb.w >= 390 && introAmb.h >= 844, `Expected #fAmb to cover 390x844 viewport, got ${introAmb.w}x${introAmb.h}`);
+      assert.equal(introAmb.frameBg, "rgba(0, 0, 0, 0)");
       await ctx.click("#introSkip");
       await ctx.waitFor(() => document.getElementById("startOv").hidden === false);
       await ctx.click("#startBtn");

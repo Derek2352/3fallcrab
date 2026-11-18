@@ -11,9 +11,17 @@ if (!forceOn && (localStorage.getItem("tff_intro") === "off" || sessionStorage.g
 const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const behind = [...document.body.children].filter(n => n !== el && n.tagName !== "SCRIPT");
 let was = behind.map(n => n.inert);
-const scr = document.getElementById("fScreen"), flashEl = el.querySelector(".fflash"), bar = document.getElementById("fBar");
+const scr = document.getElementById("fScreen"), amb = document.getElementById("fAmb"), flashEl = el.querySelector(".fflash"), bar = document.getElementById("fBar");
 const beats = [...el.querySelectorAll(".fbeat")].sort((a, b) => a.dataset.step - b.dataset.step);
 const shots = {}; el.querySelectorAll(".fshot").forEach(s => { shots[s.dataset.shot] = s; });
+function syncAmb(k) {
+const key = k || "campus", s = shots[key];
+el.dataset.amb = key;
+if (!amb || !s) return;
+const img = s.querySelector("img");
+const src = img && (img.currentSrc || img.getAttribute("src"));
+if (src && ready[key]) amb.style.backgroundImage = 'url("' + src + '")';
+}
 const linesOf = n => [...beats[n].querySelectorAll(".fsub")];
 const lineMs = x => { const t = x.textContent || ""; let n = 0; for (const ch of t) { const c = ch.codePointAt(0); if (c >= 0x4e00 && c <= 0x9fff) n++; } return Math.max(3600, Math.min(5000, Math.round(n * 130))); };
 const holdsOf = n => { const L = linesOf(n); return L.length ? L.map(lineMs) : [(+beats[n].dataset.hold || 3000)]; };
@@ -22,7 +30,7 @@ const TOTAL = beats.reduce((t, b, n) => t + holdOf(n), 0);
 const ready = {};
 Object.entries(shots).forEach(([k, s]) => {
 const img = s.querySelector("img");
-const ok = () => { ready[k] = true; img.classList.add("ok"); };
+const ok = () => { ready[k] = true; img.classList.add("ok"); if ((el.dataset.amb || "campus") === k) syncAmb(k); };
 if (img.complete && img.naturalWidth) ok(); else img.addEventListener("load", ok);
 img.addEventListener("error", () => { img.remove(); });
 });
@@ -39,8 +47,8 @@ await new Promise(r => { if (img.complete) r(); else { img.addEventListener("loa
 }
 function fit() {
 const W = innerWidth, H = innerHeight, port = W / H < 0.9;
-const resT = port ? Math.min(64, H * 0.08) : 0, resB = port ? Math.min(230, H * 0.3) : 0;
-const ar = Math.max(0.8, Math.min(1.85, W / (H - resT - resB)));
+const resT = port ? Math.min(44, H * 0.05) : 0, resB = port ? Math.min(180, H * 0.22) : 0;
+const ar = Math.max(0.68, Math.min(1.85, W / (H - resT - resB)));
 let w = Math.min(W, (H - resT - resB) * ar), h = w / ar;
 el.style.setProperty("--fw", Math.floor(w) + "px"); el.style.setProperty("--fh", Math.floor(h) + "px");
 el.style.setProperty("--fpad-t", resT + "px"); el.style.setProperty("--fpad-b", resB + "px");
@@ -63,6 +71,7 @@ function cut(n) {
 const b = beats[n], via = b.dataset.via, k = b.dataset.shot, hold = holdOf(n);
 beats.forEach((x, j) => x.classList.toggle("on", j === n));
 scr.classList.toggle("hook", via === "hook");
+syncAmb(k || "campus");
 if (k && shots[k] !== shown) {
 const prev = shown, next = shots[k];
 Object.values(shots).forEach(s => { if (s !== prev && s !== next) s.className = "fshot"; });

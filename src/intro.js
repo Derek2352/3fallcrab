@@ -21,9 +21,17 @@
   const behind = [...document.body.children].filter(n => n !== el && n.tagName !== "SCRIPT");
   let was = behind.map(n => n.inert);
 
-  const scr = document.getElementById("fScreen"), flashEl = el.querySelector(".fflash"), bar = document.getElementById("fBar");
+  const scr = document.getElementById("fScreen"), amb = document.getElementById("fAmb"), flashEl = el.querySelector(".fflash"), bar = document.getElementById("fBar");
   const beats = [...el.querySelectorAll(".fbeat")].sort((a, b) => a.dataset.step - b.dataset.step);
   const shots = {}; el.querySelectorAll(".fshot").forEach(s => { shots[s.dataset.shot] = s; });
+  function syncAmb(k) {
+    const key = k || "campus", s = shots[key];
+    el.dataset.amb = key;
+    if (!amb || !s) return;
+    const img = s.querySelector("img");
+    const src = img && (img.currentSrc || img.getAttribute("src"));
+    if (src && ready[key]) amb.style.backgroundImage = 'url("' + src + '")';
+  }
   // Reading time comes from the line itself, not from a fixed beat length: about 130 ms a character,
   // never under 3.4 s and never over 5 s. A beat lasts as long as its subtitle lines added together.
   const linesOf = n => [...beats[n].querySelectorAll(".fsub")];
@@ -36,7 +44,7 @@
   const ready = {};
   Object.entries(shots).forEach(([k, s]) => {
     const img = s.querySelector("img");
-    const ok = () => { ready[k] = true; img.classList.add("ok"); };
+    const ok = () => { ready[k] = true; img.classList.add("ok"); if ((el.dataset.amb || "campus") === k) syncAmb(k); };
     if (img.complete && img.naturalWidth) ok(); else img.addEventListener("load", ok);
     img.addEventListener("error", () => { img.remove(); });   // the shot's own colour stands in
   });
@@ -52,11 +60,11 @@
     })();
   }
 
-  // ---------- the screen: a 4:5 (phone) to 1.85:1 (wide) window on the square shots, black round it
+  // ---------- the screen: a 0.68 portrait to 1.85:1 window on the square shots, over an ambient backdrop
   function fit() {
     const W = innerWidth, H = innerHeight, port = W / H < 0.9;
-    const resT = port ? Math.min(64, H * 0.08) : 0, resB = port ? Math.min(230, H * 0.3) : 0;   // a phone: room for the subtitles under the picture
-    const ar = Math.max(0.8, Math.min(1.85, W / (H - resT - resB)));
+    const resT = port ? Math.min(44, H * 0.05) : 0, resB = port ? Math.min(180, H * 0.22) : 0;   // a phone: room for the subtitles under the picture
+    const ar = Math.max(0.68, Math.min(1.85, W / (H - resT - resB)));
     let w = Math.min(W, (H - resT - resB) * ar), h = w / ar;
     el.style.setProperty("--fw", Math.floor(w) + "px"); el.style.setProperty("--fh", Math.floor(h) + "px");
     el.style.setProperty("--fpad-t", resT + "px"); el.style.setProperty("--fpad-b", resB + "px");
@@ -83,6 +91,7 @@
     const b = beats[n], via = b.dataset.via, k = b.dataset.shot, hold = holdOf(n);
     beats.forEach((x, j) => x.classList.toggle("on", j === n));
     scr.classList.toggle("hook", via === "hook");
+    syncAmb(k || "campus");
     if (k && shots[k] !== shown) {
       const prev = shown, next = shots[k];
       Object.values(shots).forEach(s => { if (s !== prev && s !== next) s.className = "fshot"; });
