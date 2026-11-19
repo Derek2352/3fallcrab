@@ -126,7 +126,7 @@ test("E2E 1: desktop intro, title sheets, Instagram modal, and exit-intent promp
     const swScope = await ctx.evalJs(`navigator.serviceWorker ? navigator.serviceWorker.ready.then(r => r.scope) : ''`);
     assert.ok(swScope.startsWith(srv.baseUrl), "Service Worker did not become ready: " + swScope);
 
-    // 7) Service load balancer waiting room (?hold=1) opens #holdModal and bypasses cleanly via #holdSkipBtn
+    // 7) Service load balancer waiting room (?hold=1): Escape cancels cleanly back to #startOv; Skip enters game
     await ctx.goto(`${srv.baseUrl}/?intro=0&hold=1`);
     await ctx.waitFor(() => !document.getElementById("startBtn").hidden);
     await ctx.click("#startBtn");
@@ -134,6 +134,16 @@ test("E2E 1: desktop intro, title sheets, Instagram modal, and exit-intent promp
     assert.match(await ctx.evalJs("document.getElementById('holdPos').textContent"), /^#\d+/);
     assert.match(await ctx.evalJs("document.getElementById('holdEta').textContent"), /~\d+s/);
     assert.equal(await ctx.evalJs("document.querySelector('.set').inert"), true);
+
+    // Escape cancels hold back to #startOv without entering #pickModal
+    await ctx.pressKey("Escape", "Escape", 27);
+    await ctx.waitFor(() => document.getElementById("holdModal").hidden);
+    assert.equal(await ctx.evalJs("document.getElementById('pickModal').hidden"), true);
+    assert.equal(await ctx.evalJs("document.querySelector('.set').inert"), false);
+
+    // Click Start again -> click Play offline now (#holdSkipBtn) -> opens #pickModal
+    await ctx.click("#startBtn");
+    await ctx.waitFor(() => !document.getElementById("holdModal").hidden);
     await ctx.click("#holdSkipBtn");
     await ctx.waitFor(() => document.getElementById("holdModal").hidden && !document.getElementById("pickModal").hidden);
 
@@ -389,6 +399,17 @@ test("E2E 5: admin dashboard renders SVG trend chart, searches/filters rows, bat
     await ctx.waitFor(() => !document.getElementById("batchBar").hidden);
     await ctx.click("#batchUnhide");
     await ctx.waitFor(() => document.getElementById("rows").textContent.includes("shown"));
+
+    // 2b) Admin live traffic monitor & emergency Hold toggle
+    await ctx.waitFor(() => /Traffic:/.test(document.getElementById("trafficInfo").textContent));
+    await ctx.click("#holdToggleBtn");
+    await ctx.waitFor(() => document.getElementById("holdToggleBtn").getAttribute("aria-pressed") === "true");
+    const heldBoard = await (await fetch(`${srv.baseUrl}/api/scores`)).json();
+    assert.equal(heldBoard.onHold, true, "Admin Hold ON must reflect on public /api/scores");
+    await ctx.click("#holdToggleBtn");
+    await ctx.waitFor(() => document.getElementById("holdToggleBtn").getAttribute("aria-pressed") === "false");
+    const openBoard = await (await fetch(`${srv.baseUrl}/api/scores`)).json();
+    assert.equal(openBoard.onHold, false, "Admin Hold OFF must clear onHold on public /api/scores");
 
     // 3) Poster with ?booth=1&ig=1
     await ctx.goto(`${srv.baseUrl}/poster.html?booth=1&ig=1`);

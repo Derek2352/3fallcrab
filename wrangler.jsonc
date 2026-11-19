@@ -35,5 +35,13 @@
     { "pattern": "3fallcrab.com", "custom_domain": true },
     { "pattern": "www.3fallcrab.com", "custom_domain": true }
   ],
+  "durable_objects": {
+    "bindings": [
+      { "name": "WAITING_ROOM", "class_name": "WaitingRoom" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["WaitingRoom"] }
+  ],
   "observability": { "enabled": true }
 }

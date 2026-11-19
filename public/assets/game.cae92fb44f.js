@@ -1710,7 +1710,7 @@ if (e.key === "Escape"){ closeIg(); e.preventDefault(); }
 return;
 }
 if (!$("holdModal").hidden){
-if (e.key === "Escape"){ closeHold(true); e.preventDefault(); }
+if (e.key === "Escape"){ closeHold("cancel"); e.preventDefault(); }
 return;
 }
 if (!S) return;
@@ -1932,16 +1932,23 @@ newLife();
 }
 let holdAdmitted = false, holdSkipped = false, holdTimer = 0, holdReadyCb = null, holdReturnTo = null;
 const HOLD_CID = (() => { let c = ssGet("tff_cid"); if (!c){ c = "c" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36); ssSet("tff_cid", c); } return c; })();
-function closeHold(skip){
+function closeHold(mode){
 clearTimeout(holdTimer); holdTimer = 0;
-const m = $("holdModal"), cb = holdReadyCb; holdReadyCb = null;
-if (skip) holdSkipped = true; else holdAdmitted = true;
+const cancel = mode === "cancel", skip = mode === true || mode === "skip";
+const m = $("holdModal"), cb = cancel ? null : holdReadyCb; holdReadyCb = null;
+if (!cancel){ if (skip) holdSkipped = true; else holdAdmitted = true; }
 if (m && !m.hidden){ m.hidden = true; modalOpen(false); }
-if (skip && window.__tffServerHold) try { fetch("/api/queue?leave=1&cid=" + encodeURIComponent(HOLD_CID), { keepalive: true }).catch(() => {}); } catch(e){}
+if ((skip || cancel) && typeof apiAllowed !== "undefined" && apiAllowed && !apiGone) try { fetch("/api/queue?leave=1&cid=" + encodeURIComponent(HOLD_CID), { keepalive: true }).catch(() => {}); } catch(e){}
 if (cb) cb();
-else if (holdReturnTo && holdReturnTo.focus && !holdReturnTo.closest("[hidden]")) holdReturnTo.focus({preventScroll: true});
+else {
+const tgt = (holdReturnTo && holdReturnTo.focus && !holdReturnTo.closest("[hidden]")) ? holdReturnTo : $("startBtn");
+if (tgt && tgt.focus && !tgt.closest("[hidden]")) tgt.focus({preventScroll: true});
+}
 holdReturnTo = null;
 }
+window.addEventListener("pagehide", () => {
+if (typeof apiAllowed !== "undefined" && apiAllowed && !apiGone && navigator.sendBeacon) try { navigator.sendBeacon("/api/queue?leave=1&cid=" + encodeURIComponent(HOLD_CID)); } catch(e){}
+});
 function openHold(onReady){
 const m = $("holdModal"); if (!m){ if (onReady) onReady(); return; }
 clearTimeout(holdTimer); holdReadyCb = onReady || null;
@@ -2921,7 +2928,7 @@ const r = wrap.getBoundingClientRect();
 YT = Math.max(0, r.top / SC); YB = Math.max(0, (vh - r.bottom) / SC);
 cv.style.top = -Math.round(YT * SC) + "px";
 } else { YT = YB = 0; wrap.style.width = wrap.style.height = ""; cv.style.top = ""; }
-DPR = Math.min(lowGfx ? 2 : 3, window.devicePixelRatio || 1);
+DPR = Math.min(lowGfx ? 2 : 3, window.devicePixelRatio || 1, Math.max(1.5, Math.sqrt(8500000 / Math.max(1, vw * (H + YT + YB) * SC * SC))));
 const cw = Math.round(vw * SC * DPR), ch = Math.round((H + YT + YB) * SC * DPR);
 if (cv.width !== cw || cv.height !== ch){ cv.width = cw; cv.height = ch; needDraw = true; }
 cv.style.width = Math.round(vw * SC) + "px"; cv.style.height = Math.round((H + YT + YB) * SC) + "px";
@@ -4172,14 +4179,22 @@ async function api(url, opts = {}) {
 const ctl = typeof AbortController === "function" ? new AbortController() : null;
 const to = ctl ? setTimeout(() => ctl.abort(), 9000) : 0;
 try {
+const hdr = { accept: "application/json", ...(typeof HOLD_CID === "string" && HOLD_CID ? { "x-client-id": HOLD_CID } : {}), ...(opts.headers || {}) };
 const r = await fetch(url, {
 ...opts, cache: "no-store", credentials: "same-origin", signal: ctl ? ctl.signal : undefined,
-headers: { accept: "application/json", ...(opts.headers || {}) }
+headers: hdr
 });
 let j = null;
 try { const t = await r.text(); const v = JSON.parse(t); if (v && typeof v === "object" && "ok" in v) j = v; } catch (e) { }
 if (!j) { const e = new Error("no api"); e.status = r.status; e.noApi = true; throw e; }
-if (!r.ok || j.ok !== true) { const e = new Error(j.error || "HTTP " + r.status); e.status = r.status; e.code = j.error; throw e; }
+if (!r.ok || j.ok !== true) {
+const e = new Error(j.error || "HTTP " + r.status);
+e.status = r.status; e.code = j.error;
+const ra = parseInt(r.headers.get("retry-after") || "", 10);
+e.retryAfter = Number.isFinite(ra) && ra > 0 ? ra : 0;
+e.onHold = r.headers.get("x-on-hold") === "1" || j.onHold === true;
+throw e;
+}
 return j;
 } finally { if (to) clearTimeout(to); }
 }
@@ -4196,6 +4211,7 @@ if (tab !== "insights" || first) renderLB();
 flushOutboxSoon();
 return true;
 }).catch(e => {
+if (e.status === 429 && e.onHold) window.__tffServerHold = true;
 if (e.code === "no_database" || e.code === "static_only") apiGone = true;
 if (!db && tab !== "insights") renderLB();
 return false;
@@ -4287,8 +4303,9 @@ const showStatus = () => requestAnimationFrame(() => {
 const box = $("stScroll"), over = $("postStatus").getBoundingClientRect().bottom - box.getBoundingClientRect().bottom + 8;
 if (over > 0) box.scrollBy({ top: over, behavior: reduceMotion ? "auto" : "smooth" });
 });
-$("postBtn").addEventListener("click", async () => {
+$("postBtn").addEventListener("click", async (ev) => {
 const st = S; if (st.posted || st.posting) return;
+if (ev && ev.isTrusted) st.holdRetries = 0;
 const ps = $("postStatus"), btn = $("postBtn"), em = $("email");
 const email = em.closest(".fld").hidden ? "" : em.value.trim(), nick = $("nickname");
 nick.classList.remove("bad"); nick.removeAttribute("aria-invalid");
@@ -4340,19 +4357,19 @@ ps.textContent = "That email doesn't look right. Please check it. 電郵地址�
 }
 return;
 }
-if (e.status === 429 && (st.holdRetries || 0) < 2) {
+if (e.status === 429 && (e.onHold || !e.retryAfter || e.retryAfter <= 10) && (st.holdRetries || 0) < 2) {
 st.holdRetries = (st.holdRetries || 0) + 1;
 btn.setAttribute("aria-disabled", "true");
-let left = 3;
+let left = Math.max(1, Math.min(10, e.retryAfter || 3));
 const tickHold = () => {
 if (st !== S || !st.posting) return;
+if (left <= 0) { st.posting = false; btn.click(); return; }
 postLabel(`On hold (${left}s)…`, `排隊中 (${left}秒)…`);
 ps.className = "post-status";
 ps.textContent = `High traffic — holding your spot in line, auto-posting in ${left}s… 太多人同時上榜，系統正自動為你排隊（${left}秒後自動上載）…`;
 showStatus();
-if (left-- > 0) { setTimeout(tickHold, 1000); return; }
-st.posting = false;
-btn.click();
+left--;
+setTimeout(tickHold, 1000);
 };
 tickHold();
 return;
@@ -4361,7 +4378,10 @@ if (!e.status || e.status === 429 || (e.status >= 500 && e.code !== "no_database
 st.posting = false;
 if (st === S) {
 btn.removeAttribute("aria-disabled"); postLabel("Try again", "再試");
-ps.textContent = e.status === 429 ? "Lots of crabs posting at once. Wait a moment, then try again. 太多人同時上榜，等陣再試吓。"
+ps.textContent = e.status === 429
+? (e.retryAfter > 10
+? `Lots of crabs posting at once. Wait ${e.retryAfter}s, then try again. 太多人同時上榜，等 ${e.retryAfter} 秒後再試吓。`
+: "Lots of crabs posting at once. Wait a moment, then try again. 太多人同時上榜，等陣再試吓。")
 : "Couldn't reach the live board. Check your connection, then try again. 連唔到排行榜，檢查吓網絡再試。";
 showStatus();
 }

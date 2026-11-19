@@ -1,7 +1,39 @@
 // Cloudflare Worker entry. Static files in public/ are served straight from the edge; only two kinds of request
 // reach this script (see "run_worker_first" in wrangler.jsonc): /api/* (the leaderboard) and /c (a friend's challenge
 // link, whose link preview is rewritten to show their score; the page itself is the normal home page).
-import { handle, cleanName, cleanSil, NAME_DEFAULT } from "./api.js";
+import { handle, cleanName, cleanSil, NAME_DEFAULT, createQueueEngine } from "./api.js";
+
+// Global Durable Object holding waiting-room queue state consistently across all Cloudflare edge isolates.
+export class WaitingRoom {
+  constructor(ctx, env) {
+    this.ctx = ctx;
+    this.env = env;
+    this.engine = createQueueEngine();
+    this.ready = ctx && ctx.blockConcurrencyWhile
+      ? ctx.blockConcurrencyWhile(async () => {
+          const saved = await ctx.storage?.get("adminForceHold");
+          if (typeof saved === "boolean") this.engine.setAdminHold(saved, env);
+        })
+      : Promise.resolve();
+  }
+  async fetch(request) {
+    await this.ready;
+    const url = new URL(request.url);
+    const action = url.pathname.replace(/^\/+/, "");
+    let body = {};
+    if (request.method === "POST") {
+      try { body = await request.json(); } catch {}
+    }
+    if (action === "check") return Response.json(this.engine.check(body, this.env));
+    if (action === "touch") return Response.json(this.engine.touch(body.cid || "", this.env));
+    if (action === "admin") {
+      const on = Boolean(body.forceHold);
+      await this.ctx?.storage?.put("adminForceHold", on);
+      return Response.json(this.engine.setAdminHold(on, this.env));
+    }
+    return Response.json(this.engine.status(this.env));
+  }
+}
 import "../src/content.js"; // sets globalThis.TFF_CONTENT
 const { TITLES, PERSONAS = { bg: {}, pe: {} } } = globalThis.TFF_CONTENT;
 const PERSONA_KEYS = new Set(Object.keys(PERSONAS.bg).flatMap((b) => Object.keys(PERSONAS.pe).map((p) => b + "+" + p)));

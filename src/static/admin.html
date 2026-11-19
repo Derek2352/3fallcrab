@@ -37,7 +37,7 @@
   textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:10px;color:var(--ink)}
   button{padding:9px 14px;border:0;border-radius:10px;background:var(--ink);color:#fff;font-weight:600;cursor:pointer}
   button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
-  button.hide{background:var(--red)}
+  button.hide,#holdToggleBtn[aria-pressed="true"]{background:var(--red);color:#fff;border-color:var(--red)}
   button.show{background:var(--teal-ink)}
   button.mini{padding:2px 9px;font-size:12px;border-radius:8px}
   button:disabled,button[aria-disabled="true"]{opacity:.5;cursor:default}
@@ -161,7 +161,7 @@
   }
   @media print{
     body{background:#fff}
-    header button,#loginCard,#periodBar button,#periodBar .hint,#tabs,#pane-trends,#pane-winners,#pane-downloads,#pane-games{display:none!important}
+    header button,#loginCard,#periodBar button,#periodBar .hint,#trafficBar,#tabs,#pane-trends,#pane-winners,#pane-downloads,#pane-games{display:none!important}
     #panel,#pane-survey,#pane-decisions{display:block!important}
     .card{break-inside:avoid;border-color:#ccc;box-shadow:none}
   }
@@ -194,6 +194,12 @@
         <span class="hint">Survey and Decisions show this period. Hidden games are left out.</span>
       </div>
       <p class="msg" id="sumMsg" role="status"></p>
+      <div class="bar" id="trafficBar" style="margin:8px 0 0">
+        <span class="hint" id="trafficInfo" role="status" aria-live="polite">Traffic: –</span>
+        <span class="sp"></span>
+        <button class="ghost mini" id="holdToggleBtn" type="button" aria-pressed="false">Pause entry (Hold ON)</button>
+        <span class="msg" id="trafficMsg" role="status" aria-live="polite"></span>
+      </div>
     </section>
 
     <div class="tabs" id="tabs" role="tablist" aria-label="Admin sections">

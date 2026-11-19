@@ -206,3 +206,103 @@ test("service load balancer queues in-flight /api/scores load and returns 429 x-
     resetCaches();
   }
 });
+
+test("WaitingRoom Durable Object coordinates global hold state and admin overrides", async () => {
+  resetCaches();
+  const { WaitingRoom } = await import("../server/worker.js");
+  const storeMap = new Map();
+  const makeCtx = () => ({
+    blockConcurrencyWhile: (fn) => Promise.resolve().then(fn),
+    storage: {
+      get: async (k) => storeMap.get(k),
+      put: async (k, v) => { storeMap.set(k, v); },
+    },
+  });
+  let room = new WaitingRoom(makeCtx(), { QUEUE_CAPACITY: "1" });
+  const env = {
+    DB: makeStore(),
+    ADMIN_TOKEN: "0123456789abcdef",
+    QUEUE_CAPACITY: "1",
+    WAITING_ROOM: {
+      idFromName: (n) => n,
+      get: () => ({ fetch: (req, init) => room.fetch(req instanceof Request ? req : new Request(req, init)) }),
+    },
+  };
+  const admHdr = { authorization: "Bearer " + env.ADMIN_TOKEN, "content-type": "application/json" };
+  try {
+    // 1st client gets leased via /api/scores header -> 2nd client immediately sees onHold: true on /api/scores
+    const b1 = await (await handle(new Request("https://game.test/api/scores", { headers: { "x-client-id": "do_c1" } }), env)).json();
+    assert.equal(b1.onHold, false);
+    const b2 = await (await handle(new Request("https://game.test/api/scores", { headers: { "x-client-id": "do_c2" } }), env)).json();
+    assert.equal(b2.onHold, true);
+
+    // Admin emergency toggle persists in Durable Object storage across restart
+    const tog = await handle(new Request("https://game.test/api/admin/traffic", {
+      method: "POST", headers: admHdr, body: JSON.stringify({ forceHold: true }),
+    }), env);
+    assert.equal(tog.status, 200);
+    const togJ = await tog.json();
+    assert.equal(togJ.adminForceHold, true);
+    assert.equal(togJ.durableObject, true);
+
+    room = new WaitingRoom(makeCtx(), { QUEUE_CAPACITY: "1" });
+    const qRestart = await (await handle(new Request("https://game.test/api/queue?cid=do_c1"), env)).json();
+    assert.equal(qRestart.onHold, true);
+    assert.equal(qRestart.forceHold, true);
+
+    // Bad payload validation
+    const bad = await handle(new Request("https://game.test/api/admin/traffic", {
+      method: "POST", headers: admHdr, body: JSON.stringify({ forceHold: "yes" }),
+    }), env);
+    assert.equal(bad.status, 400);
+  } finally {
+    resetCaches();
+  }
+});
+
+test("withLoadSlot transfers slots atomically without overshooting MAX_CONCURRENT", async () => {
+  resetCaches();
+  let concurrent = 0, maxSeen = 0, step = 0;
+  const gates = [];
+  const baseDb = makeDB();
+  const slowDb = {
+    prepare: (sql) => {
+      let s = baseDb.prepare(sql);
+      const wrap = {
+        sql,
+        bind: (...a) => { s = s.bind(...a); return wrap; },
+        first: (...a) => s.first(...a),
+        all: async (...a) => {
+          if (/SELECT 1|FROM scores/.test(sql) && concurrent >= 0 && step > 0) {
+            concurrent++;
+            maxSeen = Math.max(maxSeen, concurrent);
+            await new Promise((r) => gates.push(r));
+            concurrent--;
+          }
+          return s.all(...a);
+        },
+        run: (...a) => s.run(...a),
+      };
+      return wrap;
+    },
+    batch: (list) => baseDb.batch(list),
+  };
+  const env = { DB: slowDb, MAX_CONCURRENT: "1", MAX_QUEUE: "5" };
+  try {
+    await handle(new Request("https://game.test/api/health"), env);
+    step = 1;
+    const p1 = handle(new Request("https://game.test/api/scores?view=ghosts"), env);
+    const p2 = handle(new Request("https://game.test/api/scores?view=ghosts"), env);
+    const p3 = handle(new Request("https://game.test/api/scores?view=ghosts"), env);
+    for (let i = 0; i < 6; i++) {
+      await new Promise((r) => setTimeout(r, 15));
+      while (gates.length) gates.shift()();
+    }
+    const res = await Promise.all([p1, p2, p3]);
+    for (const r of res) assert.equal(r.status, 200);
+    assert.equal(maxSeen, 1, `Concurrency exceeded MAX_CONCURRENT=1 (saw ${maxSeen})`);
+  } finally {
+    while (gates.length) gates.shift()();
+    resetCaches();
+  }
+});

@@ -679,14 +679,22 @@ async function api(url, opts = {}) {
   const ctl = typeof AbortController === "function" ? new AbortController() : null;
   const to = ctl ? setTimeout(() => ctl.abort(), 9000) : 0;
   try {
+    const hdr = { accept: "application/json", ...(typeof HOLD_CID === "string" && HOLD_CID ? { "x-client-id": HOLD_CID } : {}), ...(opts.headers || {}) };
     const r = await fetch(url, {
       ...opts, cache: "no-store", credentials: "same-origin", signal: ctl ? ctl.signal : undefined,
-      headers: { accept: "application/json", ...(opts.headers || {}) }
+      headers: hdr
     });
     let j = null;
     try { const t = await r.text(); const v = JSON.parse(t); if (v && typeof v === "object" && "ok" in v) j = v; } catch (e) { }
     if (!j) { const e = new Error("no api"); e.status = r.status; e.noApi = true; throw e; }
-    if (!r.ok || j.ok !== true) { const e = new Error(j.error || "HTTP " + r.status); e.status = r.status; e.code = j.error; throw e; }
+    if (!r.ok || j.ok !== true) {
+      const e = new Error(j.error || "HTTP " + r.status);
+      e.status = r.status; e.code = j.error;
+      const ra = parseInt(r.headers.get("retry-after") || "", 10);
+      e.retryAfter = Number.isFinite(ra) && ra > 0 ? ra : 0;
+      e.onHold = r.headers.get("x-on-hold") === "1" || j.onHold === true;
+      throw e;
+    }
     return j;
   } finally { if (to) clearTimeout(to); }
 }
@@ -705,6 +713,7 @@ function refreshLB(force) {
   }).catch(e => {
     // Static-only hosting answers "static_only" (public/api/scores); a Worker without D1 answers "no_database".
     // Anything else (offline, captive portal, error page) is treated as temporary and retried.
+    if (e.status === 429 && e.onHold) window.__tffServerHold = true;
     if (e.code === "no_database" || e.code === "static_only") apiGone = true;
     if (!db && tab !== "insights") renderLB();
     return false;
@@ -806,8 +815,9 @@ const showStatus = () => requestAnimationFrame(() => {
   const box = $("stScroll"), over = $("postStatus").getBoundingClientRect().bottom - box.getBoundingClientRect().bottom + 8;
   if (over > 0) box.scrollBy({ top: over, behavior: reduceMotion ? "auto" : "smooth" });
 });
-$("postBtn").addEventListener("click", async () => {
+$("postBtn").addEventListener("click", async (ev) => {
   const st = S; if (st.posted || st.posting) return;
+  if (ev && ev.isTrusted) st.holdRetries = 0;
   const ps = $("postStatus"), btn = $("postBtn"), em = $("email");
   const email = em.closest(".fld").hidden ? "" : em.value.trim(), nick = $("nickname");
   nick.classList.remove("bad"); nick.removeAttribute("aria-invalid");
@@ -859,19 +869,19 @@ $("postBtn").addEventListener("click", async () => {
         }
         return;
       }
-      if (e.status === 429 && (st.holdRetries || 0) < 2) {
+      if (e.status === 429 && (e.onHold || !e.retryAfter || e.retryAfter <= 10) && (st.holdRetries || 0) < 2) {
         st.holdRetries = (st.holdRetries || 0) + 1;
         btn.setAttribute("aria-disabled", "true");
-        let left = 3;
+        let left = Math.max(1, Math.min(10, e.retryAfter || 3));
         const tickHold = () => {
           if (st !== S || !st.posting) return;
+          if (left <= 0) { st.posting = false; btn.click(); return; }
           postLabel(`On hold (${left}s)…`, `排隊中 (${left}秒)…`);
           ps.className = "post-status";
           ps.textContent = `High traffic — holding your spot in line, auto-posting in ${left}s… 太多人同時上榜，系統正自動為你排隊（${left}秒後自動上載）…`;
           showStatus();
-          if (left-- > 0) { setTimeout(tickHold, 1000); return; }
-          st.posting = false;
-          btn.click();
+          left--;
+          setTimeout(tickHold, 1000);
         };
         tickHold();
         return;
@@ -881,7 +891,10 @@ $("postBtn").addEventListener("click", async () => {
         st.posting = false;
         if (st === S) {
           btn.removeAttribute("aria-disabled"); postLabel("Try again", "再試");
-          ps.textContent = e.status === 429 ? "Lots of crabs posting at once. Wait a moment, then try again. 太多人同時上榜，等陣再試吓。"
+          ps.textContent = e.status === 429
+            ? (e.retryAfter > 10
+              ? `Lots of crabs posting at once. Wait ${e.retryAfter}s, then try again. 太多人同時上榜，等 ${e.retryAfter} 秒後再試吓。`
+              : "Lots of crabs posting at once. Wait a moment, then try again. 太多人同時上榜，等陣再試吓。")
             : "Couldn't reach the live board. Check your connection, then try again. 連唔到排行榜，檢查吓網絡再試。";
           showStatus();
         }

@@ -24,7 +24,7 @@ let cur = { week: "", month: "" }, periods = { weeks: [], months: [] }, all = nu
 let nextBefore = null, seen = new Set(), selected = new Set(), mails = { week: [], month: [] };
 const seq = { sum: 0, week: 0, month: 0, games: 0 };
 const VIEWS = ["tiles", "kpiMore", "kpiNote", "quizBox", "scoreBox", "habitBox", "trapBox", "stageBox", "trollBox", "powerBox", "cardBox", "trendChartBox", "weekBox", "monthBox",
-"winWeekRows", "winMonthRows", "rows", "sumMsg", "dlMsg", "panelMsg", "winWeekMsg", "winMonthMsg", "winWeekInfo", "winMonthInfo", "gCount"];
+"winWeekRows", "winMonthRows", "rows", "sumMsg", "dlMsg", "panelMsg", "winWeekMsg", "winMonthMsg", "winWeekInfo", "winMonthInfo", "gCount", "trafficInfo", "trafficMsg"];
 const when = (iso) => {
 try { return new Date(iso).toLocaleString("en-GB", { timeZone: "Asia/Hong_Kong", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); }
 catch { return iso; }
@@ -558,7 +558,34 @@ if (fromLogin) {
 const activeTab = document.querySelector('#tabs [aria-selected="true"]') || $("tab-survey");
 if (activeTab) activeTab.focus({ preventScroll: true });
 }
-loadSummary(); loadWinners("week"); loadWinners("month");
+loadSummary(); loadWinners("week"); loadWinners("month"); loadTraffic();
+}
+let holdActive = false, trafficBusy = false;
+function paintTraffic(t) {
+if (!t || !$("trafficInfo") || !$("holdToggleBtn")) return;
+holdActive = Boolean(t.adminForceHold);
+const on = Boolean(t.forceHold || t.onHold);
+$("trafficInfo").textContent = `Traffic: ${fmt(t.active || 0)}/${fmt(t.capacity || 0)} leases · ${fmt(t.waiting || 0)} waiting · ${fmt(t.inFlight || 0)}/${fmt(t.maxConcurrent || 0)} in-flight · Hold ${on ? "ON" : "OFF"}${t.durableObject ? " (DO)" : ""}`;
+$("holdToggleBtn").setAttribute("aria-pressed", String(holdActive));
+$("holdToggleBtn").textContent = holdActive ? "Resume entry (Hold OFF)" : "Pause entry (Hold ON)";
+}
+async function loadTraffic() {
+try { paintTraffic(await call("/api/admin/traffic")); if ($("trafficMsg")) $("trafficMsg").textContent = ""; }
+catch (e) { oops("trafficMsg")(e); }
+}
+if ($("holdToggleBtn")) {
+$("holdToggleBtn").addEventListener("click", async () => {
+if (trafficBusy) return;
+trafficBusy = true;
+$("holdToggleBtn").setAttribute("aria-disabled", "true");
+try {
+const res = await call("/api/admin/traffic", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ forceHold: !holdActive }) });
+paintTraffic(res);
+say("trafficMsg", res.adminForceHold ? "Entry paused: new players go to the waiting room." : "Entry resumed.");
+} catch (e) { oops("trafficMsg")(e); }
+trafficBusy = false;
+$("holdToggleBtn").removeAttribute("aria-disabled");
+});
 }
 $("loginForm").addEventListener("submit", (ev) => {
 ev.preventDefault(); token = $("token").value.trim(); $("token").value = "";
@@ -597,7 +624,7 @@ const lines = [
 return lines.join("\n");
 }
 $("periodSel").addEventListener("change", () => loadSummary());
-$("refreshBtn").addEventListener("click", () => { loadGames(true).catch(oops("panelMsg")); loadSummary(true); loadWinners("week"); loadWinners("month"); });
+$("refreshBtn").addEventListener("click", () => { loadGames(true).catch(oops("panelMsg")); loadSummary(true); loadWinners("week"); loadWinners("month"); loadTraffic(); });
 $("copyReportBtn").addEventListener("click", () => { if (!lastSum) return say("sumMsg", "Summary is still loading.", true); copy(reportSummary(lastSum), $("copyReportBtn"), "sumMsg", "report summary"); });
 $("printReportBtn").addEventListener("click", () => window.print());
 for (const t of TABS) $("tab-" + t).addEventListener("click", () => openTab(t));

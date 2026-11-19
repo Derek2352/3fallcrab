@@ -516,7 +516,7 @@ async function netHash(ip, scope, env) {
 
 // ---------- public routes ----------
 
-async function board(env, db) {
+async function board(env, db, request) {
   const week = isoWeek(new Date(), timeZone(env));
   const cl = closed(env);
   const cols = "id, name, score, height, stage, title, persona, created_at AS at"; // never the email
@@ -526,11 +526,29 @@ async function board(env, db) {
         db.prepare(`SELECT ${cols} FROM scores WHERE week = ?1 AND hidden = 0 AND posted = 1 ORDER BY score DESC, id ASC LIMIT 10`).bind(week),
         db.prepare(`SELECT ${cols} FROM scores WHERE hidden = 0 AND posted = 1 ORDER BY score DESC, id ASC LIMIT 10`),
       ]);
-      return { ok: true, week, closed: cl, onHold: waitQueue.length > 0, weekTop: w.results, allTop: a.results };
+      return { ok: true, week, closed: cl, weekTop: w.results, allTop: a.results };
     })().finally(() => { if (boardInFlight && boardInFlight.p === p) boardInFlight = null; });
     boardInFlight = { db, week, closed: cl, p };
   }
-  return json(await boardInFlight.p);
+  const flight = boardInFlight.p;
+  const cid = request ? await clientIdOf(null, request, env) : "";
+  let qStatus;
+  const now = Date.now();
+  if (env && env.WAITING_ROOM && typeof env.WAITING_ROOM.idFromName === "function") {
+    if (doStatusMemo && now - doStatusMemo.at < 2000 && (!cid || doSeenCids.has(cid))) {
+      qStatus = doStatusMemo.data;
+    } else {
+      qStatus = await queueDispatch("touch", { cid }, env);
+      if (cid && !qStatus.onHold) doSeenCids.add(cid);
+      if (doSeenCids.size > 4096) doSeenCids.clear();
+      doStatusMemo = { at: now, data: qStatus };
+    }
+  } else {
+    qStatus = localQueue.touch(cid, env);
+  }
+  const base = await flight;
+  const maxConc = int(env.MAX_CONCURRENT || 25, 1, 500);
+  return json({ ...base, onHold: Boolean(qStatus.onHold || inFlight >= maxConc) });
 }
 
 // Share of games below a score, for the end screen ("beat N% of players"). Counts the games stats() counts (not hidden).
@@ -557,13 +575,92 @@ export function cleanSil(v) {
 let ghostMemo = null;
 let statsMemo = null;
 let boardInFlight = null;
-const activeLeases = new Map();
-let waitQueue = [];
+let doStatusMemo = null;
+const doSeenCids = new Set();
 let inFlight = 0;
 const flightWaiters = [];
+
+// Stateful queue engine shared between local isolate fallback and the WaitingRoom Durable Object.
+export function createQueueEngine() {
+  const activeLeases = new Map();
+  let waitQueue = [];
+  let adminForceHold = false;
+  const HOLD_TTL = 45000, WAIT_TTL = 60000;
+
+  const isForceHold = (env, urlHold) => Boolean(urlHold || adminForceHold || truthy(String((env && env.FORCE_HOLD) || "").toLowerCase()));
+  const capOf = (env) => int((env && env.QUEUE_CAPACITY) || 120, 1, 10000);
+  const prune = (now, cap, force) => {
+    for (const [k, exp] of activeLeases) if (exp <= now) activeLeases.delete(k);
+    waitQueue = waitQueue.filter((w) => now - w.seenAt < WAIT_TTL);
+    if (!force) {
+      while (activeLeases.size < cap && waitQueue.length) {
+        const next = waitQueue.shift();
+        if (next) activeLeases.set(next.cid, now + HOLD_TTL);
+      }
+    }
+  };
+  const statusOf = (env, cid = "") => {
+    const now = Date.now(), cap = capOf(env), force = isForceHold(env, false);
+    prune(now, cap, force);
+    const overCap = activeLeases.size >= cap && (!cid || !activeLeases.has(cid));
+    return {
+      ok: true,
+      active: activeLeases.size,
+      waiting: waitQueue.length,
+      capacity: cap,
+      onHold: force || waitQueue.length > 0 || overCap,
+      forceHold: force,
+      envForceHold: truthy(String((env && env.FORCE_HOLD) || "").toLowerCase()),
+      adminForceHold,
+    };
+  };
+  return {
+    touch(cid, env) {
+      const now = Date.now(), cap = capOf(env), force = isForceHold(env, false);
+      prune(now, cap, force);
+      if (!force && cid && cid !== "anon") {
+        if (activeLeases.has(cid) || (activeLeases.size < cap && waitQueue.length === 0)) {
+          if (activeLeases.size < 2000 || activeLeases.has(cid)) activeLeases.set(cid, now + HOLD_TTL);
+        }
+      }
+      return statusOf(env, cid);
+    },
+    check(opts, env) {
+      const o = opts || {}, cid = o.cid || "anon", now = Date.now(), cap = capOf(env);
+      const urlHold = Boolean(o.hold), force = isForceHold(env, urlHold);
+      prune(now, cap, force);
+      if (o.leave) {
+        activeLeases.delete(cid);
+        waitQueue = waitQueue.filter((w) => w.cid !== cid);
+        prune(now, cap, force);
+        return { ok: true, onHold: false, position: 0, ahead: 0, etaSec: 0, retryAfter: 0, active: activeLeases.size, waiting: waitQueue.length, capacity: cap, forceHold: isForceHold(env, false) };
+      }
+      if (!force && (activeLeases.has(cid) || (activeLeases.size < cap && waitQueue.length === 0))) {
+        if (activeLeases.size < 2000 || activeLeases.has(cid)) activeLeases.set(cid, now + HOLD_TTL);
+        return { ok: true, onHold: false, position: 0, ahead: 0, etaSec: 0, retryAfter: 0, active: activeLeases.size, waiting: waitQueue.length, capacity: cap, forceHold: false };
+      }
+      let idx = waitQueue.findIndex((w) => w.cid === cid);
+      if (idx === -1) {
+        if (waitQueue.length >= 2000) waitQueue.shift();
+        waitQueue.push({ cid, joinedAt: now, seenAt: now });
+        idx = waitQueue.length - 1;
+      } else {
+        waitQueue[idx].seenAt = now;
+      }
+      const position = idx + 1, etaSec = Math.max(2, Math.min(60, position * 2)), retryAfter = Math.max(2, Math.min(8, Math.ceil(etaSec / 2)));
+      return { ok: true, onHold: true, position, ahead: position - 1, etaSec, retryAfter, active: activeLeases.size, waiting: waitQueue.length, capacity: cap, forceHold: force };
+    },
+    status: (env, cid = "") => statusOf(env, cid),
+    setAdminHold(on, env) { adminForceHold = Boolean(on); return statusOf(env); },
+    reset() { activeLeases.clear(); waitQueue = []; adminForceHold = false; },
+  };
+}
+
+const localQueue = createQueueEngine();
+
 export function resetCaches() {
-  ghostMemo = null; statsMemo = null; boardInFlight = null;
-  activeLeases.clear(); waitQueue = []; inFlight = 0;
+  ghostMemo = null; statsMemo = null; boardInFlight = null; doStatusMemo = null;
+  doSeenCids.clear(); localQueue.reset(); inFlight = 0;
   while (flightWaiters.length) {
     const w = flightWaiters.shift();
     clearTimeout(w.to);
@@ -571,48 +668,42 @@ export function resetCaches() {
   }
 }
 
+async function clientIdOf(url, request, env) {
+  const rawCid = (url && url.searchParams.get("cid")) || request.headers.get("x-client-id") || "";
+  if (/^[A-Za-z0-9_-]{1,64}$/.test(rawCid)) return rawCid;
+  const ip = request.headers.get("cf-connecting-ip") || "";
+  return ip ? await netHash(ip, "queue", env) : "";
+}
+
+async function queueDispatch(action, payload, env) {
+  if (env && env.WAITING_ROOM && typeof env.WAITING_ROOM.idFromName === "function") {
+    try {
+      const id = env.WAITING_ROOM.idFromName("global");
+      const stub = env.WAITING_ROOM.get(id);
+      const r = await stub.fetch("https://waiting-room/" + action, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload || {}),
+      });
+      if (r && r.ok) return await r.json();
+    } catch {}
+  }
+  if (action === "check") return localQueue.check(payload || {}, env);
+  if (action === "touch") return localQueue.touch((payload && payload.cid) || "", env);
+  if (action === "admin") return localQueue.setAdminHold(payload && payload.forceHold, env);
+  return localQueue.status(env);
+}
+
 // Service load balancer: queues in-flight D1 leaderboard requests and places surging players in an admission queue.
 async function checkQueue(url, request, env) {
-  const now = Date.now();
-  const cap = int(env.QUEUE_CAPACITY || 120, 1, 10000);
-  const HOLD_TTL = 45000, WAIT_TTL = 60000;
-  for (const [k, exp] of activeLeases) if (exp <= now) activeLeases.delete(k);
-  waitQueue = waitQueue.filter((w) => now - w.seenAt < WAIT_TTL);
-  const rawCid = url.searchParams.get("cid") || request.headers.get("x-client-id") || "";
-  const ip = request.headers.get("cf-connecting-ip") || "";
-  const cid = /^[A-Za-z0-9_-]{1,64}$/.test(rawCid) ? rawCid : (ip ? await netHash(ip, "queue", env) : "anon");
-  const forceHold = url.searchParams.get("hold") === "1" || truthy(String(env.FORCE_HOLD || ""));
-  if (url.searchParams.get("leave") === "1") {
-    activeLeases.delete(cid);
-    waitQueue = waitQueue.filter((w) => w.cid !== cid);
-  }
-  if (!forceHold) {
-    while (activeLeases.size < cap && waitQueue.length) {
-      const next = waitQueue.shift();
-      if (next) activeLeases.set(next.cid, now + HOLD_TTL);
-    }
-  }
-  if (url.searchParams.get("leave") === "1") {
-    return json({ ok: true, onHold: false, position: 0, ahead: 0, etaSec: 0, retryAfter: 0, active: activeLeases.size, capacity: cap });
-  }
-  if (!forceHold && (activeLeases.has(cid) || (activeLeases.size < cap && waitQueue.length === 0))) {
-    if (activeLeases.size < 2000 || activeLeases.has(cid)) activeLeases.set(cid, now + HOLD_TTL);
-    return json({ ok: true, onHold: false, position: 0, ahead: 0, etaSec: 0, retryAfter: 0, active: activeLeases.size, capacity: cap });
-  }
-  let idx = waitQueue.findIndex((w) => w.cid === cid);
-  if (idx === -1) {
-    if (waitQueue.length >= 2000) waitQueue.shift();
-    waitQueue.push({ cid, joinedAt: now, seenAt: now });
-    idx = waitQueue.length - 1;
-  } else {
-    waitQueue[idx].seenAt = now;
-  }
-  const position = idx + 1, etaSec = Math.max(2, Math.min(60, position * 2)), retryAfter = Math.max(2, Math.min(8, Math.ceil(etaSec / 2)));
-  return json(
-    { ok: true, onHold: true, position, ahead: position - 1, etaSec, retryAfter, active: activeLeases.size, capacity: cap },
-    200,
-    { "retry-after": String(retryAfter) },
-  );
+  const cid = (await clientIdOf(url, request, env)) || "anon";
+  const leave = url.searchParams.get("leave") === "1";
+  const hold = url.searchParams.get("hold") === "1";
+  doStatusMemo = null;
+  const res = await queueDispatch("check", { cid, leave, hold }, env);
+  if (leave || !res.onHold) doSeenCids.delete(cid);
+  const headers = res.onHold && res.retryAfter ? { "retry-after": String(res.retryAfter) } : {};
+  return json(res, 200, headers);
 }
 
 async function withLoadSlot(env, fn) {
@@ -630,16 +721,19 @@ async function withLoadSlot(env, fn) {
       flightWaiters.push(w);
     });
     if (!got) return fail("rate_limited", 429, { "retry-after": "3", "x-on-hold": "1" });
+    // Slot transferred directly from the releasing caller, so inFlight already includes this request.
+  } else {
+    inFlight++;
   }
-  inFlight++;
   try {
     return await fn();
   } finally {
-    inFlight--;
-    if (flightWaiters.length) {
+    if (flightWaiters.length && inFlight <= maxConc) {
       const w = flightWaiters.shift();
       clearTimeout(w.to);
       w.resolve(true);
+    } else {
+      inFlight = Math.max(0, inFlight - 1);
     }
   }
 }
@@ -1129,6 +1223,20 @@ async function admin(path, request, env, db) {
       },
     });
   }
+  if (path === "traffic" && request.method === "GET") {
+    const st = await queueDispatch("status", {}, env);
+    return json({ ...st, inFlight, maxConcurrent: int(env.MAX_CONCURRENT || 25, 1, 500), durableObject: !!(env && env.WAITING_ROOM) });
+  }
+  if (path === "traffic" && request.method === "POST") {
+    const text = await readBody(request, MAX_BODY);
+    if (text === null) return fail("too_large", 413);
+    let b;
+    try { b = JSON.parse(text); } catch { return fail("bad_json", 400); }
+    if (!b || typeof b !== "object" || Array.isArray(b) || typeof b.forceHold !== "boolean") return fail("bad_hold", 400);
+    doStatusMemo = null;
+    const st = await queueDispatch("admin", { forceHold: b.forceHold }, env);
+    return json({ ...st, inFlight, maxConcurrent: int(env.MAX_CONCURRENT || 25, 1, 500), durableObject: !!(env && env.WAITING_ROOM) });
+  }
   return fail("not_found", 404);
 }
 
@@ -1158,13 +1266,13 @@ export async function handle(request, env) {
       if (!env.DB) return fail("no_database", 503);
       await ensureSchema(env);
       if (path.startsWith("/api/admin/")) return await admin(path.slice("/api/admin/".length), request, env, env.DB);
+      if (method !== "GET" && method !== "HEAD" && method !== "POST") return fail("method_not_allowed", 405, { allow: "GET, HEAD, POST" });
       return await withLoadSlot(env, async () => {
         if (method === "GET" || method === "HEAD") {
           const sp = new URL(request.url).searchParams, view = sp.get("view");
-          return view === "stats" ? await stats(env.DB) : view === "pct" ? await percentile(env.DB, sp.get("score")) : view === "ghosts" ? await ghosts(env, env.DB) : await board(env, env.DB);
+          return view === "stats" ? await stats(env.DB) : view === "pct" ? await percentile(env.DB, sp.get("score")) : view === "ghosts" ? await ghosts(env, env.DB) : await board(env, env.DB, request);
         }
-        if (method === "POST") return await post(request, env, env.DB);
-        return fail("method_not_allowed", 405, { allow: "GET, HEAD, POST" });
+        return await post(request, env, env.DB);
       });
     }
     return fail("not_found", 404);

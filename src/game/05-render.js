@@ -418,8 +418,8 @@ function resize(){
     YT = Math.max(0, r.top / SC); YB = Math.max(0, (vh - r.bottom) / SC);
     cv.style.top = -Math.round(YT * SC) + "px";
   } else { YT = YB = 0; wrap.style.width = wrap.style.height = ""; cv.style.top = ""; }
-  // render at full native devicePixelRatio (capped at 3x on high, 2x on low-gfx) so Retina/mobile screens stay crisp
-  DPR = Math.min(lowGfx ? 2 : 3, window.devicePixelRatio || 1);
+  // render at full native devicePixelRatio (capped at 3x on high, 2x on low-gfx, with a safe 8.5M pixel ceiling for huge 4K/tablet canvases)
+  DPR = Math.min(lowGfx ? 2 : 3, window.devicePixelRatio || 1, Math.max(1.5, Math.sqrt(8500000 / Math.max(1, vw * (H + YT + YB) * SC * SC))));
   const cw = Math.round(vw * SC * DPR), ch = Math.round((H + YT + YB) * SC * DPR);
   if (cv.width !== cw || cv.height !== ch){ cv.width = cw; cv.height = ch; needDraw = true; }
   cv.style.width = Math.round(vw * SC) + "px"; cv.style.height = Math.round((H + YT + YB) * SC) + "px";

@@ -206,7 +206,7 @@ document.addEventListener("keydown", e => {
     return;
   }
   if (!$("holdModal").hidden){
-    if (e.key === "Escape"){ closeHold(true); e.preventDefault(); }
+    if (e.key === "Escape"){ closeHold("cancel"); e.preventDefault(); }
     return;
   }
   if (!S) return;
@@ -439,16 +439,23 @@ function pickGo(){
 // Start from the title or the start card: if traffic is surging, hold the player in line briefly (with an offline bypass)
 let holdAdmitted = false, holdSkipped = false, holdTimer = 0, holdReadyCb = null, holdReturnTo = null;
 const HOLD_CID = (() => { let c = ssGet("tff_cid"); if (!c){ c = "c" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36); ssSet("tff_cid", c); } return c; })();
-function closeHold(skip){
+function closeHold(mode){
   clearTimeout(holdTimer); holdTimer = 0;
-  const m = $("holdModal"), cb = holdReadyCb; holdReadyCb = null;
-  if (skip) holdSkipped = true; else holdAdmitted = true;
+  const cancel = mode === "cancel", skip = mode === true || mode === "skip";
+  const m = $("holdModal"), cb = cancel ? null : holdReadyCb; holdReadyCb = null;
+  if (!cancel){ if (skip) holdSkipped = true; else holdAdmitted = true; }
   if (m && !m.hidden){ m.hidden = true; modalOpen(false); }
-  if (skip && window.__tffServerHold) try { fetch("/api/queue?leave=1&cid=" + encodeURIComponent(HOLD_CID), { keepalive: true }).catch(() => {}); } catch(e){}
+  if ((skip || cancel) && typeof apiAllowed !== "undefined" && apiAllowed && !apiGone) try { fetch("/api/queue?leave=1&cid=" + encodeURIComponent(HOLD_CID), { keepalive: true }).catch(() => {}); } catch(e){}
   if (cb) cb();
-  else if (holdReturnTo && holdReturnTo.focus && !holdReturnTo.closest("[hidden]")) holdReturnTo.focus({preventScroll: true});
+  else {
+    const tgt = (holdReturnTo && holdReturnTo.focus && !holdReturnTo.closest("[hidden]")) ? holdReturnTo : $("startBtn");
+    if (tgt && tgt.focus && !tgt.closest("[hidden]")) tgt.focus({preventScroll: true});
+  }
   holdReturnTo = null;
 }
+window.addEventListener("pagehide", () => {
+  if (typeof apiAllowed !== "undefined" && apiAllowed && !apiGone && navigator.sendBeacon) try { navigator.sendBeacon("/api/queue?leave=1&cid=" + encodeURIComponent(HOLD_CID)); } catch(e){}
+});
 function openHold(onReady){
   const m = $("holdModal"); if (!m){ if (onReady) onReady(); return; }
   clearTimeout(holdTimer); holdReadyCb = onReady || null;
