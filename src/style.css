@@ -1153,13 +1153,13 @@ html.fs.title .ts-priv{display:inline-flex;align-items:baseline;gap:6px;position
 .ts-priv .zh{font-family:var(--f-zh);font-size:13.5px;font-weight:700}
 @media (max-height: 700px){ html.fs.title #startOv .ov-card{gap:10px} html.fs.title .ts-sign{padding:10px 18px 11px} }
 @media (max-width: 440px){ html.fs.title .ts-pills{gap:6px} html.fs.title .ts-pills .ov-chip{padding:5px 10px 5px 8px;font-size:13px} }
-html.fs.title.chal #startOv .ov-card, html.fs.title.inapp #startOv .ov-card{gap:8px}
-html.fs.title.chal .ts-sign, html.fs.title.inapp .ts-sign{padding:9px 18px 10px}
-html.fs.title.chal .chal, html.fs.title.inapp .chal{padding:7px 12px 8px 50px}
+html.fs.title.has-chal #startOv .ov-card, html.fs.title.inapp #startOv .ov-card{gap:8px}
+html.fs.title.has-chal .ts-sign, html.fs.title.inapp .ts-sign{padding:9px 18px 10px}
+html.fs.title.has-chal .chal, html.fs.title.inapp .chal{padding:7px 12px 8px 50px}
 @media (max-height: 760px){
-  html.fs.title.chal .ts-logo canvas, html.fs.title.inapp .ts-logo canvas{width:min(20vw, 11vh, 115px)}
-  html.fs.title.chal .ts-logo .ts-word, html.fs.title.inapp .ts-logo .ts-word{font-size:min(11.5vw, 7vh, 68px)}
-  html.fs.title.chal #startOv .ov-card .ts-zh, html.fs.title.inapp #startOv .ov-card .ts-zh{font-size:min(12.5vw, 7.5vh, 74px)}
+  html.fs.title.has-chal .ts-logo canvas, html.fs.title.inapp .ts-logo canvas{width:min(20vw, 11vh, 115px)}
+  html.fs.title.has-chal .ts-logo .ts-word, html.fs.title.inapp .ts-logo .ts-word{font-size:min(11.5vw, 7vh, 68px)}
+  html.fs.title.has-chal #startOv .ov-card .ts-zh, html.fs.title.inapp #startOv .ov-card .ts-zh{font-size:min(12.5vw, 7.5vh, 74px)}
 }
 @media (prefers-reduced-motion: reduce){ html.fs.title #startOv #startBtn{animation:none} }
 /* the sheet the title's pills open: the page's own sections, moved in */
@@ -1537,7 +1537,7 @@ html.fs.title .ts-sound .ts-silent[hidden]{display:none}
 
 /* ---------- made for sharing: the 稱號 (title), the rank, a friend's challenge, Post to Threads ---------- */
 .sh-verdict, .sh-pct, .sh-chal{grid-column:1 / -1}
-.sh-verdict[hidden], .sh-pct[hidden], .sh-chal[hidden], .chal[hidden]{display:none}
+.sh-verdict[hidden], .sh-pct[hidden], .sh-chal[hidden], div.chal[hidden]{display:none}
 /* the title, stamped like a red chop once the amount has counted up */
 .sh-verdict{display:grid;grid-template-columns:auto minmax(0, 1fr);gap:1px 10px;align-items:center;margin:8px 4px 0;padding:8px 12px 9px 8px;border:3px solid #D7262E;border-radius:12px;
   background:rgba(255,238,238,.92);box-shadow:inset 0 0 0 2px #FFF7F7, inset 0 0 0 4px rgba(215,38,46,.4);transform:rotate(-1.2deg)}
@@ -1588,7 +1588,7 @@ a.btn{text-decoration:none}
 .btn.threads:active{box-shadow:inset 2px 2px 1px rgba(255,255,255,.25), inset -3px -4px 6px rgba(0,0,0,.4), 0 1px 0 #000}
 .btn.threads:focus-visible{outline:3px solid var(--hot);outline-offset:3px}
 /* the title screen, opened from a friend's link: the challenge letter sits under the prize sign */
-.chal{position:relative;align-self:stretch;margin:0;padding:8px 12px 9px 54px;border-radius:14px;background:#FFF8EC;border:3px solid var(--hot);text-align:left;
+div.chal{position:relative;align-self:stretch;margin:0;padding:8px 12px 9px 54px;border-radius:14px;background:#FFF8EC;border:3px solid var(--hot);text-align:left;
   box-shadow:0 4px 0 rgba(223,27,114,.28)}   /* not tilted: a turned box here widened the page on phones */
 .chal-seal{position:absolute;left:10px;top:50%;width:34px;height:42px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:var(--hot);color:#fff;
   font-family:var(--f-zh);font-weight:700;font-size:15px;line-height:1.05;writing-mode:vertical-rl;letter-spacing:2px;transform:translateY(-50%) rotate(-8deg)}

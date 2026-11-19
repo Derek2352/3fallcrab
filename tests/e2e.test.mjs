@@ -165,6 +165,8 @@ test("E2E 2: mobile in-app browser + /c challenge layout fit and single Back exi
 
     const layout = await ctx.evalJs(`(() => {
       const doc = document.documentElement;
+      const hs = getComputedStyle(doc);
+      const bd = document.body.getBoundingClientRect();
       const card = document.querySelector('#startOv .ov-card').getBoundingClientRect();
       const start = document.getElementById('startBtn').getBoundingClientRect();
       const iab = document.getElementById('iabTip').getBoundingClientRect();
@@ -174,6 +176,11 @@ test("E2E 2: mobile in-app browser + /c challenge layout fit and single Back exi
         iabVisible: !document.getElementById('iabTip').hidden,
         scrollW: doc.scrollWidth,
         innerW: window.innerWidth,
+        htmlPad: hs.padding,
+        htmlBorderL: hs.borderLeftWidth,
+        htmlBorderR: hs.borderRightWidth,
+        bodyX: Math.round(bd.x),
+        bodyW: Math.round(bd.width),
         startBottom: start.bottom,
         iabBottom: iab.bottom,
         cardTop: card.top,
@@ -183,6 +190,11 @@ test("E2E 2: mobile in-app browser + /c challenge layout fit and single Back exi
 
     assert.ok(layout.chalText.includes("HK$12,500") && layout.chalText.includes("Friend"), "Challenge banner text wrong: " + layout.chalText);
     assert.equal(layout.iabVisible, true, "In-app browser banner should appear for Instagram UA");
+    assert.equal(layout.htmlPad, "0px", "Root <html> must not inherit challenge banner padding");
+    assert.equal(layout.htmlBorderL, "0px", "Root <html> must not have left border on /c");
+    assert.equal(layout.htmlBorderR, "0px", "Root <html> must not have right border on /c");
+    assert.equal(layout.bodyX, 0, "document.body shifted right on /c: x=" + layout.bodyX);
+    assert.equal(layout.bodyW, layout.innerW, `document.body width (${layout.bodyW}) != innerWidth (${layout.innerW})`);
     assert.ok(layout.scrollW <= layout.innerW + 1, `Horizontal overflow: scrollWidth=${layout.scrollW} > innerWidth=${layout.innerW}`);
     assert.ok(layout.cardTop >= layout.iabBottom - 2, `IAB banner (${layout.iabBottom}) overlaps title card (${layout.cardTop})`);
     assert.ok(layout.tsIgVis, "Instagram title chip not visible");
@@ -195,6 +207,31 @@ test("E2E 2: mobile in-app browser + /c challenge layout fit and single Back exi
     await ctx.sleep(360);
     await ctx.click("#igClose");
     await ctx.waitFor(() => document.getElementById("igModal").hidden);
+
+    // Entering gameplay from /c must fill full width without any side borders
+    await ctx.goto(`${srv.baseUrl}/c?s=12500&n=Friend&v=zero&p=sub%2Bgrind&intro=0&roll=0`);
+    await ctx.waitFor(() => !document.getElementById("startOv").hidden);
+    await ctx.click("#startBtn");
+    await ctx.waitFor(() => !document.getElementById("pickModal").hidden);
+    await ctx.click("#pickGo");
+    await ctx.waitFor(() => document.getElementById("startOv").hidden && document.getElementById("pickModal").hidden);
+    const playBox = await ctx.evalJs(`(() => {
+      const bw = document.getElementById("boardWrap").getBoundingClientRect();
+      const cv = document.getElementById("board").getBoundingClientRect();
+      return {
+        innerW: window.innerWidth,
+        bodyX: Math.round(document.body.getBoundingClientRect().x),
+        bwX: Math.round(bw.x),
+        bwW: Math.round(bw.width),
+        cvX: Math.round(cv.x),
+        cvW: Math.round(cv.width),
+      };
+    })()`);
+    assert.equal(playBox.bodyX, 0);
+    assert.equal(playBox.bwX, 0);
+    assert.equal(playBox.cvX, 0);
+    assert.ok(playBox.bwW >= playBox.innerW, `Gameplay #boardWrap too narrow on /c: ${playBox.bwW} < ${playBox.innerW}`);
+    assert.ok(playBox.cvW >= playBox.innerW, `Gameplay #board too narrow on /c: ${playBox.cvW} < ${playBox.innerW}`);
 
     assert.deepEqual(ctx.errors, [], "Unexpected mobile browser errors: " + ctx.errors.join(" | "));
   } finally {

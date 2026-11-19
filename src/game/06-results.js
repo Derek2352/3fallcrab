@@ -667,7 +667,7 @@ CHAL = (() => {
   if (Pp) { const sp = document.createElement("span"); sp.textContent = " · " + Pp.zh; t.append(sp); }
   const z = document.createElement("span"); z.lang = "zh-HK"; z.textContent = "你夠唔夠膽挑戰？";
   $("chalE").replaceChildren(z, "Can you beat " + (who || "your friend") + "?");
-  box.hidden = false; root.classList.add("chal");
+  box.hidden = false; root.classList.add("has-chal");
 })();
 function chalCheck() {   // while playing: the moment the score passes the friend's
   if (!CHAL || !S || S.chalSaid || S.mode !== "playing" || CHAL.s <= 0 || S.score <= CHAL.s) return;

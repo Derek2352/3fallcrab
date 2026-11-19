@@ -1152,9 +1152,18 @@ $("iabCopy").addEventListener("click", async () => {
   st.textContent = done ? "Link copied. Paste it in your browser. 已複製，貼去瀏覽器開啟。" : u;
   if (done) A.sfx("uiDone");
 });
-function firstSound(){
+let soundHintT = 0;
+function firstSound(e){
   A.unlock();
-  if (audioOn) return; audioOn = true; soundHint();
+  const t = e && e.type;
+  if (audioOn){
+    if (t === "click" || t === "keydown"){ clearTimeout(soundHintT); soundHint(); }
+    else if (t === "pointerup" || t === "touchend"){ clearTimeout(soundHintT); soundHintT = setTimeout(soundHint, 0); }
+    return;
+  }
+  audioOn = true;
+  if (t === "pointerup" || t === "touchend"){ clearTimeout(soundHintT); soundHintT = setTimeout(soundHint, 0); }
+  else if (t !== "pointerdown") soundHint();
   if ((!S || S.mode !== "playing") && !(window.TFF_INTRO && TFF_INTRO.on())) menuMusic();   // the opening film has its own score
 }
 function menuMusic(){ A.stage(0); A.mode("menu"); A.start(); }

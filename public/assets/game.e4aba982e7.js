@@ -2602,9 +2602,18 @@ document.body.appendChild(t); t.select(); try { done = document.execCommand("cop
 st.textContent = done ? "Link copied. Paste it in your browser. 已複製，貼去瀏覽器開啟。" : u;
 if (done) A.sfx("uiDone");
 });
-function firstSound(){
+let soundHintT = 0;
+function firstSound(e){
 A.unlock();
-if (audioOn) return; audioOn = true; soundHint();
+const t = e && e.type;
+if (audioOn){
+if (t === "click" || t === "keydown"){ clearTimeout(soundHintT); soundHint(); }
+else if (t === "pointerup" || t === "touchend"){ clearTimeout(soundHintT); soundHintT = setTimeout(soundHint, 0); }
+return;
+}
+audioOn = true;
+if (t === "pointerup" || t === "touchend"){ clearTimeout(soundHintT); soundHintT = setTimeout(soundHint, 0); }
+else if (t !== "pointerdown") soundHint();
 if ((!S || S.mode !== "playing") && !(window.TFF_INTRO && TFF_INTRO.on())) menuMusic();
 }
 function menuMusic(){ A.stage(0); A.mode("menu"); A.start(); }
@@ -4257,7 +4266,7 @@ const Pp = CHAL.p ? personaOf({ bg: CHAL.p.split("+")[0], pe: CHAL.p.split("+")[
 if (Pp) { const sp = document.createElement("span"); sp.textContent = " · " + Pp.zh; t.append(sp); }
 const z = document.createElement("span"); z.lang = "zh-HK"; z.textContent = "你夠唔夠膽挑戰？";
 $("chalE").replaceChildren(z, "Can you beat " + (who || "your friend") + "?");
-box.hidden = false; root.classList.add("chal");
+box.hidden = false; root.classList.add("has-chal");
 })();
 function chalCheck() {
 if (!CHAL || !S || S.chalSaid || S.mode !== "playing" || CHAL.s <= 0 || S.score <= CHAL.s) return;
