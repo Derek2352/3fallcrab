@@ -1082,16 +1082,17 @@ function frameBody(now){
   if (S){
     const side = SIDEWAYS.matches && (S.mode === "playing" || S.mode === "paused" || S.mode === "card" || S.mode === "offer");
     if (side !== sideways){ sideways = side; $("turnOv").hidden = !side; if (side) fitLine(document.querySelector("#turnOv h2")); if (side && S.mode === "playing") togglePause(); }
+    const fsHeld = $("fsModal") && !$("fsModal").hidden;
     let live = false;
     if (S.mode === "card" && S.card){
-      if (!sideways) S.card.t += dt;
+      if (!sideways && !fsHeld) S.card.t += dt;
       if (!S.card.flip){
         const left = cardMs() - S.card.t;
         $("cardBar").style.transform = "scaleX(" + Math.max(0, left / cardMs()).toFixed(3) + ")";
         const sec = Math.ceil(left / 1000); if (sec <= 3 && sec < S.card.lastTick && sec > 0){ S.card.lastTick = sec; A.sfx("cardTick"); }
         if (S.card.t >= cardMs()) choose("none");
       } else if (!slowRead && S.card.t - S.card.flipAt > RESULT_MS) closeCard();
-    } else if (S.mode === "offer" && S.offer){ if (!sideways) S.offer.t += dt; offerFrame(); }
+    } else if (S.mode === "offer" && S.offer){ if (!sideways && !fsHeld) S.offer.t += dt; offerFrame(); }
     else if (S.mode === "playing"){ S.realMs += Math.min(1000, raw); tick(dt); live = true; }   // real time played (a slow device plays in slow motion)
     else if (S.mode === "over" || (S.mode === "idle" && S.viewing)){
       S.acc += dt; let n = 0; while (S.acc >= STEP && n++ < 3){ S.acc -= STEP; snap(); worldStep(); }

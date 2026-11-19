@@ -226,6 +226,29 @@ test("E2E 3: full gameplay -> pause/resume -> Life Event -> 3-min end -> 4-step 
     await ctx.click("#resumeBtn");
     await ctx.waitFor(() => document.getElementById("pauseOv").hidden);
 
+    // Test non-fullscreen prompt (#fsModal) pauses game, re-enables fullscreen, and handles Skip + F
+    await ctx.click("#fsBtn");
+    await ctx.waitFor(() => !document.getElementById("fsModal").hidden);
+    assert.equal(await ctx.evalJs("document.getElementById('pauseBtn').getAttribute('aria-pressed')"), "true");
+    assert.equal(await ctx.evalJs("document.querySelector('.set').inert"), true);
+    const hudBefore = await ctx.evalJs("document.getElementById('hudTime').textContent");
+    await ctx.evalJs("window.__advanceFrames(20, 50)");
+    assert.equal(await ctx.evalJs("document.getElementById('hudTime').textContent"), hudBefore);
+
+    await ctx.click("#fsModalGo");
+    await ctx.waitFor(() => document.getElementById("fsModal").hidden && !!document.fullscreenElement);
+    assert.equal(await ctx.evalJs("document.documentElement.classList.contains('fs')"), true);
+    assert.equal(await ctx.evalJs("document.getElementById('pauseBtn').getAttribute('aria-pressed')"), "false");
+
+    await ctx.evalJs("document.exitFullscreen()");
+    await ctx.waitFor(() => !document.getElementById("fsModal").hidden);
+    assert.equal(await ctx.evalJs("document.getElementById('pauseBtn').getAttribute('aria-pressed')"), "true");
+    await ctx.click("#fsModalSkip");
+    await ctx.waitFor(() => document.getElementById("fsModal").hidden);
+    assert.equal(await ctx.evalJs("document.getElementById('pauseBtn').getAttribute('aria-pressed')"), "false");
+    await ctx.click("#fsBtn");
+    await ctx.waitFor(() => !!document.fullscreenElement);
+
     // Step forward cleanly through the 180s round, answering any Life Event / Offer dialogs that pop up!
     let playStep = 0;
     for (let round = 0; round < 320; round++) {
@@ -298,6 +321,12 @@ test("E2E 3: full gameplay -> pause/resume -> Life Event -> 3-min end -> 4-step 
     // Step 2 -> Step 3 (Live Leaderboard Post)
     await ctx.click("#stNext");
     await ctx.waitFor(() => document.getElementById("nickname").getClientRects().length > 0);
+    const mailCopy = await ctx.evalJs(`({
+      label: document.querySelector('label[for="email"]')?.textContent || "",
+      note: document.getElementById('emailNote')?.textContent || ""
+    })`);
+    assert.ok(mailCopy.label.includes("電郵地址* (註：領獎請輸入院校電郵地址)"), "Missing email label copy: " + mailCopy.label);
+    assert.ok(mailCopy.note.includes("院校電郵地址"), "Missing email note copy: " + mailCopy.note);
     await ctx.evalJs(`(() => {
       document.getElementById('nickname').value = 'E2ETester';
       document.getElementById('email').value = 'e2e@example.com';

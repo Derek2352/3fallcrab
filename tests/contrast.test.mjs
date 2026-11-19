@@ -456,6 +456,13 @@ test("Part D: Live headless Chromium computed-style contrast on / (mobile & desk
       assert.match(padAlpha, /0\.94/);
       const mastAlpha = await ctx.evalJs("getComputedStyle(document.querySelector('.mast .iconbtn')).backgroundColor");
       assert.match(mastAlpha, /0\.94/);
+
+      await ctx.click("#fsBtn");
+      await ctx.waitFor(() => !document.getElementById("fsModal").hidden);
+      assert.deepEqual(await ctx.evalJs(DOM_CONTRAST_SCRIPT), [], "Mobile #fsModal contrast failures");
+      await ctx.click("#fsModalGo");
+      await ctx.waitFor(() => document.getElementById("fsModal").hidden);
+
       assert.deepEqual(ctx.errors, []);
     } finally {
       await ctx.close();

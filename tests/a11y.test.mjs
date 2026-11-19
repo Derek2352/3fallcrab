@@ -327,6 +327,16 @@ test("A11y 2: #pickModal, #rollModal (close buttons + Escape focus restore), and
     assert.equal(await ctx.evalJs("!!document.getElementById('board').closest('[inert]')"), false);
     assert.equal((await activeInfo(ctx)).id, "board");
 
+    // Press 'f' -> non-fullscreen #fsModal opens, traps focus, and Escape dismisses back to #board
+    await ctx.pressKey("f", "KeyF", 70);
+    await ctx.waitFor(() => !document.getElementById("fsModal").hidden);
+    await assertModalA11y(ctx, "fsModal");
+    assert.equal((await activeInfo(ctx)).id, "fsModalGo");
+    await tabCycle(ctx, "#fsModal");
+    await ctx.pressKey("Escape", "Escape", 27);
+    await ctx.waitFor(() => document.getElementById("fsModal").hidden);
+    assert.equal((await activeInfo(ctx)).id, "board");
+
     assert.deepEqual(ctx.errors, [], "Browser errors: " + ctx.errors.join(" | "));
   } finally {
     await ctx.close();

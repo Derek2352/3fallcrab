@@ -1519,10 +1519,12 @@ g.clearRect(0, 0, R.w, R.h); R.cv.hidden = true; R.raf = 0; R.parts = []; R.spar
 }
 function startGame(){
 clearTimeout(boothTimer);
-A.unlock(); A.sfx("go"); closeInfo(true); closePicker(true); closeRoll(true);
+A.unlock(); A.sfx("go"); closeInfo(true); closePicker(true); closeRoll(true); closeFsModal("quiet");
+fsDismissed = false; fsPausedGame = false;
 pickFromEnd = false; pickReturnTo = null; rollFromEnd = false; rollReturnTo = null;
 hideIabTip();
-if (root.classList.contains("title")){ played = true; root.classList.remove("title"); enterBrowserFs(); lastFit = ""; resize(); }
+if (root.classList.contains("title")){ played = true; root.classList.remove("title"); enterBrowserFs(false); lastFit = ""; resize(); }
+else if (fsOn && canBrowserFs() && !fsEl()){ enterBrowserFs(false); }
 played = true;
 if (BOOTH){ whoPicked = false; ssSet("tff_picked", ""); }
 flushRecord(S);
@@ -1542,9 +1544,11 @@ nextPiece();
 updateHUD(); setPauseUI(); $("board").focus({preventScroll:true});
 outfitKey = ""; prevLook = null; avFx.clear(); updateAvatar(true);
 clipsSync();
+syncFsPrompt();
 }
 function endGame(reason){
 if (S.mode === "over") return;
+closeFsModal("quiet");
 S.mode = "over"; S.over = reason; S.endAt = Date.now();
 try { S.sil = outlineOf(); } catch(e){}
 if (S.frenzyUntil){ S.frenzyUntil = 0; frenzyUI(); }
@@ -1618,32 +1622,105 @@ if (IAB) root.classList.add("inapp");
 const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement || null;
 const fsApi = !!(root.requestFullscreen || root.webkitRequestFullscreen);
 let fsOn = false, played = false;
+let fsPending = false, fsApiBlocked = false, fsDismissed = false, fsPausedGame = false, fsReturnTo = null, fsInertEl = null;
+const isStandalone = () => !!(navigator.standalone || (typeof matchMedia === "function" && (matchMedia("(display-mode: standalone)").matches || matchMedia("(display-mode: fullscreen)").matches)));
+const canBrowserFs = () => fsApi && document.fullscreenEnabled !== false && !IAB && !isStandalone() && !fsApiBlocked;
+const isGameActive = () => !!(S && (S.mode === "playing" || S.mode === "paused" || S.mode === "card" || S.mode === "offer"));
+const isNonFs = () => !fsOn || (canBrowserFs() && !fsEl());
+function syncFsBtn(){ const b = $("fsBtn"); if (b) b.setAttribute("aria-pressed", String(fsOn && (!played || !canBrowserFs() || !!fsEl()))); }
 function setFs(on){
 fsOn = on; root.classList.toggle("fs", on); root.classList.toggle("title", on && !played); needDraw = true;
-const b = $("fsBtn"); b.setAttribute("aria-pressed", String(on));
+syncFsBtn();
 lastFit = ""; resize();
 if (on) window.scrollTo(0, 0);
 }
-function enterBrowserFs(){
-if (!fsApi || fsEl()) return;
+function enterBrowserFs(fromPrompt){
+if (!canBrowserFs() || fsEl()) return;
 try {
+fsPending = true;
 const p = root.requestFullscreen ? root.requestFullscreen({navigationUI: "hide"}) : root.webkitRequestFullscreen();
 Promise.resolve(p).then(() => {
+fsPending = false; syncFsBtn();
 if (Math.min(screen.width, screen.height) < 600 && screen.orientation && screen.orientation.lock) screen.orientation.lock("portrait").catch(() => {});
-}, () => {});
-} catch(e){}
+if ($("fsModal") && !$("fsModal").hidden) closeFsModal("enable");
+}, () => {
+fsPending = false; syncFsBtn();
+if (fromPrompt) fsApiBlocked = true;
+else syncFsPrompt();
+});
+} catch(e){
+fsPending = false; syncFsBtn();
+if (fromPrompt) fsApiBlocked = true;
 }
-function toggleFs(want = !fsOn){
-if (want === fsOn && !!fsEl() === (want && fsApi)) return;
+}
+function openFsModal(){
+const m = $("fsModal");
+if (!m || !m.hidden || !isGameActive() || !isNonFs() || fsDismissed || fsPending) return;
+if ($("igModal") && !$("igModal").hidden) return;
+fsReturnTo = document.activeElement;
+keys.left = keys.right = false; softHeld = false;
+if (typeof drag !== "undefined") drag = null;
+if (S) S.dragX = null;
+if (S.mode === "playing"){ S.mode = "paused"; fsPausedGame = true; setPauseUI(); }
+else fsPausedGame = false;
+A.mode("paused");
+for (const id of ["offerModal", "cardModal"]){
+const el = $(id);
+if (el && !el.hidden && !el.inert){ el.inert = true; fsInertEl = el; break; }
+}
+modalOpen(true); m.hidden = false; A.sfx("uiOpen");
+if ($("fsModalGo")) $("fsModalGo").focus({preventScroll: true});
+}
+function closeFsModal(reason){
+const m = $("fsModal"); if (!m || m.hidden) return;
+const quiet = reason === "quiet";
+if (reason === "skip"){ fsDismissed = true; if (!quiet) A.sfx("uiClose"); }
+m.hidden = true;
+if (fsInertEl){ fsInertEl.inert = false; fsInertEl = null; }
+const anyModal = ["igModal", "holdModal", "cardModal", "offerModal", "reviveModal", "pickModal", "rollModal", "infoModal", "endModal"].some(id => { const el = $(id); return el && !el.hidden; });
+if (!anyModal) modalOpen(false);
+const wasPausedByUs = fsPausedGame; fsPausedGame = false;
+const back = fsReturnTo; fsReturnTo = null;
+if (!quiet && wasPausedByUs && S && S.mode === "paused" && $("pauseOv").hidden){
+S.mode = "playing"; setPauseUI(); A.resume(); A.mode(musicMode()); $("board").focus({preventScroll: true});
+} else if (!quiet){
+if (S && S.mode === "card"){ A.resume(); A.mode("card"); }
+else if (S && S.mode === "offer"){ A.resume(); A.mode(musicMode()); }
+const fb = !$("pauseOv").hidden ? $("resumeBtn") : !$("cardModal").hidden ? $("cardSheet") : !$("offerModal").hidden ? $("offerSheet") : null;
+const tgt = (back && back.isConnected && back.focus && !back.closest("[hidden]") && !back.closest("[inert]")) ? back : fb;
+if (tgt && tgt.focus) tgt.focus({preventScroll: true});
+}
+}
+function syncFsPrompt(){
+syncFsBtn();
+if (!isGameActive() || !isNonFs()){
+if ($("fsModal") && !$("fsModal").hidden) closeFsModal("enable");
+return;
+}
+if (!fsPending && !fsDismissed) openFsModal();
+}
+function toggleFs(want){
+if (want === undefined) want = !(fsOn && (!played || !canBrowserFs() || !!fsEl()));
+if (want === fsOn && !!fsEl() === (want && canBrowserFs())) return;
 A.unlock(); A.sfx("uiToggle");
 lsSet("tff_fs", want);
 setFs(want);
-if (want) enterBrowserFs();
-else if (fsEl()) try { Promise.resolve(document.exitFullscreen ? document.exitFullscreen() : document.webkitExitFullscreen()).catch(() => {}); } catch(e){}
+fsDismissed = false;
+if (want){ enterBrowserFs(false); if ($("fsModal") && !$("fsModal").hidden) closeFsModal("enable"); }
+else {
+if (fsEl()) try { Promise.resolve(document.exitFullscreen ? document.exitFullscreen() : document.webkitExitFullscreen()).catch(() => {}); } catch(e){}
+syncFsPrompt();
 }
-for (const ev of ["fullscreenchange", "webkitfullscreenchange"]) document.addEventListener(ev, () => { lastFit = ""; resize(); });
+}
+if ($("fsModalGo")) $("fsModalGo").addEventListener("click", () => { fsDismissed = false; A.unlock(); A.sfx("uiToggle"); lsSet("tff_fs", true); setFs(true); enterBrowserFs(true); closeFsModal("enable"); });
+if ($("fsModalSkip")) $("fsModalSkip").addEventListener("click", () => closeFsModal("skip"));
+for (const ev of ["fullscreenchange", "webkitfullscreenchange"]) document.addEventListener(ev, () => {
+lastFit = ""; resize();
+if (fsEl()){ fsPending = false; fsDismissed = false; syncFsBtn(); if ($("fsModal") && !$("fsModal").hidden) closeFsModal("enable"); }
+else syncFsPrompt();
+});
 let endShownAt = 0;
-const DIALOG_IDS = ["igModal", "holdModal", "endModal", "rollModal", "pickModal", "infoModal", "reviveModal", "offerModal", "cardModal", "pauseOv"];
+const DIALOG_IDS = ["igModal", "fsModal", "holdModal", "endModal", "rollModal", "pickModal", "infoModal", "reviveModal", "offerModal", "cardModal", "pauseOv"];
 function activeDialog(){
 for (const id of DIALOG_IDS){
 const el = $(id);
@@ -1707,6 +1784,10 @@ return;
 }
 if (!$("igModal").hidden){
 if (e.key === "Escape"){ closeIg(); e.preventDefault(); }
+return;
+}
+if (!$("fsModal").hidden){
+if (e.key === "Escape"){ closeFsModal("skip"); e.preventDefault(); }
 return;
 }
 if (!$("holdModal").hidden){
@@ -1802,6 +1883,7 @@ if (S && S.mode === "playing") togglePause();
 A.suspend(); flushRecord(S, true);
 } else {
 A.resume();
+syncFsPrompt();
 const away = igHiddenAt ? performance.now() - igHiddenAt : 0; igHiddenAt = 0;
 if (away > 1200 && performance.now() - outboundAt > 4000 && igEligible()) setTimeout(() => { if (!document.hidden && igEligible()) openIg(true); }, 220);
 }
@@ -2237,7 +2319,7 @@ function igEligible(){
 if (BOOTH || lsGet("tff_ig_done", false) || ssGet("tff_ig_seen") === "1") return false;
 if (window.TFF_INTRO && TFF_INTRO.on()) return false;
 if (S && S.dragX != null) return false;
-for (const id of ["igModal", "holdModal", "cardModal", "offerModal", "reviveModal", "pickModal", "rollModal", "infoModal"]){
+for (const id of ["igModal", "fsModal", "holdModal", "cardModal", "offerModal", "reviveModal", "pickModal", "rollModal", "infoModal"]){
 const el = $(id); if (el && !el.hidden) return false;
 }
 return true;
@@ -2259,11 +2341,12 @@ const m = $("igModal"); if (!m || m.hidden) return;
 if (!quiet) A.sfx("uiClose");
 m.hidden = true;
 if (igWasEnd) $("endModal").inert = false;
-const anyModal = ["holdModal", "cardModal", "offerModal", "reviveModal", "pickModal", "rollModal", "infoModal", "endModal"].some(id => { const el = $(id); return el && !el.hidden; });
+const anyModal = ["fsModal", "holdModal", "cardModal", "offerModal", "reviveModal", "pickModal", "rollModal", "infoModal", "endModal"].some(id => { const el = $(id); return el && !el.hidden; });
 if (!anyModal) modalOpen(false);
 if (!quiet && !played && (!S || S.mode === "idle") && !anyModal) iabTip();
 const back = igReturnTo; igReturnTo = null; igWasEnd = false;
-if (back && back.focus && !back.closest("[hidden]")) back.focus({preventScroll: true});
+if (back && back.focus && !back.closest("[hidden]") && !back.closest("[inert]")) back.focus({preventScroll: true});
+if (!quiet) syncFsPrompt();
 }
 for (const id of ["tsIg", "endIgBtn"]){ const b = $(id); if (b) b.addEventListener("click", () => openIg(false)); }
 if ($("igClose")) $("igClose").addEventListener("click", () => closeIg());
@@ -2363,6 +2446,12 @@ if (!$("igModal").hidden){
 if (nav) padMove($("igModal"), nav);
 if (hit("a")) padPress($("igModal"));
 if (hit("b") || hit("start")) closeIg();
+return;
+}
+if (!$("fsModal").hidden){
+if (nav) padMove($("fsModal"), nav);
+if (hit("a")) padPress($("fsModal"));
+if (hit("b") || hit("start")) closeFsModal("skip");
 return;
 }
 if (!$("endModal").hidden){
@@ -2470,7 +2559,7 @@ if (drag.soft) softHeld = false;
 if (S) S.dragX = null; drag = null;
 };
 cv.addEventListener("pointerup", endDrag); cv.addEventListener("pointercancel", endDrag);
-const OWN_SOUND = "#startBtn,#pickGo,#rollGo,#chalSame,#againBtn,#againBtn2,#replayBtn,#stNext,#stBack,#tsLb,#tsHow,#tsPriv,#tsWear,#tsStory,#tsIg,#endIgBtn,#igClose,#igGo,#igQrLink,#igDismiss,.wtile,#infoClose,.who,#tsMute,#muteBtn,#fsBtn,#tsFs,#fsStartBtn,#pauseBtn,#resumeBtn,#resultsBtn,#closeEnd,.choice,.qopt,.pad button,#hudHoldBtn,label.habit,.ctime label";
+const OWN_SOUND = "#startBtn,#pickGo,#rollGo,#chalSame,#againBtn,#againBtn2,#replayBtn,#stNext,#stBack,#tsLb,#tsHow,#tsPriv,#tsWear,#tsStory,#tsIg,#endIgBtn,#igClose,#igGo,#igQrLink,#igDismiss,.wtile,#infoClose,.who,#tsMute,#muteBtn,#fsBtn,#tsFs,#fsStartBtn,#fsModalGo,#fsModalSkip,#pauseBtn,#resumeBtn,#resultsBtn,#closeEnd,.choice,.qopt,.pad button,#hudHoldBtn,label.habit,.ctime label";
 document.addEventListener("click", e => { const t = e.target.closest && e.target.closest(".btn,.tab,.iconbtn,.ov-chip,.hbtn,button,[role=tab]"); if (t && !t.disabled && t.getAttribute("aria-disabled") !== "true"){ haptic(8, 0.12, 0.2); if (!t.closest(OWN_SOUND)) A.sfx("click"); } });
 document.addEventListener("pointerdown", e => { const t = e.target.closest && e.target.closest("button:disabled,[aria-disabled=true]"); if (t){ A.unlock(); A.sfx("uiNope"); haptic([22, 30, 30], 0.45, 0.35); } });
 let audioOn = false;
@@ -3538,16 +3627,17 @@ if (++avTick % 8 === 0) updateAvatar();
 if (S){
 const side = SIDEWAYS.matches && (S.mode === "playing" || S.mode === "paused" || S.mode === "card" || S.mode === "offer");
 if (side !== sideways){ sideways = side; $("turnOv").hidden = !side; if (side) fitLine(document.querySelector("#turnOv h2")); if (side && S.mode === "playing") togglePause(); }
+const fsHeld = $("fsModal") && !$("fsModal").hidden;
 let live = false;
 if (S.mode === "card" && S.card){
-if (!sideways) S.card.t += dt;
+if (!sideways && !fsHeld) S.card.t += dt;
 if (!S.card.flip){
 const left = cardMs() - S.card.t;
 $("cardBar").style.transform = "scaleX(" + Math.max(0, left / cardMs()).toFixed(3) + ")";
 const sec = Math.ceil(left / 1000); if (sec <= 3 && sec < S.card.lastTick && sec > 0){ S.card.lastTick = sec; A.sfx("cardTick"); }
 if (S.card.t >= cardMs()) choose("none");
 } else if (!slowRead && S.card.t - S.card.flipAt > RESULT_MS) closeCard();
-} else if (S.mode === "offer" && S.offer){ if (!sideways) S.offer.t += dt; offerFrame(); }
+} else if (S.mode === "offer" && S.offer){ if (!sideways && !fsHeld) S.offer.t += dt; offerFrame(); }
 else if (S.mode === "playing"){ S.realMs += Math.min(1000, raw); tick(dt); live = true; }
 else if (S.mode === "over" || (S.mode === "idle" && S.viewing)){
 S.acc += dt; let n = 0; while (S.acc >= STEP && n++ < 3){ S.acc -= STEP; snap(); worldStep(); }
@@ -4315,7 +4405,7 @@ ps.textContent = "Add a nickname to post your score. 請填暱稱先可以上榜
 }
 if (!em.closest(".fld").hidden && (!email || email.length > 254 || !EMAIL_OK.test(email))) {
 emailError(true); em.focus(); ps.className = "post-status bad";
-ps.textContent = email ? "That email doesn't look right. Please check it. 電郵地址好似唔啱，請再檢查。" : "Add your email to post: it's how we reach prize winners. 請填電郵先可以上榜，我哋會用嚟聯絡得獎者。";
+ps.textContent = email ? "That email doesn't look right. Please check it. 電郵地址好似唔啱，請再檢查。" : "Add your email to post (use your HSUHK email for prizes). 請填電郵地址先可以上榜（註：領獎請輸入院校電郵地址）。";
 return;
 }
 emailError(false); st.posting = true;

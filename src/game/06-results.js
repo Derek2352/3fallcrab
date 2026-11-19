@@ -827,7 +827,7 @@ $("postBtn").addEventListener("click", async (ev) => {
   }
   if (!em.closest(".fld").hidden && (!email || email.length > 254 || !EMAIL_OK.test(email))) {   // ...and, on the live board, an email for the prizes
     emailError(true); em.focus(); ps.className = "post-status bad";
-    ps.textContent = email ? "That email doesn't look right. Please check it. 電郵地址好似唔啱，請再檢查。" : "Add your email to post: it's how we reach prize winners. 請填電郵先可以上榜，我哋會用嚟聯絡得獎者。";
+    ps.textContent = email ? "That email doesn't look right. Please check it. 電郵地址好似唔啱，請再檢查。" : "Add your email to post (use your HSUHK email for prizes). 請填電郵地址先可以上榜（註：領獎請輸入院校電郵地址）。";
     return;
   }
   emailError(false); st.posting = true;

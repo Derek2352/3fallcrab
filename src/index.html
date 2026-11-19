@@ -443,6 +443,18 @@
   </div>
 </div>
 
+<div class="modal fsm" id="fsModal" role="dialog" aria-modal="true" aria-labelledby="fsTitle" aria-describedby="fsDesc" hidden>
+  <div class="sheet fssheet" id="fsSheet" tabindex="-1">
+    <div class="fs-badge"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg><span>FULL SCREEN · 全螢幕</span></div>
+    <h2 class="fs-title" id="fsTitle">Play in full screen for the best view!<span class="zh" lang="zh-HK">開啟全螢幕，玩得更順更清楚！</span></h2>
+    <p class="fs-lead" id="fsDesc">The game is paused while you're out of full screen. Turn on full screen to keep building your tower.<span class="zh" lang="zh-HK">離開全螢幕時遊戲已暫停。開啟全螢幕即可繼續疊高你嘅人生塔。</span></p>
+    <div class="fs-acts">
+      <button class="btn go" id="fsModalGo" type="button">Enable full screen<span class="zh" lang="zh-HK">開啟全螢幕</span></button>
+      <button class="btn alt" id="fsModalSkip" type="button">Continue without full screen<span class="zh" lang="zh-HK">暫時唔開，繼續玩</span></button>
+    </div>
+  </div>
+</div>
+
 <div class="filmgrain" aria-hidden="true"></div>
 <div class="filmvig" aria-hidden="true"></div>
 <div class="fbars t" aria-hidden="true"></div>
@@ -498,12 +510,12 @@
         <div class="namerow">
           <div class="fld"><label for="nickname">Nickname <span class="zh" lang="zh-HK">暱稱</span></label>
             <input id="nickname" maxlength="16" placeholder="No real names 唔好用真名" autocomplete="off"></div>
-          <div class="fld em"><label for="email">Email for prizes <span class="zh" lang="zh-HK">領獎電郵</span></label>
-            <input id="email" type="email" inputmode="email" maxlength="254" placeholder="you@example.com" autocomplete="email" spellcheck="false" aria-describedby="emailNote privacyNote"></div>
+          <div class="fld em"><label for="email">Email* <span class="opt">(Use your HSUHK email for prizes)</span><span class="zh" lang="zh-HK">電郵地址* (註：領獎請輸入院校電郵地址)</span></label>
+            <input id="email" type="email" inputmode="email" maxlength="254" placeholder="you@hsu.edu.hk" autocomplete="email" spellcheck="false" aria-describedby="emailNote privacyNote"></div>
           <button class="btn teal" id="postBtn">Post score<span class="zh" lang="zh-HK">上榜</span></button>
         </div>
         <p class="post-status" id="postStatus" aria-live="polite"></p>
-        <p class="email-note"><span id="emailNote">Top scorers each week and each month win prizes. Your email address is used only to contact winners and is never made public.<span class="zl" lang="zh-HK">每週及每月最高分的玩家可獲獎品。你的電郵地址只會用於聯絡得獎者，絕不會公開。</span></span> <span id="privacyNote">To access or correct your email address, please email <a href="mailto:%%CONTACT_EMAIL%%">%%CONTACT_EMAIL%%</a>.<span class="zl" lang="zh-HK">如需查閱或更正你的電郵地址，請電郵至 <a href="mailto:%%CONTACT_EMAIL%%">%%CONTACT_EMAIL%%</a>。</span></span></p>
+        <p class="email-note"><span id="emailNote">Top scorers each week and each month with an HSUHK email win prizes. Your email address is used only to contact winners and is never made public.<span class="zl" lang="zh-HK">每週及每月最高分並以院校電郵地址上榜的玩家可獲獎品。你的電郵地址只會用於聯絡得獎者，絕不會公開。</span></span> <span id="privacyNote">To access or correct your email address, please email <a href="mailto:%%CONTACT_EMAIL%%">%%CONTACT_EMAIL%%</a>.<span class="zl" lang="zh-HK">如需查閱或更正你的電郵地址，請電郵至 <a href="mailto:%%CONTACT_EMAIL%%">%%CONTACT_EMAIL%%</a>。</span></span></p>
       </div>
       <div class="esec" data-s="4">
         <h4 id="cardHead" tabindex="-1">Your result card<span class="zh" lang="zh-HK">你的結果卡</span></h4>
