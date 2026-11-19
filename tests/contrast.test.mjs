@@ -495,6 +495,11 @@ test("Part D: Live headless Chromium computed-style contrast on / (mobile & desk
       await ctx.click("#igClose");
       await ctx.waitFor(() => document.getElementById("igModal").hidden);
 
+      await ctx.click("#tsFs");
+      await ctx.waitFor(() => !document.documentElement.classList.contains("fs"));
+      assert.equal(await ctx.evalJs("document.querySelectorAll('#wardrobeList .wtile').length"), 9);
+      assert.deepEqual(await ctx.evalJs(DOM_CONTRAST_SCRIPT), [], "Non-fullscreen page view contrast failures");
+
       assert.deepEqual(ctx.errors, []);
     } finally {
       await ctx.close();

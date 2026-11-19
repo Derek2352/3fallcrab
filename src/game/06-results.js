@@ -358,6 +358,7 @@ function showVerdict(v) {
     S.titled = v.id; const had = earnedTitles(), fresh = !had.includes(v.id);
     if (fresh) lsSet("tff_titles", [...had, v.id]);
     S.newHat = fresh ? HATS.find(h => h.title === v.id) || null : null;
+    if (typeof renderWardrobe === "function") renderWardrobe();
   }
   const hat = S && S.newHat; $("svNew").hidden = !hat;
   if (hat) bi($("svNew"), "New for your crab: " + hat.en + " (in the Wardrobe)", "蟹仔新造型：" + hat.zh + "（去衣櫃換）");
@@ -1060,9 +1061,9 @@ function sampleTower() {
   crab("Hi! I'm the 3 Fall Crab. Every item you stack is a money decision.", "我係3 Fall Crab！你疊嘅每件嘢，都係一個理財決定。");
 }
 fsOn = !!lsGet("tff_fs", true); root.classList.toggle("fs", fsOn); root.classList.toggle("title", fsOn); $("fsBtn").setAttribute("aria-pressed", String(fsOn));   // full screen by default
-buildStatic(); sampleTower(); resize(); drawCrabs(); updateHUD(); renderLedger(); setMuteUI(); planFirst();
+buildStatic(); sampleTower(); resize(); drawCrabs(); updateHUD(); renderLedger(); renderWardrobe(); setMuteUI(); planFirst();
 if (AV && AV.onCast) AV.onCast(() => {   // the photographed cast has loaded: everything drawn in clay so far, again
-  avKeys.clear(); buildLayers(false, "crab"); drawCrabs(); talk.mood = null; needDraw = true;
+  avKeys.clear(); buildLayers(false, "crab"); drawCrabs(); renderWardrobe(); talk.mood = null; needDraw = true;
   if (S && S.mode !== "idle") updateAvatar(true);
   if (!$("pickModal").hidden) setPick(pickSel, true);
   if (!$("rollModal").hidden) paintAvatar($("rollAvatar"), { who: WHO, stage: 0, tier: 1, hand: null, mood: "happy", drops: 0, boost: false });

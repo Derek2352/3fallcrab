@@ -82,6 +82,26 @@ test("E2E 1: desktop intro, title sheets, Instagram modal, and exit-intent promp
     await ctx.waitFor(() => document.getElementById("infoModal").hidden);
     assert.equal(await ctx.evalJs("document.querySelector('.set').inert"), false);
 
+    // Non-fullscreen page view renders Crab Wardrobe inline
+    await ctx.click("#tsFs");
+    await ctx.waitFor(() => !document.documentElement.classList.contains("fs"));
+    const nonFsWear = await ctx.evalJs(`(() => {
+      const list = document.getElementById("wardrobeList");
+      const r = list ? list.getBoundingClientRect() : { height: 0 };
+      return {
+        tiles: document.querySelectorAll("#wardrobeList .wtile").length,
+        note: (document.getElementById("wardrobeNote")?.textContent || "").trim(),
+        titles: document.querySelectorAll("#wardrobeTitles .wt-chip").length,
+        height: Math.round(r.height),
+      };
+    })()`);
+    assert.equal(nonFsWear.tiles, 9);
+    assert.ok(nonFsWear.note.length > 0, "Missing wardrobe note in non-fullscreen view");
+    assert.equal(nonFsWear.titles, 13);
+    assert.ok(nonFsWear.height > 100, "Expected rendered #wardrobeList height > 100, got " + nonFsWear.height);
+    await ctx.click("#fsBtn");
+    await ctx.waitFor(() => document.documentElement.classList.contains("fs"));
+
     // 3) Manual Instagram popup & loaded QR image
     await ctx.click("#tsIg");
     await ctx.waitFor(() => !document.getElementById("igModal").hidden);

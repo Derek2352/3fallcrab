@@ -125,6 +125,7 @@ const isNonFs = () => !fsOn || (canBrowserFs() && !fsEl());
 function syncFsBtn(){ const b = $("fsBtn"); if (b) b.setAttribute("aria-pressed", String(fsOn && (!played || !canBrowserFs() || !!fsEl()))); }
 function setFs(on){
   fsOn = on; root.classList.toggle("fs", on); root.classList.toggle("title", on && !played); needDraw = true;
+  if (!on){ closeInfo(true); if (typeof renderWardrobe === "function") renderWardrobe(); }
   syncFsBtn();
   lastFit = ""; resize();
   if (on) window.scrollTo(0, 0);
@@ -608,7 +609,7 @@ function bumpBooth(){
     $("endModal").hidden = true; $("seeOv").hidden = true; $("pickModal").hidden = true; $("rollModal").hidden = true;
     modalOpen(false);
     played = false; whoPicked = false; ssSet("tff_picked", ""); rollKept = false; ROLL = null;
-    sampleTower(); setFs(fsOn); $("startOv").hidden = false; setPauseUI(); updateHUD(); renderLedger(); drawPreviews(true); iabTip(); needDraw = true;
+    sampleTower(); setFs(fsOn); $("startOv").hidden = false; setPauseUI(); updateHUD(); renderLedger(); renderWardrobe(); drawPreviews(true); iabTip(); needDraw = true;
   }, 90000);
 }
 const rnd = n => Math.floor(Math.random() * n);

@@ -1630,6 +1630,7 @@ const isNonFs = () => !fsOn || (canBrowserFs() && !fsEl());
 function syncFsBtn(){ const b = $("fsBtn"); if (b) b.setAttribute("aria-pressed", String(fsOn && (!played || !canBrowserFs() || !!fsEl()))); }
 function setFs(on){
 fsOn = on; root.classList.toggle("fs", on); root.classList.toggle("title", on && !played); needDraw = true;
+if (!on){ closeInfo(true); if (typeof renderWardrobe === "function") renderWardrobe(); }
 syncFsBtn();
 lastFit = ""; resize();
 if (on) window.scrollTo(0, 0);
@@ -2094,7 +2095,7 @@ if (!S || (S.mode !== "over" && !(S.mode === "idle" && S.viewing))) return;
 $("endModal").hidden = true; $("seeOv").hidden = true; $("pickModal").hidden = true; $("rollModal").hidden = true;
 modalOpen(false);
 played = false; whoPicked = false; ssSet("tff_picked", ""); rollKept = false; ROLL = null;
-sampleTower(); setFs(fsOn); $("startOv").hidden = false; setPauseUI(); updateHUD(); renderLedger(); drawPreviews(true); iabTip(); needDraw = true;
+sampleTower(); setFs(fsOn); $("startOv").hidden = false; setPauseUI(); updateHUD(); renderLedger(); renderWardrobe(); drawPreviews(true); iabTip(); needDraw = true;
 }, 90000);
 }
 const rnd = n => Math.floor(Math.random() * n);
@@ -3982,6 +3983,7 @@ if (S && S.titled !== v.id) {
 S.titled = v.id; const had = earnedTitles(), fresh = !had.includes(v.id);
 if (fresh) lsSet("tff_titles", [...had, v.id]);
 S.newHat = fresh ? HATS.find(h => h.title === v.id) || null : null;
+if (typeof renderWardrobe === "function") renderWardrobe();
 }
 const hat = S && S.newHat; $("svNew").hidden = !hat;
 if (hat) bi($("svNew"), "New for your crab: " + hat.en + " (in the Wardrobe)", "蟹仔新造型：" + hat.zh + "（去衣櫃換）");
@@ -4639,9 +4641,9 @@ S.queue = [pick("football") || fallback[0], pick("textbooks") || fallback[1] || 
 crab("Hi! I'm the 3 Fall Crab. Every item you stack is a money decision.", "我係3 Fall Crab！你疊嘅每件嘢，都係一個理財決定。");
 }
 fsOn = !!lsGet("tff_fs", true); root.classList.toggle("fs", fsOn); root.classList.toggle("title", fsOn); $("fsBtn").setAttribute("aria-pressed", String(fsOn));
-buildStatic(); sampleTower(); resize(); drawCrabs(); updateHUD(); renderLedger(); setMuteUI(); planFirst();
+buildStatic(); sampleTower(); resize(); drawCrabs(); updateHUD(); renderLedger(); renderWardrobe(); setMuteUI(); planFirst();
 if (AV && AV.onCast) AV.onCast(() => {
-avKeys.clear(); buildLayers(false, "crab"); drawCrabs(); talk.mood = null; needDraw = true;
+avKeys.clear(); buildLayers(false, "crab"); drawCrabs(); renderWardrobe(); talk.mood = null; needDraw = true;
 if (S && S.mode !== "idle") updateAvatar(true);
 if (!$("pickModal").hidden) setPick(pickSel, true);
 if (!$("rollModal").hidden) paintAvatar($("rollAvatar"), { who: WHO, stage: 0, tier: 1, hand: null, mood: "happy", drops: 0, boost: false });
