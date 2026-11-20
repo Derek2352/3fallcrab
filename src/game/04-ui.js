@@ -1011,7 +1011,7 @@ function padKbLayout(isEmail, shift){
   const r2 = [...row("asdfghjkl"), isEmail ? { k: "@", label: "@" } : { k: "-", label: "-" }];
   const r3 = [...row("zxcvbnm"), ...(isEmail ? [{ k: ".", label: "." }, { k: "_", label: "_" }, { k: "-", label: "-" }] : [{ k: ".", label: "." }, { k: "!", label: "!" }, { k: "?", label: "?" }])];
   const r4 = isEmail
-    ? [{ id: "shift", label: "Aa", cls: "wide" + (shift ? " on" : "") }, { k: "@hsu.edu.hk", label: "@hsu.edu.hk", cls: "wide" }, { k: "@s.hsu.edu.hk", label: "@s.hsu.edu.hk", cls: "wide" }, { id: "del", label: "⌫", cls: "act wide" }, { id: "done", label: "Done ✓", cls: "ok wide" }]
+    ? [{ id: "shift", label: "Aa", cls: "wide" + (shift ? " on" : "") }, { k: "@hsu.edu.hk", label: "@hsu.edu.hk", cls: "wide" }, { k: "@gmail.com", label: "@gmail.com", cls: "wide" }, { id: "del", label: "⌫", cls: "act wide" }, { id: "done", label: "Done ✓", cls: "ok wide" }]
     : [{ id: "shift", label: "Aa", cls: "wide" + (shift ? " on" : "") }, { id: "space", label: "Space", cls: "wide" }, { id: "del", label: "⌫", cls: "act wide" }, { id: "done", label: "Done ✓", cls: "ok wide" }];
   return [r0, r1, r2, r3, r4];
 }
