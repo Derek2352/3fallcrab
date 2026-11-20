@@ -1860,7 +1860,7 @@ return;
 }
 if (S.mode === "idle" && S.viewing && !$("seeOv").hidden && (k === "Escape" || k === "r" || k === "R")){ openResults(); e.preventDefault(); return; }
 const onControl = !!(e.target && e.target.closest && e.target.closest("button, a, label, [role=tab]"));
-if (S.mode === "idle" && (k === "Enter" || k === " ") && !onControl && (!$("startOv").hidden || !$("seeOv").hidden)){ if (!$("startOv").hidden) beginGame(); else if (S.flowDone) newLife(); else openResults(); e.preventDefault(); return; }
+if (S.mode === "idle" && (k === "Enter" || k === " ") && !onControl && (!$("startOv").hidden || !$("seeOv").hidden)){ if (!$("startOv").hidden) beginGame(); else if (S.flowDone){ whoPicked = false; newLife(); } else openResults(); e.preventDefault(); return; }
 if (k === "p" || k === "P" || k === "Escape"){ if (S.mode === "playing" || S.mode === "paused"){ togglePause(); e.preventDefault(); } return; }
 if (S.mode !== "playing") return;
 switch (k){
@@ -2070,7 +2070,7 @@ if ($("holdSkipBtn")) $("holdSkipBtn").addEventListener("click", () => closeHold
 window.TFF_HOLD = { open: openHold, close: closeHold };
 function proceedBeginGame(){
 if (root.classList.contains("title")) enterBrowserFs();
-if (whoPicked) newLife(); else openPicker();
+openPicker();
 }
 function beginGame(){
 if (!holdAdmitted && !holdSkipped && (/[?&]hold=1(&|$)/.test(location.search) || window.__tffServerHold)){
@@ -2114,7 +2114,7 @@ const rollDice = () => ({bg: BG_KEYS[rnd(BG_KEYS.length)], pe: PE_KEYS[rnd(PE_KE
 function newLife(){
 clearTimeout(boothTimer);
 if (S) S.replay = null;
-if (BOOTH && !whoPicked){ openPicker(); return; }
+if (!whoPicked){ openPicker(); return; }
 if (!BG_KEYS.length || !PE_KEYS.length){ ROLL = null; startGame(); return; }
 if (ROLL_AUTO){ if (!rollKept) ROLL = rollDice(); startGame(); return; }
 openRoll();
@@ -2680,7 +2680,7 @@ else $("closeEnd").click();
 }
 else if (ready && hit("start")){
 if (S.step < 4){ if (!$("stNext").hidden && !$("stNext").disabled) $("stNext").click(); }
-else newLife();
+else { whoPicked = false; newLife(); }
 }
 return;
 }
@@ -2857,7 +2857,7 @@ $("hudHoldBtn").addEventListener("click", () => act("hold"));
 $("startBtn").addEventListener("click", beginGame);
 $("resumeBtn").addEventListener("click", togglePause);
 $("cardContinue").addEventListener("click", e => { if (!(S.card && tapTooSoon(e, S.card.flipAt))) closeCard(); });
-$("againBtn").addEventListener("click", newLife);
+$("againBtn").addEventListener("click", () => { whoPicked = false; newLife(); });
 let endScroll = 0;
 function openResults(){
 if (!S || S.mode !== "idle" || !S.viewing) return;
@@ -2876,7 +2876,7 @@ S.camTop = camBase();
 A.sfx("uiSelect"); needDraw = true;
 });
 $("closeEnd").addEventListener("click", () => { A.sfx("uiClose"); endScroll = $("stScroll").scrollTop; $("endModal").hidden = true; modalOpen(false); S.viewing = true; S.mode = "idle"; S.queue = []; S.hold = null; drawPreviews(true); $("seeOv").hidden = false; setPauseUI(); $("againBtn2").hidden = !S.flowDone; ($("againBtn2").hidden ? $("resultsBtn") : $("againBtn2")).focus(); if (S.overKey) quip(S.overKey, 3); });
-$("againBtn2").addEventListener("click", newLife);
+$("againBtn2").addEventListener("click", () => { whoPicked = false; newLife(); });
 cv.tabIndex = 0;
 const ctx = cv.getContext("2d", {alpha: false});
 let SC = 1, DPR = 1, XV = 0, YT = 0, YB = 0;
