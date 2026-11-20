@@ -4,7 +4,7 @@ const el = document.getElementById("intro");
 if (!el) return;
 const ART = window.TFF_ART || {}, GA = window.GameAudio;
 const forceOn = /[?&]intro=1\b/.test(location.search);
-let off = !forceOn && /[?&](?:intro=0|booth=1)\b/.test(location.search);
+let off = !forceOn && /[?&](?:intro=0|booth=1|view=1)\b/.test(location.search);
 try {
 if (!forceOn && (localStorage.getItem("tff_intro") === "off" || sessionStorage.getItem("tff_intro_seen") === "1" || sessionStorage.getItem("tff_booth") === "1")) off = true;
 } catch (e) { }

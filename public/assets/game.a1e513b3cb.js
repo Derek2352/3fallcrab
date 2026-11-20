@@ -3936,6 +3936,7 @@ const sheet = document.querySelector("#endModal .statement"); sheet.dataset.step
 $("endModal").setAttribute("aria-labelledby", STEP_FOCUS[n - 1]);
 [...$("stSteps").children].forEach((li, i) => { li.classList.toggle("done", i + 1 < n); if (i + 1 === n) li.setAttribute("aria-current", "step"); else li.removeAttribute("aria-current"); });
 stepButtons();
+if (n === 4) drawViewQr();
 if (typeof updateEndPadBar === "function") updateEndPadBar();
 const body = $("stBody"); body.classList.remove("enter"); void body.offsetWidth; if (!reduceMotion) body.classList.add("enter");
 $("stScroll").scrollTop = 0;
@@ -4909,4 +4910,65 @@ buildLayers(true, "plat"); needDraw = true; drawPreviews(true);
 if (root.classList.contains("wide")) { lastFit = ""; resize(); }
 });
 requestAnimationFrame(frame);
+function viewUrl(){
+const q = new URLSearchParams();
+q.set("view", "1"); q.set("intro", "0"); q.set("s", String(Math.round(S.score)));
+const n = cardName(); if (n) q.set("n", n);
+const v = S.verdict || verdictOf(S); if (v && v.id) q.set("v", v.id);
+if (S.persona) q.set("p", personaKey(S.persona));
+q.set("t", String(S.stage | 0));
+q.set("f", [S.falls.spend, S.falls.scam, S.falls.delay].join("."));
+q.set("h", String(Math.round(S.best || 0)));
+q.set("w", String(S.wise | 0)); q.set("k", String(S.risky | 0)); q.set("m", String(S.missed | 0));
+if (S.compounded) q.set("c", String(S.compounded | 0));
+return location.origin + "/c?" + q.toString();
+}
+function viewSeed(){
+const q = new URLSearchParams(location.search);
+if (q.get("view") !== "1") return null;
+const raw = q.get("s") || "";
+if (!/^-?\d{1,7}$/.test(raw)) return null;
+const num = (k, d) => { const n = parseInt(q.get(k) || "", 10); return Number.isFinite(n) && n >= 0 ? n : d; };
+const f = (q.get("f") || "").split(".").map(x => Math.max(0, parseInt(x, 10) || 0));
+return { score: Number(raw), stage: Math.min(STAGES.length - 1, num("t", 0)),
+falls: { spend: f[0] || 0, scam: f[1] || 0, delay: f[2] || 0 },
+best: num("h", 0), wise: num("w", 0), risky: num("k", 0), missed: num("m", 0),
+compounded: num("c", 0), name: (q.get("n") || "").slice(0, 20), persona: q.get("p") || "" };
+}
+let vqKey = "";
+function drawViewQr(){
+const wrap = $("viewQrWrap"), cv = $("viewQr");
+if (!wrap || !cv || !S) return;
+const url = viewUrl();
+if (url === vqKey){ wrap.hidden = false; return; }
+loadQr().then(fn => {
+if (typeof fn !== "function"){ wrap.hidden = true; return; }
+try {
+const qr = fn(0, "L"); qr.addData(url); qr.make();
+const cnt = qr.getModuleCount(), sz = cv.width, pad = 14, mod = (sz - pad * 2) / cnt;
+const g = cv.getContext("2d");
+g.fillStyle = "#FFF4E2"; g.fillRect(0, 0, sz, sz); g.fillStyle = "#171A33";
+for (let r = 0; r < cnt; r++) for (let c = 0; c < cnt; c++)
+if (qr.isDark(r, c)) g.fillRect(pad + c * mod, pad + r * mod, Math.ceil(mod), Math.ceil(mod));
+vqKey = url; wrap.hidden = false;
+} catch (e){ wrap.hidden = true; }
+});
+}
+function openView(v){
+if (!S){ S = newState(); makeEngine(); }
+S.mode = "over"; S.over = "time"; S.step = 0; S.flowDone = false;
+S.score = v.score; S.stage = v.stage; S.best = v.best;
+S.falls = v.falls; S.wise = v.wise; S.risky = v.risky; S.missed = v.missed; S.compounded = v.compounded;
+if (v.persona && v.persona.indexOf("+") > 0){
+const bits = v.persona.split("+");
+if (PERSONAS.bg[bits[0]] && PERSONAS.pe[bits[1]]) S.persona = { bg: bits[0], pe: bits[1] };
+}
+if (v.name){ const el = $("nickname"); if (el){ el.value = v.name; } }
+S.verdict = verdictOf(S);
+try { if (window.TFF_INTRO && TFF_INTRO.skip) TFF_INTRO.skip(); } catch (e) { }
+const so = $("startOv"), se = $("seeOv"); if (so) so.hidden = true; if (se) se.hidden = true;
+showEnd();
+setStep(4);
+}
+try { const vs = viewSeed(); if (vs) openView(vs); } catch (e) { console.warn("view mode failed", e); }
 })();
