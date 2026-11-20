@@ -1078,6 +1078,7 @@ function frameBody(now){
   const raw = now - last, dt = Math.min(50, raw); last = now;
   checkPerf(raw);
   if (GP.on) pollPad(now);
+  else if (avTick % 20 === 0 && typeof syncPadConnected === "function") syncPadConnected();
   if (++avTick % 8 === 0) updateAvatar();
   if (S){
     const side = SIDEWAYS.matches && (S.mode === "playing" || S.mode === "paused" || S.mode === "card" || S.mode === "offer");

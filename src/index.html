@@ -274,7 +274,7 @@
         <li><kbd>P</kbd> Pause 暫停</li>
         <li><kbd>M</kbd> Mute 靜音</li>
         <li><kbd>F</kbd> Full screen 全螢幕</li>
-        <li class="gp">Controller: D-pad or stick move, A drop, B turn, X hold, LB/RB fine-turn, X/Y card answer, Start pause 手掣：十字掣或搖桿移動、A即放、B轉向、X暫存、LB/RB微調、X/Y揀答案、Start暫停</li>
+        <li class="gp">Controller: D-pad or stick move, A drop/select, B turn/back, X hold, LB/RB fine-turn &amp; result steps, Right stick scroll, Start pause/next 手掣：十字掣或搖桿移動、A即放／確定、B轉向／返回、X暫存、LB/RB微調及切換結算頁、右搖桿上下睇、Start暫停／下一步</li>
         <li class="touch">Phone: drag to move, tap to rotate, swipe down to drop 手機：拖動移位、撳一下轉向、向下掃即放</li>
       </ul>
     </section>
@@ -532,12 +532,25 @@
       </div>
     </div>
     </div>
+    <p class="pad-bar" id="endPadBar" aria-hidden="true"></p>
     <div class="endactions">
       <button class="btn alt" id="stBack" type="button" hidden>Back<span class="zh" lang="zh-HK">上一步</span></button>
       <button class="btn" id="stNext" type="button">Next<span class="zh" lang="zh-HK">下一步</span></button>
       <button class="btn alt" id="closeEnd">See tower<span class="zh" lang="zh-HK">睇返座塔</span></button>
       <button class="btn" id="againBtn">Play again<span class="zh" lang="zh-HK">再玩</span></button>
     </div>
+  </div>
+</div>
+
+<div class="modal padkbm" id="padKbModal" role="dialog" aria-modal="true" aria-labelledby="padKbTitle" hidden>
+  <div class="sheet padkbsheet" id="padKbSheet" tabindex="-1">
+    <div class="pk-head">
+      <h3 id="padKbTitle">Controller keyboard <span class="zh" lang="zh-HK">手掣鍵盤</span></h3>
+      <button class="iconbtn" id="padKbClose" type="button" aria-label="Close keyboard 關閉鍵盤"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="#2E2838" stroke-width="2.6" stroke-linecap="round"/></svg></button>
+    </div>
+    <div class="pk-preview" id="padKbVal" role="status" aria-live="polite"></div>
+    <div class="pk-grid" id="padKbGrid" role="group" aria-label="Keys 鍵盤按鍵"></div>
+    <p class="pk-hint" id="padKbHint" aria-hidden="true">D-pad Move · A Press · X Del · Start Done · B Close<span class="zh" lang="zh-HK">十字掣移動 · A 輸入 · X 刪除 · Start 完成 · B 關閉</span></p>
   </div>
 </div>
 

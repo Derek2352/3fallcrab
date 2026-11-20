@@ -41,10 +41,19 @@ function setStep(n, focus) {
   $("endModal").setAttribute("aria-labelledby", STEP_FOCUS[n - 1]);
   [...$("stSteps").children].forEach((li, i) => { li.classList.toggle("done", i + 1 < n); if (i + 1 === n) li.setAttribute("aria-current", "step"); else li.removeAttribute("aria-current"); });
   stepButtons();
+  if (typeof updateEndPadBar === "function") updateEndPadBar();
   const body = $("stBody"); body.classList.remove("enter"); void body.offsetWidth; if (!reduceMotion) body.classList.add("enter");
   $("stScroll").scrollTop = 0;
   if (n === 4) showCard();
-  if (focus !== false) $(STEP_FOCUS[n - 1]).focus({ preventScroll: true });
+  if (focus !== false){
+    if (root.classList.contains("padnav") && typeof padFocus === "function"){
+      let tgt = $(STEP_FOCUS[n - 1]);
+      if (n === 2) tgt = document.querySelector('#quiz .qopt:not([aria-disabled="true"]), #habits input') || $("stNext");
+      else if (n === 3) tgt = $("nickname") || $("stNext");
+      else if (n === 4) tgt = $("againBtn") || $("saveImg");
+      padFocus(tgt);
+    } else $(STEP_FOCUS[n - 1]).focus({ preventScroll: true });
+  }
 }
 async function showCard() {
   const img = $("cardImg"), ps = $("postStatus");
@@ -566,6 +575,10 @@ function showEnd() {
         if (!S.quizDone && S.quiz.every(Boolean)) { S.quizDone = true; if (!BOOTH) lsSet("tff_quiz_n", (+lsGet("tff_quiz_n", 0) || 0) + 1); }
         if (S.step === 2) stepButtons();
         quizScore(); saveSoon();
+        if (S.step === 2 && root.classList.contains("padnav") && typeof padFocus === "function"){
+          const nx = document.querySelector('#quiz .qopt:not([aria-disabled="true"])') || (!S.habit && document.querySelector('#habits input')) || (!$("stNext").disabled && $("stNext"));
+          if (nx) padFocus(nx);
+        }
       });
       box.appendChild(b);
     });
@@ -576,7 +589,7 @@ function showEnd() {
   HABITS.forEach(h => {
     const lab = document.createElement("label"); lab.className = "habit";
     const inp = document.createElement("input"); inp.type = "radio"; inp.name = "habit"; inp.value = h.id; inp.id = "habit_" + h.id;
-    inp.addEventListener("change", () => { if (inp.checked) { S.habit = h.id; A.sfx("uiSelect"); saveSoon(); if (S.step === 2) stepButtons(); } });
+    inp.addEventListener("change", () => { if (inp.checked) { S.habit = h.id; A.sfx("uiSelect"); saveSoon(); if (S.step === 2){ stepButtons(); if (surveyDone() && root.classList.contains("padnav") && typeof padFocus === "function") padFocus($("stNext")); } } });
     const t = document.createElement("span"); t.textContent = h.en; const z = document.createElement("small"); z.textContent = h.zh; t.appendChild(z);
     lab.append(inp, t); hb.appendChild(lab);
   });

@@ -525,3 +525,186 @@ test("E2E 5: admin dashboard renders SVG trend chart, searches/filters rows, bat
     await ctx.close();
   }
 });
+
+test("E2E 6: controller/gamepad navigation across result page steps 1-4 and on-screen keyboard", async () => {
+  const beforeRows = srv.store._rows.length;
+  const PAD_HOOK = `(() => {
+    const gp = {
+      connected: true,
+      id: "Mock Standard Gamepad",
+      index: 0,
+      mapping: "standard",
+      buttons: Array.from({ length: 16 }, () => ({ pressed: false, touched: false, value: 0 })),
+      axes: [0, 0, 0, 0],
+    };
+    navigator.getGamepads = () => (window.__gpOn ? [gp] : []);
+    window.__padSet = (btns = [], axes = [0, 0, 0, 0]) => {
+      for (let i = 0; i < 16; i++) {
+        const on = btns.includes(i);
+        gp.buttons[i] = { pressed: on, touched: on, value: on ? 1 : 0 };
+      }
+      gp.axes = axes;
+    };
+    window.__padTap = (btnIdx, framesAfter = 2) => {
+      window.__padSet([btnIdx]);
+      window.__advanceFrames(1, 50);
+      window.__padSet([]);
+      window.__advanceFrames(framesAfter, 50);
+    };
+  })();`;
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false } });
+  try {
+    await ctx.cdp("Page.addScriptToEvaluateOnNewDocument", { source: CLOCK_HOOK + "\n" + PAD_HOOK });
+    await ctx.goto(`${srv.baseUrl}/?intro=0&roll=0`);
+    await ctx.waitFor(() => !document.getElementById("startBtn").hidden);
+    await ctx.click("#startBtn");
+    await ctx.waitFor(() => !document.getElementById("pickModal").hidden);
+    await ctx.evalJs("window.__enableSimClock()");
+    await ctx.click("#pickGo");
+    await ctx.waitFor(() => document.getElementById("pickModal").hidden && document.getElementById("startOv").hidden && window.__simReady());
+
+    // Reach endModal rapidly by dropping 3 items off the left edge
+    for (let i = 0; i < 240; i++) {
+      if (await ctx.evalJs("!document.getElementById('endModal').hidden")) break;
+      const st = await ctx.evalJs(`({
+        card: !document.getElementById('cardModal').hidden,
+        flip: !document.getElementById('cardModal').hidden && !document.getElementById('cardOutcome').hidden,
+        offer: !document.getElementById('offerModal').hidden,
+        revive: !document.getElementById('reviveModal').hidden,
+        rvNo: !document.getElementById('rvNo').closest('[hidden]') && !document.getElementById('rvActions').hidden,
+        rvGo: !document.getElementById('rvGo').closest('[hidden]') && !document.getElementById('rvLesson').hidden,
+      })`);
+      if (st.card && !st.flip) { await ctx.pressKey("1", "Digit1", 49); await ctx.evalJs("window.__advanceFrames(10, 50)"); }
+      else if (st.flip) { await ctx.click("#cardContinue"); await ctx.evalJs("window.__advanceFrames(5, 50)"); }
+      else if (st.offer) { await ctx.pressKey("2", "Digit2", 50); await ctx.evalJs("window.__advanceFrames(5, 50)"); }
+      else if (st.revive) { if (st.rvNo) await ctx.click("#rvNo"); else if (st.rvGo) await ctx.click("#rvGo"); await ctx.evalJs("window.__advanceFrames(15, 50)"); }
+      else {
+        await ctx.cdp("Input.dispatchKeyEvent", { type: "keyDown", key: "ArrowLeft", code: "ArrowLeft", windowsVirtualKeyCode: 37 });
+        await ctx.evalJs("window.__advanceFrames(18, 50)");
+        await ctx.cdp("Input.dispatchKeyEvent", { type: "keyUp", key: "ArrowLeft", code: "ArrowLeft", windowsVirtualKeyCode: 37 });
+        await ctx.pressKey(" ", "Space", 32);
+        await ctx.evalJs("window.__advanceFrames(35, 50)");
+      }
+    }
+    await ctx.waitFor(() => !document.getElementById("endModal").hidden, 8000);
+
+    // Connect gamepad and clear 900ms accidental-press guard on #endModal
+    await ctx.evalJs(`(() => {
+      window.__gpOn = true;
+      window.dispatchEvent(new Event("gamepadconnected"));
+      window.__advanceFrames(22, 50);
+    })()`);
+    assert.equal(await ctx.evalJs("document.documentElement.classList.contains('gamepad')"), true);
+
+    // Step 1: hint bar visible, right-stick & D-pad scroll #stScroll, A advances to Step 2
+    const step1 = await ctx.evalJs(`(() => {
+      const bar = document.getElementById("endPadBar");
+      const scr = document.getElementById("stScroll");
+      scr.scrollTop = 0;
+      window.__padSet([], [0, 0, 0, 0.9]);
+      window.__advanceFrames(5, 50);
+      window.__padSet([], [0, 0, 0, 0]);
+      const afterStick = scr.scrollTop;
+      window.__padTap(13);
+      const afterDpad = scr.scrollTop;
+      window.__padTap(0);
+      return {
+        barShow: getComputedStyle(bar).display !== "none" && bar.textContent.trim().length > 0,
+        afterStick,
+        afterDpad,
+        stepNow: document.querySelector("#endModal .statement").dataset.step,
+        activeCls: document.activeElement?.className || "",
+      };
+    })()`);
+    assert.equal(step1.barShow, true);
+    assert.ok(step1.afterStick > 0, "Right stick should scroll #stScroll");
+    assert.ok(step1.afterDpad > step1.afterStick, "D-pad Down should scroll Step 1 #stScroll");
+    assert.equal(step1.stepNow, "2");
+    assert.ok(step1.activeCls.includes("qopt"), "Step 2 should focus first quiz option under padnav: " + step1.activeCls);
+
+    // Step 2: B goes back to Step 1 (not See tower), RB goes forward to Step 2, A answers 3 quiz + 1 habit, Start -> Step 3
+    const step2 = await ctx.evalJs(`(() => {
+      window.__padTap(1);
+      const backStep = document.querySelector("#endModal .statement").dataset.step;
+      const modalOpenStill = !document.getElementById("endModal").hidden;
+      window.__padTap(5);
+      const rbStep = document.querySelector("#endModal .statement").dataset.step;
+      window.__padTap(0); // Q1
+      window.__padTap(0); // Q2
+      window.__padTap(0); // Q3 -> focuses habit radio
+      const onHabit = document.activeElement?.name === "habit";
+      window.__padTap(0); // select habit -> focuses #stNext
+      const onNext = document.activeElement?.id === "stNext";
+      const nextDisabled = document.getElementById("stNext").disabled;
+      window.__padTap(9); // Start -> Step 3
+      return {
+        backStep, modalOpenStill, rbStep, onHabit, onNext, nextDisabled,
+        stepNow: document.querySelector("#endModal .statement").dataset.step,
+        activeId: document.activeElement?.id || "",
+      };
+    })()`);
+    assert.equal(step2.backStep, "1");
+    assert.equal(step2.modalOpenStill, true);
+    assert.equal(step2.rbStep, "2");
+    assert.equal(step2.onHabit, true);
+    assert.equal(step2.onNext, true);
+    assert.equal(step2.nextDisabled, false);
+    assert.equal(step2.stepNow, "3");
+    assert.equal(step2.activeId, "nickname");
+
+    // Step 3: A opens #padKbModal for Nickname & Email, types via D-pad/X/LB/Y/Start, and posts live score
+    const step3 = await ctx.evalJs(`(() => {
+      window.__padTap(0); // A on #nickname opens controller keyboard (focuses 'q')
+      const kbOpen = !document.getElementById("padKbModal").hidden && document.getElementById("endModal").inert;
+      const keyCount = document.querySelectorAll("#padKbGrid .pk-key").length;
+      window.__padTap(0);  // 'q'
+      window.__padTap(15); // right -> 'w'
+      window.__padTap(0);  // 'w'
+      window.__padTap(4);  // LB toggles shift
+      window.__padTap(0);  // 'W'
+      window.__padTap(2);  // X deletes 'W'
+      window.__padTap(9);  // Start -> Done -> focuses #email
+      const afterNick = { val: document.getElementById("nickname").value, activeId: document.activeElement?.id || "" };
+
+      window.__padTap(0);  // A on #email opens controller keyboard (focuses 'q')
+      window.__padTap(13); // down -> 'a'
+      window.__padTap(0);  // 'a'
+      window.__padTap(3);  // Y -> '@hsu.edu.hk'
+      window.__padTap(9);  // Start -> Done -> focuses #postBtn
+      const afterMail = { val: document.getElementById("email").value, activeId: document.activeElement?.id || "" };
+
+      window.__padTap(0);  // A on #postBtn submits score
+      return { kbOpen, keyCount, afterNick, afterMail };
+    })()`);
+    assert.equal(step3.kbOpen, true);
+    assert.ok(step3.keyCount >= 40, "Expected full QWERTY controller keyboard grid");
+    assert.equal(step3.afterNick.val, "qw");
+    assert.equal(step3.afterNick.activeId, "email");
+    assert.equal(step3.afterMail.val, "a@hsu.edu.hk");
+    assert.equal(step3.afterMail.activeId, "postBtn");
+
+    await ctx.waitFor(() => document.getElementById("postStatus").classList.contains("ok"), 5000);
+    assert.equal(srv.store._rows.length, beforeRows + 1);
+    const postedRow = srv.store._rows[srv.store._rows.length - 1];
+    assert.equal(postedRow.name, "qw");
+    assert.equal(postedRow.email, "a@hsu.edu.hk");
+
+    // Step 4: reaches card, B switches to #seeOv, B returns to #endModal Step 4
+    await ctx.waitFor(() => document.querySelector("#endModal .statement").dataset.step === "4", 4000);
+    const step4 = await ctx.evalJs(`(() => {
+      const barText = document.getElementById("endPadBar").textContent;
+      window.__padTap(1); // B -> See tower
+      const seeVisible = document.getElementById("endModal").hidden && !document.getElementById("seeOv").hidden;
+      window.__padTap(1); // B -> back to Statement Step 4
+      const backVisible = !document.getElementById("endModal").hidden && document.getElementById("seeOv").hidden;
+      return { barText, seeVisible, backVisible };
+    })()`);
+    assert.ok(step4.barText.includes("Play again"), "Expected Step 4 gamepad hint: " + step4.barText);
+    assert.equal(step4.seeVisible, true);
+    assert.equal(step4.backVisible, true);
+
+    assert.deepEqual(ctx.errors, [], "Unexpected gamepad result errors: " + ctx.errors.join(" | "));
+  } finally {
+    await ctx.close();
+  }
+});

@@ -1,7 +1,7 @@
 // ---------- flow ----------
 function startGame(){
   clearTimeout(boothTimer);
-  A.unlock(); A.sfx("go"); closeInfo(true); closePicker(true); closeRoll(true); closeFsModal("quiet");
+  A.unlock(); A.sfx("go"); closePadKb(false, true); closeInfo(true); closePicker(true); closeRoll(true); closeFsModal("quiet");
   fsDismissed = false; fsPausedGame = false;
   pickFromEnd = false; pickReturnTo = null; rollFromEnd = false; rollReturnTo = null;
   hideIabTip();   // the tip is for the start
@@ -173,7 +173,7 @@ function closeFsModal(reason){
   if (reason === "skip"){ fsDismissed = true; if (!quiet) A.sfx("uiClose"); }
   m.hidden = true;
   if (fsInertEl){ fsInertEl.inert = false; fsInertEl = null; }
-  const anyModal = ["igModal", "holdModal", "cardModal", "offerModal", "reviveModal", "pickModal", "rollModal", "infoModal", "endModal"].some(id => { const el = $(id); return el && !el.hidden; });
+  const anyModal = ["padKbModal", "igModal", "holdModal", "cardModal", "offerModal", "reviveModal", "pickModal", "rollModal", "infoModal", "endModal"].some(id => { const el = $(id); return el && !el.hidden; });
   if (!anyModal) modalOpen(false);
   const wasPausedByUs = fsPausedGame; fsPausedGame = false;
   const back = fsReturnTo; fsReturnTo = null;
@@ -217,7 +217,7 @@ for (const ev of ["fullscreenchange", "webkitfullscreenchange"]) document.addEve
   else syncFsPrompt();
 });
 let endShownAt = 0;
-const DIALOG_IDS = ["igModal", "fsModal", "holdModal", "endModal", "rollModal", "pickModal", "infoModal", "reviveModal", "offerModal", "cardModal", "pauseOv"];
+const DIALOG_IDS = ["padKbModal", "igModal", "fsModal", "holdModal", "endModal", "rollModal", "pickModal", "infoModal", "reviveModal", "offerModal", "cardModal", "pauseOv"];
 function activeDialog(){
   for (const id of DIALOG_IDS){
     const el = $(id);
@@ -278,6 +278,10 @@ document.addEventListener("keydown", e => {
       }
       return;
     }
+  }
+  if ($("padKbModal") && !$("padKbModal").hidden){
+    if (e.key === "Escape"){ closePadKb(false); e.preventDefault(); }
+    return;
   }
   if (!$("igModal").hidden){
     if (e.key === "Escape"){ closeIg(); e.preventDefault(); }
@@ -606,6 +610,7 @@ function bumpBooth(){
   if (!BOOTH || !S || (S.mode !== "over" && !(S.mode === "idle" && S.viewing))) return;
   boothTimer = setTimeout(() => {
     if (!S || (S.mode !== "over" && !(S.mode === "idle" && S.viewing))) return;
+    closePadKb(false, true);
     $("endModal").hidden = true; $("seeOv").hidden = true; $("pickModal").hidden = true; $("rollModal").hidden = true;
     modalOpen(false);
     played = false; whoPicked = false; ssSet("tff_picked", ""); rollKept = false; ROLL = null;
@@ -843,7 +848,7 @@ function igEligible(){
   if (BOOTH || lsGet("tff_ig_done", false) || ssGet("tff_ig_seen") === "1") return false;
   if (window.TFF_INTRO && TFF_INTRO.on()) return false;
   if (S && S.dragX != null) return false;
-  for (const id of ["igModal", "fsModal", "holdModal", "cardModal", "offerModal", "reviveModal", "pickModal", "rollModal", "infoModal"]){
+  for (const id of ["padKbModal", "igModal", "fsModal", "holdModal", "cardModal", "offerModal", "reviveModal", "pickModal", "rollModal", "infoModal"]){
     const el = $(id); if (el && !el.hidden) return false;
   }
   return true;
@@ -865,7 +870,7 @@ function closeIg(quiet){
   if (!quiet) A.sfx("uiClose");
   m.hidden = true;
   if (igWasEnd) $("endModal").inert = false;
-  const anyModal = ["fsModal", "holdModal", "cardModal", "offerModal", "reviveModal", "pickModal", "rollModal", "infoModal", "endModal"].some(id => { const el = $(id); return el && !el.hidden; });
+  const anyModal = ["padKbModal", "fsModal", "holdModal", "cardModal", "offerModal", "reviveModal", "pickModal", "rollModal", "infoModal", "endModal"].some(id => { const el = $(id); return el && !el.hidden; });
   if (!anyModal) modalOpen(false);
   if (!quiet && !played && (!S || S.mode === "idle") && !anyModal) iabTip();
   const back = igReturnTo; igReturnTo = null; igWasEnd = false;
@@ -901,6 +906,7 @@ function armExitBack(){
 }
 for (const ev of ["pointerdown", "keydown"]) document.addEventListener(ev, armExitBack, {capture: true, once: true, passive: true});
 window.addEventListener("popstate", () => {
+  if ($("padKbModal") && !$("padKbModal").hidden){ closePadKb(false); return; }
   if (!$("igModal").hidden){ closeIg(true); return; }
   if (igEligible()) openIg(true);
 });
@@ -947,20 +953,188 @@ document.querySelectorAll(".howto .clip").forEach(clipAdd);
 // Life Event card X and Y pick the first or second choice, or the D-pad moves between them and A picks. On the start
 // card, the pause card, the tower view and the statement the D-pad moves between the buttons, A presses the one in
 // focus, B goes back and Start starts (or resumes). A browser shows a pad to the page once a button is pressed on it.
-const GP = {on: 0, prev: {}, held: {}, repAt: 0};
+const GP = {on: 0, prev: {}, held: {}, repAt: 0, kbRepAt: 0};
 function padState(gp){
   const b = i => { const x = gp.buttons[i]; return !!x && (x.pressed || x.value > 0.5); };
-  const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
-  return {a: b(0), b: b(1), x: b(2), y: b(3), lb: b(4), rb: b(5), rt: b(7), sel: b(8), start: b(9),
-    up: b(12) || ay < -0.6, down: b(13) || ay > 0.6, left: b(14) || ax < -0.5, right: b(15) || ax > 0.5};
+  const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0, rx0 = gp.axes[2] || 0, ry0 = gp.axes[3] || 0;
+  return {a: b(0), b: b(1), x: b(2), y: b(3), lb: b(4), rb: b(5), lt: b(6), rt: b(7), sel: b(8), start: b(9),
+    up: b(12) || ay < -0.6, down: b(13) || ay > 0.6, left: b(14) || ax < -0.5, right: b(15) || ax > 0.5,
+    rx: Math.abs(rx0) > 0.22 ? rx0 : 0, ry: Math.abs(ry0) > 0.22 ? ry0 : 0};
 }
-const padTargets = box => [...box.querySelectorAll("button, input, a[href]")].filter(e => !e.disabled && !e.closest("[hidden]") && e.getClientRects().length && getComputedStyle(e).visibility !== "hidden");
+const padTargets = box => [...box.querySelectorAll("button, input, a[href]")].filter(e =>
+  !e.disabled && e.getAttribute("aria-disabled") !== "true" && !e.closest("[hidden]") && !e.closest("[inert]") &&
+  !(e.tagName === "A" && (e.getAttribute("href") || "").startsWith("mailto:")) &&
+  e.getClientRects().length && getComputedStyle(e).visibility !== "hidden"
+);
+function padFocus(el){
+  if (!el || typeof el.focus !== "function") return null;
+  el.focus({preventScroll: true});
+  const box = el.closest("#stScroll, #infoBody");
+  if (box){
+    const target = el.closest(".qz, .fld, label.habit") || el;
+    const br = box.getBoundingClientRect(), tr = target.getBoundingClientRect();
+    if (tr.top < br.top + 12) box.scrollTop = Math.max(0, box.scrollTop - (br.top + 12 - tr.top));
+    else if (tr.bottom > br.bottom - 12) box.scrollTop += tr.bottom - br.bottom + 12;
+  }
+  return el;
+}
 function padMove(box, dir){   // the next (or previous) control in the box gets the focus
-  const els = padTargets(box); if (!els.length) return;
+  const els = padTargets(box); if (!els.length) return null;
   const i = els.indexOf(document.activeElement);
-  els[i < 0 ? (dir > 0 ? 0 : els.length - 1) : clamp(i + dir, 0, els.length - 1)].focus();
+  return padFocus(els[i < 0 ? (dir > 0 ? 0 : els.length - 1) : clamp(i + dir, 0, els.length - 1)]);
 }
 function padPress(box){ const el = document.activeElement; if (el && padTargets(box).includes(el)){ el.click(); return true; } return false; }
+function updateEndPadBar(){
+  const bar = $("endPadBar"); if (!bar) return;
+  if (!GP.on || !S || $("endModal").hidden){ bar.textContent = ""; return; }
+  const hints = {
+    1: ["Right stick Scroll · A Next · B See tower", "右搖桿上下睇 · A 下一步 · B 睇座塔"],
+    2: ["D-pad Move · A Select · LB / B Back · Start Next", "十字掣移動 · A 選擇 · LB／B 返回 · Start 下一步"],
+    3: ["D-pad Move · A Keyboard/Post · LB / B Back · Start Skip/Card", "十字掣移動 · A 開鍵盤／上榜 · LB／B 返回 · Start 下一步"],
+    4: ["D-pad Move · A Press · B See tower · Start Play again", "十字掣移動 · A 確定 · B 睇座塔 · Start 再玩"],
+  }[S.step] || null;
+  if (!hints){ bar.textContent = ""; return; }
+  const z = document.createElement("span"); z.className = "zh"; z.lang = "zh-HK"; z.textContent = hints[1];
+  bar.replaceChildren(hints[0], z);
+}
+function syncPadConnected(){
+  let count = 0;
+  for (const p of (navigator.getGamepads ? navigator.getGamepads() : [])) if (p && p.connected) count++;
+  if (count !== GP.on){ GP.on = count; root.classList.toggle("gamepad", count > 0); updateEndPadBar(); }
+}
+// On-screen keyboard for typing Nickname & Email with a controller on Step 3 of the result statement
+let padKbInput = null, padKbShift = false, padKbRows = [], padKbRow = 1, padKbCol = 0;
+function padKbLayout(isEmail, shift){
+  const row = (str) => [...str].map(ch => ({ k: shift ? ch.toUpperCase() : ch, label: shift ? ch.toUpperCase() : ch }));
+  const r0 = [..."1234567890"].map(ch => ({ k: ch, label: ch }));
+  const r1 = row("qwertyuiop");
+  const r2 = [...row("asdfghjkl"), isEmail ? { k: "@", label: "@" } : { k: "-", label: "-" }];
+  const r3 = [...row("zxcvbnm"), ...(isEmail ? [{ k: ".", label: "." }, { k: "_", label: "_" }, { k: "-", label: "-" }] : [{ k: ".", label: "." }, { k: "!", label: "!" }, { k: "?", label: "?" }])];
+  const r4 = isEmail
+    ? [{ id: "shift", label: "Aa", cls: "wide" + (shift ? " on" : "") }, { k: "@hsu.edu.hk", label: "@hsu.edu.hk", cls: "wide" }, { k: "@s.hsu.edu.hk", label: "@s.hsu.edu.hk", cls: "wide" }, { id: "del", label: "⌫", cls: "act wide" }, { id: "done", label: "Done ✓", cls: "ok wide" }]
+    : [{ id: "shift", label: "Aa", cls: "wide" + (shift ? " on" : "") }, { id: "space", label: "Space", cls: "wide" }, { id: "del", label: "⌫", cls: "act wide" }, { id: "done", label: "Done ✓", cls: "ok wide" }];
+  return [r0, r1, r2, r3, r4];
+}
+function padKbSyncPreview(){
+  const pv = $("padKbVal"); if (!pv || !padKbInput) return;
+  const cur = document.createElement("span"); cur.className = "pk-cur"; cur.setAttribute("aria-hidden", "true");
+  pv.replaceChildren(padKbInput.value, cur);
+}
+function padKbRender(){
+  const grid = $("padKbGrid"); if (!grid || !padKbInput) return;
+  const isEmail = padKbInput.id === "email";
+  const layout = padKbLayout(isEmail, padKbShift);
+  padKbRows = [];
+  grid.replaceChildren(...layout.map((rowSpec, rIdx) => {
+    const rowEl = document.createElement("div"); rowEl.className = "pk-row";
+    const rowBtns = rowSpec.map((spec, cIdx) => {
+      const b = document.createElement("button"); b.type = "button"; b.className = "pk-key" + (spec.cls ? " " + spec.cls : "");
+      b.textContent = spec.label;
+      b.addEventListener("click", () => { padKbRow = rIdx; padKbCol = cIdx; padKbAction(spec); });
+      rowEl.appendChild(b);
+      return b;
+    });
+    padKbRows.push(rowBtns);
+    return rowEl;
+  }));
+  padKbRow = clamp(padKbRow, 0, padKbRows.length - 1);
+  padKbCol = clamp(padKbCol, 0, padKbRows[padKbRow].length - 1);
+  padKbSyncPreview();
+}
+function padKbFocusKey(r, c){
+  if (!padKbRows.length) return;
+  padKbRow = (r + padKbRows.length) % padKbRows.length;
+  const row = padKbRows[padKbRow];
+  padKbCol = (c + row.length) % row.length;
+  row[padKbCol].focus({preventScroll: true});
+}
+function padKbMove(dr, dc){
+  if (!padKbRows.length) return;
+  if (dr){
+    const prevLen = padKbRows[padKbRow].length;
+    const nr = (padKbRow + dr + padKbRows.length) % padKbRows.length;
+    const nextLen = padKbRows[nr].length;
+    const nc = nextLen === prevLen ? padKbCol : Math.min(nextLen - 1, Math.round(padKbCol * (nextLen - 1) / Math.max(1, prevLen - 1)));
+    padKbFocusKey(nr, nc);
+  } else if (dc){
+    padKbFocusKey(padKbRow, padKbCol + dc);
+  }
+}
+function padKbAction(spec){
+  if (!padKbInput || !spec) return;
+  const max = padKbInput.maxLength > 0 ? padKbInput.maxLength : 254;
+  if (spec.id === "shift"){
+    A.sfx("uiToggle"); padKbShift = !padKbShift;
+    const r = padKbRow, c = padKbCol; padKbRender(); padKbFocusKey(r, c);
+    return;
+  }
+  if (spec.id === "done"){ closePadKb(true); return; }
+  let val = padKbInput.value;
+  if (spec.id === "del"){
+    A.sfx("click");
+    const chars = Array.from(val); chars.pop(); val = chars.join("");
+  } else {
+    const add = spec.id === "space" ? " " : spec.k;
+    if (add && add.startsWith("@") && add.length > 1 && val.includes("@")){
+      const base = val.slice(0, val.indexOf("@"));
+      val = (base + add).slice(0, max);
+      A.sfx("click");
+    } else if (add && Array.from(val + add).length <= max){
+      val += add;
+      A.sfx("click");
+    } else {
+      A.sfx("uiNope");
+    }
+  }
+  padKbInput.value = val;
+  padKbInput.dispatchEvent(new Event("input", { bubbles: true }));
+  padKbSyncPreview();
+}
+function openPadKb(inp){
+  const m = $("padKbModal"); if (!m || !inp) return;
+  padKbInput = inp; padKbShift = false; padKbRow = 1; padKbCol = 0;
+  const isEmail = inp.id === "email";
+  const t = $("padKbTitle");
+  if (t){
+    const z = document.createElement("span"); z.className = "zh"; z.lang = "zh-HK";
+    z.textContent = isEmail ? "輸入電郵地址" : "輸入暱稱";
+    t.replaceChildren(isEmail ? "Controller keyboard · Email" : "Controller keyboard · Nickname", z);
+  }
+  const h = $("padKbHint");
+  if (h){
+    const z = document.createElement("span"); z.className = "zh"; z.lang = "zh-HK";
+    z.textContent = isEmail ? "十字掣移動 · A 輸入 · X 刪除 · Y @hsu.edu.hk · Start 完成" : "十字掣移動 · A 輸入 · X 刪除 · Y 空格 · Start 完成";
+    h.replaceChildren(isEmail ? "D-pad Move · A Press · X Del · Y @hsu.edu.hk · Start Done" : "D-pad Move · A Press · X Del · Y Space · Start Done", z);
+  }
+  if ($("endModal") && !$("endModal").hidden) $("endModal").inert = true;
+  m.hidden = false; modalOpen(true); A.sfx("uiOpen");
+  padKbRender();
+  padKbFocusKey(1, 0);
+}
+function closePadKb(advance, quiet){
+  const m = $("padKbModal"); if (!m || m.hidden) return;
+  const inp = padKbInput; padKbInput = null;
+  m.hidden = true;
+  if ($("endModal") && !$("endModal").hidden) $("endModal").inert = false;
+  const anyModal = ["igModal", "fsModal", "holdModal", "cardModal", "offerModal", "reviveModal", "pickModal", "rollModal", "infoModal", "endModal"].some(id => { const el = $(id); return el && !el.hidden; });
+  if (!anyModal) modalOpen(false);
+  if (!quiet) A.sfx(advance ? "uiDone" : "uiClose");
+  if (inp){
+    inp.dispatchEvent(new Event("change", { bubbles: true }));
+    if (!quiet){
+      let tgt = inp;
+      if (advance && inp.id === "nickname"){
+        const em = $("email");
+        tgt = (em && !em.closest(".fld").hidden) ? em : $("postBtn");
+      } else if (advance && inp.id === "email"){
+        tgt = $("postBtn");
+      }
+      if (tgt && tgt.focus && !tgt.closest("[hidden]") && !tgt.closest("[inert]")) padFocus(tgt);
+    }
+  }
+}
+if ($("padKbClose")) $("padKbClose").addEventListener("click", () => closePadKb(false));
+if ($("padKbModal")) $("padKbModal").addEventListener("click", e => { if (e.target === e.currentTarget) closePadKb(false); });
 function pollPad(now){
   let gp = null; for (const p of (navigator.getGamepads ? navigator.getGamepads() : [])) if (p && p.connected){ gp = p; break; }
   const cur = gp ? padState(gp) : {}, was = GP.prev; GP.prev = cur;
@@ -977,6 +1151,21 @@ function pollPad(now){
   if (!gp || !S) return;
   if (Object.keys(cur).some(hit)){ root.classList.add("padnav"); A.unlock(); }
   if (hit("sel")) toggleMute();
+  if ($("padKbModal") && !$("padKbModal").hidden){
+    const dr = cur.up ? -1 : cur.down ? 1 : 0, dc = cur.left ? -1 : cur.right ? 1 : 0;
+    if ((dr || dc) && (hit("up") || hit("down") || hit("left") || hit("right"))){ padKbMove(dr, dc); GP.kbRepAt = now + 340; }
+    else if ((dr || dc) && now >= GP.kbRepAt){ padKbMove(dr, dc); GP.kbRepAt = now + 110; }
+    if (hit("a")){
+      const b = document.activeElement;
+      if (b && b.closest && b.closest("#padKbModal") && (b.tagName === "BUTTON" || b.classList.contains("pk-key"))) b.click();
+    }
+    if (hit("x")) padKbAction({ id: "del" });
+    if (hit("y")) padKbAction(padKbInput && padKbInput.id === "email" ? { k: "@hsu.edu.hk" } : { id: "space" });
+    if (hit("lb") || hit("rb")) padKbAction({ id: "shift" });
+    if (hit("start")) closePadKb(true);
+    else if (hit("b")) closePadKb(false);
+    return;
+  }
   // the D-pad between buttons: once per press, then again every 0.15 s after 0.4 s held
   const dir = cur.up || cur.left ? -1 : cur.down || cur.right ? 1 : 0;
   let nav = 0;
@@ -994,15 +1183,52 @@ function pollPad(now){
     if (hit("b") || hit("start")) closeFsModal("skip");
     return;
   }
-  if (!$("endModal").hidden){   // the statement
-    if (nav) padMove($("endModal"), nav);
-    if (hit("a") && performance.now() - endShownAt > 900) padPress($("endModal"));
-    if (hit("b")) $("closeEnd").click();
-    else if (hit("start")){ if (S.step < 4){ if (!$("stNext").disabled) $("stNext").click(); } else newLife(); }
+  if (!$("holdModal").hidden){
+    if (nav) padMove($("holdModal"), nav);
+    if (hit("a")) padPress($("holdModal"));
+    if (hit("b")) closeHold("cancel");
     return;
   }
-  if (!$("rollModal").hidden){   // the roll: A or Start rolls (then starts); B: back
-    if (hit("a") || hit("start")) $("rollGo").click(); else if (hit("b")) closeRoll();
+  if (!$("endModal").hidden){   // the statement: steps 1..4
+    const scr = $("stScroll");
+    if (scr && cur.ry) scr.scrollTop += cur.ry * 14;
+    const ready = performance.now() - endShownAt > 900;
+    if (hit("lb") && !$("stBack").hidden){ $("stBack").click(); return; }
+    if (hit("rb") && !$("stNext").hidden && !$("stNext").disabled){ $("stNext").click(); return; }
+    if (nav){
+      if (S.step === 1 && scr && (hit("up") || hit("down") || cur.up || cur.down)){
+        const atEnd = scr.scrollTop + scr.clientHeight >= scr.scrollHeight - 4;
+        if (nav > 0 && atEnd) padMove($("endModal"), 1);
+        else if (nav < 0 && document.activeElement && document.activeElement.closest(".endactions") && scr.scrollTop > 0){
+          $("endTitle").focus({preventScroll: true}); scr.scrollTop = Math.max(0, scr.scrollTop - 88);
+        } else scr.scrollTop += nav * 88;
+      } else {
+        padMove($("endModal"), nav);
+      }
+    }
+    if (ready && hit("a")){
+      const ae = document.activeElement;
+      if (ae && ae.tagName === "INPUT" && (ae.type === "text" || ae.type === "email" || !ae.type) && !ae.disabled && !ae.closest("[hidden]")) openPadKb(ae);
+      else if (!padPress($("endModal"))){
+        if (S.step < 4 && !$("stNext").hidden && !$("stNext").disabled) $("stNext").click();
+        else if (S.step === 4 && !$("againBtn").hidden) $("againBtn").focus();
+      }
+    }
+    if (hit("b")){
+      if (S.step > 1 && S.step < 4 && !$("stBack").hidden) $("stBack").click();
+      else $("closeEnd").click();
+    }
+    else if (ready && hit("start")){
+      if (S.step < 4){ if (!$("stNext").hidden && !$("stNext").disabled) $("stNext").click(); }
+      else newLife();
+    }
+    return;
+  }
+  if (!$("rollModal").hidden){   // the roll: A or Start rolls (then starts); D-pad navigates Same life; B: back
+    if (nav) padMove($("rollModal"), nav);
+    if (hit("start")) $("rollGo").click();
+    else if (hit("a")){ if (!padPress($("rollModal"))) $("rollGo").click(); }
+    else if (hit("b")) closeRoll();
     return;
   }
   if (!$("pickModal").hidden){   // left/right: Jack or Jackie; A or Start: go; B: back
@@ -1011,6 +1237,7 @@ function pollPad(now){
     return;
   }
   if (!$("infoModal").hidden){
+    const ib = $("infoBody"); if (ib && cur.ry) ib.scrollTop += cur.ry * 14;
     if (hit("b") || hit("start")) closeInfo();
     else { if (nav) padMove($("infoModal"), nav); if (hit("a")) padPress($("infoModal")); }
     return;
@@ -1058,13 +1285,14 @@ function pollPad(now){
   if (hit("rb")) act("rotR");
 }
 window.addEventListener("gamepadconnected", () => {
-  GP.on++; root.classList.add("gamepad");
+  syncPadConnected(); if (!GP.on) GP.on = 1; root.classList.add("gamepad"); updateEndPadBar();
   if (S && S.mode !== "over") stamp("Controller ready", "手掣已連接", "info");
 });
 window.addEventListener("gamepaddisconnected", () => {
-  GP.on = Math.max(0, GP.on - 1);
-  if (!GP.on){ root.classList.remove("gamepad"); pollPad(performance.now()); }   // lets go of anything it was holding
+  syncPadConnected();
+  if (!GP.on){ root.classList.remove("gamepad"); updateEndPadBar(); pollPad(performance.now()); }   // lets go of anything it was holding
 });
+syncPadConnected();
 document.addEventListener("pointerdown", () => { root.classList.remove("padnav"); if (BOOTH) bumpBooth(); }, true);
 const cv = $("board");
 let drag = null;
@@ -1106,7 +1334,7 @@ const endDrag = e => {
 cv.addEventListener("pointerup", endDrag); cv.addEventListener("pointercancel", endDrag);
 // Every press answers. What has a sound of its own (Start, steps, sheets, toggles, picks, the game's own moves) plays
 // it where it happens, so keys and a controller get it too; any other button gets a tap. A locked button says no.
-const OWN_SOUND = "#startBtn,#pickGo,#rollGo,#chalSame,#againBtn,#againBtn2,#replayBtn,#stNext,#stBack,#tsLb,#tsHow,#tsPriv,#tsWear,#tsStory,#tsIg,#endIgBtn,#igClose,#igGo,#igQrLink,#igDismiss,.wtile,#infoClose,.who,#tsMute,#muteBtn,#fsBtn,#tsFs,#fsStartBtn,#fsModalGo,#fsModalSkip,#pauseBtn,#resumeBtn,#resultsBtn,#closeEnd,.choice,.qopt,.pad button,#hudHoldBtn,label.habit,.ctime label";
+const OWN_SOUND = "#startBtn,#pickGo,#rollGo,#chalSame,#againBtn,#againBtn2,#replayBtn,#stNext,#stBack,#tsLb,#tsHow,#tsPriv,#tsWear,#tsStory,#tsIg,#endIgBtn,#igClose,#igGo,#igQrLink,#igDismiss,.wtile,#infoClose,#padKbClose,.pk-key,.who,#tsMute,#muteBtn,#fsBtn,#tsFs,#fsStartBtn,#fsModalGo,#fsModalSkip,#pauseBtn,#resumeBtn,#resultsBtn,#closeEnd,.choice,.qopt,.pad button,#hudHoldBtn,label.habit,.ctime label";
 document.addEventListener("click", e => { const t = e.target.closest && e.target.closest(".btn,.tab,.iconbtn,.ov-chip,.hbtn,button,[role=tab]"); if (t && !t.disabled && t.getAttribute("aria-disabled") !== "true"){ haptic(8, 0.12, 0.2); if (!t.closest(OWN_SOUND)) A.sfx("click"); } });
 document.addEventListener("pointerdown", e => { const t = e.target.closest && e.target.closest("button:disabled,[aria-disabled=true]"); if (t){ A.unlock(); A.sfx("uiNope"); haptic([22, 30, 30], 0.45, 0.35); } });
 // Sound from the first touch: a page may make sound only after a tap or a key, so the first one anywhere (the title
