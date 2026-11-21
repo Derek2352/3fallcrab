@@ -1255,8 +1255,15 @@ function pollPad(now){
   }
   if (S.mode === "card" && S.card){
     if (!S.card.flip){
-      if (S.card.t < 450) return;   // a press meant for the last item, as the card came up
-      if (hit("x") || hit("y")) choose(S.card.order[hit("x") ? 0 : 1] === "w" ? "wise" : "risky");
+      if (S.card.t < 450){   // the card settles first, so a press meant for the falling item is not an answer
+        if (hit("x")) S.card.wantPick = 0; else if (hit("y")) S.card.wantPick = 1;   // ...but keep it, do not drop it
+        return;
+      }
+      let want = -1;
+      if (hit("x")) want = 0; else if (hit("y")) want = 1;
+      else if (S.card.wantPick === 0 || S.card.wantPick === 1) want = S.card.wantPick;   // the press buffered while it settled
+      S.card.wantPick = -1;
+      if (want >= 0) choose(S.card.order[want] === "w" ? "wise" : "risky");
       else { if (nav) padMove($("cardChoices"), nav); if (hit("a")) padPress($("cardChoices")); }
     } else if ((hit("a") || hit("b") || hit("start")) && S.card.t - S.card.flipAt >= 450) closeCard();
     else if (nav && S.card.powers){ const n = S.card.powers.length; pickPower((S.card.powers.indexOf(S.card.power) + (nav < 0 ? n - 1 : 1)) % n); }
