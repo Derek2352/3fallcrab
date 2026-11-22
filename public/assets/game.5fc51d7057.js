@@ -1527,6 +1527,7 @@ if (root.classList.contains("title")){ played = true; root.classList.remove("tit
 else if (fsOn && canBrowserFs() && !fsEl()){ enterBrowserFs(false); }
 played = true;
 if (BOOTH){ whoPicked = false; ssSet("tff_picked", ""); }
+cancelPostHold(S);
 flushRecord(S);
 S = newState(); S.camTop = camTarget(); makeEngine(); S.mode = "playing"; frenzyUI(); $("jpBan").hidden = true;
 takes++;
@@ -1656,8 +1657,8 @@ if (fromPrompt) fsApiBlocked = true;
 }
 function openFsModal(){
 const m = $("fsModal");
-if (!m || !m.hidden || !isGameActive() || !isNonFs() || fsDismissed || fsPending) return;
-if ($("igModal") && !$("igModal").hidden) return;
+if (!m || !m.hidden || !isGameActive() || !isNonFs() || fsDismissed || fsPending || sideways) return;
+if (($("igModal") && !$("igModal").hidden) || ($("holdModal") && !$("holdModal").hidden)) return;
 fsReturnTo = document.activeElement;
 keys.left = keys.right = false; softHeld = false;
 if (typeof drag !== "undefined") drag = null;
@@ -1686,7 +1687,7 @@ if (!quiet && wasPausedByUs && S && S.mode === "paused" && $("pauseOv").hidden){
 S.mode = "playing"; setPauseUI(); A.resume(); A.mode(musicMode()); $("board").focus({preventScroll: true});
 } else if (!quiet){
 if (S && S.mode === "card"){ A.resume(); A.mode("card"); }
-else if (S && S.mode === "offer"){ A.resume(); A.mode(musicMode()); }
+else if (S && S.mode === "offer"){ A.resume(); A.mode("card"); }
 const fb = !$("pauseOv").hidden ? $("resumeBtn") : !$("cardModal").hidden ? $("cardSheet") : !$("offerModal").hidden ? $("offerSheet") : null;
 const tgt = (back && back.isConnected && back.focus && !back.closest("[hidden]") && !back.closest("[inert]")) ? back : fb;
 if (tgt && tgt.focus) tgt.focus({preventScroll: true});
@@ -2096,6 +2097,7 @@ clearTimeout(boothTimer);
 if (!BOOTH || !S || (S.mode !== "over" && !(S.mode === "idle" && S.viewing))) return;
 boothTimer = setTimeout(() => {
 if (!S || (S.mode !== "over" && !(S.mode === "idle" && S.viewing))) return;
+cancelPostHold(S);
 closePadKb(false, true);
 $("endModal").hidden = true; $("seeOv").hidden = true; $("pickModal").hidden = true; $("rollModal").hidden = true;
 modalOpen(false);
@@ -2422,6 +2424,8 @@ const b = i => { const x = gp.buttons[i]; return !!x && (x.pressed || x.value > 
 const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0, rx0 = gp.axes[2] || 0, ry0 = gp.axes[3] || 0;
 return {a: b(0), b: b(1), x: b(2), y: b(3), lb: b(4), rb: b(5), lt: b(6), rt: b(7), sel: b(8), start: b(9),
 up: b(12) || ay < -0.6, down: b(13) || ay > 0.6, left: b(14) || ax < -0.5, right: b(15) || ax > 0.5,
+dup: b(12), ddown: b(13), dleft: b(14), dright: b(15),
+lx: Math.abs(ax) > 0.5 ? ax : 0, ly: Math.abs(ay) > 0.6 ? ay : 0,
 rx: Math.abs(rx0) > 0.22 ? rx0 : 0, ry: Math.abs(ry0) > 0.22 ? ry0 : 0};
 }
 const padTargets = box => [...box.querySelectorAll("button, input, a[href]")].filter(e =>
@@ -2473,7 +2477,7 @@ const r1 = row("qwertyuiop");
 const r2 = [...row("asdfghjkl"), isEmail ? { k: "@", label: "@" } : { k: "-", label: "-" }];
 const r3 = [...row("zxcvbnm"), ...(isEmail ? [{ k: ".", label: "." }, { k: "_", label: "_" }, { k: "-", label: "-" }] : [{ k: ".", label: "." }, { k: "!", label: "!" }, { k: "?", label: "?" }])];
 const r4 = isEmail
-? [{ id: "shift", label: "Aa", cls: "wide" + (shift ? " on" : "") }, { k: "@hsu.edu.hk", label: "@hsu.edu.hk", cls: "wide" }, { k: "@gmail.com", label: "@gmail.com", cls: "wide" }, { id: "del", label: "⌫", cls: "act wide" }, { id: "done", label: "Done ✓", cls: "ok wide" }]
+? [{ id: "shift", label: "Aa", cls: "wide" + (shift ? " on" : "") }, { k: "@hsu.edu.hk", label: "@hsu.edu.hk", cls: "dom" }, { k: "@gmail.com", label: "@gmail.com", cls: "dom" }, { id: "del", label: "⌫", cls: "act wide" }, { id: "done", label: "Done ✓", cls: "ok wide" }]
 : [{ id: "shift", label: "Aa", cls: "wide" + (shift ? " on" : "") }, { id: "space", label: "Space", cls: "wide" }, { id: "del", label: "⌫", cls: "act wide" }, { id: "done", label: "Done ✓", cls: "ok wide" }];
 return [r0, r1, r2, r3, r4];
 }
@@ -2613,7 +2617,12 @@ if (!gp || !S) return;
 if (Object.keys(cur).some(hit)){ root.classList.add("padnav"); A.unlock(); }
 if (hit("sel")) toggleMute();
 if ($("padKbModal") && !$("padKbModal").hidden){
-const dr = cur.up ? -1 : cur.down ? 1 : 0, dc = cur.left ? -1 : cur.right ? 1 : 0;
+let dr = cur.dup ? -1 : cur.ddown ? 1 : 0, dc = cur.dleft ? -1 : cur.dright ? 1 : 0;
+if (!dr && !dc && (cur.up || cur.down || cur.left || cur.right)){
+if (Math.abs(cur.lx) > Math.abs(cur.ly)) dc = cur.lx < 0 ? -1 : 1;
+else if (cur.ly) dr = cur.ly < 0 ? -1 : 1;
+else { dr = cur.up ? -1 : cur.down ? 1 : 0; dc = cur.left ? -1 : cur.right ? 1 : 0; }
+}
 if ((dr || dc) && (hit("up") || hit("down") || hit("left") || hit("right"))){ padKbMove(dr, dc); GP.kbRepAt = now + 340; }
 else if ((dr || dc) && now >= GP.kbRepAt){ padKbMove(dr, dc); GP.kbRepAt = now + 110; }
 if (hit("a")){
@@ -2838,21 +2847,25 @@ st.textContent = done ? "Link copied. Paste it in your browser. 已複製，貼�
 if (done) A.sfx("uiDone");
 });
 let soundHintT = 0;
+const SOUND_EVS = ["pointerdown", "pointerup", "touchend", "keydown", "click"];
+function detachFirstSound(){
+for (const ev of SOUND_EVS) document.removeEventListener(ev, firstSound, {capture: true});
+}
 function firstSound(e){
 A.unlock();
 const t = e && e.type;
 if (audioOn){
-if (t === "click" || t === "keydown"){ clearTimeout(soundHintT); soundHint(); }
-else if (t === "pointerup" || t === "touchend"){ clearTimeout(soundHintT); soundHintT = setTimeout(soundHint, 0); }
+if (t === "click" || t === "keydown" || !t){ clearTimeout(soundHintT); soundHint(); detachFirstSound(); }
+else if (t === "pointerup" || t === "touchend"){ clearTimeout(soundHintT); soundHintT = setTimeout(() => { soundHint(); detachFirstSound(); }, 0); }
 return;
 }
 audioOn = true;
-if (t === "pointerup" || t === "touchend"){ clearTimeout(soundHintT); soundHintT = setTimeout(soundHint, 0); }
-else if (t !== "pointerdown") soundHint();
+if (t === "pointerup" || t === "touchend"){ clearTimeout(soundHintT); soundHintT = setTimeout(() => { soundHint(); detachFirstSound(); }, 0); }
+else if (t !== "pointerdown"){ soundHint(); detachFirstSound(); }
 if ((!S || S.mode !== "playing") && !(window.TFF_INTRO && TFF_INTRO.on())) menuMusic();
 }
 function menuMusic(){ A.stage(0); A.mode("menu"); A.start(); }
-for (const ev of ["pointerdown", "pointerup", "touchend", "keydown", "click"]) document.addEventListener(ev, firstSound, {capture: true, passive: true});
+for (const ev of SOUND_EVS) document.addEventListener(ev, firstSound, {capture: true, passive: true});
 soundHint(); iabTip();
 window.TFF_ART = {sound: firstSound, music: () => { if (audioOn && (!S || S.mode !== "playing")) menuMusic(); if (!played && IAB && !ssGet("tff_iab_x")) setTimeout(() => { if (!played && (!S || S.mode === "idle")) iabTip(); }, 650); }, fs: () => { if (fsOn) enterBrowserFs(); }};
 setTimeout(resize, 800);
@@ -2882,7 +2895,7 @@ S.replay = { t0: performance.now(), dur: Math.min(3200, Math.max(1200, bodies.le
 S.camTop = camBase();
 A.sfx("uiSelect"); needDraw = true;
 });
-$("closeEnd").addEventListener("click", () => { A.sfx("uiClose"); endScroll = $("stScroll").scrollTop; $("endModal").hidden = true; modalOpen(false); S.viewing = true; S.mode = "idle"; S.queue = []; S.hold = null; drawPreviews(true); $("seeOv").hidden = false; setPauseUI(); $("againBtn2").hidden = !S.flowDone; ($("againBtn2").hidden ? $("resultsBtn") : $("againBtn2")).focus(); if (S.overKey) quip(S.overKey, 3); });
+$("closeEnd").addEventListener("click", () => { cancelPostHold(S); A.sfx("uiClose"); endScroll = $("stScroll").scrollTop; $("endModal").hidden = true; modalOpen(false); S.viewing = true; S.mode = "idle"; S.queue = []; S.hold = null; drawPreviews(true); $("seeOv").hidden = false; setPauseUI(); $("againBtn2").hidden = !S.flowDone; ($("againBtn2").hidden ? $("resultsBtn") : $("againBtn2")).focus(); if (S.overKey) quip(S.overKey, 3); });
 $("againBtn2").addEventListener("click", () => { whoPicked = false; newLife(); });
 cv.tabIndex = 0;
 const ctx = cv.getContext("2d", {alpha: false});
@@ -3871,7 +3884,20 @@ else if (avTick % 20 === 0 && typeof syncPadConnected === "function") syncPadCon
 if (++avTick % 8 === 0) updateAvatar();
 if (S){
 const side = SIDEWAYS.matches && (S.mode === "playing" || S.mode === "paused" || S.mode === "card" || S.mode === "offer");
-if (side !== sideways){ sideways = side; $("turnOv").hidden = !side; if (side) fitLine(document.querySelector("#turnOv h2")); if (side && S.mode === "playing") togglePause(); }
+if (side !== sideways){
+sideways = side; $("turnOv").hidden = !side;
+if (side){
+if ($("fsModal") && !$("fsModal").hidden){
+const fsPaused = fsPausedGame;
+closeFsModal("quiet");
+if (fsPaused && S.mode === "paused" && $("pauseOv").hidden){ $("pauseOv").hidden = false; pauseInert(true); }
+}
+fitLine(document.querySelector("#turnOv h2"));
+if (S.mode === "playing") togglePause();
+} else {
+syncFsPrompt();
+}
+}
 const fsHeld = $("fsModal") && !$("fsModal").hidden;
 let live = false;
 if (S.mode === "card" && S.card){
@@ -3936,7 +3962,18 @@ next.classList.toggle("alt", n === 3 && !posted);
 label(next, n === 3 ? (posted ? ["See my card", "睇結果卡"] : ["Skip posting", "唔上榜"]) : ["Next", "下一步"]);
 $("surveyGate").textContent = n === 2 && !surveyDone() ? "Answer all 3 questions and pick a habit to go on. 答晒3題同揀一個習慣，先可以繼續。" : "";
 }
+function cancelPostHold(st = S) {
+if (!st || !st.holdWaiting) return;
+clearTimeout(st.holdTimer); st.holdTimer = 0;
+st.holdWaiting = false; st.posting = false;
+if (st === S && !st.posted) {
+$("postBtn").removeAttribute("aria-disabled");
+postLabel("Post score", "上榜");
+const ps = $("postStatus"); ps.className = "post-status"; ps.textContent = "";
+}
+}
 function setStep(n, focus) {
+if (n !== 3) cancelPostHold(S);
 if (S.step && n !== S.step) A.sfx(n > S.step ? "uiNext" : "uiBack");
 S.step = n; if (n === 4) S.flowDone = true;
 const sheet = document.querySelector("#endModal .statement"); sheet.dataset.step = n;
@@ -4090,7 +4127,8 @@ if (typeof window.qrcode === "function") return Promise.resolve(window.qrcode);
 if (qrP) return qrP;
 qrP = new Promise(res => {
 const sc = document.createElement("script"); sc.src = "/vendor/qrcode-1.4.4.js"; sc.async = true;
-sc.onload = () => res(window.qrcode || null); sc.onerror = () => res(null);
+sc.onload = () => res(window.qrcode || null);
+sc.onerror = () => { qrP = null; sc.remove(); res(null); };
 document.head.appendChild(sc);
 });
 return qrP;
@@ -4196,11 +4234,14 @@ $("shareImg").addEventListener("click", () => exportResult(true));
 const verdictOf = st => CORE.verdictOf(st, TITLES, STAGES.length);
 let medalP = null;
 function loadMedal() {
+if (window.TFF_MEDAL3D) return Promise.resolve(window.TFF_MEDAL3D);
 if (medalP) return medalP;
 const src = (document.querySelector('meta[name="tff-medal3d"]') || {}).content;
-medalP = !src || /%%/.test(src) ? Promise.resolve(null) : new Promise(res => {
+if (!src || /%%/.test(src)) return Promise.resolve(null);
+medalP = new Promise(res => {
 const sc = document.createElement("script"); sc.src = src; sc.async = true;
-sc.onload = () => res(window.TFF_MEDAL3D || null); sc.onerror = () => res(null);
+sc.onload = () => res(window.TFF_MEDAL3D || null);
+sc.onerror = () => { medalP = null; sc.remove(); res(null); };
 document.head.appendChild(sc);
 });
 return medalP;
@@ -4709,17 +4750,20 @@ return;
 }
 if (e.status === 429 && (e.onHold || !e.retryAfter || e.retryAfter <= 10) && (st.holdRetries || 0) < 2) {
 st.holdRetries = (st.holdRetries || 0) + 1;
+st.holdWaiting = true;
 btn.setAttribute("aria-disabled", "true");
 let left = Math.max(1, Math.min(10, e.retryAfter || 3));
 const tickHold = () => {
-if (st !== S || !st.posting) return;
-if (left <= 0) { st.posting = false; btn.click(); return; }
+if (st !== S || !st.posting || !st.holdWaiting || S.step !== 3 || $("endModal").hidden) {
+st.holdWaiting = false; st.holdTimer = 0; return;
+}
+if (left <= 0) { st.holdWaiting = false; st.holdTimer = 0; st.posting = false; btn.click(); return; }
 postLabel(`On hold (${left}s)…`, `排隊中 (${left}秒)…`);
 ps.className = "post-status";
 ps.textContent = `High traffic — holding your spot in line, auto-posting in ${left}s… 太多人同時上榜，系統正自動為你排隊（${left}秒後自動上載）…`;
 showStatus();
 left--;
-setTimeout(tickHold, 1000);
+st.holdTimer = setTimeout(tickHold, 1000);
 };
 tickHold();
 return;
@@ -4865,6 +4909,7 @@ const TOWER = [["lunchbox", 152.06, -21.076, -0.0027, 52], ["textbooks", 261.858
 ["piggybank", 281.871, -76.162, 0.0083, 62], ["handbag", 224.615, -131.694, -0.0968, 52]];
 function sampleTower() {
 S = newState(); makeEngine();
+const fallback = DEFS.filter(d => d.kind !== "debt");
 const pick = id => DEFS.find(d => d.id === id);
 const points = b => b.parts.reduce((s, q, i) => s + (i || b.parts.length === 1 ? q.vertices.length : 0), 0);
 const placed = TOWER.every(([id, x, y, a, n]) => {
@@ -4876,7 +4921,6 @@ if (!placed) {
 for (const b of engine.world.bodies.slice()) if (b.tff) Composite.remove(engine.world, b);
 const plan = [["lunchbox", -70, -26], ["textbooks", 42, -24], ["steamer", -40, -70], ["piggybank", 60, -75], ["calculator", -80, -120],
 ["handbag", 10, -125], ["bubbletea", 80, -140], ["football", -30, -175], ["passbook", 40, -190]];
-const fallback = DEFS.filter(d => d.kind !== "debt");
 plan.forEach(([id, x, y], i) => {
 const def = pick(id) || fallback[i % fallback.length]; if (!def) return;
 addItem(def, W / 2 + x, y, false); for (let s = 0; s < 45; s++) Engine.update(engine, STEP);

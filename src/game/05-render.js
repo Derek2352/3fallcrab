@@ -1082,7 +1082,20 @@ function frameBody(now){
   if (++avTick % 8 === 0) updateAvatar();
   if (S){
     const side = SIDEWAYS.matches && (S.mode === "playing" || S.mode === "paused" || S.mode === "card" || S.mode === "offer");
-    if (side !== sideways){ sideways = side; $("turnOv").hidden = !side; if (side) fitLine(document.querySelector("#turnOv h2")); if (side && S.mode === "playing") togglePause(); }
+    if (side !== sideways){
+      sideways = side; $("turnOv").hidden = !side;
+      if (side){
+        if ($("fsModal") && !$("fsModal").hidden){
+          const fsPaused = fsPausedGame;
+          closeFsModal("quiet");
+          if (fsPaused && S.mode === "paused" && $("pauseOv").hidden){ $("pauseOv").hidden = false; pauseInert(true); }
+        }
+        fitLine(document.querySelector("#turnOv h2"));
+        if (S.mode === "playing") togglePause();
+      } else {
+        syncFsPrompt();
+      }
+    }
     const fsHeld = $("fsModal") && !$("fsModal").hidden;
     let live = false;
     if (S.mode === "card" && S.card){

@@ -9,6 +9,7 @@ function startGame(){
   else if (fsOn && canBrowserFs() && !fsEl()){ enterBrowserFs(false); }
   played = true;
   if (BOOTH){ whoPicked = false; ssSet("tff_picked", ""); }
+  cancelPostHold(S);
   flushRecord(S);   // the last game's quiz answers or habit may still be waiting to be saved
   S = newState(); S.camTop = camTarget(); makeEngine(); S.mode = "playing"; frenzyUI(); $("jpBan").hidden = true;
   takes++;   // the slate's TAKE: this visit's game number
@@ -151,8 +152,8 @@ function enterBrowserFs(fromPrompt){   // the browser's own full screen (needs a
 }
 function openFsModal(){
   const m = $("fsModal");
-  if (!m || !m.hidden || !isGameActive() || !isNonFs() || fsDismissed || fsPending) return;
-  if ($("igModal") && !$("igModal").hidden) return;
+  if (!m || !m.hidden || !isGameActive() || !isNonFs() || fsDismissed || fsPending || sideways) return;
+  if (($("igModal") && !$("igModal").hidden) || ($("holdModal") && !$("holdModal").hidden)) return;
   fsReturnTo = document.activeElement;
   keys.left = keys.right = false; softHeld = false;
   if (typeof drag !== "undefined") drag = null;
@@ -181,7 +182,7 @@ function closeFsModal(reason){
     S.mode = "playing"; setPauseUI(); A.resume(); A.mode(musicMode()); $("board").focus({preventScroll: true});
   } else if (!quiet){
     if (S && S.mode === "card"){ A.resume(); A.mode("card"); }
-    else if (S && S.mode === "offer"){ A.resume(); A.mode(musicMode()); }
+    else if (S && S.mode === "offer"){ A.resume(); A.mode("card"); }
     const fb = !$("pauseOv").hidden ? $("resumeBtn") : !$("cardModal").hidden ? $("cardSheet") : !$("offerModal").hidden ? $("offerSheet") : null;
     const tgt = (back && back.isConnected && back.focus && !back.closest("[hidden]") && !back.closest("[inert]")) ? back : fb;
     if (tgt && tgt.focus) tgt.focus({preventScroll: true});
@@ -610,6 +611,7 @@ function bumpBooth(){
   if (!BOOTH || !S || (S.mode !== "over" && !(S.mode === "idle" && S.viewing))) return;
   boothTimer = setTimeout(() => {
     if (!S || (S.mode !== "over" && !(S.mode === "idle" && S.viewing))) return;
+    cancelPostHold(S);
     closePadKb(false, true);
     $("endModal").hidden = true; $("seeOv").hidden = true; $("pickModal").hidden = true; $("rollModal").hidden = true;
     modalOpen(false);
@@ -959,6 +961,8 @@ function padState(gp){
   const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0, rx0 = gp.axes[2] || 0, ry0 = gp.axes[3] || 0;
   return {a: b(0), b: b(1), x: b(2), y: b(3), lb: b(4), rb: b(5), lt: b(6), rt: b(7), sel: b(8), start: b(9),
     up: b(12) || ay < -0.6, down: b(13) || ay > 0.6, left: b(14) || ax < -0.5, right: b(15) || ax > 0.5,
+    dup: b(12), ddown: b(13), dleft: b(14), dright: b(15),
+    lx: Math.abs(ax) > 0.5 ? ax : 0, ly: Math.abs(ay) > 0.6 ? ay : 0,
     rx: Math.abs(rx0) > 0.22 ? rx0 : 0, ry: Math.abs(ry0) > 0.22 ? ry0 : 0};
 }
 const padTargets = box => [...box.querySelectorAll("button, input, a[href]")].filter(e =>
@@ -1011,7 +1015,7 @@ function padKbLayout(isEmail, shift){
   const r2 = [...row("asdfghjkl"), isEmail ? { k: "@", label: "@" } : { k: "-", label: "-" }];
   const r3 = [...row("zxcvbnm"), ...(isEmail ? [{ k: ".", label: "." }, { k: "_", label: "_" }, { k: "-", label: "-" }] : [{ k: ".", label: "." }, { k: "!", label: "!" }, { k: "?", label: "?" }])];
   const r4 = isEmail
-    ? [{ id: "shift", label: "Aa", cls: "wide" + (shift ? " on" : "") }, { k: "@hsu.edu.hk", label: "@hsu.edu.hk", cls: "wide" }, { k: "@gmail.com", label: "@gmail.com", cls: "wide" }, { id: "del", label: "⌫", cls: "act wide" }, { id: "done", label: "Done ✓", cls: "ok wide" }]
+    ? [{ id: "shift", label: "Aa", cls: "wide" + (shift ? " on" : "") }, { k: "@hsu.edu.hk", label: "@hsu.edu.hk", cls: "dom" }, { k: "@gmail.com", label: "@gmail.com", cls: "dom" }, { id: "del", label: "⌫", cls: "act wide" }, { id: "done", label: "Done ✓", cls: "ok wide" }]
     : [{ id: "shift", label: "Aa", cls: "wide" + (shift ? " on" : "") }, { id: "space", label: "Space", cls: "wide" }, { id: "del", label: "⌫", cls: "act wide" }, { id: "done", label: "Done ✓", cls: "ok wide" }];
   return [r0, r1, r2, r3, r4];
 }
@@ -1152,7 +1156,12 @@ function pollPad(now){
   if (Object.keys(cur).some(hit)){ root.classList.add("padnav"); A.unlock(); }
   if (hit("sel")) toggleMute();
   if ($("padKbModal") && !$("padKbModal").hidden){
-    const dr = cur.up ? -1 : cur.down ? 1 : 0, dc = cur.left ? -1 : cur.right ? 1 : 0;
+    let dr = cur.dup ? -1 : cur.ddown ? 1 : 0, dc = cur.dleft ? -1 : cur.dright ? 1 : 0;
+    if (!dr && !dc && (cur.up || cur.down || cur.left || cur.right)){
+      if (Math.abs(cur.lx) > Math.abs(cur.ly)) dc = cur.lx < 0 ? -1 : 1;
+      else if (cur.ly) dr = cur.ly < 0 ? -1 : 1;
+      else { dr = cur.up ? -1 : cur.down ? 1 : 0; dc = cur.left ? -1 : cur.right ? 1 : 0; }
+    }
     if ((dr || dc) && (hit("up") || hit("down") || hit("left") || hit("right"))){ padKbMove(dr, dc); GP.kbRepAt = now + 340; }
     else if ((dr || dc) && now >= GP.kbRepAt){ padKbMove(dr, dc); GP.kbRepAt = now + 110; }
     if (hit("a")){
@@ -1389,21 +1398,25 @@ $("iabCopy").addEventListener("click", async () => {
   if (done) A.sfx("uiDone");
 });
 let soundHintT = 0;
+const SOUND_EVS = ["pointerdown", "pointerup", "touchend", "keydown", "click"];
+function detachFirstSound(){
+  for (const ev of SOUND_EVS) document.removeEventListener(ev, firstSound, {capture: true});
+}
 function firstSound(e){
   A.unlock();
   const t = e && e.type;
   if (audioOn){
-    if (t === "click" || t === "keydown"){ clearTimeout(soundHintT); soundHint(); }
-    else if (t === "pointerup" || t === "touchend"){ clearTimeout(soundHintT); soundHintT = setTimeout(soundHint, 0); }
+    if (t === "click" || t === "keydown" || !t){ clearTimeout(soundHintT); soundHint(); detachFirstSound(); }
+    else if (t === "pointerup" || t === "touchend"){ clearTimeout(soundHintT); soundHintT = setTimeout(() => { soundHint(); detachFirstSound(); }, 0); }
     return;
   }
   audioOn = true;
-  if (t === "pointerup" || t === "touchend"){ clearTimeout(soundHintT); soundHintT = setTimeout(soundHint, 0); }
-  else if (t !== "pointerdown") soundHint();
+  if (t === "pointerup" || t === "touchend"){ clearTimeout(soundHintT); soundHintT = setTimeout(() => { soundHint(); detachFirstSound(); }, 0); }
+  else if (t !== "pointerdown"){ soundHint(); detachFirstSound(); }
   if ((!S || S.mode !== "playing") && !(window.TFF_INTRO && TFF_INTRO.on())) menuMusic();   // the opening film has its own score
 }
 function menuMusic(){ A.stage(0); A.mode("menu"); A.start(); }
-for (const ev of ["pointerdown", "pointerup", "touchend", "keydown", "click"]) document.addEventListener(ev, firstSound, {capture: true, passive: true});
+for (const ev of SOUND_EVS) document.addEventListener(ev, firstSound, {capture: true, passive: true});
 soundHint(); iabTip();
 window.TFF_ART = {sound: firstSound, music: () => { if (audioOn && (!S || S.mode !== "playing")) menuMusic(); if (!played && IAB && !ssGet("tff_iab_x")) setTimeout(() => { if (!played && (!S || S.mode === "idle")) iabTip(); }, 650); }, fs: () => { if (fsOn) enterBrowserFs(); }};   // for the opening film (src/intro.js)
 setTimeout(resize, 800);   // an app's browser may settle its bars after the page loads
@@ -1434,7 +1447,7 @@ $("replayBtn").addEventListener("click", () => {
   S.camTop = camBase();
   A.sfx("uiSelect"); needDraw = true;
 });
-$("closeEnd").addEventListener("click", () => { A.sfx("uiClose"); endScroll = $("stScroll").scrollTop; $("endModal").hidden = true; modalOpen(false); S.viewing = true; S.mode = "idle"; S.queue = []; S.hold = null; drawPreviews(true); $("seeOv").hidden = false; setPauseUI(); $("againBtn2").hidden = !S.flowDone; ($("againBtn2").hidden ? $("resultsBtn") : $("againBtn2")).focus(); if (S.overKey) quip(S.overKey, 3); });
+$("closeEnd").addEventListener("click", () => { cancelPostHold(S); A.sfx("uiClose"); endScroll = $("stScroll").scrollTop; $("endModal").hidden = true; modalOpen(false); S.viewing = true; S.mode = "idle"; S.queue = []; S.hold = null; drawPreviews(true); $("seeOv").hidden = false; setPauseUI(); $("againBtn2").hidden = !S.flowDone; ($("againBtn2").hidden ? $("resultsBtn") : $("againBtn2")).focus(); if (S.overKey) quip(S.overKey, 3); });
 $("againBtn2").addEventListener("click", () => { whoPicked = false; newLife(); });
 cv.tabIndex = 0;
 

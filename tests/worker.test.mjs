@@ -306,3 +306,71 @@ test("withLoadSlot transfers slots atomically without overshooting MAX_CONCURREN
     resetCaches();
   }
 });
+
+test("WaitingRoom memo in board() isolates per-client onHold and respects lease state", async () => {
+  resetCaches();
+  const { WaitingRoom } = await import("../server/worker.js");
+  const db = makeDB();
+  const room = new WaitingRoom({ storage: { get: async () => false, put: async () => {} } }, { QUEUE_CAPACITY: "1" });
+  const env = {
+    DB: db,
+    QUEUE_CAPACITY: "1",
+    WAITING_ROOM: { idFromName: (n) => n, get: () => room },
+  };
+  try {
+    const a1 = await (await handle(new Request("https://game.test/api/scores", { headers: { "x-client-id": "memo_a" } }), env)).json();
+    assert.equal(a1.onHold, false, "First client should obtain the 1 active lease");
+
+    const b1 = await (await handle(new Request("https://game.test/api/scores", { headers: { "x-client-id": "memo_b" } }), env)).json();
+    assert.equal(b1.onHold, true, "Second client within 2s must not inherit memo_a's onHold: false");
+
+    const a2 = await (await handle(new Request("https://game.test/api/scores", { headers: { "x-client-id": "memo_a" } }), env)).json();
+    assert.equal(a2.onHold, false, "Leased memo_a within 2s must not inherit memo_b's onHold: true");
+
+    const anon = await (await handle(new Request("https://game.test/api/scores"), env)).json();
+    assert.equal(anon.onHold, true, "Anonymous client with no lease must see onHold: true at full capacity");
+  } finally {
+    resetCaches();
+  }
+});
+
+test("untrusted ?hold=1 on /api/queue cannot force-hold or exhaust capacity", async () => {
+  resetCaches();
+  const db = makeDB();
+  const env = { DB: db, QUEUE_CAPACITY: "5" };
+  try {
+    const r = await handle(new Request("https://game.test/api/queue?cid=q1&hold=1"), env);
+    assert.equal(r.status, 200);
+    const j = await r.json();
+    assert.equal(j.onHold, false);
+    assert.equal(j.forceHold, false);
+  } finally {
+    resetCaches();
+  }
+});
+
+test("QUEUE_PER_NET caps active leases per network without blocking other networks", async () => {
+  resetCaches();
+  const db = makeDB();
+  const env = { DB: db, QUEUE_CAPACITY: "10", QUEUE_PER_NET: "2" };
+  const ip1 = { "cf-connecting-ip": "203.0.113.10" };
+  const ip2 = { "cf-connecting-ip": "203.0.113.99" };
+  try {
+    const c1 = await (await handle(new Request("https://game.test/api/queue?cid=net_c1", { headers: ip1 }), env)).json();
+    const c2 = await (await handle(new Request("https://game.test/api/queue?cid=net_c2", { headers: ip1 }), env)).json();
+    const c3 = await (await handle(new Request("https://game.test/api/queue?cid=net_c3", { headers: ip1 }), env)).json();
+    const s4 = await (await handle(new Request("https://game.test/api/scores", { headers: { ...ip1, "x-client-id": "net_c4" } }), env)).json();
+    assert.equal(c1.onHold, false);
+    assert.equal(c2.onHold, false);
+    assert.equal(c3.onHold, true, "3rd visitor from same IP should be held at QUEUE_PER_NET=2");
+    assert.ok(c3.retryAfter > 0);
+    assert.equal(s4.onHold, true, "board() from capped IP without existing lease should report onHold: true");
+
+    const o1 = await (await handle(new Request("https://game.test/api/queue?cid=other_1", { headers: ip2 }), env)).json();
+    const o2 = await (await handle(new Request("https://game.test/api/scores", { headers: { ...ip2, "x-client-id": "other_2" } }), env)).json();
+    assert.equal(o1.onHold, false, "Different IP must not be blocked when first IP hits QUEUE_PER_NET");
+    assert.equal(o2.onHold, false);
+  } finally {
+    resetCaches();
+  }
+});

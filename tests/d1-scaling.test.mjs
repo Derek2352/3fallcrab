@@ -446,3 +446,35 @@ test("50,000-row summary() benchmark achieves >= 3x speedup on ALL and WEEK with
     dbNew.close();
   }
 });
+
+test("cold-start ensureSchema() uses schema_meta fast path (1 read, 0 DDL) and adds sil to legacy scores tables", async () => {
+  const migration0001 = readFileSync(new URL("../migrations/0001_create_scores.sql", import.meta.url), "utf8");
+  assert.match(migration0001, /\bsil\s+TEXT\b/i, "migrations/0001_create_scores.sql should include sil column");
+
+  const dbLegacy = makeSqliteDB({ migrations: "0001" });
+  const dbMigrated = makeSqliteDB({ migrations: "0001+0002" });
+  try {
+    dbLegacy._raw.exec("ALTER TABLE scores DROP COLUMN sil;");
+    const resLegacy = await handle(new Request("https://game.test/api/scores"), { DB: dbLegacy });
+    assert.equal(resLegacy.status, 200);
+    const cols = dbLegacy._raw.prepare("PRAGMA table_info(scores)").all().map((r) => r.name);
+    assert.ok(cols.includes("sil"), "ensureSchema() must backfill missing sil column on legacy tables");
+
+    const warm = await handle(new Request("https://game.test/api/scores"), { DB: dbMigrated });
+    assert.equal(warm.status, 200);
+
+    const sqls = [];
+    const coldDb = {
+      prepare: (sql) => { sqls.push(sql); return dbMigrated.prepare(sql); },
+      batch: (list) => dbMigrated.batch(list),
+    };
+    const cold = await handle(new Request("https://game.test/api/scores"), { DB: coldDb });
+    assert.equal(cold.status, 200);
+    assert.equal(sqls.filter((s) => /\bschema_meta\b/i.test(s)).length, 1, "cold start should read schema_meta once");
+    const ddlOrPragma = sqls.filter((s) => /^\s*(CREATE|ALTER|PRAGMA)\b|sqlite_master/i.test(s));
+    assert.deepEqual(ddlOrPragma, [], "cold start after schema_meta match must execute 0 DDL/PRAGMA queries");
+  } finally {
+    dbLegacy.close();
+    dbMigrated.close();
+  }
+});

@@ -1,5 +1,5 @@
-const CACHE = "tff-3a7aead38036";
-const PRECACHE = ["/","/manifest.webmanifest","/icons/favicon-32.png","/icons/icon-192.png","/icons/icon-512.png","/icons/icon-maskable-512.png","/icons/apple-touch-icon.png","/assets/style.aecb6319c1.css","/assets/matter-0.19.0.min.d9be33d851.js","/assets/prelude.552885b01c.js","/assets/game.964f45a3c5.js","/assets/intro.90d95fea3c.js","/assets/cast.1b7cde7a64.webp","/assets/ig-qr.2820d8257a.webp","/assets/gluten.5b0fb221b0.woff2","/assets/lxgw-wenkai-tc-bold.f007afccdf.woff2","/assets/lxgw-wenkai-tc-regular.e468588c35.woff2","/assets/noto-sans-hk.ef21e72e0e.woff2","/assets/source-sans-punct-400.f1e8c6c73b.woff2","/assets/source-sans-punct-700.54c4ee4dfe.woff2","/assets/source-sans-punct-900.622c4a765b.woff2"];
+const CACHE = "tff-561f2f9dc574";
+const PRECACHE = ["/","/manifest.webmanifest","/icons/favicon-32.png","/icons/icon-192.png","/vendor/qrcode-1.4.4.js","/assets/style.cde8c6ddc6.css","/assets/matter-0.19.0.min.d9be33d851.js","/assets/prelude.552885b01c.js","/assets/game.5fc51d7057.js","/assets/intro.90d95fea3c.js","/assets/cast.1b7cde7a64.webp","/assets/gluten.5b0fb221b0.woff2","/assets/lxgw-wenkai-tc-bold.f007afccdf.woff2","/assets/lxgw-wenkai-tc-regular.e468588c35.woff2","/assets/noto-sans-hk.ef21e72e0e.woff2","/assets/source-sans-punct-400.f1e8c6c73b.woff2","/assets/source-sans-punct-700.54c4ee4dfe.woff2","/assets/source-sans-punct-900.622c4a765b.woff2"];
 self.addEventListener("install", (event) => {
 event.waitUntil(
 caches.open(CACHE)

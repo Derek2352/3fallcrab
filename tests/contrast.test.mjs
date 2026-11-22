@@ -13,7 +13,7 @@ const indexHtml = readFileSync(join(root, "src/index.html"), "utf8");
 const renderText = readFileSync(join(root, "src/game/05-render.js"), "utf8");
 const eventsText = readFileSync(join(root, "src/game/03-events.js"), "utf8");
 const adminHtml = readFileSync(join(root, "src/static/admin.html"), "utf8");
-const adminJs = readFileSync(join(root, "src/static/admin.js"), "utf8");
+const adminJs = readFileSync(join(root, "src/admin.js"), "utf8");
 
 // ---------- WCAG 2.1 sRGB color math ----------
 function parseColor(str) {

@@ -116,12 +116,12 @@ if ([...hashed.keys()].some((p) => p.endsWith(".woff2"))) asset("fonts/OFL.txt")
 if (existsSync(join(src, "sw.js"))) {
   const coreAssets = [
     "style.css", "vendor/matter-0.19.0.min.js", "prelude.js", "game.js", "intro.js",
-    "art/cast.webp", "art/ig-qr.webp",
+    "art/cast.webp",
   ];
   const fontAssets = [...hashed.entries()].filter(([k]) => k.endsWith(".woff2")).map(([, v]) => v).sort();
   const precache = [
     "/", "/manifest.webmanifest",
-    "/icons/favicon-32.png", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/icon-maskable-512.png", "/icons/apple-touch-icon.png",
+    "/icons/favicon-32.png", "/icons/icon-192.png", "/vendor/qrcode-1.4.4.js",
     ...coreAssets.map((k) => hashed.get(k)).filter(Boolean),
     ...fontAssets,
   ];

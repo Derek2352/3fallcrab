@@ -301,8 +301,10 @@ test("A11y 2: #pickModal, #rollModal (close buttons + Escape focus restore), and
     await ctx.waitFor(() => document.getElementById("rollModal").hidden);
     assert.equal((await activeInfo(ctx)).id, "startBtn");
 
-    // Reopen #rollModal -> roll -> start game -> focus on #board
+    // Reopen #pickModal -> #pickGo -> #rollModal -> roll -> start game -> focus on #board
     await pressEnter(ctx);
+    await ctx.waitFor(() => !document.getElementById("pickModal").hidden);
+    await ctx.click("#pickGo");
     await ctx.waitFor(() => !document.getElementById("rollModal").hidden);
     await ctx.evalJs("document.getElementById('rollGo').focus()");
     await pressSpace(ctx);
@@ -564,6 +566,8 @@ test("A11y 3: #cardModal flip aria-labelledby & ocPowerRow sync, #offerModal, #r
     assert.equal((await activeInfo(ctx)).id, "againBtn2");
 
     await pressEnter(ctx);
+    await ctx.waitFor(() => !document.getElementById("pickModal").hidden);
+    await ctx.click("#pickGo");
     await ctx.waitFor(() => !document.getElementById("rollModal").hidden);
     await ctx.pressKey("Escape", "Escape", 27);
     await ctx.waitFor(() => document.getElementById("rollModal").hidden);
@@ -642,8 +646,10 @@ test("A11y 3: #cardModal flip aria-labelledby & ocPowerRow sync, #offerModal, #r
     await boothCtx.waitFor(() => document.getElementById("rollModal").hidden && !document.getElementById("endModal").hidden);
     assert.equal((await activeInfo(boothCtx)).id, "againBtn");
 
-    // #againBtn (whoPicked is now true) -> #rollModal -> #rollClose -> restores #endModal & #againBtn
+    // #againBtn -> #pickModal -> #pickGo -> #rollModal -> #rollClose -> restores #endModal & #againBtn
     await pressEnter(boothCtx);
+    await boothCtx.waitFor(() => !document.getElementById("pickModal").hidden && document.getElementById("endModal").hidden);
+    await boothCtx.click("#pickGo");
     await boothCtx.waitFor(() => !document.getElementById("rollModal").hidden && document.getElementById("endModal").hidden);
     await boothCtx.sleep(350);
     await boothCtx.click("#rollClose");

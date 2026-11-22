@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS scores (
   mtype TEXT,                          -- the player's 4-letter money type, e.g. "SGPC" (earlier game pages; title replaced it)
   via TEXT,                            -- how the player arrived: 'c' = a friend's challenge link (newer game pages)
   title TEXT,                          -- the game's 稱號, an id from TITLES in src/content.js, e.g. "zero" (newer game pages)
+  sil TEXT,                            -- the finished tower's outline, for the ghost shown to the next player below (newer game pages)
   persona TEXT                         -- the type rolled before the game, family money + personality, e.g. "sub+grind" (newer game pages)
 );
 CREATE INDEX IF NOT EXISTS idx_scores_week ON scores (week, hidden, score DESC, id);

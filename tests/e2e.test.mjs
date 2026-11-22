@@ -658,7 +658,11 @@ test("E2E 6: controller/gamepad navigation across result page steps 1-4 and on-s
       const kbOpen = !document.getElementById("padKbModal").hidden && document.getElementById("endModal").inert;
       const keyCount = document.querySelectorAll("#padKbGrid .pk-key").length;
       window.__padTap(0);  // 'q'
-      window.__padTap(15); // right -> 'w'
+      window.__padSet([], [0.85, 0.65, 0, 0]); // diagonal left-stick: dominant X axis moves right to 'w' (not diagonal 's')
+      window.__advanceFrames(2, 50);
+      window.__padSet([], [0, 0, 0, 0]);
+      window.__advanceFrames(2, 50);
+      const diagKey = document.activeElement?.textContent || "";
       window.__padTap(0);  // 'w'
       window.__padTap(4);  // LB toggles shift
       window.__padTap(0);  // 'W'
@@ -674,10 +678,11 @@ test("E2E 6: controller/gamepad navigation across result page steps 1-4 and on-s
       const afterMail = { val: document.getElementById("email").value, activeId: document.activeElement?.id || "" };
 
       window.__padTap(0);  // A on #postBtn submits score
-      return { kbOpen, keyCount, afterNick, afterMail };
+      return { kbOpen, keyCount, diagKey, afterNick, afterMail };
     })()`);
     assert.equal(step3.kbOpen, true);
     assert.ok(step3.keyCount >= 40, "Expected full QWERTY controller keyboard grid");
+    assert.equal(step3.diagKey, "w", "Diagonal left-stick should follow dominant axis to 'w'");
     assert.equal(step3.afterNick.val, "qw");
     assert.equal(step3.afterNick.activeId, "email");
     assert.equal(step3.afterMail.val, "a@hsu.edu.hk");
@@ -704,6 +709,94 @@ test("E2E 6: controller/gamepad navigation across result page steps 1-4 and on-s
     assert.equal(step4.backVisible, true);
 
     assert.deepEqual(ctx.errors, [], "Unexpected gamepad result errors: " + ctx.errors.join(" | "));
+  } finally {
+    await ctx.close();
+  }
+});
+
+test("E2E 7: skipping Step 3 cancels pending 429 post auto-retry timer without ghost submission", async () => {
+  const FETCH_429_HOOK = `(() => {
+    window.__boardPostCalls = 0;
+    const origFetch = window.fetch.bind(window);
+    window.fetch = async (input, init) => {
+      const url = typeof input === "string" ? input : input?.url || "";
+      if (init && String(init.method || "GET").toUpperCase() === "POST" && url.includes("/api/scores")) {
+        try {
+          const parsed = JSON.parse(String(init.body || "{}"));
+          if (parsed && parsed.board) {
+            window.__boardPostCalls++;
+            return new Response(JSON.stringify({ ok: false, error: "busy", onHold: true, retryAfter: 2 }), {
+              status: 429,
+              headers: { "content-type": "application/json", "retry-after": "2", "x-on-hold": "1" },
+            });
+          }
+        } catch {}
+      }
+      return origFetch(input, init);
+    };
+  })();`;
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false } });
+  try {
+    await ctx.cdp("Page.addScriptToEvaluateOnNewDocument", { source: CLOCK_HOOK + "\n" + FETCH_429_HOOK });
+    await ctx.goto(`${srv.baseUrl}/?intro=0&roll=0`);
+    await ctx.waitFor(() => !document.getElementById("startBtn").hidden);
+    await ctx.click("#startBtn");
+    await ctx.waitFor(() => !document.getElementById("pickModal").hidden);
+    await ctx.evalJs("window.__enableSimClock()");
+    await ctx.click("#pickGo");
+    await ctx.waitFor(() => document.getElementById("pickModal").hidden && document.getElementById("startOv").hidden && window.__simReady());
+
+    for (let i = 0; i < 240; i++) {
+      if (await ctx.evalJs("!document.getElementById('endModal').hidden")) break;
+      const st = await ctx.evalJs(`({
+        card: !document.getElementById('cardModal').hidden,
+        flip: !document.getElementById('cardModal').hidden && !document.getElementById('cardOutcome').hidden,
+        offer: !document.getElementById('offerModal').hidden,
+        revive: !document.getElementById('reviveModal').hidden,
+        rvNo: !document.getElementById('rvNo').closest('[hidden]') && !document.getElementById('rvActions').hidden,
+        rvGo: !document.getElementById('rvGo').closest('[hidden]') && !document.getElementById('rvLesson').hidden,
+      })`);
+      if (st.card && !st.flip) { await ctx.pressKey("1", "Digit1", 49); await ctx.evalJs("window.__advanceFrames(10, 50)"); }
+      else if (st.flip) { await ctx.click("#cardContinue"); await ctx.evalJs("window.__advanceFrames(5, 50)"); }
+      else if (st.offer) { await ctx.pressKey("2", "Digit2", 50); await ctx.evalJs("window.__advanceFrames(5, 50)"); }
+      else if (st.revive) { if (st.rvNo) await ctx.click("#rvNo"); else if (st.rvGo) await ctx.click("#rvGo"); await ctx.evalJs("window.__advanceFrames(15, 50)"); }
+      else {
+        await ctx.cdp("Input.dispatchKeyEvent", { type: "keyDown", key: "ArrowLeft", code: "ArrowLeft", windowsVirtualKeyCode: 37 });
+        await ctx.evalJs("window.__advanceFrames(18, 50)");
+        await ctx.cdp("Input.dispatchKeyEvent", { type: "keyUp", key: "ArrowLeft", code: "ArrowLeft", windowsVirtualKeyCode: 37 });
+        await ctx.pressKey(" ", "Space", 32);
+        await ctx.evalJs("window.__advanceFrames(35, 50)");
+      }
+    }
+    await ctx.waitFor(() => !document.getElementById("endModal").hidden, 8000);
+
+    await ctx.click("#stNext");
+    await ctx.waitFor(() => document.getElementById("quiz").getClientRects().length > 0);
+    await ctx.evalJs(`document.querySelectorAll('#quiz .qz').forEach(q => { const btn = q.querySelector('.qopt'); if (btn) btn.click(); })`);
+    await ctx.click("#habits label.habit");
+    await ctx.click("#stNext");
+    await ctx.waitFor(() => document.getElementById("nickname").getClientRects().length > 0);
+
+    await ctx.evalJs(`(() => {
+      document.getElementById("nickname").value = "HoldCancel";
+      document.getElementById("email").value = "cancel@example.com";
+    })()`);
+    await ctx.click("#postBtn");
+    await ctx.waitFor(() => window.__boardPostCalls === 1 && /On hold/.test(document.getElementById("postBtn").textContent), 4000);
+
+    await ctx.click("#stNext"); // Skip posting while 429 countdown is armed
+    await ctx.waitFor(() => document.querySelector("#endModal .statement").dataset.step === "4", 4000);
+
+    await new Promise((r) => setTimeout(r, 2600));
+    const afterWait = await ctx.evalJs(`({
+      calls: window.__boardPostCalls,
+      step: document.querySelector("#endModal .statement").dataset.step,
+      modalHidden: document.getElementById("endModal").hidden,
+    })`);
+    assert.equal(afterWait.calls, 1, "Leaving Step 3 must cancel pending 429 retry timer");
+    assert.equal(afterWait.step, "4");
+    assert.equal(afterWait.modalHidden, false);
+    assert.deepEqual(ctx.errors, [], "Unexpected retry-cancel errors: " + ctx.errors.join(" | "));
   } finally {
     await ctx.close();
   }

@@ -1939,12 +1939,20 @@ html.gamepad .pad-bar:not(:empty){display:block}
 .pk-key{flex:1 1 0;min-width:0;min-height:38px;padding:6px 4px;border:0;border-radius:11px;background:#fff;color:var(--ink);font:800 15px/1.1 var(--f-body);cursor:pointer;
   box-shadow:inset 1px 1px 0 #fff, inset -1px -2px 3px rgba(60,20,10,.12), 0 3px 0 var(--cream-d)}
 .pk-key.wide{flex:1.6 1 0;font-size:12.5px}
+.pk-key.dom{flex:2.2 1 0;font-size:12px;letter-spacing:-.2px;padding:6px 2px}
 .pk-key.act{background:#25317A;color:#fff;box-shadow:inset 1px 1px 0 rgba(255,255,255,.25), 0 3px 0 #161F54}
 .pk-key.ok{background:#11837B;color:#fff;box-shadow:inset 1px 1px 0 rgba(255,255,255,.25), 0 3px 0 #0A5F59}
 .pk-key.on{background:#FFD23F;color:var(--ink);box-shadow:inset 0 0 0 2px var(--navy), 0 3px 0 #C77700}
 .pk-key:focus{outline:3px solid var(--navy);outline-offset:2px}
 .pk-hint{margin:10px 0 0;font-size:11.5px;font-weight:700;color:var(--ink-2);text-align:center}
 .pk-hint .zh{display:block;font-family:var(--f-zh)}
+@media (max-width: 420px){
+  .padkbsheet{padding:12px 10px 10px;border-radius:18px}
+  .pk-row{gap:3px}
+  .pk-key{font-size:14px;padding:6px 2px}
+  .pk-key.wide{flex:1.4 1 0;font-size:11.5px}
+  .pk-key.dom{flex:2.3 1 0;font-size:10.5px}
+}
 @media (prefers-reduced-motion: reduce){ .padkbsheet, .pk-preview .pk-cur{animation:none} }
 
 

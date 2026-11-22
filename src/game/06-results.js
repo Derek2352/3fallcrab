@@ -34,7 +34,18 @@ function stepButtons() {
   label(next, n === 3 ? (posted ? ["See my card", "睇結果卡"] : ["Skip posting", "唔上榜"]) : ["Next", "下一步"]);
   $("surveyGate").textContent = n === 2 && !surveyDone() ? "Answer all 3 questions and pick a habit to go on. 答晒3題同揀一個習慣，先可以繼續。" : "";
 }
+function cancelPostHold(st = S) {
+  if (!st || !st.holdWaiting) return;
+  clearTimeout(st.holdTimer); st.holdTimer = 0;
+  st.holdWaiting = false; st.posting = false;
+  if (st === S && !st.posted) {
+    $("postBtn").removeAttribute("aria-disabled");
+    postLabel("Post score", "上榜");
+    const ps = $("postStatus"); ps.className = "post-status"; ps.textContent = "";
+  }
+}
 function setStep(n, focus) {
+  if (n !== 3) cancelPostHold(S);
   if (S.step && n !== S.step) A.sfx(n > S.step ? "uiNext" : "uiBack");
   S.step = n; if (n === 4) S.flowDone = true;
   const sheet = document.querySelector("#endModal .statement"); sheet.dataset.step = n;
@@ -206,7 +217,8 @@ function loadQr() {
   if (qrP) return qrP;
   qrP = new Promise(res => {
     const sc = document.createElement("script"); sc.src = "/vendor/qrcode-1.4.4.js"; sc.async = true;
-    sc.onload = () => res(window.qrcode || null); sc.onerror = () => res(null);
+    sc.onload = () => res(window.qrcode || null);
+    sc.onerror = () => { qrP = null; sc.remove(); res(null); };
     document.head.appendChild(sc);
   });
   return qrP;
@@ -334,11 +346,14 @@ const verdictOf = st => CORE.verdictOf(st, TITLES, STAGES.length);
 // an old browser, a failed load) the result shows a flat medal (CSS) and the card draws one.
 let medalP = null;
 function loadMedal() {
+  if (window.TFF_MEDAL3D) return Promise.resolve(window.TFF_MEDAL3D);
   if (medalP) return medalP;
   const src = (document.querySelector('meta[name="tff-medal3d"]') || {}).content;
-  medalP = !src || /%%/.test(src) ? Promise.resolve(null) : new Promise(res => {
+  if (!src || /%%/.test(src)) return Promise.resolve(null);
+  medalP = new Promise(res => {
     const sc = document.createElement("script"); sc.src = src; sc.async = true;
-    sc.onload = () => res(window.TFF_MEDAL3D || null); sc.onerror = () => res(null);
+    sc.onload = () => res(window.TFF_MEDAL3D || null);
+    sc.onerror = () => { medalP = null; sc.remove(); res(null); };
     document.head.appendChild(sc);
   });
   return medalP;
@@ -886,17 +901,20 @@ $("postBtn").addEventListener("click", async (ev) => {
       }
       if (e.status === 429 && (e.onHold || !e.retryAfter || e.retryAfter <= 10) && (st.holdRetries || 0) < 2) {
         st.holdRetries = (st.holdRetries || 0) + 1;
+        st.holdWaiting = true;
         btn.setAttribute("aria-disabled", "true");
         let left = Math.max(1, Math.min(10, e.retryAfter || 3));
         const tickHold = () => {
-          if (st !== S || !st.posting) return;
-          if (left <= 0) { st.posting = false; btn.click(); return; }
+          if (st !== S || !st.posting || !st.holdWaiting || S.step !== 3 || $("endModal").hidden) {
+            st.holdWaiting = false; st.holdTimer = 0; return;
+          }
+          if (left <= 0) { st.holdWaiting = false; st.holdTimer = 0; st.posting = false; btn.click(); return; }
           postLabel(`On hold (${left}s)…`, `排隊中 (${left}秒)…`);
           ps.className = "post-status";
           ps.textContent = `High traffic — holding your spot in line, auto-posting in ${left}s… 太多人同時上榜，系統正自動為你排隊（${left}秒後自動上載）…`;
           showStatus();
           left--;
-          setTimeout(tickHold, 1000);
+          st.holdTimer = setTimeout(tickHold, 1000);
         };
         tickHold();
         return;
@@ -1050,6 +1068,7 @@ const TOWER = [["lunchbox", 152.06, -21.076, -0.0027, 52], ["textbooks", 261.858
 ["piggybank", 281.871, -76.162, 0.0083, 62], ["handbag", 224.615, -131.694, -0.0968, 52]];
 function sampleTower() {
   S = newState(); makeEngine();
+  const fallback = DEFS.filter(d => d.kind !== "debt");
   const pick = id => DEFS.find(d => d.id === id);
   const points = b => b.parts.reduce((s, q, i) => s + (i || b.parts.length === 1 ? q.vertices.length : 0), 0);
   const placed = TOWER.every(([id, x, y, a, n]) => {
@@ -1061,7 +1080,6 @@ function sampleTower() {
     for (const b of engine.world.bodies.slice()) if (b.tff) Composite.remove(engine.world, b);
     const plan = [["lunchbox", -70, -26], ["textbooks", 42, -24], ["steamer", -40, -70], ["piggybank", 60, -75], ["calculator", -80, -120],
     ["handbag", 10, -125], ["bubbletea", 80, -140], ["football", -30, -175], ["passbook", 40, -190]];
-    const fallback = DEFS.filter(d => d.kind !== "debt");
     plan.forEach(([id, x, y], i) => {
       const def = pick(id) || fallback[i % fallback.length]; if (!def) return;
       addItem(def, W / 2 + x, y, false); for (let s = 0; s < 45; s++) Engine.update(engine, STEP);

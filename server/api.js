@@ -96,6 +96,8 @@ export const SCHEMA = [
   // wrong admin passwords, per hashed network, kept for a day (see admin())
   `CREATE TABLE IF NOT EXISTS admin_fails (net TEXT NOT NULL, at TEXT NOT NULL)`,
   `CREATE INDEX IF NOT EXISTS idx_admin_fails ON admin_fails (net, at)`,
+  // schema version marker so cold starts verify migrations in one lightweight read query
+  `CREATE TABLE IF NOT EXISTS schema_meta (k TEXT PRIMARY KEY, v INTEGER NOT NULL)`,
 ];
 
 // Columns added after launch. ADD COLUMN keeps every existing row as it is; games saved before have posted = 1
@@ -252,6 +254,8 @@ WHERE s.quiz_answers IS NOT NULL AND s.quiz_answers != '[]' AND json_valid(s.qui
   AND json_type(a.value) = 'object'`,
 ];
 
+const SCHEMA_VERSION = ADDED.length * 100 + SCHEMA_2_OPT.length;
+
 const schemaReady = new WeakMap();
 function ensureSchema(env) {
   if (!schemaReady.has(env.DB)) {
@@ -261,6 +265,10 @@ function ensureSchema(env) {
   return schemaReady.get(env.DB);
 }
 async function migrate(db, tz) {
+  try {
+    const meta = await db.prepare("SELECT v FROM schema_meta WHERE k = 'ver'").first();
+    if (meta && meta.v === SCHEMA_VERSION) return;
+  } catch {}
   await db.batch(SCHEMA.map((s) => db.prepare(s)));
   const have = new Set((await db.prepare("PRAGMA table_info(scores)").all()).results.map((c) => c.name));
   for (const [col, type] of ADDED) {
@@ -282,6 +290,7 @@ async function migrate(db, tz) {
   await db.batch(SCHEMA_2_TABLES.map((s) => db.prepare(s)));
   await db.batch(SCHEMA_2_OPT.map((s) => db.prepare(s)));
   if (!hadChildTables) await db.batch(BACKFILL_2.map((s) => db.prepare(s)));
+  await db.prepare("INSERT OR REPLACE INTO schema_meta (k, v) VALUES ('ver', ?1)").bind(SCHEMA_VERSION).run();
 }
 
 const SECURE = { "strict-transport-security": "max-age=31536000", "x-content-type-options": "nosniff" };
@@ -531,20 +540,35 @@ async function board(env, db, request) {
     boardInFlight = { db, week, closed: cl, p };
   }
   const flight = boardInFlight.p;
-  const cid = request ? await clientIdOf(null, request, env) : "";
+  const { cid, net } = request ? await queueIdentity(null, request, env) : { cid: "", net: "" };
   let qStatus;
   const now = Date.now();
   if (env && env.WAITING_ROOM && typeof env.WAITING_ROOM.idFromName === "function") {
-    if (doStatusMemo && now - doStatusMemo.at < 2000 && (!cid || doSeenCids.has(cid))) {
-      qStatus = doStatusMemo.data;
+    if (doStatusMemo && doStatusMemo.ns !== env.WAITING_ROOM) { doStatusMemo = null; doLeaseUntil.clear(); }
+    const leaseExp = cid ? (doLeaseUntil.get(cid) || 0) : 0;
+    const envForce = truthy(String(env.FORCE_HOLD || "").toLowerCase());
+    if (doStatusMemo && now - doStatusMemo.at < 2000 && (cid ? leaseExp > now + 15000 : !net)) {
+      const d = doStatusMemo.data;
+      const overCap = d.active >= d.capacity && !(cid && leaseExp > now);
+      qStatus = { ...d, onHold: Boolean(envForce || d.forceHold || d.waiting > 0 || overCap) };
     } else {
-      qStatus = await queueDispatch("touch", { cid }, env);
-      if (cid && !qStatus.onHold) doSeenCids.add(cid);
-      if (doSeenCids.size > 4096) doSeenCids.clear();
-      doStatusMemo = { at: now, data: qStatus };
+      qStatus = await queueDispatch("touch", { cid, net }, env);
+      setDoLease(cid, Number(qStatus.leaseUntil) || 0, now);
+      if (typeof qStatus.capacity === "number" && typeof qStatus.active === "number") {
+        doStatusMemo = {
+          at: now,
+          ns: env.WAITING_ROOM,
+          data: {
+            active: qStatus.active,
+            waiting: qStatus.waiting || 0,
+            capacity: qStatus.capacity,
+            forceHold: Boolean(qStatus.forceHold),
+          },
+        };
+      }
     }
   } else {
-    qStatus = localQueue.touch(cid, env);
+    qStatus = localQueue.touch(cid, env, net);
   }
   const base = await flight;
   const maxConc = int(env.MAX_CONCURRENT || 25, 1, 500);
@@ -576,9 +600,23 @@ let ghostMemo = null;
 let statsMemo = null;
 let boardInFlight = null;
 let doStatusMemo = null;
-const doSeenCids = new Set();
+const doLeaseUntil = new Map();
 let inFlight = 0;
 const flightWaiters = [];
+
+function setDoLease(cid, exp, now) {
+  if (!cid) return;
+  if (exp > now) {
+    doLeaseUntil.delete(cid);
+    doLeaseUntil.set(cid, exp);
+    if (doLeaseUntil.size > 4096) {
+      for (const [k, v] of doLeaseUntil) if (v <= now) doLeaseUntil.delete(k);
+      while (doLeaseUntil.size > 4096) doLeaseUntil.delete(doLeaseUntil.keys().next().value);
+    }
+  } else {
+    doLeaseUntil.delete(cid);
+  }
+}
 
 // Stateful queue engine shared between local isolate fallback and the WaitingRoom Durable Object.
 export function createQueueEngine() {
@@ -587,68 +625,100 @@ export function createQueueEngine() {
   let adminForceHold = false;
   const HOLD_TTL = 45000, WAIT_TTL = 60000;
 
-  const isForceHold = (env, urlHold) => Boolean(urlHold || adminForceHold || truthy(String((env && env.FORCE_HOLD) || "").toLowerCase()));
+  const isForceHold = (env) => Boolean(adminForceHold || truthy(String((env && env.FORCE_HOLD) || "").toLowerCase()));
   const capOf = (env) => int((env && env.QUEUE_CAPACITY) || 120, 1, 10000);
-  const prune = (now, cap, force) => {
-    for (const [k, exp] of activeLeases) if (exp <= now) activeLeases.delete(k);
+  const netCapOf = (env) => int((env && env.QUEUE_PER_NET) || 30, 1, 1000);
+  const netActive = (net) => {
+    if (!net) return 0;
+    let n = 0;
+    for (const v of activeLeases.values()) if (v.net === net) n++;
+    return n;
+  };
+  const netWaiting = (net) => {
+    if (!net) return 0;
+    let n = 0;
+    for (const w of waitQueue) if (w.net === net) n++;
+    return n;
+  };
+  const prune = (now, cap, force, netCap) => {
+    for (const [k, v] of activeLeases) if (v.exp <= now) activeLeases.delete(k);
     waitQueue = waitQueue.filter((w) => now - w.seenAt < WAIT_TTL);
     if (!force) {
-      while (activeLeases.size < cap && waitQueue.length) {
-        const next = waitQueue.shift();
-        if (next) activeLeases.set(next.cid, now + HOLD_TTL);
+      let idx = 0;
+      while (activeLeases.size < cap && idx < waitQueue.length) {
+        const w = waitQueue[idx];
+        if (!w.net || netActive(w.net) < netCap) {
+          waitQueue.splice(idx, 1);
+          activeLeases.set(w.cid, { exp: now + HOLD_TTL, net: w.net || "" });
+        } else {
+          idx++;
+        }
       }
     }
   };
-  const statusOf = (env, cid = "") => {
-    const now = Date.now(), cap = capOf(env), force = isForceHold(env, false);
-    prune(now, cap, force);
-    const overCap = activeLeases.size >= cap && (!cid || !activeLeases.has(cid));
+  const statusOf = (env, cid = "", net = "") => {
+    const now = Date.now(), cap = capOf(env), netCap = netCapOf(env), force = isForceHold(env);
+    prune(now, cap, force, netCap);
+    const lease = cid ? activeLeases.get(cid) : null;
+    const overCap = activeLeases.size >= cap && !lease;
+    const overNetCap = Boolean(net && !lease && netActive(net) >= netCap);
     return {
       ok: true,
       active: activeLeases.size,
       waiting: waitQueue.length,
       capacity: cap,
-      onHold: force || waitQueue.length > 0 || overCap,
+      onHold: force || waitQueue.length > 0 || overCap || overNetCap,
       forceHold: force,
       envForceHold: truthy(String((env && env.FORCE_HOLD) || "").toLowerCase()),
       adminForceHold,
+      leaseUntil: lease ? lease.exp : 0,
     };
   };
   return {
-    touch(cid, env) {
-      const now = Date.now(), cap = capOf(env), force = isForceHold(env, false);
-      prune(now, cap, force);
+    touch(cid, env, net = "") {
+      const now = Date.now(), cap = capOf(env), netCap = netCapOf(env), force = isForceHold(env);
+      prune(now, cap, force, netCap);
       if (!force && cid && cid !== "anon") {
-        if (activeLeases.has(cid) || (activeLeases.size < cap && waitQueue.length === 0)) {
-          if (activeLeases.size < 2000 || activeLeases.has(cid)) activeLeases.set(cid, now + HOLD_TTL);
+        const existing = activeLeases.get(cid);
+        if (existing || (activeLeases.size < cap && waitQueue.length === 0 && (!net || netActive(net) < netCap))) {
+          if (activeLeases.size < 2000 || existing) activeLeases.set(cid, { exp: now + HOLD_TTL, net: net || (existing && existing.net) || "" });
         }
       }
-      return statusOf(env, cid);
+      return statusOf(env, cid, net);
     },
     check(opts, env) {
-      const o = opts || {}, cid = o.cid || "anon", now = Date.now(), cap = capOf(env);
-      const urlHold = Boolean(o.hold), force = isForceHold(env, urlHold);
-      prune(now, cap, force);
+      const o = opts || {}, cid = o.cid || "anon", net = o.net || "", now = Date.now(), cap = capOf(env), netCap = netCapOf(env);
+      const force = isForceHold(env);
+      prune(now, cap, force, netCap);
       if (o.leave) {
         activeLeases.delete(cid);
         waitQueue = waitQueue.filter((w) => w.cid !== cid);
-        prune(now, cap, force);
-        return { ok: true, onHold: false, position: 0, ahead: 0, etaSec: 0, retryAfter: 0, active: activeLeases.size, waiting: waitQueue.length, capacity: cap, forceHold: isForceHold(env, false) };
+        prune(now, cap, force, netCap);
+        return { ok: true, onHold: false, position: 0, ahead: 0, etaSec: 0, retryAfter: 0, active: activeLeases.size, waiting: waitQueue.length, capacity: cap, forceHold: force, leaseUntil: 0 };
       }
-      if (!force && (activeLeases.has(cid) || (activeLeases.size < cap && waitQueue.length === 0))) {
-        if (activeLeases.size < 2000 || activeLeases.has(cid)) activeLeases.set(cid, now + HOLD_TTL);
-        return { ok: true, onHold: false, position: 0, ahead: 0, etaSec: 0, retryAfter: 0, active: activeLeases.size, waiting: waitQueue.length, capacity: cap, forceHold: false };
+      const existing = activeLeases.get(cid);
+      const overNet = Boolean(net && !existing && netActive(net) >= netCap);
+      if (!force && !overNet && (existing || (activeLeases.size < cap && waitQueue.length === 0))) {
+        const exp = now + HOLD_TTL;
+        if (activeLeases.size < 2000 || existing) activeLeases.set(cid, { exp, net: net || (existing && existing.net) || "" });
+        return { ok: true, onHold: false, position: 0, ahead: 0, etaSec: 0, retryAfter: 0, active: activeLeases.size, waiting: waitQueue.length, capacity: cap, forceHold: false, leaseUntil: activeLeases.has(cid) ? exp : 0 };
+      }
+      if (overNet && !force) {
+        return { ok: true, onHold: true, position: netCap, ahead: Math.max(0, netCap - 1), etaSec: 15, retryAfter: 5, active: activeLeases.size, waiting: waitQueue.length, capacity: cap, forceHold: false, leaseUntil: 0 };
       }
       let idx = waitQueue.findIndex((w) => w.cid === cid);
       if (idx === -1) {
+        if (net && netWaiting(net) >= netCap) {
+          return { ok: true, onHold: true, position: netCap, ahead: Math.max(0, netCap - 1), etaSec: 60, retryAfter: 8, active: activeLeases.size, waiting: waitQueue.length, capacity: cap, forceHold: force, leaseUntil: 0 };
+        }
         if (waitQueue.length >= 2000) waitQueue.shift();
-        waitQueue.push({ cid, joinedAt: now, seenAt: now });
+        waitQueue.push({ cid, net, joinedAt: now, seenAt: now });
         idx = waitQueue.length - 1;
       } else {
         waitQueue[idx].seenAt = now;
       }
       const position = idx + 1, etaSec = Math.max(2, Math.min(60, position * 2)), retryAfter = Math.max(2, Math.min(8, Math.ceil(etaSec / 2)));
-      return { ok: true, onHold: true, position, ahead: position - 1, etaSec, retryAfter, active: activeLeases.size, waiting: waitQueue.length, capacity: cap, forceHold: force };
+      return { ok: true, onHold: true, position, ahead: position - 1, etaSec, retryAfter, active: activeLeases.size, waiting: waitQueue.length, capacity: cap, forceHold: force, leaseUntil: 0 };
     },
     status: (env, cid = "") => statusOf(env, cid),
     setAdminHold(on, env) { adminForceHold = Boolean(on); return statusOf(env); },
@@ -660,7 +730,7 @@ const localQueue = createQueueEngine();
 
 export function resetCaches() {
   ghostMemo = null; statsMemo = null; boardInFlight = null; doStatusMemo = null;
-  doSeenCids.clear(); localQueue.reset(); inFlight = 0;
+  doLeaseUntil.clear(); localQueue.reset(); inFlight = 0;
   while (flightWaiters.length) {
     const w = flightWaiters.shift();
     clearTimeout(w.to);
@@ -668,11 +738,12 @@ export function resetCaches() {
   }
 }
 
-async function clientIdOf(url, request, env) {
+async function queueIdentity(url, request, env) {
   const rawCid = (url && url.searchParams.get("cid")) || request.headers.get("x-client-id") || "";
-  if (/^[A-Za-z0-9_-]{1,64}$/.test(rawCid)) return rawCid;
   const ip = request.headers.get("cf-connecting-ip") || "";
-  return ip ? await netHash(ip, "queue", env) : "";
+  const net = ip ? await netHash(ip, "queue", env) : "";
+  const cid = /^[A-Za-z0-9_-]{1,64}$/.test(rawCid) ? rawCid : net;
+  return { cid, net };
 }
 
 async function queueDispatch(action, payload, env) {
@@ -689,19 +760,19 @@ async function queueDispatch(action, payload, env) {
     } catch {}
   }
   if (action === "check") return localQueue.check(payload || {}, env);
-  if (action === "touch") return localQueue.touch((payload && payload.cid) || "", env);
+  if (action === "touch") return localQueue.touch((payload && payload.cid) || "", env, (payload && payload.net) || "");
   if (action === "admin") return localQueue.setAdminHold(payload && payload.forceHold, env);
   return localQueue.status(env);
 }
 
 // Service load balancer: queues in-flight D1 leaderboard requests and places surging players in an admission queue.
 async function checkQueue(url, request, env) {
-  const cid = (await clientIdOf(url, request, env)) || "anon";
+  const id = await queueIdentity(url, request, env);
+  const cid = id.cid || "anon";
   const leave = url.searchParams.get("leave") === "1";
-  const hold = url.searchParams.get("hold") === "1";
   doStatusMemo = null;
-  const res = await queueDispatch("check", { cid, leave, hold }, env);
-  if (leave || !res.onHold) doSeenCids.delete(cid);
+  const res = await queueDispatch("check", { cid, net: id.net, leave }, env);
+  setDoLease(cid, leave || res.onHold ? 0 : (Number(res.leaseUntil) || 0), Date.now());
   const headers = res.onHold && res.retryAfter ? { "retry-after": String(res.retryAfter) } : {};
   return json(res, 200, headers);
 }

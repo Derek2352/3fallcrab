@@ -162,6 +162,7 @@ function applyAdminWhere(list, sql, args) {
 export function makeStore() {
   const rows = [];
   let seq = 0;
+  let schemaVer = null;
 
   const select = (sql, args) => {
     let list = rows.slice();
@@ -219,6 +220,8 @@ export function makeStore() {
   const run = (sql, args) => {
     if (/^PRAGMA table_info/i.test(sql)) return { results: COLS.map((name) => ({ name })) };
     if (/^\s*(CREATE|ALTER|DROP)/i.test(sql)) return { meta: { changes: 0 } };
+    if (/FROM schema_meta\b/i.test(sql)) return { results: schemaVer == null ? [] : [{ v: schemaVer }] };
+    if (/INSERT OR REPLACE INTO schema_meta\b/i.test(sql)) { schemaVer = args[0]; return { meta: { changes: 1 } }; }
     if (/FROM sqlite_master\b/i.test(sql)) return { results: [{ n: 0 }] };
     if (/INSERT OR IGNORE INTO score_(?:choices|quiz_answers)/i.test(sql)) return { meta: { changes: 0 } };
     if (/INSERT INTO scores/.test(sql)) return { meta: insert(sql, args) };

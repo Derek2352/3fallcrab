@@ -24,6 +24,10 @@ test("CSP permits self-hosted service worker and sw.js has valid no-cache header
   assert.ok(m, "PRECACHE array missing in sw.js");
   const list = JSON.parse(m[1]);
   assert.ok(list.includes("/") && list.includes("/manifest.webmanifest"));
+  assert.ok(list.includes("/vendor/qrcode-1.4.4.js"), "should precache offline QR library");
+  assert.equal(list.includes("/icons/icon-512.png") || list.includes("/icons/icon-maskable-512.png") || list.includes("/icons/apple-touch-icon.png"), false, "should omit install-only large icons from precache");
+  assert.equal(list.some((rel) => rel.includes("ig-qr")), false, "should omit lazy IG modal QR image from precache");
+  assert.equal(existsSync(join(pub, "admin.js")) || existsSync(join(pub, "poster.js")), false, "should not publish unminified root admin.js or poster.js");
   for (const rel of list) {
     const target = rel === "/" ? join(pub, "index.html") : join(pub, rel);
     assert.ok(existsSync(target), "PRECACHE entry missing in public/: " + rel);

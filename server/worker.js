@@ -25,7 +25,7 @@ export class WaitingRoom {
       try { body = await request.json(); } catch {}
     }
     if (action === "check") return Response.json(this.engine.check(body, this.env));
-    if (action === "touch") return Response.json(this.engine.touch(body.cid || "", this.env));
+    if (action === "touch") return Response.json(this.engine.touch(body.cid || "", this.env, body.net || ""));
     if (action === "admin") {
       const on = Boolean(body.forceHold);
       await this.ctx?.storage?.put("adminForceHold", on);
