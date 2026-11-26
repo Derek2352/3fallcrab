@@ -206,6 +206,7 @@
       <button type="button" role="tab" id="tab-survey" aria-controls="pane-survey" aria-selected="true">Survey</button>
       <button type="button" role="tab" id="tab-decisions" aria-controls="pane-decisions" aria-selected="false" tabindex="-1">Decisions</button>
       <button type="button" role="tab" id="tab-trends" aria-controls="pane-trends" aria-selected="false" tabindex="-1">Trends</button>
+      <button type="button" role="tab" id="tab-daily" aria-controls="pane-daily" aria-selected="false" tabindex="-1">Daily</button>
       <button type="button" role="tab" id="tab-winners" aria-controls="pane-winners" aria-selected="false" tabindex="-1">Winners</button>
       <button type="button" role="tab" id="tab-downloads" aria-controls="pane-downloads" aria-selected="false" tabindex="-1">Downloads</button>
       <button type="button" role="tab" id="tab-games" aria-controls="pane-games" aria-selected="false" tabindex="-1">Games</button>
@@ -286,6 +287,48 @@
       <p class="hint">Trends always cover every week and month, whichever period is selected above.</p>
     </div>
 
+    <!-- Daily: post-booth 14-day habit retention & finisher claims -->
+    <div id="pane-daily" role="tabpanel" aria-labelledby="tab-daily" hidden>
+      <section class="card">
+        <h2>Daily Habit Keep <small class="zh" lang="zh-HK">海傍小天地每日打卡</small> <span class="hint" id="dailyPeriod"></span></h2>
+        <div class="tiles" id="dailyTiles"></div>
+        <p class="msg" id="dailyMsg" role="status" aria-live="polite"></p>
+      </section>
+      <div class="grid2">
+        <section class="card">
+          <h2>Retention funnel <small class="zh" lang="zh-HK">Day 1 → Day 14+ 留存率</small></h2>
+          <div class="chartbox" id="dailyChartBox" tabindex="0" role="region" aria-label="Daily retention funnel chart"></div>
+          <div class="wrap" id="dailyFunnelBox" tabindex="0" role="region" aria-label="Daily retention funnel table"></div>
+        </section>
+        <section class="card">
+          <h2>Day-14 Sprint finishers <small class="zh" lang="zh-HK">完成14日衝刺名單</small></h2>
+          <div class="bar"><button class="ghost" id="dailyCopyEmails" type="button" aria-disabled="true">Copy finisher emails</button><span class="hint" id="dailyFinInfo"></span></div>
+          <p class="msg" id="dailyFinMsg" role="status" aria-live="polite"></p>
+          <div class="wrap" id="dailyFinBox" tabindex="0" role="region" aria-label="Daily Sprint finishers table"></div>
+        </section>
+      </div>
+      <section class="card">
+        <h2>Daily questions <small class="zh" lang="zh-HK">每日題目表現（直接答啱 / 60秒補救 / 略過）</small></h2>
+        <div class="wrap" id="dailyQBox" tabindex="0" role="region" aria-label="Daily questions breakdown table"></div>
+      </section>
+      <section class="card">
+        <h2>Daily visitors <small class="zh" lang="zh-HK">每日打卡訪客紀錄</small></h2>
+        <div class="bar">
+          <div class="pair"><label for="dFilter">Group</label><select id="dFilter"><option value="all">All</option><option value="active">Started (1+ days)</option><option value="finishers">14+ days</option><option value="claimed">Claimed pass</option></select></div>
+          <div class="pair"><label for="dStatus">Status</label><select id="dStatus"><option value="">All</option><option value="shown">Shown</option><option value="hidden">Hidden</option></select></div>
+          <div class="pair" style="max-width:none"><label for="dSearch">Search</label><input id="dSearch" type="search" placeholder="Sync code, nickname, email, or #id" maxlength="64"></div>
+        </div>
+        <p class="msg" id="dailyModMsg" role="status" aria-live="polite"></p>
+        <div class="wrap" tabindex="0" role="region" aria-label="Daily visitors moderation table">
+          <table class="wide">
+            <thead><tr><th scope="col" class="num">#</th><th scope="col">Sync code</th><th scope="col">Nickname</th><th scope="col">Email</th><th scope="col" class="num">Total days</th><th scope="col" class="num">Streak</th><th scope="col" class="num">Best</th><th scope="col" class="num">60s rescues</th><th scope="col">Last check-in</th><th scope="col">Status</th><th scope="col"><span class="sr">Action</span></th></tr></thead>
+            <tbody id="dailyRows"></tbody>
+          </table>
+        </div>
+        <p><button class="ghost" id="dailyMoreBtn" type="button" hidden>Load more</button> <span class="hint" id="dailyCount"></span></p>
+      </section>
+    </div>
+
     <!-- Winners: top posted scores with the private contact email -->
     <div id="pane-winners" role="tabpanel" aria-labelledby="tab-winners" hidden>
       <div class="grid2">
@@ -335,6 +378,8 @@
           <div class="dlitem"><div><b>games.csv</b><span>One row per game: score, floors, life stage, habit, quiz answers and every Life Event choice.</span></div><button id="dlGames" type="button" aria-label="Download games.csv">Download</button></div>
           <div class="dlitem"><div><b>quiz_answers.csv</b><span>One row per quiz answer, for pivot tables. Older games did not keep their answers.</span></div><button id="dlAnswers" type="button" aria-label="Download quiz_answers.csv">Download</button></div>
           <div class="dlitem"><div><b>life_events.csv</b><span>One row per Life Event card decision: wise, risky or missed.</span></div><button id="dlEvents" type="button" aria-label="Download life_events.csv">Download</button></div>
+          <div class="dlitem"><div><b>daily_visitors.csv</b><span>One row per /daily visitor: sync code, streak, total days, rescues, shields and Day-14 claim details.</span></div><button id="dlDailyUsers" type="button" aria-label="Download daily_visitors.csv">Download</button></div>
+          <div class="dlitem"><div><b>daily_checkins.csv</b><span>One row per daily habit check-in: date, question id, first pick, status (direct / rescued / skipped).</span></div><button id="dlDailyLogs" type="button" aria-label="Download daily_checkins.csv">Download</button></div>
         </div>
         <p class="msg" id="dlMsg" role="status"></p>
         <p><button class="ghost" id="csvBtn" type="button">Raw CSV</button> <span class="hint">Every database column, streamed directly by the server.</span></p>
@@ -380,6 +425,7 @@
   </div>
 </main>
 <script src="%%asset:content.js%%"></script>
+<script src="%%asset:daily-content.js%%"></script>
 <script src="%%asset:admin.js%%"></script>
 </body>
 </html>

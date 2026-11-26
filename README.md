@@ -9,6 +9,7 @@ This repo is a ready-to-deploy website:
 - **The game:** static files in `public/`, served from Cloudflare's edge.
 - **A live leaderboard:** a small Cloudflare Worker (`server/`) with a D1 database. It keeps a weekly board (resets Monday 00:00 HKT) and an all-time board, plus the anonymised "Stats" tab.
 - **`/admin`:** the survey results for your report (quiz, habits, Life Event choices, money traps, by week and month), the weekly and monthly winners with their emails, analysis-ready downloads, and Hide for unsuitable nicknames.
+- **`/daily` (Harbour Keep <span lang="zh-HK">海傍小天地</span>):** standalone post-talk/booth daily habit check-in app (one yes/no question a day, 60-second honest action rescues, 14-day Starter Sprint into infinite pier growth, Insurance Net streak shields, `.ics` reminders, and Sync Code restore), tracked under the **Daily** tab in `/admin`.
 - **`/poster`:** a printable A4 booth poster with a QR code that points at your site.
 
 ---

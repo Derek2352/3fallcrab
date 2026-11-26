@@ -24,6 +24,9 @@
 //                       from ADMIN_TOKEN). The hash is cleared from each game after a few minutes.
 
 import "../src/content.js"; // quiz, habits and cards, shared with the game page (sets globalThis.TFF_CONTENT)
+import "../src/daily-content.js"; // daily post-booth curriculum and milestones (sets globalThis.TFF_DAILY)
+
+const DAILY = globalThis.TFF_DAILY;
 
 const { QUIZ, HABITS: HABIT_LIST, answerNow, habitNow, CARDS, STAGES, TRAPS, POWERS = {}, TYPES: MTYPES, TITLES, PERSONAS = { bg: {}, pe: {} } } = globalThis.TFF_CONTENT;
 const POWER_IDS = new Set(Object.keys(POWERS));
@@ -256,6 +259,77 @@ WHERE s.quiz_answers IS NOT NULL AND s.quiz_answers != '[]' AND json_valid(s.qui
 
 const SCHEMA_VERSION = ADDED.length * 100 + SCHEMA_2_OPT.length;
 
+const DAILY_SCHEMA_VERSION = 1;
+const DAILY_SCHEMA = [
+  `CREATE TABLE IF NOT EXISTS schema_meta (k TEXT PRIMARY KEY, v INTEGER NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS daily_users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    uid TEXT NOT NULL UNIQUE,
+    auth_hash TEXT NOT NULL,
+    sync_code TEXT NOT NULL UNIQUE,
+    name TEXT,
+    email TEXT,
+    note TEXT,
+    avatar TEXT NOT NULL DEFAULT 'crab',
+    sky TEXT NOT NULL DEFAULT 'auto',
+    streak INTEGER NOT NULL DEFAULT 0,
+    best_streak INTEGER NOT NULL DEFAULT 0,
+    total_days INTEGER NOT NULL DEFAULT 0,
+    shields INTEGER NOT NULL DEFAULT 0,
+    shields_used INTEGER NOT NULL DEFAULT 0,
+    rescues INTEGER NOT NULL DEFAULT 0,
+    last_date TEXT,
+    sprint_done_at TEXT,
+    claimed_at TEXT,
+    ip_hash TEXT,
+    hidden INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS daily_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    day_date TEXT NOT NULL,
+    week TEXT NOT NULL,
+    month TEXT NOT NULL,
+    day_num INTEGER NOT NULL,
+    qid TEXT NOT NULL,
+    first_pick TEXT NOT NULL,
+    status TEXT NOT NULL,
+    shield_saved INTEGER NOT NULL DEFAULT 0,
+    streak_after INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE(user_id, day_date)
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_daily_users_created ON daily_users (created_at)`,
+  `CREATE INDEX IF NOT EXISTS idx_daily_users_board ON daily_users (hidden, total_days DESC, id DESC)`,
+  `CREATE INDEX IF NOT EXISTS idx_daily_users_ip ON daily_users (ip_hash, created_at)`,
+  `CREATE INDEX IF NOT EXISTS idx_daily_logs_date ON daily_logs (day_date)`,
+  `CREATE INDEX IF NOT EXISTS idx_daily_logs_week ON daily_logs (week)`,
+  `CREATE INDEX IF NOT EXISTS idx_daily_logs_month ON daily_logs (month)`,
+  `CREATE INDEX IF NOT EXISTS idx_daily_logs_qid ON daily_logs (qid, status)`,
+  `CREATE TABLE IF NOT EXISTS admin_fails (net TEXT NOT NULL, at TEXT NOT NULL)`,
+  `CREATE INDEX IF NOT EXISTS idx_admin_fails ON admin_fails (net, at)`,
+];
+
+let dailySchemaReady = new WeakMap();
+function ensureDailySchema(env) {
+  if (!dailySchemaReady.has(env.DB)) {
+    const p = migrateDaily(env.DB).catch((e) => { dailySchemaReady.delete(env.DB); throw e; });
+    dailySchemaReady.set(env.DB, p);
+  }
+  return dailySchemaReady.get(env.DB);
+}
+async function migrateDaily(db) {
+  try {
+    const meta = await db.prepare("SELECT v FROM schema_meta WHERE k = 'daily_ver'").first();
+    if (meta && meta.v === DAILY_SCHEMA_VERSION) return;
+  } catch {}
+  await db.batch(DAILY_SCHEMA.map((s) => db.prepare(s)));
+  await db.prepare("INSERT OR REPLACE INTO schema_meta (k, v) VALUES ('daily_ver', ?1)").bind(DAILY_SCHEMA_VERSION).run();
+}
+
 const schemaReady = new WeakMap();
 function ensureSchema(env) {
   if (!schemaReady.has(env.DB)) {
@@ -318,6 +392,44 @@ const localDate = (date, tz) => Object.fromEntries(
   new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" })
     .formatToParts(date).map((x) => [x.type, x.value]),
 );
+const localDateStr = (date, tz) => {
+  const p = localDate(date, tz);
+  return p.year + "-" + p.month + "-" + p.day;
+};
+function daysBetween(a, b) {
+  const pa = /^(\d{4})-(\d{2})-(\d{2})$/.exec(a || "");
+  const pb = /^(\d{4})-(\d{2})-(\d{2})$/.exec(b || "");
+  if (!pa || !pb) return 999999;
+  return Math.round((Date.UTC(+pb[1], +pb[2] - 1, +pb[3]) - Date.UTC(+pa[1], +pa[2] - 1, +pa[3])) / 86400000);
+}
+const SYNC_CHARS = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+function makeSyncCode() {
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
+  const seg = (start) => [...bytes.slice(start, start + 4)].map((b) => SYNC_CHARS[b % SYNC_CHARS.length]).join("");
+  return `CRAB-${seg(0)}-${seg(4)}`;
+}
+function cleanSyncCode(raw) {
+  if (typeof raw !== "string") return null;
+  const s = raw.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (!/^CRAB[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{8}$/.test(s)) return null;
+  return `CRAB-${s.slice(4, 8)}-${s.slice(8, 12)}`;
+}
+function cleanNote(raw) {
+  if (typeof raw !== "string") return "";
+  return cut(
+    raw.slice(0, 512)
+      .normalize("NFC")
+      .replace(/[<>]/g, "")
+      .replace(/(?![\u200c\u200d])[\p{Cc}\p{Cf}\u034f\u115f\u1160\u17b4\u17b5\u2800\u3164\uffa0]/gu, "")
+      .replace(/\s+/g, " ")
+      .trim(),
+    160,
+  ).trim();
+}
+const DAILY_AVATARS = new Set(["crab", "jack", "jackie"]);
+const DAILY_SKIES = new Set(["auto", "day", "dusk", "night"]);
+
 // Calendar month ("2026-10") in the event's time zone.
 export function monthKey(date, tz) {
   const p = localDate(date, tz);
@@ -730,6 +842,7 @@ const localQueue = createQueueEngine();
 
 export function resetCaches() {
   ghostMemo = null; statsMemo = null; boardInFlight = null; doStatusMemo = null;
+  dailySchemaReady = new WeakMap();
   doLeaseUntil.clear(); localQueue.reset(); inFlight = 0;
   while (flightWaiters.length) {
     const w = flightWaiters.shift();
@@ -997,6 +1110,402 @@ async function rankOf(db, week, score, id) {
     .first();
   const n = ahead?.n || 0;
   return { rank: n < RANK_CAP ? n + 1 : null, rankCap: RANK_CAP };
+}
+
+// ---------- daily post-booth tracker (/api/daily) ----------
+
+function dailyProfile(u, today) {
+  let streakPreview = 0;
+  if (u.last_date) {
+    const diff = daysBetween(u.last_date, today);
+    if (diff <= 1 || (diff > 1 && u.streak > 0 && diff - 1 <= u.shields)) streakPreview = u.streak;
+  }
+  return {
+    totalDays: u.total_days || 0,
+    streak: u.streak || 0,
+    streakPreview,
+    bestStreak: u.best_streak || 0,
+    shields: u.shields || 0,
+    shieldsUsed: u.shields_used || 0,
+    rescues: u.rescues || 0,
+    lastDate: u.last_date || null,
+    sprintDoneAt: u.sprint_done_at || null,
+    claimedAt: u.claimed_at || null,
+    avatar: u.avatar || "crab",
+    sky: u.sky || "auto",
+    name: u.name || "",
+    hasEmail: Boolean(u.email),
+    note: u.note || "",
+  };
+}
+
+async function fetchDailyLogs(db, userId) {
+  const { results } = await db
+    .prepare("SELECT day_date, day_num, qid, first_pick, status, shield_saved, streak_after FROM daily_logs WHERE user_id = ?1 ORDER BY day_date DESC LIMIT 60")
+    .bind(userId)
+    .all();
+  return results || [];
+}
+
+async function dailyApi(request, env, db) {
+  const tz = timeZone(env), now = new Date(), today = localDateStr(now, tz);
+  if (request.method === "GET" || request.method === "HEAD") {
+    return json({ ok: true, today, closed: closed(env) });
+  }
+  if (request.method !== "POST") return fail("method_not_allowed", 405, { allow: "GET, HEAD, POST" });
+  const origin = request.headers.get("origin");
+  if (origin) {
+    let from = "";
+    try { from = new URL(origin).origin; } catch {}
+    if (from !== new URL(request.url).origin) return fail("origin", 403);
+  }
+  if (!(request.headers.get("content-type") || "").toLowerCase().includes("application/json")) return fail("content_type", 415);
+  const declared = Number(request.headers.get("content-length") || 0);
+  if (declared > MAX_BODY) return fail("too_large", 413);
+  const text = await readBody(request, MAX_BODY);
+  if (text === null) return fail("too_large", 413);
+  let b;
+  try { b = JSON.parse(text); } catch { return fail("bad_json", 400); }
+  if (!b || typeof b !== "object" || Array.isArray(b)) return fail("bad_json", 400);
+
+  const action = String(b.action || "");
+  if (!["init", "checkin", "claim", "restore"].includes(action)) return fail("bad_action", 400);
+  const uid = typeof b.uid === "string" && /^[A-Za-z0-9_-]{16,64}$/.test(b.uid) ? b.uid : null;
+  const key = typeof b.key === "string" && /^[A-Za-z0-9_-]{16,128}$/.test(b.key) ? b.key : null;
+  if (!uid || !key) return fail("bad_key", 400);
+
+  const keyHash = await sha256(key);
+  const nowIso = now.toISOString();
+  const ip = request.headers.get("cf-connecting-ip") || "";
+
+  if (action === "restore") {
+    const net = ip ? await netHash(ip, "daily_restore", env) : null;
+    if (net) {
+      const since = new Date(Date.now() - 15 * 60000).toISOString();
+      const f = await db.prepare("SELECT COUNT(*) AS n FROM admin_fails WHERE net = ?1 AND at > ?2").bind(net, since).first();
+      if ((f?.n || 0) >= 12) return fail("rate_limited", 429, { "retry-after": "900" });
+    }
+    const code = cleanSyncCode(b.syncCode);
+    const user = code ? await db.prepare("SELECT * FROM daily_users WHERE sync_code = ?1").bind(code).first() : null;
+    if (!user || user.hidden) {
+      if (net) await db.prepare("INSERT INTO admin_fails (net, at) VALUES (?1, ?2)").bind(net, nowIso).run();
+      return fail("not_found", 404);
+    }
+    const conflict = await db.prepare("SELECT id FROM daily_users WHERE uid = ?1 AND id != ?2").bind(uid, user.id).first();
+    if (conflict) return fail("uid_conflict", 409);
+    await db.prepare("UPDATE daily_users SET uid = ?1, auth_hash = ?2, updated_at = ?3 WHERE id = ?4").bind(uid, keyHash, nowIso, user.id).run();
+    const updated = await db.prepare("SELECT * FROM daily_users WHERE id = ?1").bind(user.id).first();
+    const logs = await fetchDailyLogs(db, updated.id);
+    return json({ ok: true, today, syncCode: updated.sync_code, profile: dailyProfile(updated, today), logs });
+  }
+
+  let user = await db.prepare("SELECT * FROM daily_users WHERE uid = ?1").bind(uid).first();
+  if (action === "init" && !user) {
+    const ipHash = ip ? await netHash(ip, "daily:" + isoWeek(now, tz), env) : null;
+    const limit = int(env.RATE_LIMIT || 30, 1, 1000);
+    const since = new Date(now.getTime() - 60000).toISOString();
+    let inserted = false;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const syncCode = makeSyncCode();
+      const ins = await db
+        .prepare(`INSERT INTO daily_users (uid, auth_hash, sync_code, ip_hash, created_at, updated_at)
+          SELECT ?1, ?2, ?3, ?4, ?5, ?5
+          WHERE ?4 IS NULL OR (SELECT COUNT(*) FROM daily_users WHERE ip_hash = ?4 AND created_at > ?6) < ?7
+          ON CONFLICT DO NOTHING`)
+        .bind(uid, keyHash, syncCode, ipHash, nowIso, since, limit)
+        .run();
+      if (ins.meta.changes) { inserted = true; break; }
+      const race = await db.prepare("SELECT * FROM daily_users WHERE uid = ?1").bind(uid).first();
+      if (race) { user = race; inserted = true; break; }
+    }
+    if (!inserted) return fail("rate_limited", 429, { "retry-after": "60" });
+    if (!user) user = await db.prepare("SELECT * FROM daily_users WHERE uid = ?1").bind(uid).first();
+    await db.prepare("UPDATE daily_users SET ip_hash = NULL WHERE id IN (SELECT id FROM daily_users WHERE ip_hash IS NOT NULL AND created_at < ?1 LIMIT 500)")
+      .bind(new Date(now.getTime() - 5 * 60000).toISOString()).run();
+    return json({ ok: true, today, syncCode: user.sync_code, profile: dailyProfile(user, today), logs: [] }, 201);
+  }
+
+  if (!user) return fail("not_found", 404);
+  if (user.auth_hash !== keyHash) return fail("bad_key", 403);
+
+  if (action === "init") {
+    const logs = await fetchDailyLogs(db, user.id);
+    return json({ ok: true, today, syncCode: user.sync_code, profile: dailyProfile(user, today), logs });
+  }
+
+  if (action === "checkin") {
+    const q = typeof b.qid === "string" ? DAILY.questionById(b.qid) : null;
+    if (!q) return fail("bad_question", 400);
+    const firstPick = b.firstPick === "yes" || b.firstPick === "no" ? b.firstPick : null;
+    if (!firstPick) return fail("bad_pick", 400);
+    const expectedStatus = firstPick === q.good ? "direct" : null;
+    const status = expectedStatus || (b.status === "rescued" || b.status === "skipped" ? b.status : null);
+    if (!status) return fail("bad_status", 400);
+
+    const existing = await db.prepare("SELECT day_date, day_num, qid, first_pick, status, shield_saved, streak_after FROM daily_logs WHERE user_id = ?1 AND day_date = ?2")
+      .bind(user.id, today).first();
+    if (existing && (existing.status === "direct" || existing.status === "rescued")) {
+      const logs = await fetchDailyLogs(db, user.id);
+      return json({ ok: true, today, alreadyDone: true, syncCode: user.sync_code, profile: dailyProfile(user, today), log: existing, logs });
+    }
+    if (existing && existing.status === "skipped" && status === "skipped") {
+      const logs = await fetchDailyLogs(db, user.id);
+      return json({ ok: true, today, syncCode: user.sync_code, profile: dailyProfile(user, today), log: existing, logs });
+    }
+
+    const week = isoWeek(now, tz), month = monthKey(now, tz);
+    if (status === "skipped") {
+      const dayNum = (user.total_days || 0) + 1;
+      await db.prepare(`INSERT INTO daily_logs (user_id, day_date, week, month, day_num, qid, first_pick, status, shield_saved, streak_after, created_at, updated_at)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'skipped', 0, ?8, ?9, ?9)
+        ON CONFLICT(user_id, day_date) DO UPDATE SET qid = excluded.qid, first_pick = excluded.first_pick, status = 'skipped', updated_at = excluded.updated_at`)
+        .bind(user.id, today, week, month, dayNum, q.id, firstPick, user.streak || 0, nowIso).run();
+      const logs = await fetchDailyLogs(db, user.id);
+      return json({ ok: true, today, syncCode: user.sync_code, profile: dailyProfile(user, today), log: logs[0] || null, logs, shieldSaved: 0, earnedShield: 0, sprintJustDone: false });
+    }
+
+    let streak = 1, shieldSaved = 0, shields = user.shields || 0, shieldsUsed = user.shields_used || 0;
+    if (user.last_date) {
+      const diff = daysBetween(user.last_date, today);
+      if (diff === 0) {
+        const logs = await fetchDailyLogs(db, user.id);
+        return json({ ok: true, today, alreadyDone: true, syncCode: user.sync_code, profile: dailyProfile(user, today), log: existing || logs[0] || null, logs });
+      }
+      if (diff === 1) {
+        streak = (user.streak || 0) + 1;
+      } else if (diff > 1) {
+        const missed = diff - 1;
+        if ((user.streak || 0) > 0 && missed <= shields) {
+          shields -= missed;
+          shieldsUsed += missed;
+          shieldSaved = missed;
+          streak = (user.streak || 0) + 1;
+        }
+      }
+    }
+    const totalDays = (user.total_days || 0) + 1;
+    const bestStreak = Math.max(user.best_streak || 0, streak);
+    let earnedShield = 0;
+    if (streak > 0 && streak % DAILY.SHIELD_EVERY === 0 && shields < DAILY.MAX_SHIELDS) {
+      shields += 1;
+      earnedShield = 1;
+    }
+    const rescues = (user.rescues || 0) + (status === "rescued" ? 1 : 0);
+    const sprintDoneAt = user.sprint_done_at || (totalDays >= DAILY.SPRINT_DAYS ? nowIso : null);
+    const storedPick = existing ? existing.first_pick : firstPick;
+
+    await db.batch([
+      db.prepare(`UPDATE daily_users SET streak = ?1, best_streak = ?2, total_days = ?3, shields = ?4, shields_used = ?5,
+        rescues = ?6, last_date = ?7, sprint_done_at = ?8, updated_at = ?9 WHERE id = ?10`)
+        .bind(streak, bestStreak, totalDays, shields, shieldsUsed, rescues, today, sprintDoneAt, nowIso, user.id),
+      db.prepare(`INSERT INTO daily_logs (user_id, day_date, week, month, day_num, qid, first_pick, status, shield_saved, streak_after, created_at, updated_at)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?11)
+        ON CONFLICT(user_id, day_date) DO UPDATE SET day_num = excluded.day_num, status = excluded.status,
+          shield_saved = excluded.shield_saved, streak_after = excluded.streak_after, updated_at = excluded.updated_at`)
+        .bind(user.id, today, week, month, totalDays, q.id, storedPick, status, shieldSaved, streak, nowIso),
+    ]);
+
+    const updated = await db.prepare("SELECT * FROM daily_users WHERE id = ?1").bind(user.id).first();
+    const logs = await fetchDailyLogs(db, user.id);
+    return json({
+      ok: true,
+      today,
+      syncCode: updated.sync_code,
+      profile: dailyProfile(updated, today),
+      log: logs.find((l) => l.day_date === today) || null,
+      logs,
+      shieldSaved,
+      earnedShield,
+      sprintJustDone: Boolean(!user.sprint_done_at && sprintDoneAt),
+    });
+  }
+
+  // action === "claim" (update companion/sky preferences, nickname, email, or Day-14 sprint finisher claim)
+  const email = b.email !== undefined ? cleanEmail(b.email) : undefined;
+  if (email === null) return fail("bad_email", 400);
+  const name = typeof b.name === "string" && b.name.trim() ? cleanName(b.name) : user.name;
+  const note = typeof b.note === "string" ? cleanNote(b.note) : user.note;
+  const avatar = DAILY_AVATARS.has(b.avatar) ? b.avatar : user.avatar;
+  const sky = DAILY_SKIES.has(b.sky) ? b.sky : user.sky;
+  const finalEmail = user.email ?? (email ?? null);
+  const claimedAt = user.claimed_at || ((user.total_days || 0) >= DAILY.SPRINT_DAYS && (b.claim === true || Boolean(finalEmail) || Boolean(name)) ? nowIso : null);
+
+  await db.prepare(`UPDATE daily_users SET name = ?1, email = ?2, note = ?3, avatar = ?4, sky = ?5, claimed_at = ?6, updated_at = ?7 WHERE id = ?8`)
+    .bind(name || null, finalEmail, note || null, avatar, sky, claimedAt, nowIso, user.id).run();
+  const updated = await db.prepare("SELECT * FROM daily_users WHERE id = ?1").bind(user.id).first();
+  return json({ ok: true, today, syncCode: updated.sync_code, profile: dailyProfile(updated, today) });
+}
+
+// ---------- admin daily routes (/api/admin/daily*) ----------
+
+function dailyAdminFilter(url) {
+  const conds = [], args = [];
+  const bind = (v) => { args.push(v); return `?${args.length}`; };
+  const st = url.searchParams.get("status");
+  if (st === "hidden") conds.push("hidden = 1");
+  else if (st === "shown") conds.push("hidden = 0");
+  const fl = url.searchParams.get("filter");
+  if (fl === "finishers") conds.push("total_days >= 14");
+  else if (fl === "claimed") conds.push("claimed_at IS NOT NULL");
+  else if (fl === "active") conds.push("total_days >= 1");
+  const qRaw = String(url.searchParams.get("q") || "").trim().slice(0, 64);
+  if (qRaw) {
+    const pIdx = bind("%" + qRaw.toLowerCase().replace(/[\\%_]/g, "\\$&") + "%");
+    if (/^\d{1,10}$/.test(qRaw)) {
+      const idIdx = bind(Number(qRaw));
+      conds.push(`(id = ${idIdx} OR LOWER(COALESCE(name,'')) LIKE ${pIdx} ESCAPE '\\' OR LOWER(COALESCE(email,'')) LIKE ${pIdx} ESCAPE '\\' OR LOWER(sync_code) LIKE ${pIdx} ESCAPE '\\')`);
+    } else {
+      conds.push(`(LOWER(COALESCE(name,'')) LIKE ${pIdx} ESCAPE '\\' OR LOWER(COALESCE(email,'')) LIKE ${pIdx} ESCAPE '\\' OR LOWER(sync_code) LIKE ${pIdx} ESCAPE '\\')`);
+    }
+  }
+  return { conds, args };
+}
+
+async function adminDailySummary(url, db, env) {
+  const p = period(url), tz = timeZone(env), today = localDateStr(new Date(), tz);
+  const recentCutoff = new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10);
+  const lWhere = "u.hidden = 0" + (p.key ? ` AND l.${p.type} = ?1` : "");
+  const lq = (sql) => (p.key ? db.prepare(sql).bind(p.key) : db.prepare(sql));
+
+  const limit = int(url.searchParams.get("limit") || 100, 1, 500);
+  const before = int(url.searchParams.get("before") || 0, 0, Number.MAX_SAFE_INTEGER);
+  const f = dailyAdminFilter(url), where = f.conds.length ? f.conds.join(" AND ") : "1 = 1", args = f.args;
+  const rowArgs = before > 0 ? [...args, before, limit + 1] : [...args, limit + 1];
+  const rowSql = before > 0
+    ? `SELECT id, sync_code, name, email, note, avatar, streak, best_streak, total_days, shields, shields_used, rescues, last_date, sprint_done_at, claimed_at, hidden, created_at FROM daily_users WHERE ${where} AND id < ?${args.length + 1} ORDER BY id DESC LIMIT ?${args.length + 2}`
+    : `SELECT id, sync_code, name, email, note, avatar, streak, best_streak, total_days, shields, shields_used, rescues, last_date, sprint_done_at, claimed_at, hidden, created_at FROM daily_users WHERE ${where} ORDER BY id DESC LIMIT ?${args.length + 1}`;
+
+  const [uOv, lOv, qRows, fRows, finRows, modRows, modCount] = await db.batch([
+    db.prepare(`SELECT COUNT(*) AS initialized,
+      COALESCE(SUM(total_days >= 1), 0) AS starters,
+      COALESCE(SUM(total_days >= 14), 0) AS finishers14,
+      COALESCE(SUM(total_days >= 15), 0) AS beyond14,
+      COALESCE(SUM(claimed_at IS NOT NULL), 0) AS claimed,
+      COALESCE(SUM(email IS NOT NULL), 0) AS emails,
+      ROUND(AVG(CASE WHEN total_days >= 1 THEN total_days END), 1) AS avgDays,
+      MAX(total_days) AS maxDays,
+      MAX(best_streak) AS maxStreak,
+      COALESCE(SUM(shields_used), 0) AS shieldsSaved,
+      COALESCE(SUM(last_date >= ?1), 0) AS activeRecent
+      FROM daily_users WHERE hidden = 0`).bind(recentCutoff),
+    lq(`SELECT COUNT(*) AS totalLogs,
+      COALESCE(SUM(l.status = 'direct'), 0) AS direct,
+      COALESCE(SUM(l.status = 'rescued'), 0) AS rescued,
+      COALESCE(SUM(l.status = 'skipped'), 0) AS skipped
+      FROM daily_logs l JOIN daily_users u ON u.id = l.user_id WHERE ${lWhere}`),
+    lq(`SELECT l.qid,
+      COALESCE(SUM(l.status = 'direct'), 0) AS direct,
+      COALESCE(SUM(l.status = 'rescued'), 0) AS rescued,
+      COALESCE(SUM(l.status = 'skipped'), 0) AS skipped
+      FROM daily_logs l JOIN daily_users u ON u.id = l.user_id WHERE ${lWhere} GROUP BY l.qid`),
+    db.prepare(`SELECT
+      ${[1,2,3,4,5,6,7,8,9,10,11,12,13,14,21,30].map((d) => `COALESCE(SUM(total_days >= ${d}), 0) AS d${d}`).join(", ")}
+      FROM daily_users WHERE hidden = 0`),
+    db.prepare(`SELECT id, sync_code, name, email, note, total_days, streak, best_streak, rescues, sprint_done_at, claimed_at, last_date
+      FROM daily_users WHERE hidden = 0 AND total_days >= 14 ORDER BY claimed_at IS NULL ASC, total_days DESC, id DESC LIMIT 50`),
+    db.prepare(rowSql).bind(...rowArgs),
+    db.prepare(`SELECT COUNT(*) AS n FROM daily_users WHERE ${where}`).bind(...args),
+  ]);
+
+  const uo = uOv.results[0] || {}, lo = lOv.results[0] || {}, fn = fRows.results[0] || {};
+  const pct = (a, b) => (b ? Math.round((1000 * (a || 0)) / b) / 10 : null);
+  const checkins = (lo.direct || 0) + (lo.rescued || 0), starters = uo.starters || 0;
+  const qMap = new Map((qRows.results || []).map((r) => [r.qid, r]));
+  const rawMod = modRows.results || [], hasMore = rawMod.length > limit, rows = hasMore ? rawMod.slice(0, limit) : rawMod;
+
+  return json({
+    ok: true,
+    today,
+    period: { type: p.type, key: p.key },
+    overview: {
+      initialized: uo.initialized || 0,
+      starters,
+      checkins,
+      direct: lo.direct || 0,
+      rescued: lo.rescued || 0,
+      skipped: lo.skipped || 0,
+      rescuePct: pct(lo.rescued || 0, checkins),
+      finishers14: uo.finishers14 || 0,
+      finisherPct: pct(uo.finishers14 || 0, starters),
+      beyond14: uo.beyond14 || 0,
+      claimed: uo.claimed || 0,
+      emails: uo.emails || 0,
+      avgDays: uo.avgDays ?? null,
+      maxDays: uo.maxDays || 0,
+      maxStreak: uo.maxStreak || 0,
+      shieldsSaved: uo.shieldsSaved || 0,
+      activeRecent: uo.activeRecent || 0,
+    },
+    funnel: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,21,30].map((d) => ({
+      day: d,
+      label: `Day ${d}`,
+      users: fn["d" + d] || 0,
+      pctOfStarters: pct(fn["d" + d] || 0, starters),
+    })),
+    questions: DAILY.QUESTIONS.map((q) => {
+      const r = qMap.get(q.id) || { direct: 0, rescued: 0, skipped: 0 };
+      const total = (r.direct || 0) + (r.rescued || 0) + (r.skipped || 0);
+      const done = (r.direct || 0) + (r.rescued || 0);
+      return {
+        id: q.id,
+        sprintDay: q.sprintDay,
+        cat: q.cat,
+        en: q.en,
+        zh: q.zh,
+        total,
+        direct: r.direct || 0,
+        rescued: r.rescued || 0,
+        skipped: r.skipped || 0,
+        directPct: pct(r.direct || 0, total),
+        rescuePct: pct(r.rescued || 0, total),
+        checkinPct: pct(done, total),
+      };
+    }),
+    finishers: finRows.results || [],
+    rows,
+    filteredTotal: (modCount.results[0] && modCount.results[0].n) || 0,
+    nextBefore: hasMore ? rows[rows.length - 1].id : null,
+  });
+}
+
+async function adminDailyExport(url, db) {
+  const kind = url.searchParams.get("kind") === "logs" ? "logs" : "users";
+  const p = period(url);
+  const cell = (v) => {
+    let s = v === null || v === undefined ? "" : String(v);
+    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+    return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const cols = kind === "logs"
+    ? ["id", "user_id", "sync_code", "name", "day_date", "week", "month", "day_num", "qid", "first_pick", "status", "shield_saved", "streak_after", "hidden", "created_at", "updated_at"]
+    : ["id", "sync_code", "name", "email", "note", "avatar", "sky", "streak", "best_streak", "total_days", "shields", "shields_used", "rescues", "last_date", "sprint_done_at", "claimed_at", "hidden", "created_at", "updated_at"];
+  const enc = new TextEncoder();
+  let after = 0, sentHead = false;
+  const lWhere = p.key ? `l.${p.type} = ?1 AND l.id > ?2` : "l.id > ?1";
+  const stream = new ReadableStream({
+    async pull(ctrl) {
+      if (!sentHead) { sentHead = true; ctrl.enqueue(enc.encode("\ufeff" + cols.join(",") + "\r\n")); }
+      const q = kind === "logs"
+        ? (p.key
+          ? db.prepare(`SELECT l.id, l.user_id, u.sync_code, u.name, l.day_date, l.week, l.month, l.day_num, l.qid, l.first_pick, l.status, l.shield_saved, l.streak_after, u.hidden, l.created_at, l.updated_at FROM daily_logs l JOIN daily_users u ON u.id = l.user_id WHERE ${lWhere} ORDER BY l.id ASC LIMIT 500`).bind(p.key, after)
+          : db.prepare(`SELECT l.id, l.user_id, u.sync_code, u.name, l.day_date, l.week, l.month, l.day_num, l.qid, l.first_pick, l.status, l.shield_saved, l.streak_after, u.hidden, l.created_at, l.updated_at FROM daily_logs l JOIN daily_users u ON u.id = l.user_id WHERE ${lWhere} ORDER BY l.id ASC LIMIT 500`).bind(after))
+        : db.prepare(`SELECT ${cols.join(", ")} FROM daily_users WHERE id > ?1 ORDER BY id ASC LIMIT 500`).bind(after);
+      const { results } = await q.all();
+      if (!results || !results.length) { ctrl.close(); return; }
+      after = results[results.length - 1].id;
+      ctrl.enqueue(enc.encode(results.map((r) => cols.map((c) => cell(r[c])).join(",")).join("\r\n") + "\r\n"));
+      if (results.length < 500) ctrl.close();
+    },
+  });
+  const scope = p.key ? "-" + p.key : "";
+  return new Response(stream, {
+    headers: {
+      "content-type": "text/csv; charset=utf-8",
+      "content-disposition": `attachment; filename="3-fall-crab-daily-${kind}${scope}-${new Date().toISOString().slice(0, 10)}.csv"`,
+      "cache-control": "no-store",
+      ...SECURE,
+    },
+  });
 }
 
 // ---------- admin routes ----------
@@ -1308,6 +1817,37 @@ async function admin(path, request, env, db) {
     const st = await queueDispatch("admin", { forceHold: b.forceHold }, env);
     return json({ ...st, inFlight, maxConcurrent: int(env.MAX_CONCURRENT || 25, 1, 500), durableObject: !!(env && env.WAITING_ROOM) });
   }
+  if (path === "daily" && request.method === "GET") {
+    await ensureDailySchema(env);
+    return await adminDailySummary(url, db, env);
+  }
+  if (path === "daily-mod" && request.method === "POST") {
+    await ensureDailySchema(env);
+    const text = await readBody(request, MAX_BODY);
+    if (text === null) return fail("too_large", 413);
+    let b;
+    try { b = JSON.parse(text); } catch { return fail("bad_json", 400); }
+    if (!b || typeof b !== "object" || Array.isArray(b)) return fail("bad_json", 400);
+    const act = b.action;
+    if (!["hide", "unhide", "rename"].includes(act)) return fail("bad_action", 400);
+    const ids = [...new Set((Array.isArray(b.ids) ? b.ids : []).map((x) => int(x, 0, Number.MAX_SAFE_INTEGER)).filter((x) => x > 0))].slice(0, 100);
+    if (!ids.length) return fail("bad_id", 400);
+    const val = act === "rename" ? NAME_DEFAULT : (act === "hide" ? 1 : 0);
+    const stmts = [];
+    for (let i = 0; i < ids.length; i += 99) {
+      const chunk = ids.slice(i, i + 99);
+      const ph = chunk.map((_, j) => `?${j + 2}`).join(", ");
+      const sql = act === "rename" ? `UPDATE daily_users SET name = ?1 WHERE id IN (${ph})` : `UPDATE daily_users SET hidden = ?1 WHERE id IN (${ph})`;
+      stmts.push(db.prepare(sql).bind(val, ...chunk));
+    }
+    const results = await db.batch(stmts);
+    const changed = results.reduce((s, r) => s + (r?.meta?.changes || 0), 0);
+    return json({ ok: true, action: act, count: ids.length, changed });
+  }
+  if (path === "daily-export" && request.method === "GET") {
+    await ensureDailySchema(env);
+    return await adminDailyExport(url, db);
+  }
   return fail("not_found", 404);
 }
 
@@ -1332,6 +1872,11 @@ export async function handle(request, env) {
     if (path === "/api/queue") {
       if (method === "GET" || method === "HEAD" || method === "POST") return await checkQueue(u, request, env);
       return fail("method_not_allowed", 405, { allow: "GET, HEAD, POST" });
+    }
+    if (path === "/api/daily") {
+      if (!env.DB) return fail("no_database", 503);
+      await ensureDailySchema(env);
+      return await withLoadSlot(env, () => dailyApi(request, env, env.DB));
     }
     if (path === "/api/scores" || path.startsWith("/api/admin/")) {
       if (!env.DB) return fail("no_database", 503);

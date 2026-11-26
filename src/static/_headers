@@ -35,3 +35,7 @@
 /api/scores
   Content-Type: application/json; charset=utf-8
   Cache-Control: no-store
+
+/api/daily
+  Content-Type: application/json; charset=utf-8
+  Cache-Control: no-store

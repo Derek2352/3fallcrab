@@ -163,6 +163,16 @@ export function makeStore() {
   const rows = [];
   let seq = 0;
   let schemaVer = null;
+  let dailyDb = null;
+  const getDailyDb = () => {
+    if (!dailyDb) {
+      dailyDb = makeSqliteDB();
+      dailyDb._raw.exec("CREATE TABLE IF NOT EXISTS schema_meta (k TEXT PRIMARY KEY, v INTEGER NOT NULL)");
+      dailyDb._raw.exec("CREATE TABLE IF NOT EXISTS admin_fails (net TEXT NOT NULL, at TEXT NOT NULL)");
+    }
+    return dailyDb;
+  };
+  const isDailySql = (sql) => /\bdaily_(?:users|logs|ver)\b|idx_daily_/i.test(sql);
 
   const select = (sql, args) => {
     let list = rows.slice();
@@ -296,6 +306,7 @@ export function makeStore() {
   };
 
   const stmt = (sql, args = []) => {
+    if (isDailySql(sql)) return getDailyDb().prepare(sql).bind(...args);
     const s = { sql, args, bind: (...a) => stmt(sql, a) };
     s.all = async () => run(sql, args);
     s.first = async () => { const r = run(sql, args); return r.results && r.results.length ? r.results[0] : null; };
@@ -305,7 +316,14 @@ export function makeStore() {
 
   return {
     prepare: (sql) => stmt(sql),
-    batch: async (list) => (list || []).map((s) => run(s.sql, s.args)),
+    batch: async (list) => {
+      if (!list || !list.length) return [];
+      if (list.some((s) => isDailySql(s.sql))) {
+        const db = getDailyDb();
+        return db.batch(list.map((s) => (s._execSync ? s : db.prepare(s.sql).bind(...(s.args || [])))));
+      }
+      return list.map((s) => run(s.sql, s.args));
+    },
     exec: async () => {},
     _rows: rows,
   };

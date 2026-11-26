@@ -32,21 +32,22 @@ self.addEventListener("fetch", (event) => {
   if (p === "/sw.js" || p.startsWith("/api/") || p === "/admin" || p.startsWith("/admin.") || p.startsWith("/poster")) return;
 
   if (req.mode === "navigate") {
+    const isDaily = p === "/daily" || p === "/daily.html";
     event.respondWith(
       fetch(req)
         .then((res) => {
-          if (res.ok && (p === "/" || p === "/index.html")) {
+          if (res.ok && (p === "/" || p === "/index.html" || isDaily)) {
             const copy = res.clone();
-            caches.open(CACHE).then((c) => c.put("/", copy)).catch(() => {});
+            caches.open(CACHE).then((c) => c.put(isDaily ? "/daily" : "/", copy)).catch(() => {});
           }
           return res;
         })
-        .catch(() => caches.match("/").then((r) => r || new Response("Offline", { status: 503, statusText: "Offline" })))
+        .catch(() => caches.match(isDaily ? "/daily" : "/").then((r) => r || caches.match("/").then((h) => h || new Response("Offline", { status: 503, statusText: "Offline" }))))
     );
     return;
   }
 
-  if (p.startsWith("/assets/") || p.startsWith("/icons/") || p.startsWith("/vendor/") || p === "/manifest.webmanifest") {
+  if (p.startsWith("/assets/") || p.startsWith("/icons/") || p.startsWith("/vendor/") || p === "/manifest.webmanifest" || p === "/daily.webmanifest") {
     event.respondWith(
       caches.match(req).then((hit) => {
         if (hit) return hit;

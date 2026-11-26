@@ -1,5 +1,5 @@
-const CACHE = "tff-561f2f9dc574";
-const PRECACHE = ["/","/manifest.webmanifest","/icons/favicon-32.png","/icons/icon-192.png","/vendor/qrcode-1.4.4.js","/assets/style.cde8c6ddc6.css","/assets/matter-0.19.0.min.d9be33d851.js","/assets/prelude.552885b01c.js","/assets/game.5fc51d7057.js","/assets/intro.90d95fea3c.js","/assets/cast.1b7cde7a64.webp","/assets/gluten.5b0fb221b0.woff2","/assets/lxgw-wenkai-tc-bold.f007afccdf.woff2","/assets/lxgw-wenkai-tc-regular.e468588c35.woff2","/assets/noto-sans-hk.ef21e72e0e.woff2","/assets/source-sans-punct-400.f1e8c6c73b.woff2","/assets/source-sans-punct-700.54c4ee4dfe.woff2","/assets/source-sans-punct-900.622c4a765b.woff2"];
+const CACHE = "tff-65ac1b9dc833";
+const PRECACHE = ["/","/manifest.webmanifest","/icons/favicon-32.png","/icons/icon-192.png","/vendor/qrcode-1.4.4.js","/assets/style.3f268a7246.css","/assets/matter-0.19.0.min.d9be33d851.js","/assets/prelude.552885b01c.js","/assets/game.5fc51d7057.js","/assets/intro.90d95fea3c.js","/assets/cast.1b7cde7a64.webp","/assets/gluten.5fbb415235.woff2","/assets/lxgw-wenkai-tc-bold.5a60941649.woff2","/assets/lxgw-wenkai-tc-regular.efb1e1bbe5.woff2","/assets/noto-sans-hk.8d92960645.woff2","/assets/source-sans-punct-400.f1e8c6c73b.woff2","/assets/source-sans-punct-700.54c4ee4dfe.woff2","/assets/source-sans-punct-900.622c4a765b.woff2"];
 self.addEventListener("install", (event) => {
 event.waitUntil(
 caches.open(CACHE)
@@ -25,20 +25,21 @@ if (url.origin !== self.location.origin) return;
 const p = url.pathname;
 if (p === "/sw.js" || p.startsWith("/api/") || p === "/admin" || p.startsWith("/admin.") || p.startsWith("/poster")) return;
 if (req.mode === "navigate") {
+const isDaily = p === "/daily" || p === "/daily.html";
 event.respondWith(
 fetch(req)
 .then((res) => {
-if (res.ok && (p === "/" || p === "/index.html")) {
+if (res.ok && (p === "/" || p === "/index.html" || isDaily)) {
 const copy = res.clone();
-caches.open(CACHE).then((c) => c.put("/", copy)).catch(() => {});
+caches.open(CACHE).then((c) => c.put(isDaily ? "/daily" : "/", copy)).catch(() => {});
 }
 return res;
 })
-.catch(() => caches.match("/").then((r) => r || new Response("Offline", { status: 503, statusText: "Offline" })))
+.catch(() => caches.match(isDaily ? "/daily" : "/").then((r) => r || caches.match("/").then((h) => h || new Response("Offline", { status: 503, statusText: "Offline" }))))
 );
 return;
 }
-if (p.startsWith("/assets/") || p.startsWith("/icons/") || p.startsWith("/vendor/") || p === "/manifest.webmanifest") {
+if (p.startsWith("/assets/") || p.startsWith("/icons/") || p.startsWith("/vendor/") || p === "/manifest.webmanifest" || p === "/daily.webmanifest") {
 event.respondWith(
 caches.match(req).then((hit) => {
 if (hit) return hit;

@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>3 Fall Crab · Harbour Keep 海傍小天地 · Daily Habit Check-in</title>
+<meta name="description" content="A daily post-booth financial habit check-in by 3 Fall Crab. Answer one quick question a day, take 60-second micro-actions, and grow your clay Victoria Harbour pier from Day 1 to Day 14 and beyond.">
+<meta name="theme-color" content="#FFD23F">
+<meta name="color-scheme" content="light">
+<meta name="format-detection" content="telephone=no">
+<link rel="icon" href="/icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="icon" href="/icons/icon-192.png" sizes="192x192" type="image/png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="manifest" href="/daily.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="3 Fall Crab · Harbour Keep">
+<meta property="og:title" content="3 Fall Crab · Harbour Keep 海傍小天地 · Daily Money Check-in">
+<meta property="og:description" content="One tiny money question a day. Build a 14-day starter sprint and grow your clay Victoria Harbour pier.">
+<meta property="og:url" content="%%SITE_URL%%/daily">
+<meta property="og:image" content="%%SITE_URL%%%%asset:share/og.jpg%%">
+<link rel="preload" href="%%asset:fonts/gluten.woff2%%" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="%%asset:fonts/noto-sans-hk.woff2%%" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="%%asset:daily.css%%">
+<meta name="tff-cast" content="%%asset:art/cast.webp%%">
+</head>
+<body>
+<noscript><p style="margin:0;padding:16px;background:#2E2838;color:#fff;font:16px/1.5 system-ui,sans-serif;text-align:center">Harbour Keep needs JavaScript to run. 請開啟 JavaScript 先用到。</p></noscript>
+
+<div class="daily-shell" id="dailyShell">
+  <div class="iab" id="dailyIab" role="region" aria-label="Open in your browser 用瀏覽器開啟" hidden>
+    <p class="iab-t" id="dailyIabText"></p>
+    <div class="iab-acts">
+      <button class="btn" id="dailyIabOpen" type="button" hidden></button>
+      <button class="btn alt" id="dailyIabCopy" type="button">Copy link <span class="zh" lang="zh-HK">複製連結</span></button>
+    </div>
+    <p class="iab-st" id="dailyIabStatus" aria-live="polite"></p>
+    <button class="iab-x" id="dailyIabClose" type="button" aria-label="Close this tip 關閉提示"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+
+  <header class="mast">
+    <div class="logo">
+      <canvas id="dailyCrabLogo" width="140" height="112" aria-hidden="true"></canvas>
+      <div class="titles">
+        <h1 class="word" aria-label="3 Fall Crab"><span>3</span><span>F</span><span>a</span><span>l</span><span>l</span><span>C</span><span>r</span><span>a</span><span>b</span></h1>
+        <p class="zh-title"><span lang="zh-HK">海傍小天地</span> <span class="tagline">Harbour Keep · 每日理財打卡</span></p>
+      </div>
+    </div>
+    <div class="mast-right">
+      <div class="stat-pills" aria-label="Streak and shields">
+        <span class="pill-badge streak" id="streakPill">🔥 <b id="streakNum">0</b>d</span>
+        <span class="pill-badge shield" id="shieldPill" title="Insurance Net Streak Shields 保險網防斷纜">🛟 <b id="shieldNum">0</b>/2</span>
+      </div>
+      <button class="iconbtn" id="skyBtn" type="button" aria-label="Cycle harbour sky 切換天空時間" title="Sky mood 天空模式">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.5" fill="#FF7B35"/><path d="M12 2.5v2.4M12 19.1v2.4M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M2.5 12h2.4M19.1 12h2.4M4.9 19.1l1.7-1.7M17.4 6.6l1.7-1.7" stroke="#2E2838" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <button class="iconbtn" id="dailyMute" type="button" aria-label="Mute sound 靜音" aria-pressed="false" title="Sound (M)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h4.2l5-4.3v13.6l-5-4.3H4z" fill="#2E2838"/><path class="w" d="M16.4 8.5a5 5 0 0 1 0 7M18.9 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="#14968B" stroke-width="2.2" stroke-linecap="round"/><path class="x" d="M16.5 9l5 6M21.5 9l-5 6" fill="none" stroke="#C42A24" stroke-width="2.4" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="daily-grid">
+    <!-- Left / Top: Clay Harbour Pier & Life Tower Diorama -->
+    <section class="pier-col" aria-label="Your clay harbour pier 你的海傍小天地">
+      <div class="pier-wrap clay">
+        <canvas id="pierCv" width="520" height="410" role="img" aria-label="Interactive clay Victoria Harbour pier growing with your daily check-ins"></canvas>
+        <div class="pier-hud" aria-hidden="true">
+          <span class="ph-chip"><b id="hudFloor">G/F</b> <small id="hudMode">Starter Sprint</small></span>
+          <span class="ph-chip"><b id="hudTotal">Day 0</b> <small id="hudBest">Best 0d</small></span>
+        </div>
+        <div class="stamps" id="pierStamp" aria-hidden="true"></div>
+        <div class="pier-talk" id="pierTalk" role="status" aria-live="polite">
+          <b id="talkEn">Tap anywhere for music · Answer today's tiny money question!</b>
+          <small id="talkZh" lang="zh-HK">輕觸任何地方開聲 · 每日一條小問題，慢慢疊起你嘅海傍！</small>
+        </div>
+      </div>
+
+      <section class="sprint-card clay" aria-labelledby="sprintHead">
+        <div class="sc-head">
+          <h2 class="h" id="sprintHead">14-Day Starter Sprint <span class="zh" lang="zh-HK">14日新手衝刺</span></h2>
+          <span class="sc-prog" id="sprintProg">0 / 14</span>
+        </div>
+        <ol class="sprint-track" id="sprintTrack" aria-label="14-day milestones"></ol>
+        <div class="inf-bar" id="infBar" hidden>
+          <div class="inf-row">
+            <span><b>Infinite Mode <span lang="zh-HK">無限擴建</span></b> · <span id="infNextText">Next landmark</span></span>
+            <span class="inf-count" id="infNextCount"></span>
+          </div>
+          <div class="inf-track"><i id="infFill"></i></div>
+        </div>
+        <div class="finisher-bar" id="finisherBanner" hidden>
+          <div>
+            <b>🎓 14-Day Starter Sprint Complete! <span lang="zh-HK">完成14日衝刺！</span></b>
+            <small id="finisherSub">Claim your commemorative pass &amp; optional prize registration.</small>
+          </div>
+          <button class="btn" id="openClaimBtn" type="button">Claim &amp; Pass <span class="zh" lang="zh-HK">領取證書</span></button>
+        </div>
+      </section>
+    </section>
+
+    <!-- Right / Bottom: Clapperboard Daily Question & Action Pills -->
+    <section class="card-col" aria-label="Today's check-in 今日打卡">
+      <p class="sound-hint" id="dailySoundHint">🔊 Tap anywhere for music &amp; sound · <span lang="zh-HK">輕觸畫面開啟音效</span></p>
+
+      <article class="lifecard clay" aria-labelledby="qEn">
+        <div class="lc-band">
+          <div class="no">
+            <span class="slate" id="qSlate">STARTER SPRINT · <b>DAY 01</b> OF 14</span>
+            <small id="qSlateZh" lang="zh-HK">14日新手衝刺 · 第1日打卡</small>
+          </div>
+          <span class="stg" id="qDateChip">Today</span>
+        </div>
+
+        <div class="lc-body">
+          <div class="q-meta">
+            <span class="cat-badge" id="qCat">Smart Spending</span>
+            <canvas id="qThumbCv" width="96" height="96" aria-hidden="true"></canvas>
+          </div>
+
+          <h2 class="q-en" id="qEn">Loading today's check-in…</h2>
+          <p class="q-zh" id="qZh" lang="zh-HK">載入緊今日題目…</p>
+
+          <!-- State 1: Unanswered -->
+          <div class="choices" id="qAsk">
+            <button class="choice yes" id="btnYes" type="button">
+              <span class="key">1</span>
+              <span><b id="yesEn">Yes</b><small id="yesZh" lang="zh-HK">係</small></span>
+            </button>
+            <button class="choice no" id="btnNo" type="button">
+              <span class="key">2</span>
+              <span><b id="noEn">Not yet</b><small id="noZh" lang="zh-HK">未</small></span>
+            </button>
+          </div>
+
+          <!-- State 2: 60s Honest Micro-Action Rescue -->
+          <div class="rescue-box" id="qRescue" hidden>
+            <div class="rescue-head">
+              <b>⏱ 60-Second Action Rescue <span lang="zh-HK">60秒即刻行動補救</span></b>
+              <span class="rescue-sec" id="rescueTimer" aria-live="off">60s</span>
+            </div>
+            <div class="timer" aria-hidden="true"><i id="rescueBar"></i></div>
+            <p class="rescue-do" id="rescueText"></p>
+            <p class="rescue-do-zh" id="rescueTextZh" lang="zh-HK"></p>
+            <div class="rescue-acts">
+              <button class="btn green" id="btnRescueDone" type="button">I just did it! Check me in <span class="zh" lang="zh-HK">我啱啱做咗，打卡！</span></button>
+              <button class="btn alt" id="btnRescueSkip" type="button">Not today — try tomorrow <span class="zh" lang="zh-HK">今日唔得，聽日再試</span></button>
+            </div>
+          </div>
+
+          <!-- State 3: Outcome / Checked-in -->
+          <div class="outcome" id="qDone" hidden>
+            <div class="oc-head" id="doneHead">
+              <svg viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="15" fill="#1D6631"/><path d="M10 17.5l5 5 9-11" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <div>
+                <b id="doneTitle">Checked in for today!</b>
+                <small id="doneTitleZh" lang="zh-HK">今日打卡成功！</small>
+              </div>
+            </div>
+            <p class="shield-note" id="shieldNotice" hidden></p>
+            <div class="oc-tip">
+              <strong class="tip-lab">💡 Practical Takeaway <span lang="zh-HK">實用小貼士</span></strong>
+              <p id="doneTipEn"></p>
+              <small id="doneTipZh" lang="zh-HK"></small>
+            </div>
+            <div class="skip-rescue" id="skipRescueWrap" hidden>
+              <button class="btn teal" id="btnLateRescue" type="button">Do the 60s action now &amp; check in! <span class="zh" lang="zh-HK">趁今日未過，即刻補救打卡！</span></button>
+            </div>
+            <p class="next-cd" id="nextCountdown"></p>
+          </div>
+
+          <p class="save-status" id="saveStatus" role="status" aria-live="polite"></p>
+        </div>
+      </article>
+
+      <div class="tool-row" role="group" aria-label="Pier guide, reminders, and backup">
+        <button class="btn alt tool-btn" id="logBtn" type="button">🏛 Pier Guide <span class="zh" lang="zh-HK">海傍圖鑑</span></button>
+        <button class="btn alt tool-btn" id="remindBtn" type="button">🔔 Reminders <span class="zh" lang="zh-HK">提醒 / App</span></button>
+        <button class="btn alt tool-btn" id="syncBtn" type="button">🔑 Backup &amp; Claim <span class="zh" lang="zh-HK">備份 / 領獎</span></button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <p><b>3 Fall Crab <span lang="zh-HK">整冧咗</span>team</b> · HSUHK Personal Finance Ambassador Programme 2026. Daily check-ins sync anonymously via your device key and Sync Code; optional nickname &amp; email are used only for Day-14 prize follow-up and never shown publicly. Questions? Email <a href="mailto:%%CONTACT_EMAIL%%">%%CONTACT_EMAIL%%</a>.</p>
+    <p lang="zh-HK">每日理財打卡只作個人習慣追蹤及活動成效統計；除非你喺完成14日衝刺後主動填寫電郵領獎，否則唔會收集個人聯絡資料。如有私隱查詢請電郵至 <a href="mailto:%%CONTACT_EMAIL%%">%%CONTACT_EMAIL%%</a>。</p>
+  </footer>
+</div>
+
+<!-- Modal 1: Pier Guide & Check-in History -->
+<div class="modal" id="logModal" role="dialog" aria-modal="true" aria-labelledby="logHead" hidden>
+  <div class="sheet clay">
+    <div class="st-band">
+      <div><b id="logHead">Harbour Pier Guide</b> <span class="zh" lang="zh-HK">海傍建築圖鑑</span></div>
+      <button class="mclose" id="logClose" type="button" aria-label="Close guide 關閉圖鑑">✕</button>
+    </div>
+    <div class="st-body">
+      <p class="modal-intro">Every day you check in unlocks a new Hong Kong clay landmark on your pier — and missed days never tear down what you built. <span lang="zh-HK">每日打卡都會加建新景物；就算中途斷纜，已經起好嘅建築依然留喺度！</span></p>
+      <h3 class="subh">Recent Check-in Calendar <span lang="zh-HK">最近打卡紀錄</span></h3>
+      <div class="hist-grid" id="histGrid"></div>
+      <h3 class="subh">Pier Landmarks <span lang="zh-HK">里程碑建築</span></h3>
+      <ul class="mile-list" id="mileList"></ul>
+    </div>
+  </div>
+</div>
+
+<!-- Modal 2: Reminders (.ics) & Add to Home Screen -->
+<div class="modal" id="remindModal" role="dialog" aria-modal="true" aria-labelledby="remindHead" hidden>
+  <div class="sheet clay">
+    <div class="st-band">
+      <div><b id="remindHead">Daily Reminder &amp; Home Screen</b> <span class="zh" lang="zh-HK">防斷纜提醒</span></div>
+      <button class="mclose" id="remindClose" type="button" aria-label="Close reminders 關閉提醒">✕</button>
+    </div>
+    <div class="st-body">
+      <div class="rm-block">
+        <h3 class="subh">1. Add Daily Calendar Alert (.ics) <span lang="zh-HK">一鍵加每日行事曆提醒</span></h3>
+        <p class="modal-intro">Pick your favourite 30-second check-in time (for example, right after dinner or before bed) and add a 30-day calendar reminder. <span lang="zh-HK">揀個每日最順手嘅時間，一撳加入電話行事曆，就唔怕忘記！</span></p>
+        <div class="ics-row">
+          <label for="icsTime">Reminder time <span class="zh" lang="zh-HK">提醒時間</span></label>
+          <input id="icsTime" type="time" value="21:00">
+          <button class="btn teal" id="icsDownloadBtn" type="button">Download .ics <span class="zh" lang="zh-HK">加入行事曆</span></button>
+        </div>
+        <p class="post-status" id="icsStatus" role="status" aria-live="polite"></p>
+      </div>
+      <div class="rm-block">
+        <h3 class="subh">2. Pin to Your Home Screen <span lang="zh-HK">加到電話主畫面當App用</span></h3>
+        <div id="pwaInstallWrap" hidden>
+          <button class="btn" id="pwaInstallBtn" type="button">Install Harbour Keep App <span class="zh" lang="zh-HK">安裝到主畫面</span></button>
+        </div>
+        <ol class="pwa-steps">
+          <li><b>iPhone (Safari):</b> Tap the <b>Share</b> icon (□↑) at the bottom, then choose <b>Add to Home Screen 加至主畫面</b>.</li>
+          <li><b>Android (Chrome):</b> Tap the <b>⋮ menu</b> top-right, then choose <b>Add to Home screen / Install app</b>.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal 3: Sync Code, Companion & Day-14 Finisher Claim -->
+<div class="modal" id="syncModal" role="dialog" aria-modal="true" aria-labelledby="syncHead" hidden>
+  <div class="sheet clay">
+    <div class="st-band">
+      <div><b id="syncHead">Backup, Companion &amp; Day-14 Claim</b> <span class="zh" lang="zh-HK">備份與領獎</span></div>
+      <button class="mclose" id="syncClose" type="button" aria-label="Close backup and claim 關閉備份與領獎">✕</button>
+    </div>
+    <div class="st-body">
+      <div class="rm-block">
+        <h3 class="subh">Harbour Companion <span lang="zh-HK">揀個海傍拍檔</span></h3>
+        <div class="av-pick" role="radiogroup" aria-label="Harbour companion">
+          <button class="av-opt" type="button" role="radio" data-av="crab" aria-checked="true">🦀 Crab <small lang="zh-HK">蟹仔</small></button>
+          <button class="av-opt" type="button" role="radio" data-av="jack" aria-checked="false">🧑 Jack <small lang="zh-HK">阿Jack</small></button>
+          <button class="av-opt" type="button" role="radio" data-av="jackie" aria-checked="false">👩 Jackie <small lang="zh-HK">Jackie</small></button>
+        </div>
+      </div>
+
+      <div class="rm-block">
+        <h3 class="subh">Your Sync Code <span lang="zh-HK">跨裝置備份碼</span></h3>
+        <p class="modal-intro">Save this code if you switch phones or clear browser data. <span lang="zh-HK">換手機或清瀏覽器記錄前抄低呢組碼，隨時還原進度！</span></p>
+        <div class="sync-row">
+          <code class="sync-code" id="syncCodeText">CRAB-••••-••••</code>
+          <button class="btn alt mini" id="copySyncBtn" type="button">Copy <span class="zh" lang="zh-HK">複製</span></button>
+        </div>
+        <form class="restore-form" id="restoreForm">
+          <label for="restoreInput" class="sr">Enter Sync Code to restore progress</label>
+          <input id="restoreInput" type="text" placeholder="CRAB-XXXX-YYYY" maxlength="20" autocomplete="off">
+          <button class="btn teal mini" id="restoreBtn" type="submit">Restore <span class="zh" lang="zh-HK">還原</span></button>
+        </form>
+        <p class="post-status" id="syncStatus" role="status" aria-live="polite"></p>
+      </div>
+
+      <div class="rm-block">
+        <h3 class="subh">Day-14 Starter Sprint Claim <span class="zh" lang="zh-HK">14日衝刺完成登記</span></h3>
+        <p class="modal-intro" id="claimLockNote">Complete 14 check-in days to unlock your Commemorative Pass &amp; finisher entry! <span lang="zh-HK">累積滿14日打卡即可領取紀念通行證同登記完成獎賞！</span></p>
+        <form class="claim-form" id="claimForm">
+          <div class="fld">
+            <label for="claimName">Nickname <span class="opt">(optional)</span> <span class="zh" lang="zh-HK">暱稱</span></label>
+            <input id="claimName" type="text" maxlength="16" placeholder="e.g. Ming">
+          </div>
+          <div class="fld">
+            <label for="claimEmail">Email <span class="opt">(private, for finisher prize/certificate)</span> <span class="zh" lang="zh-HK">電郵</span></label>
+            <input id="claimEmail" type="email" maxlength="120" placeholder="you@example.com">
+          </div>
+          <div class="fld">
+            <label for="claimNote">One habit I'm keeping <span class="opt">(optional)</span> <span class="zh" lang="zh-HK">最想保持嘅一個習慣</span></label>
+            <input id="claimNote" type="text" maxlength="160" placeholder="e.g. Autopay credit card in full">
+          </div>
+          <div class="claim-acts">
+            <button class="btn" id="claimSubmitBtn" type="submit">Save / Claim <span class="zh" lang="zh-HK">儲存登記</span></button>
+            <button class="btn green" id="certBtn" type="button" hidden>Download Day-14 Pass <span class="zh" lang="zh-HK">下載14日證書</span></button>
+          </div>
+        </form>
+        <p class="post-status" id="claimStatus" role="status" aria-live="polite"></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="%%asset:daily-prelude.js%%"></script>
+<script src="%%asset:daily-content.js%%"></script>
+<script src="%%asset:daily.js%%"></script>
+</body>
+</html>

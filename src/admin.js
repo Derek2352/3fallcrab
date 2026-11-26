@@ -18,17 +18,19 @@
   const ANON = "Anonymous crab 匿名蟹"; // the name a game gets when its nickname is anonymised (same as the API)
   const C = window.TFF_CONTENT || { STAGES: [], TRAPS: {}, CARDS: [], QUIZ: [], HABITS: [] };
   const QN = C.QUIZ.length || 3; // questions in the quiz
-  const TABS = ["survey", "decisions", "trends", "winners", "downloads", "games"];
+  const TABS = ["survey", "decisions", "trends", "daily", "winners", "downloads", "games"];
   const WEEK = /^\d{4}-W\d{2}$/, MONTH = /^\d{4}-\d{2}$/;
   const MON = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
   const HIDE_HINT = $("panelMsg").textContent;
   let token = "";
   try { token = sessionStorage.getItem(KEY) || ""; } catch { }
   let cur = { week: "", month: "" }, periods = { weeks: [], months: [] }, all = null, lastSum = null; // current week / month, known periods, all-time summary
-  let nextBefore = null, seen = new Set(), selected = new Set(), mails = { week: [], month: [] };
-  const seq = { sum: 0, week: 0, month: 0, games: 0 }; // the newest request wins; Lock bumps them all so late answers are dropped
+  let nextBefore = null, seen = new Set(), selected = new Set(), mails = { week: [], month: [], daily: [] };
+  let dailyBefore = null, dailySeen = new Set();
+  const seq = { sum: 0, week: 0, month: 0, games: 0, daily: 0 }; // the newest request wins; Lock bumps them all so late answers are dropped
   // Everything that holds data or emails: emptied on Lock.
   const VIEWS = ["tiles", "kpiMore", "kpiNote", "quizBox", "scoreBox", "habitBox", "trapBox", "stageBox", "trollBox", "powerBox", "cardBox", "trendChartBox", "weekBox", "monthBox",
+    "dailyTiles", "dailyMsg", "dailyChartBox", "dailyFunnelBox", "dailyFinBox", "dailyFinInfo", "dailyFinMsg", "dailyQBox", "dailyRows", "dailyModMsg", "dailyCount",
     "winWeekRows", "winMonthRows", "rows", "sumMsg", "dlMsg", "panelMsg", "winWeekMsg", "winMonthMsg", "winWeekInfo", "winMonthInfo", "gCount", "trafficInfo", "trafficMsg"];
 
   // ---------- helpers ----------
@@ -88,7 +90,7 @@
     token = ""; try { sessionStorage.removeItem(KEY); } catch { }
     for (const k in seq) seq[k]++;
     for (const id of VIEWS) $(id).replaceChildren();
-    all = null; lastSum = null; selected.clear(); mails = { week: [], month: [] }; $("copyBox").value = ""; $("copyBox").hidden = true; if ($("batchBar")) $("batchBar").hidden = true;
+    all = null; lastSum = null; selected.clear(); mails = { week: [], month: [], daily: [] }; dailySeen.clear(); dailyBefore = null; $("copyBox").value = ""; $("copyBox").hidden = true; if ($("batchBar")) $("batchBar").hidden = true;
     show(false); say("loginMsg", text, err);
     if (hadFocusInPanel || document.activeElement === document.body) $("token").focus({ preventScroll: true });
   }
@@ -466,9 +468,11 @@
   let dlBusy = false;
   const busy = (on) => {
     dlBusy = on;
-    for (const id of ["dlGames", "dlAnswers", "dlEvents", "csvBtn"]) {
-      if (on) $(id).setAttribute("aria-disabled", "true");
-      else $(id).removeAttribute("aria-disabled");
+    for (const id of ["dlGames", "dlAnswers", "dlEvents", "dlDailyUsers", "dlDailyLogs", "csvBtn"]) {
+      if ($(id)) {
+        if (on) $(id).setAttribute("aria-disabled", "true");
+        else $(id).removeAttribute("aria-disabled");
+      }
     }
   };
   for (const [btn, file, build] of DOWNLOADS) {
@@ -497,6 +501,135 @@
     } catch (e) { oops("dlMsg")(e); }
     busy(false);
   });
+  for (const [btnId, kind] of [["dlDailyUsers", "users"], ["dlDailyLogs", "logs"]]) {
+    if ($(btnId)) $(btnId).addEventListener("click", async () => {
+      if (dlBusy) return;
+      busy(true); say("dlMsg", `Loading ${kind} CSV…`);
+      try {
+        const q = dlScopeParams();
+        q.set("kind", kind);
+        const r = await call("/api/admin/daily-export?" + q);
+        const name = ((r.headers.get("content-disposition") || "").match(/filename="([^"]+)"/) || [])[1] || `3-fall-crab-daily-${kind}.csv`;
+        saveBlob(await r.blob(), name);
+        say("dlMsg", `Saved ${name}.`);
+      } catch (e) { oops("dlMsg")(e); }
+      busy(false);
+    });
+  }
+
+  // ---------- daily habit tracker tab ----------
+  function renderDailyChart(funnel) {
+    if (!funnel || !funnel.length || !funnel[0].users) return el("p", "msg", "No daily check-in data yet.");
+    const W = 560, H = 175, L = 34, R = 16, T = 16, B = 28, cw = W - L - R, ch = H - T - B;
+    const maxU = Math.max(1, funnel[0].users);
+    const NS = "http://www.w3.org/2000/svg";
+    const s = (tag, attrs, ...kids) => {
+      const n = document.createElementNS(NS, tag);
+      for (const [k, v] of Object.entries(attrs || {})) if (v != null) n.setAttribute(k, String(v));
+      n.append(...kids.filter((k) => k != null && k !== false));
+      return n;
+    };
+    const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Daily retention funnel Day 1 through Day 30" });
+    for (const p of [0, 50, 100]) {
+      const y = T + ch - (ch * p) / 100;
+      svg.append(s("line", { x1: L, y1: y, x2: W - R, y2: y, stroke: "#EADBC4", "stroke-width": 1 }));
+    }
+    svg.append(s("text", { x: L - 6, y: T + 8, "text-anchor": "end", fill: "#5B516C", "font-size": 10 }, maxU));
+    svg.append(s("text", { x: L - 6, y: T + ch + 4, "text-anchor": "end", fill: "#5B516C", "font-size": 10 }, 0));
+    const step = cw / funnel.length, bw = Math.min(24, Math.max(10, step * 0.62));
+    funnel.forEach((f, i) => {
+      const cx = L + step * (i + 0.5), bh = (ch * f.users) / maxU, by = T + ch - bh;
+      const col = f.day === 14 ? "#DF1B72" : f.day > 14 ? "#247D3E" : "#0E7C73";
+      svg.append(s("rect", { x: cx - bw / 2, y: by, width: bw, height: Math.max(2, bh), rx: 3, fill: col, opacity: 0.88 },
+        s("title", null, `${f.label}: ${fmt(f.users)} (${pc(f.pctOfStarters)})`)));
+      svg.append(s("text", { x: cx, y: H - 9, "text-anchor": "middle", fill: "#5B516C", "font-size": 9.5 }, f.day > 14 ? `D${f.day}` : String(f.day)));
+    });
+    return svg;
+  }
+  function dailyRow(r) {
+    const tr = el("tr", r.hidden ? "hidden" : "");
+    const td = (v, cls, title) => { const c = el("td", cls, v); if (title) c.title = title; tr.append(c); };
+    td(r.id, "num"); td(r.sync_code); td(r.name || "–", "n", r.name || ""); td(r.email || "–", "em", r.email || "");
+    td(fmt(r.total_days), "num"); td(fmt(r.streak), "num"); td(fmt(r.best_streak), "num"); td(fmt(r.rescues), "num");
+    td(r.last_date || "–");
+    td(el("span", "pill" + (r.hidden ? " h" : ""), r.hidden ? "hidden" : "shown"));
+    const b = el("button", r.hidden ? "show" : "hide", r.hidden ? "Unhide" : "Hide");
+    b.type = "button";
+    b.setAttribute("aria-label", `${b.textContent} daily visitor ${r.id}`);
+    b.addEventListener("click", async () => {
+      if (b.getAttribute("aria-disabled") === "true") return;
+      b.setAttribute("aria-disabled", "true");
+      try {
+        await call("/api/admin/daily-mod", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: r.hidden ? "unhide" : "hide", ids: [r.id] }) });
+        loadDaily(true);
+      } catch (e) { oops("dailyModMsg")(e); b.removeAttribute("aria-disabled"); }
+    });
+    const anon = r.name && r.name !== ANON && el("button", "ghost mini", "Anonymise");
+    if (anon) {
+      anon.type = "button";
+      anon.setAttribute("aria-label", `Anonymise daily visitor ${r.id}`);
+      anon.addEventListener("click", async () => {
+        if (anon.getAttribute("aria-disabled") === "true") return;
+        anon.setAttribute("aria-disabled", "true");
+        try {
+          await call("/api/admin/daily-mod", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "rename", ids: [r.id] }) });
+          loadDaily(true);
+        } catch (e) { oops("dailyModMsg")(e); anon.removeAttribute("aria-disabled"); }
+      });
+    }
+    td(anon ? [b, " ", anon] : b);
+    return tr;
+  }
+  async function loadDaily(reset = true) {
+    if (!$("dailyTiles")) return;
+    const my = ++seq.daily;
+    if (reset) { dailyBefore = null; dailySeen.clear(); }
+    const q = new URLSearchParams({ limit: PAGE });
+    const [pk, pv] = ($("periodSel").value || "").split("=");
+    if (pv) q.set(pk, pv);
+    if ($("dFilter") && $("dFilter").value) q.set("filter", $("dFilter").value);
+    if ($("dStatus") && $("dStatus").value) q.set("status", $("dStatus").value);
+    if ($("dSearch") && $("dSearch").value.trim()) q.set("q", $("dSearch").value.trim());
+    if (!reset && dailyBefore) q.set("before", dailyBefore);
+    try {
+      const j = await call("/api/admin/daily?" + q);
+      if (my !== seq.daily) return;
+      const o = j.overview || {}, picked = $("periodSel").selectedOptions[0];
+      $("dailyPeriod").textContent = picked ? "· " + picked.textContent : "";
+      $("dailyTiles").replaceChildren(
+        tile("Visitors started", fmt(o.starters), `${fmt(o.initialized)} initialized`),
+        tile("Active (last 3d)", fmt(o.activeRecent), ratio(o.activeRecent, o.starters, "starters")),
+        tile("Total check-ins", fmt(o.checkins), `${fmt(o.direct)} direct · ${fmt(o.rescued)} via 60s rescue (${pc(o.rescuePct)})`),
+        tile("14-Day Finishers", fmt(o.finishers14), `${pc(o.finisherPct)} of starters · ${fmt(o.beyond14)} went Day 15+`,
+          o.finishers14 > 0 ? ["ok", `${fmt(o.claimed)} claimed`] : null, "kpi"),
+        tile("Avg / Max days", o.avgDays == null ? "–" : `${o.avgDays}d`, `Best ${fmt(o.maxDays)}d · Top streak ${fmt(o.maxStreak)}d`),
+        tile("Shields used", fmt(o.shieldsSaved), `${fmt(o.emails)} finisher emails left`)
+      );
+      $("dailyChartBox").replaceChildren(renderDailyChart(j.funnel));
+      $("dailyFunnelBox").replaceChildren(table(
+        [{ h: "Milestone", c: "t" }, { h: "Visitors", c: "num" }, { h: "% of starters", c: "num" }],
+        (j.funnel || []).map((f) => ({ cls: f.day === 14 ? "cur" : "", cells: [f.label, fmt(f.users), [pc(f.pctOfStarters), meter(f.pctOfStarters, f.day >= 14 ? "ok" : "")]] })), "sm"));
+      const finMails = [...new Set((j.finishers || []).map((f) => (f.email || "").trim()).filter(Boolean))];
+      mails.daily = finMails;
+      $("dailyCopyEmails").setAttribute("aria-disabled", finMails.length ? "false" : "true");
+      $("dailyFinInfo").textContent = j.finishers.length ? `${fmt(j.finishers.length)} finishers · ${fmt(finMails.length)} emails` : "No 14-day finishers yet";
+      $("dailyFinBox").replaceChildren(j.finishers.length
+        ? table([{ h: "Nickname", c: "t" }, { h: "Email", c: "em" }, { h: "Days", c: "num" }, { h: "Best", c: "num" }, { h: "Keep habit", c: "t" }],
+          j.finishers.map((f) => ({ cells: [f.name || f.sync_code, f.email || "–", fmt(f.total_days), fmt(f.best_streak) + "d", f.note || "–"] })), "sm")
+        : el("p", "msg", "No visitors have reached Day 14 yet."));
+      $("dailyQBox").replaceChildren(table(
+        [{ h: "Day / Pool", c: "num" }, { h: "Question", c: "t" }, { h: "Shown", c: "num" }, { h: "Direct %", c: "num" }, { h: "60s Rescue %", c: "num" }, { h: "Skipped", c: "num" }],
+        (j.questions || []).map((x) => ({ cells: [x.sprintDay ? `D${x.sprintDay}` : "Inf", [x.en, zh(x.zh)], fmt(x.total), pc(x.directPct), [pc(x.rescuePct), x.rescuePct != null && meter(x.rescuePct, "ok")], fmt(x.skipped)] })), "mid cards"));
+
+      if (reset) $("dailyRows").replaceChildren();
+      for (const r of (j.rows || [])) if (!dailySeen.has(r.id)) { dailySeen.add(r.id); $("dailyRows").append(dailyRow(r)); }
+      dailyBefore = j.nextBefore || null;
+      $("dailyMoreBtn").hidden = !dailyBefore;
+      if (reset && !(j.rows || []).length) { const c = el("td", "", "No daily visitors match."); c.colSpan = 11; $("dailyRows").append(el("tr", "", c)); }
+      $("dailyCount").textContent = dailySeen.size ? `Showing ${fmt(dailySeen.size)} of ${fmt(j.filteredTotal)}` : "";
+      say("dailyMsg", "");
+    } catch (e) { if (my === seq.daily) oops("dailyMsg")(e); }
+  }
 
   // ---------- games table ----------
   const quizText = (r) => (r.quiz == null ? "–" : `${r.quiz}/${QN}` + (r.quiz_answered != null && r.quiz_answered < QN ? ` (${r.quiz_answered} answered)` : ""));
@@ -604,7 +737,7 @@
       const activeTab = document.querySelector('#tabs [aria-selected="true"]') || $("tab-survey");
       if (activeTab) activeTab.focus({ preventScroll: true });
     }
-    loadSummary(); loadWinners("week"); loadWinners("month"); loadTraffic();
+    loadSummary(); loadWinners("week"); loadWinners("month"); loadTraffic(); loadDaily(true);
   }
   let holdActive = false, trafficBusy = false;
   function paintTraffic(t) {
@@ -669,8 +802,16 @@
     ];
     return lines.join("\n");
   }
-  $("periodSel").addEventListener("change", () => loadSummary());
-  $("refreshBtn").addEventListener("click", () => { loadGames(true).catch(oops("panelMsg")); loadSummary(true); loadWinners("week"); loadWinners("month"); loadTraffic(); });
+  $("periodSel").addEventListener("change", () => { loadSummary(); loadDaily(true); });
+  $("refreshBtn").addEventListener("click", () => { loadGames(true).catch(oops("panelMsg")); loadSummary(true); loadWinners("week"); loadWinners("month"); loadTraffic(); loadDaily(true); });
+  if ($("dailyCopyEmails")) $("dailyCopyEmails").addEventListener("click", () => {
+    if ($("dailyCopyEmails").getAttribute("aria-disabled") === "true" || !mails.daily.length) return;
+    copy(mails.daily.join("; "), $("dailyCopyEmails"), "dailyFinMsg", mails.daily.length + " finisher emails");
+  });
+  for (const id of ["dFilter", "dStatus"]) if ($(id)) $(id).addEventListener("change", () => loadDaily(true));
+  let dSearchTimer = 0;
+  if ($("dSearch")) $("dSearch").addEventListener("input", () => { clearTimeout(dSearchTimer); dSearchTimer = setTimeout(() => loadDaily(true), 220); });
+  if ($("dailyMoreBtn")) $("dailyMoreBtn").addEventListener("click", () => loadDaily(false));
   $("copyReportBtn").addEventListener("click", () => { if (!lastSum) return say("sumMsg", "Summary is still loading.", true); copy(reportSummary(lastSum), $("copyReportBtn"), "sumMsg", "report summary"); });
   $("printReportBtn").addEventListener("click", () => window.print());
   for (const t of TABS) $("tab-" + t).addEventListener("click", () => openTab(t));
