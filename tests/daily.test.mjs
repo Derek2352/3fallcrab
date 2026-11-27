@@ -537,6 +537,42 @@ test("E2E 1 (Mobile 390x844): full-screen 3D, swipe orbit, 60s Forest focus ring
     assert.deepEqual(layout.sfxList, EXPECTED_DAILY_SFX);
     assert.deepEqual(await ctx.evalJs(DOM_CONTRAST), [], "Mobile initial Day contrast failures");
 
+    // Cantonese <-> English single-language switcher verification on Mobile (zero stacked bilingual clutter + zero overflow)
+    const langInit = await ctx.evalJs(`({
+      lang: document.body.dataset.lang,
+      docLang: document.documentElement.lang,
+      enShown: getComputedStyle(document.getElementById("qEn")).display !== "none",
+      zhShown: getComputedStyle(document.getElementById("qZh")).display !== "none",
+      btnText: document.getElementById("langBtn").textContent.trim(),
+    })`);
+    assert.deepEqual(langInit, { lang: "en", docLang: "en", enShown: true, zhShown: false, btnText: "粵" });
+
+    await ctx.click("#langBtn");
+    await ctx.waitFor(() => document.body.dataset.lang === "zh");
+    const langZh = await ctx.evalJs(`({
+      lang: document.body.dataset.lang,
+      docLang: document.documentElement.lang,
+      enShown: getComputedStyle(document.getElementById("qEn")).display !== "none",
+      zhShown: getComputedStyle(document.getElementById("qZh")).display !== "none",
+      btnText: document.getElementById("langBtn").textContent.trim(),
+      ls: localStorage.getItem("tff_daily_lang"),
+      scrollW: document.documentElement.scrollWidth,
+      innerW: window.innerWidth,
+      scrollH: document.documentElement.scrollHeight,
+      innerH: window.innerHeight,
+    })`);
+    assert.equal(langZh.lang, "zh");
+    assert.equal(langZh.docLang, "zh-HK");
+    assert.equal(langZh.enShown, false);
+    assert.equal(langZh.zhShown, true);
+    assert.equal(langZh.btnText, "EN");
+    assert.equal(langZh.ls, "zh");
+    assert.ok(langZh.scrollW <= langZh.innerW, `mobile zh horizontal overflow: ${langZh.scrollW} > ${langZh.innerW}`);
+    assert.ok(langZh.scrollH <= langZh.innerH + 2, `mobile zh vertical overflow: ${langZh.scrollH} > ${langZh.innerH}`);
+    assert.deepEqual(await ctx.evalJs(DOM_CONTRAST), [], "Mobile Cantonese Day contrast failures");
+    await ctx.click("#langBtn");
+    await ctx.waitFor(() => document.body.dataset.lang === "en");
+
     // 360° Swipe-to-Orbit verification on mobile center canvas
     const beforeOrbit = await ctx.evalJs("window.__dailyStage.getCameraAngles()");
     await swipeDrag(ctx, 275, 290, 95, 275, 10);
@@ -597,7 +633,7 @@ test("E2E 1 (Mobile 390x844): full-screen 3D, swipe orbit, 60s Forest focus ring
       const fails = await ctx.evalJs(DOM_CONTRAST);
       assert.deepEqual(fails, [], `Mobile contrast failure in sky=${sky}: ${JSON.stringify(fails)}`);
       await ctx.click("#skyBtn");
-      await ctx.sleep(80);
+      await ctx.sleep(200);
     }
     assert.deepEqual([...seenSkies].sort(), ["day", "dusk", "night"]);
 
@@ -739,6 +775,21 @@ test("E2E 2 (Desktop 1280x800): Day-14 sync restore, claim & 3D snapshot pass, 3
     }
     assert.deepEqual(await ctx.evalJs(DOM_CONTRAST), [], "Desktop Inspect Mode contrast failures");
 
+    // Verify Cantonese toggle inside Inspect mode hides EN plaque and displays crisp Cantonese title & description
+    await ctx.click("#langBtn");
+    await ctx.waitFor(() => document.body.dataset.lang === "zh");
+    const zhInspect = await ctx.evalJs(`({
+      enShown: getComputedStyle(document.getElementById("inspectTitleEn")).display !== "none",
+      zhShown: getComputedStyle(document.getElementById("inspectTitleZh")).display !== "none",
+      zhText: document.getElementById("inspectTitleZh").textContent,
+    })`);
+    assert.deepEqual(zhInspect.enShown, false);
+    assert.deepEqual(zhInspect.zhShown, true);
+    assert.ok(zhInspect.zhText.length >= 2);
+    assert.deepEqual(await ctx.evalJs(DOM_CONTRAST), [], "Desktop Inspect Mode Cantonese contrast failures");
+    await ctx.click("#langBtn");
+    await ctx.waitFor(() => document.body.dataset.lang === "en");
+
     // Switch back cleanly to 'island' mode via #inspectBackBtn
     await ctx.click("#inspectBackBtn");
     await ctx.waitFor(() => document.getElementById("inspectBar").hidden && !document.getElementById("checkinCard").hidden);
@@ -750,7 +801,7 @@ test("E2E 2 (Desktop 1280x800): Day-14 sync restore, claim & 3D snapshot pass, 3
       const fails = await ctx.evalJs(DOM_CONTRAST);
       assert.deepEqual(fails, [], `Desktop contrast failure in sky=${sky}: ${JSON.stringify(fails)}`);
       await ctx.click("#skyBtn");
-      await ctx.sleep(80);
+      await ctx.sleep(200);
     }
 
     assert.deepEqual(ctx.errors, [], "Desktop /daily console/WebGL errors: " + ctx.errors.join(" | "));

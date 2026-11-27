@@ -179,16 +179,26 @@ function disposeDynamicTree(root) {
 
 function buildCoaster(kit) {
   const g = new Group();
-  const walnut = kit.clay(0x7c4e2a, { rough: 0.48 });
-  const brass = kit.metal(0xf0be44, 0.22, 0.84);
-  const dialMat = kit.textured("coasterDial", { rough: 0.44 });
+  const walnut = kit.enamel(0x6e4121, { rough: 0.28, metalness: 0.06 });
+  const walnutRim = kit.clay(0x523018, { rough: 0.44 });
+  const brass = kit.metal(0xf0be44, 0.2, 0.86);
+  const dialMat = kit.textured("coasterDial", { finish: "lacquer", rough: 0.34 });
   const lockAuraMat = kit.emissive(0x7cd6ff, 0.75, 1.5, { transparent: true, opacity: 0.65 });
 
   g.add(
-    mesh(new CylinderGeometry(1.74, 1.84, 0.16, 48), [walnut, dialMat, walnut], { pos: [0, 0.08, 0], cast: false, recv: true }),
-    mesh(new TorusGeometry(1.75, 0.048, 12, 56), brass, { pos: [0, 0.155, 0], rot: [Math.PI / 2, 0, 0] }),
-    mesh(new TorusGeometry(1.85, 0.032, 10, 56), walnut, { pos: [0, 0.02, 0], rot: [Math.PI / 2, 0, 0], cast: false }),
+    mesh(new CylinderGeometry(1.74, 1.84, 0.16, 48), [walnut, dialMat, walnutRim], { pos: [0, 0.08, 0], cast: false, recv: true }),
+    mesh(new TorusGeometry(1.75, 0.048, 14, 56), brass, { pos: [0, 0.155, 0], rot: [Math.PI / 2, 0, 0] }),
+    mesh(new TorusGeometry(1.68, 0.02, 10, 56), brass, { pos: [0, 0.164, 0], rot: [Math.PI / 2, 0, 0], cast: false }),
+    mesh(new TorusGeometry(1.85, 0.032, 10, 56), walnutRim, { pos: [0, 0.02, 0], rot: [Math.PI / 2, 0, 0], cast: false }),
   );
+  // 8 brushed-brass perimeter rivet studs around turntable rim
+  for (let i = 0; i < 8; i++) {
+    const a = (i * Math.PI * 2) / 8;
+    g.add(mesh(new SphereGeometry(0.03, 10, 8), brass, {
+      pos: [Math.cos(a) * 1.81, 0.09, Math.sin(a) * 1.81],
+      cast: false,
+    }));
+  }
   const lockRing = mesh(new TorusGeometry(1.64, 0.03, 10, 48), lockAuraMat, {
     pos: [0, 0.18, 0],
     rot: [Math.PI / 2, 0, 0],
@@ -537,9 +547,12 @@ function mount(containerEl, opts = {}) {
 
   const rim = new DirectionalLight(SKY_CFG.day.rimColor, SKY_CFG.day.rimInt);
   rim.position.set(-9.5, 6.5, -8.5);
+  // Shadow-free camera-relative studio catchlight so 360-degree specular glints follow any swipe angle
+  const camLight = new DirectionalLight(0xfff9f0, 0.48);
+  camLight.position.set(4, 9, 12);
   const nightGlow = new PointLight(0xffb86c, 0, 14, 1.5);
   nightGlow.position.set(1.2, 2.4, 2.2);
-  scene.add(amb, hemi, key, rim, nightGlow);
+  scene.add(amb, hemi, key, rim, camLight, nightGlow);
 
   // Atmospheric Sky Dome + Clouds + Stars + Moon
   const skyRig = buildSkyAtmosphere(kit);
@@ -607,27 +620,27 @@ function mount(containerEl, opts = {}) {
     const tanHalfH = Math.tan(MathUtils.degToRad(fov * 0.5)) * aspect;
 
     if (mode === "item") {
-      // Fit full turntable coaster + hero sculpture cleanly on both desktop (r ~ 7.4) & mobile 390px!
-      const rWidth = 2.05 / Math.max(0.14, tanHalfH);
-      const r = Math.max(7.4, rWidth);
+      // Fit full turntable coaster + hero sculpture cleanly above inspect dock on both desktop & mobile!
+      const rWidth = 2.15 / Math.max(0.14, tanHalfH);
+      const r = Math.max(8.2, rWidth);
       return {
-        y: 1.15,
+        y: 0.98,
         r,
-        phi: 1.12,
+        phi: 1.11,
         theta: -0.34,
-        minR: Math.max(4.0, r * 0.56),
+        minR: Math.max(4.4, r * 0.56),
         maxR: r * 1.55,
       };
     }
 
     const d = state.totalDays;
     const extraFloors = d >= 14 ? Math.min(3, Math.floor((d - 14) / 8)) : 0;
-    let y = 0.62, rDesk = 12.2;
-    if (d >= 14) { y = 2.6 + extraFloors * 0.68; rDesk = 18.2 + extraFloors * 2.2; }
-    else if (d >= 12) { y = 2.05; rDesk = 15.8; }
-    else if (d >= 9) { y = 1.68; rDesk = 14.6; }
-    else if (d >= 6) { y = 1.35; rDesk = 13.6; }
-    else if (d >= 4) { y = 1.05; rDesk = 12.8; }
+    let y = 0.62, rDesk = 12.6;
+    if (d >= 14) { y = 2.35 + extraFloors * 0.68; rDesk = 19.6 + extraFloors * 2.2; }
+    else if (d >= 12) { y = 1.95; rDesk = 16.6; }
+    else if (d >= 9) { y = 1.62; rDesk = 15.2; }
+    else if (d >= 6) { y = 1.32; rDesk = 14.0; }
+    else if (d >= 4) { y = 1.02; rDesk = 13.2; }
 
     // Ensure full circular floating island fits cleanly inside narrow portrait screens (390px) without cropping!
     const halfIsland = d >= 14 ? 4.95 : 4.65;
@@ -659,6 +672,8 @@ function mount(containerEl, opts = {}) {
     key.position.set(...cfg.keyPos);
     rim.color.setHex(cfg.rimColor);
     rim.intensity = cfg.rimInt + (isSoftwareGL ? 0.18 : 0);
+    camLight.color.setHex(s === "night" ? 0xc2d8ff : (s === "dusk" ? 0xffd2a8 : 0xfff9f0));
+    camLight.intensity = s === "night" ? 0.42 : (s === "dusk" ? 0.52 : 0.48);
     amb.intensity = cfg.ambInt + (isSoftwareGL ? 0.24 : 0);
     nightGlow.intensity = cfg.nightGlow;
     kit.setNightFactor(cfg.nightFactor);
@@ -819,6 +834,15 @@ function mount(containerEl, opts = {}) {
       r * sinP * Math.cos(theta),
     );
     camera.lookAt(0, curTargetY, 0);
+
+    // Keep upper-left studio catchlight riding alongside the current swipe orbit angle
+    const clTheta = theta + 0.48;
+    const clPhi = Math.max(0.35, clampedPhi * 0.72);
+    camLight.position.set(
+      14 * Math.sin(clPhi) * Math.sin(clTheta),
+      curTargetY + 14 * Math.cos(clPhi),
+      14 * Math.sin(clPhi) * Math.cos(clTheta),
+    );
 
     // Shift frustum vertically without distorting orbit perspective so hero sits centered above bottom dock
     if (Math.abs(curVerticalOffset) > 0.001) {

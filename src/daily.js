@@ -13,11 +13,24 @@
     state: "tff_daily_state",
     email: "tff_daily_email",
     dragSeen: "tff_daily_drag_seen",
+    lang: "tff_daily_lang",
   };
   const lsGet = (k, fb) => { try { const v = localStorage.getItem(k); return v == null ? fb : JSON.parse(v); } catch { return fb; } };
   const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
   const lsRaw = (k) => { try { return localStorage.getItem(k) || ""; } catch { return ""; } };
   const lsRawSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+
+  let lang = (() => {
+    try {
+      const q = new URLSearchParams(location.search).get("lang");
+      if (q === "zh" || q === "en") return q;
+    } catch {}
+    const saved = lsRaw(LS.lang);
+    if (saved === "zh" || saved === "en") return saved;
+    const navLang = (navigator.language || "").toLowerCase();
+    return navLang.startsWith("zh") ? "zh" : "en";
+  })();
+  const t = (en, zh) => (lang === "zh" ? zh : en);
 
   function randHex(len) {
     const a = new Uint8Array(Math.ceil(len / 2));
@@ -75,9 +88,9 @@
   };
 
   function floorLabelFor(days) {
-    if (days <= 0) return "G/F";
+    if (days <= 0) return t("G/F", "地下");
     const fl = days >= 14 ? 5 + Math.floor((days - 14) / 3) : (days >= 12 ? 4 : days >= 9 ? 3 : days >= 6 ? 2 : days >= 4 ? 1 : 0);
-    return fl === 0 ? "G/F" : `${fl}F`;
+    return fl === 0 ? t("G/F", "地下") : (lang === "zh" ? `${fl}樓` : `${fl}F`);
   }
 
   function milestoneInfo(day) {
@@ -173,6 +186,41 @@
     } catch {}
   };
 
+  function syncMuteBtn(muted) {
+    const btn = $("dailyMute");
+    if (!btn) return;
+    btn.setAttribute("aria-pressed", String(muted));
+    btn.setAttribute("aria-label", muted ? t("Unmute sound", "開啟音效") : t("Mute sound", "靜音"));
+  }
+
+  function applyLangUI() {
+    document.documentElement.lang = lang === "zh" ? "zh-HK" : "en";
+    document.body.dataset.lang = lang;
+    const lb = $("langBtn");
+    if (lb) {
+      lb.textContent = lang === "zh" ? "EN" : "粵";
+      lb.setAttribute("aria-label", lang === "zh" ? "Switch to English" : "切換至廣東話");
+      lb.setAttribute("title", lang === "zh" ? "Switch to English (L)" : "切換廣東話 (L)");
+    }
+    document.querySelectorAll(".lang-opt").forEach((b) => {
+      b.setAttribute("aria-checked", String(b.dataset.langOpt === lang));
+    });
+    if ($("skyBtn")) $("skyBtn").setAttribute("aria-label", t("Cycle sky mood", "切換天空時間"));
+    if ($("dockToggle")) $("dockToggle").setAttribute("aria-label", t("Collapse check-in card", "收起打卡卡"));
+    if ($("orbitLeftBtn")) $("orbitLeftBtn").setAttribute("aria-label", t("Rotate left", "向左旋轉"));
+    if ($("orbitResetBtn")) $("orbitResetBtn").setAttribute("aria-label", t("Reset 3D angle", "重設視角"));
+    if ($("orbitRightBtn")) $("orbitRightBtn").setAttribute("aria-label", t("Rotate right", "向右旋轉"));
+    if ($("inspectPrevBtn")) $("inspectPrevBtn").setAttribute("aria-label", t("Previous 3D Thing", "上一個景物"));
+    if ($("inspectNextBtn")) $("inspectNextBtn").setAttribute("aria-label", t("Next 3D Thing", "下一個景物"));
+    if ($("logClose")) $("logClose").setAttribute("aria-label", t("Close collection", "關閉圖鑑"));
+    if ($("remindClose")) $("remindClose").setAttribute("aria-label", t("Close reminders", "關閉提醒"));
+    if ($("syncClose")) $("syncClose").setAttribute("aria-label", t("Close pass and settings", "關閉證書與設定"));
+    if ($("claimName")) $("claimName").placeholder = t("e.g. Ming", "例如：小明");
+    if ($("claimNote")) $("claimNote").placeholder = t("e.g. Autopay credit card in full", "例如：信用卡自動轉賬全數找清");
+    if ($("restoreInput")) $("restoreInput").placeholder = "CRAB-XXXX-YYYY";
+    if (A && typeof A.isMuted === "function") syncMuteBtn(A.isMuted());
+  }
+
   function sayTalk(en, zh) {
     $("talkEn").textContent = en;
     $("talkZh").textContent = zh;
@@ -183,9 +231,9 @@
     if (!wrap) return;
     const s = document.createElement("div");
     s.className = "stamp " + cls;
-    const b = document.createElement("span"); b.textContent = en;
-    const z = document.createElement("small"); z.lang = "zh-HK"; z.textContent = zh;
-    s.append(b, z);
+    const b = document.createElement("span");
+    b.textContent = t(en, zh);
+    s.append(b);
     wrap.replaceChildren(s);
     setTimeout(() => { if (s.parentNode === wrap) s.remove(); }, 2300);
   }
@@ -200,10 +248,12 @@
   // ---------- Three.js 3D World Bridge ----------
   function computeVerticalOffset() {
     const mobile = window.innerWidth < 640;
-    if (rescueActive) return 0.24;
-    if (viewMode === "item") return 0.24;
+    const isDone = $("checkinCard")?.classList.contains("is-done");
+    if (rescueActive) return 0.25;
+    if (viewMode === "item") return 0.25;
     if (dockCollapsed) return 0.04;
-    return mobile ? 0.28 : 0.24;
+    if (isDone) return mobile ? 0.34 : 0.32;
+    return mobile ? 0.26 : 0.24;
   }
 
   function sync3DState() {
@@ -370,11 +420,11 @@
       const days = state.profile.totalDays || 0;
       const m = milestoneInfo(inspectDay);
       const locked = m.day > 0 && m.day > days;
-      const fl = m.day === 0 ? "Pier" : floorLabelFor(m.day);
-      $("inspectDayPill").textContent = `Day ${String(m.day).padStart(2, "0")} · ${fl}`;
+      const fl = m.day === 0 ? t("Pier", "碼頭") : floorLabelFor(m.day);
+      $("inspectDayPill").textContent = t(`Day ${String(m.day).padStart(2, "0")} · ${fl}`, `第${m.day}日 · ${fl}`);
       const st = $("inspectStatusPill");
       st.className = "inspect-status " + (locked ? "locked" : "unlocked");
-      st.textContent = locked ? `🔒 Unlocks Day ${m.day} · 第${m.day}日解鎖` : "✓ Unlocked · 已解鎖";
+      st.textContent = locked ? t(`🔒 Unlocks Day ${m.day}`, `🔒 第${m.day}日解鎖`) : t("✓ Unlocked", "✓ 已解鎖");
       $("inspectTitleEn").textContent = m.en;
       $("inspectTitleZh").textContent = m.zh;
       $("inspectDescEn").textContent = m.descEn;
@@ -392,14 +442,15 @@
   }
 
   function renderAll() {
+    applyLangUI();
     const p = state.profile, days = p.totalDays || 0;
     const shownStreak = p.streakPreview != null ? p.streakPreview : (p.streak || 0);
     $("streakNum").textContent = String(shownStreak);
     $("shieldNum").textContent = String(p.shields || 0);
     $("hudFloor").textContent = floorLabelFor(days);
-    $("hudTotal").textContent = `Day ${days}`;
-    $("hudMode").textContent = days >= 14 ? "Infinite Keep" : "Starter Sprint";
-    $("hudBest").textContent = `Best ${p.bestStreak || 0}d`;
+    $("hudTotal").textContent = t(`Day ${days}`, `第 ${days} 日`);
+    $("hudMode").textContent = days >= 14 ? t("Infinite Keep", "無限擴建") : t("Starter Sprint", "14日新手衝刺");
+    $("hudBest").textContent = t(`Best ${p.bestStreak || 0}d`, `最佳 ${p.bestStreak || 0} 日`);
 
     // Sprint Track 1..14 inside 3D Collection Sheet (every chip clicks directly into 3D Inspect!)
     $("sprintProg").textContent = `${Math.min(14, days)} / 14`;
@@ -411,12 +462,12 @@
       btn.type = "button";
       btn.className = "sprint-chip" + (i <= days ? " done" : i === days + 1 ? " next" : "");
       const m = D.milestoneFor(i);
-      btn.title = `${m.en} · ${m.zh}`;
-      btn.setAttribute("aria-label", `Day ${i}: ${m.en} ${m.zh} — Inspect in 3D`);
+      btn.title = t(m.en, m.zh);
+      btn.setAttribute("aria-label", t(`Day ${i}: ${m.en} — Inspect in 3D`, `第${i}日：${m.zh} — 3D旋轉欣賞`));
       const num = document.createElement("b");
       num.textContent = i === 7 ? "7 🛟" : i === 14 ? "14 🎓" : String(i);
       const st = document.createElement("span");
-      st.textContent = i <= days ? "✓" : i === days + 1 ? "Next" : "3D";
+      st.textContent = i <= days ? "✓" : i === days + 1 ? t("Next", "下個") : "3D";
       btn.append(num, st);
       btn.addEventListener("click", () => {
         closeModal(true);
@@ -433,8 +484,8 @@
       const span = Math.max(1, nextM.day - prevM.day);
       const pct = Math.min(100, Math.max(6, Math.round(((days - prevM.day) / span) * 100)));
       $("infBar").hidden = false;
-      $("infNextText").textContent = `${nextM.en} · ${nextM.zh}`;
-      $("infNextCount").textContent = `${days} / ${nextM.day}d`;
+      $("infNextText").textContent = t(nextM.en, nextM.zh);
+      $("infNextCount").textContent = t(`${days} / ${nextM.day}d`, `第 ${days} / ${nextM.day} 日`);
       $("infFill").style.width = pct + "%";
     } else {
       $("infBar").hidden = true;
@@ -444,15 +495,19 @@
     if (days >= 14) {
       finBar.hidden = false;
       $("finisherSub").textContent = p.claimedAt
-        ? "Entry saved! Download your 3D 14-Day Commemorative Pass anytime."
-        : "Claim your 3D 14-Day Commemorative Pass & optional finisher prize registration.";
+        ? t("Entry saved! Download your 3D 14-Day Commemorative Pass anytime.", "登記已儲存！隨時可下載你嘅3D 14日完成證書。")
+        : t("Claim your 3D 14-Day Commemorative Pass & optional finisher prize registration.", "領取3D 14日紀念證書及登記完成獎賞（選填）。");
       $("certBtn").hidden = false;
       $("claimLockNote").textContent = p.claimedAt
-        ? "Your Day-14 Sprint finish is registered! You can update your nickname/note or download your 3D pass below."
-        : "Unlocked! Leave an optional nickname & email for finisher follow-up, or download your 3D pass right away.";
+        ? t("Your Day-14 Sprint finish is registered! You can update your details or download your 3D pass below.", "你已完成14日衝刺登記！隨時可更新資料或下載3D紀念證書。")
+        : t("Unlocked! Leave an optional nickname & email for finisher follow-up, or download your 3D pass right away.", "已解鎖！歡迎填寫暱稱同電郵登記完成獎賞，或即刻下載3D證書。");
     } else {
       finBar.hidden = true;
       $("certBtn").hidden = true;
+      $("claimLockNote").textContent = t(
+        "Complete 14 check-in days to unlock your 3D Commemorative Pass & finisher entry!",
+        "累積滿14日打卡即可領取3D紀念證書同登記完成獎賞！",
+      );
     }
 
     // Question selection & Check-in Card state
@@ -461,14 +516,14 @@
     curQ = q;
     const dayNum = log && (log.status === "direct" || log.status === "rescued") ? log.day_num : days + 1;
     $("qSlate").textContent = dayNum <= 14
-      ? `DAY ${String(dayNum).padStart(2, "0")} · 14`
-      : `DAY ${dayNum} · INFINITE`;
+      ? t(`DAY ${String(dayNum).padStart(2, "0")} · 14`, `第 ${dayNum} / 14 日`)
+      : t(`DAY ${dayNum} · INFINITE`, `第 ${dayNum} 日 · 無限模式`);
     $("qSlateZh").textContent = dayNum <= 14 ? `14日新手衝刺 · 第${dayNum}日打卡` : `無限擴建 · 第${dayNum}日打卡`;
     $("qDateChip").textContent = state.today;
 
     const cat = D.CATEGORIES[q.cat] || D.CATEGORIES.spend;
     const catEl = $("qCat");
-    catEl.textContent = `${cat.en} · ${cat.zh}`;
+    catEl.textContent = t(cat.en, cat.zh);
     catEl.style.backgroundColor = cat.badgeBg;
     catEl.style.color = cat.badgeFg;
 
@@ -492,7 +547,8 @@
       $("doneTitleZh").textContent = log.status === "rescued" ? "60秒即場補救打卡成功！" : "今日打卡成功！";
       $("skipRescueWrap").hidden = true;
       $("inspectTodayBtn").hidden = false;
-      $("nextCountdown").textContent = `Next daily question in ${hktMidnightLeft()} (HKT midnight) · 下一題仲有 ${hktMidnightLeft()}`;
+      const left = hktMidnightLeft();
+      $("nextCountdown").textContent = t(`Next daily question in ${left} (HKT midnight)`, `下一題仲有 ${left}（香港時間午夜更新）`);
       $("collapsedIco").textContent = "✓";
       $("collapsedLabelEn").textContent = `Day ${log.day_num} Checked in · View Tip`;
       $("collapsedLabelZh").textContent = `已完成第${log.day_num}日打卡 · 展開睇貼士`;
@@ -509,10 +565,14 @@
       $("doneTitleZh").textContent = "今日先休息一陣，聽日再試！";
       $("skipRescueWrap").hidden = false;
       $("inspectTodayBtn").hidden = true;
-      $("nextCountdown").textContent = `You can still do the 60s rescue before HKT midnight (${hktMidnightLeft()} left).`;
+      const left = hktMidnightLeft();
+      $("nextCountdown").textContent = t(
+        `You can still do the 60s rescue before HKT midnight (${left} left).`,
+        `午夜前仲可以做60秒補救打卡（仲有 ${left}）。`,
+      );
       $("collapsedIco").textContent = "⏱";
       $("collapsedLabelEn").textContent = "Today paused · Tap for 60s Rescue";
-      $("collapsedLabelZh").textContent = "今日暫停 · 午夜前仲可以補救打卡";
+      $("collapsedLabelZh").textContent = "今日暫停 · 撳入做60秒補救打卡";
     } else {
       card.classList.remove("is-done");
       $("qAsk").hidden = false;
@@ -523,7 +583,7 @@
     }
 
     $("syncCodeText").textContent = state.syncCode || "CRAB-LOCAL";
-    document.querySelectorAll(".av-opt").forEach((b) => {
+    document.querySelectorAll(".av-opt[data-av]").forEach((b) => {
       b.setAttribute("aria-checked", String(b.dataset.av === (p.avatar || "crab")));
     });
 
@@ -673,7 +733,7 @@
     } catch {
       state.pending = [{ action: "checkin", qid, firstPick, status }];
       saveLocal();
-      $("saveStatus").textContent = "Saved on this device — will sync next time online. · 已暫存於此裝置。";
+      $("saveStatus").textContent = t("Saved on this device — will sync next time online.", "已暫存於此裝置，下次上網時自動同步。");
       $("saveStatus").className = "save-status";
     }
 
@@ -708,14 +768,24 @@
 
       addStamp(
         res.sprintJustDone ? "14 DAYS COMPLETE! 🎓" : (status === "rescued" ? "60s RESCUE! ✓" : "CHECKED IN! ✓"),
-        m.zh,
+        res.sprintJustDone ? "14日衝刺完成！🎓" : (status === "rescued" ? "60秒補救打卡！✓" : "今日打卡成功！✓"),
         res.sprintJustDone ? "gold" : "good",
       );
       sayTalk(`Unlocked Day ${days}: ${m.en}!`, `解鎖第${days}日：${m.zh}！`);
 
       const notes = [];
-      if (res.shieldSaved) notes.push(`🛟 Insurance Net saved your streak across ${res.shieldSaved} missed day${res.shieldSaved > 1 ? "s" : ""}! 保險網幫你保住連勝！`);
-      if (res.earnedShield) notes.push("🛟 Bonus! 7-day streak earned you an Insurance Net Streak Shield! 連勝7日送你一個保險網護盾！");
+      if (res.shieldSaved) {
+        notes.push(t(
+          `🛟 Insurance Net saved your streak across ${res.shieldSaved} missed day${res.shieldSaved > 1 ? "s" : ""}!`,
+          `🛟 保險網幫你遮擋咗 ${res.shieldSaved} 日斷纜，保住連勝！`,
+        ));
+      }
+      if (res.earnedShield) {
+        notes.push(t(
+          "🛟 Bonus! 7-day streak earned you an Insurance Net Streak Shield!",
+          "🛟 獎勵！連勝7日送你一個「保險網」防斷纜護盾！",
+        ));
+      }
       $("shieldNotice").textContent = notes.join(" ");
       $("shieldNotice").hidden = !notes.length;
     }
@@ -846,14 +916,35 @@
       try { A.unlock(); } catch {}
       sfx("select");
     }
-    $("dailyMute").setAttribute("aria-pressed", String(m));
-    $("dailyMute").setAttribute("aria-label", m ? "Unmute sound 開啟音效" : "Mute sound 靜音");
+    syncMuteBtn(m);
   });
   if (A && typeof A.isMuted === "function") {
-    const m = A.isMuted();
-    $("dailyMute").setAttribute("aria-pressed", String(m));
-    $("dailyMute").setAttribute("aria-label", m ? "Unmute sound 開啟音效" : "Mute sound 靜音");
+    syncMuteBtn(A.isMuted());
   }
+
+  // Language Toggle (English <-> Cantonese 廣東話)
+  function setLang(next, announce = true) {
+    const clean = next === "zh" ? "zh" : "en";
+    if (lang === clean) return;
+    lang = clean;
+    lsRawSet(LS.lang, lang);
+    renderAll();
+    if (activeModal && activeModal.id === "logModal") renderLogSheet();
+    if (announce) {
+      sfx("select");
+      sayTalk("Switched to English.", "已切換至廣東話介面。");
+    }
+  }
+  $("langBtn").addEventListener("click", () => {
+    unlockAudio();
+    setLang(lang === "zh" ? "en" : "zh", true);
+  });
+  document.querySelectorAll(".lang-opt").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      unlockAudio();
+      setLang(btn.dataset.langOpt, true);
+    });
+  });
 
   // Sky Mood Toggle: cycles day -> dusk -> night -> day from currently displayed sky
   const SKY_ORDER = ["day", "dusk", "night"];
@@ -934,6 +1025,7 @@
       if (ev.key === "1") { $("btnYes").click(); return; }
       if (ev.key === "2") { $("btnNo").click(); return; }
     }
+    if (ev.key === "l" || ev.key === "L") { $("langBtn").click(); return; }
     if (ev.key === "m" || ev.key === "M") { $("dailyMute").click(); return; }
     if (ev.key === "r" || ev.key === "R") { $("orbitResetBtn").click(); return; }
     if (stage && typeof stage.nudgeOrbit === "function") {
@@ -949,7 +1041,7 @@
     $(mId).addEventListener("click", (ev) => { if (ev.target === $(mId)) closeModal(); });
   }
 
-  $("logBtn").addEventListener("click", () => {
+  function renderLogSheet() {
     const logs = state.logs || [], days = state.profile.totalDays || 0;
     $("histGrid").replaceChildren(...(logs.length ? logs.slice(0, 28).map((l) => {
       const s = document.createElement("span");
@@ -958,7 +1050,10 @@
       return s;
     }) : [Object.assign(document.createElement("p"), {
       className: "modal-intro",
-      textContent: "No check-ins recorded yet — answer today's question to place Day 1! 仲未有紀錄，答今日第一題就開始！",
+      textContent: t(
+        "No check-ins recorded yet — answer today's question to place Day 1!",
+        "仲未有紀錄 — 答今日第一題即刻放上第1日景物！",
+      ),
     })]));
 
     const items = showcaseDays().map((d) => milestoneInfo(d));
@@ -970,12 +1065,12 @@
       btn.className = "mile-btn" + (unlocked ? " unlocked" : "");
       const badge = document.createElement("span");
       badge.className = "md";
-      badge.textContent = m.day === 0 ? "Day 0" : `Day ${m.day}`;
+      badge.textContent = m.day === 0 ? t("Day 0", "第0日") : t(`Day ${m.day}`, `第${m.day}日`);
       const body = document.createElement("div");
       const b = document.createElement("b");
-      b.textContent = `${m.en} · ${m.zh}`;
+      b.textContent = t(m.en, m.zh);
       const sm = document.createElement("small");
-      sm.textContent = `${m.descEn} ${m.descZh}`;
+      sm.textContent = t(m.descEn, m.descZh);
       body.append(b, sm);
       const go = document.createElement("span");
       go.className = "mile-go";
@@ -988,6 +1083,10 @@
       li.append(btn);
       return li;
     }));
+  }
+
+  $("logBtn").addEventListener("click", () => {
+    renderLogSheet();
     openModal("logModal", $("logBtn"));
   });
 
@@ -1038,7 +1137,10 @@
     a.download = "3fallcrab-daily-reminder.ics";
     document.body.append(a); a.click();
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
-    $("icsStatus").textContent = "Calendar file downloaded! Open it to add your 30-day reminder. · 已下載行事曆檔案！";
+    $("icsStatus").textContent = t(
+      "Calendar file downloaded! Open it to add your 30-day reminder.",
+      "已下載行事曆檔案！打開即可加入每日提醒。",
+    );
     $("icsStatus").className = "post-status ok";
   });
 
@@ -1057,7 +1159,7 @@
   });
 
   // ---------- Companion, Sync Code, Claim & Day-14 3D Commemorative Pass ----------
-  document.querySelectorAll(".av-opt").forEach((btn) => {
+  document.querySelectorAll(".av-opt[data-av]").forEach((btn) => {
     btn.addEventListener("click", () => {
       sfx("select");
       const av = btn.dataset.av;
@@ -1072,10 +1174,10 @@
     sfx("done");
     try {
       await navigator.clipboard.writeText(state.syncCode || "");
-      $("syncStatus").textContent = "Sync Code copied! · 備份碼已複製！";
+      $("syncStatus").textContent = t("Sync Code copied!", "備份碼已複製！");
       $("syncStatus").className = "post-status ok";
     } catch {
-      $("syncStatus").textContent = "Copy code: " + (state.syncCode || "");
+      $("syncStatus").textContent = t("Copy code: ", "請複製備份碼：") + (state.syncCode || "");
       $("syncStatus").className = "post-status";
     }
   });
@@ -1102,12 +1204,14 @@
       saveLocal();
       renderAll();
       sfx("done");
-      $("syncStatus").textContent = "Progress restored! · 進度已還原！";
+      $("syncStatus").textContent = t("Progress restored!", "進度已還原！");
       $("syncStatus").className = "post-status ok";
       $("restoreInput").value = "";
     } catch (e) {
       sfx("nope");
-      $("syncStatus").textContent = e.code === "rate_limited" ? "Too many attempts — wait a few minutes." : "Sync Code not found. Check spelling (e.g. CRAB-XXXX-YYYY).";
+      $("syncStatus").textContent = e.code === "rate_limited"
+        ? t("Too many attempts — wait a few minutes.", "嘗試太頻密，請稍候再試。")
+        : t("Sync Code not found. Check spelling (e.g. CRAB-XXXX-YYYY).", "搵唔到此備份碼，請檢查輸入（例如 CRAB-XXXX-YYYY）。");
       $("syncStatus").className = "post-status bad";
     } finally {
       $("restoreBtn").removeAttribute("aria-disabled");
@@ -1128,12 +1232,14 @@
       renderAll();
       sfx("done");
       $("claimStatus").textContent = state.profile.totalDays >= 14
-        ? "Saved & Day-14 Sprint claimed! You can download your 3D pass below. · 已儲存並完成登記！"
-        : "Preferences saved! Keep checking in toward Day 14. · 已儲存資料！";
+        ? t("Saved & Day-14 Sprint claimed! You can download your 3D pass below.", "已儲存並完成登記！可於下方下載你嘅3D證書。")
+        : t("Preferences saved! Keep checking in toward Day 14.", "已儲存資料！繼續向14日進發。");
       $("claimStatus").className = "post-status ok";
     } catch (e) {
       sfx("nope");
-      $("claimStatus").textContent = e.code === "bad_email" ? "That email does not look valid. 請檢查電郵格式。" : "Could not save right now — try again shortly.";
+      $("claimStatus").textContent = e.code === "bad_email"
+        ? t("That email does not look valid.", "請檢查電郵格式。")
+        : t("Could not save right now — try again shortly.", "暫時未能儲存，請稍後再試。");
       $("claimStatus").className = "post-status bad";
     } finally {
       $("claimSubmitBtn").removeAttribute("aria-disabled");
@@ -1191,7 +1297,7 @@
     g.font = '900 38px "Gluten","Arial Rounded MT Bold",sans-serif';
     g.fillText("3 FALL CRAB · HARBOUR KEEP", 540, 128);
     g.font = '700 26px "LXGW WenKai TC","Noto Sans HK",sans-serif';
-    g.fillText("14日理財衝刺完成證書 · STARTER SPRINT 3D PASS", 540, 184);
+    g.fillText(t("STARTER SPRINT 14-DAY 3D PASS", "14日理財衝刺完成 3D 紀念證書"), 540, 184);
 
     // 3D Live Snapshot Window
     let snapUrl = "";
@@ -1225,16 +1331,23 @@
     g.stroke();
 
     const p = state.profile;
-    const who = (p.name || $("claimName").value.trim() || "Harbour Keeper").slice(0, 18);
+    const who = (p.name || $("claimName").value.trim() || t("Harbour Keeper", "海傍守望者")).slice(0, 18);
     g.fillStyle = "#1E2430";
     g.font = '900 54px "Gluten","Arial Rounded MT Bold",sans-serif';
     g.fillText(who, 540, 962);
 
     g.fillStyle = "#1D6F36";
     g.font = '800 27px "Noto Sans HK",system-ui,sans-serif';
-    g.fillText(`Total Days: ${p.totalDays}   ·   Best Streak: ${p.bestStreak}d   ·   Shields: ${p.shields}/2`, 540, 1032);
+    g.fillText(
+      t(
+        `Total Days: ${p.totalDays}   ·   Best Streak: ${p.bestStreak}d   ·   Shields: ${p.shields}/2`,
+        `累積打卡：${p.totalDays} 日   ·   最長連勝：${p.bestStreak} 日   ·   護盾：${p.shields}/2`,
+      ),
+      540,
+      1032,
+    );
 
-    const keeper = (p.note || $("claimNote").value.trim() || "One small steady money step every day.").slice(0, 64);
+    const keeper = (p.note || $("claimNote").value.trim() || t("One small steady money step every day.", "每日一個小習慣，慢慢儲起更好嘅未來。")).slice(0, 64);
     g.fillStyle = "#4B5668";
     g.font = '700 25px "LXGW WenKai TC","Noto Sans HK",sans-serif';
     g.fillText(`“${keeper}”`, 540, 1106);
@@ -1256,16 +1369,22 @@
   // ---------- In-app browser tip & Service Worker ----------
   if (IAB) {
     $("dailyIab").hidden = false;
-    $("dailyIabText").textContent = `Opened inside ${IAB}. Open in your phone browser to pin Harbour Keep to your home screen & keep reminders working.`;
+    $("dailyIabText").textContent = t(
+      `Opened inside ${IAB}. Open in your phone browser to pin Harbour Keep to your home screen & keep reminders working.`,
+      `你而家正用 ${IAB} 內置瀏覽器開啟，建議轉用手機瀏覽器打開以加到主畫面及設定提醒。`,
+    );
     if (ANDROID) {
       $("dailyIabOpen").hidden = false;
-      $("dailyIabOpen").textContent = "Open in Chrome";
+      $("dailyIabOpen").textContent = t("Open in Chrome", "以 Chrome 開啟");
       $("dailyIabOpen").addEventListener("click", () => {
         location.href = `intent://${location.host}${location.pathname}${location.search}#Intent;scheme=https;package=com.android.chrome;end`;
       });
     }
     $("dailyIabCopy").addEventListener("click", async () => {
-      try { await navigator.clipboard.writeText(location.href); $("dailyIabStatus").textContent = "Copied link! 已複製連結"; } catch {}
+      try {
+        await navigator.clipboard.writeText(location.href);
+        $("dailyIabStatus").textContent = t("Copied link!", "已複製連結！");
+      } catch {}
     });
     $("dailyIabClose").addEventListener("click", () => { $("dailyIab").hidden = true; });
   }
@@ -1281,9 +1400,18 @@
     exitInspect: () => exitInspect(true),
     setDockCollapsed: (v) => setDockCollapsed(v, true),
     getState: () => state,
+    getLang: () => lang,
+    setLang: (v) => setLang(v, false),
   };
 
   mount3D();
   renderAll();
   initSession();
+  // Pre-warm Cantonese webfont silently after mount so switching to 粵 swaps with zero paint delay
+  if (document.fonts && typeof document.fonts.load === "function") {
+    setTimeout(() => {
+      document.fonts.load('700 16px "LXGW WenKai TC"').catch(() => {});
+      document.fonts.load('400 16px "LXGW WenKai TC"').catch(() => {});
+    }, 120);
+  }
 })();

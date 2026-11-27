@@ -70,9 +70,9 @@ export function buildCompanionHat(kit, hat) {
     };
   }
   if (hat === "straw") {
-    const straw = kit.clay(0xecc86f, { rough: 0.62 });
-    const strawLight = kit.clay(0xf5d98a, { rough: 0.58 });
-    const ribbon = kit.clay(0xe8483c, { rough: 0.45 });
+    const straw = kit.fabric(0xecc86f, { rough: 0.68 });
+    const strawLight = kit.fabric(0xf5d98a, { rough: 0.64 });
+    const ribbon = kit.fabric(0xe8483c, { rough: 0.62 });
     const brim = mesh(latheGeo([[0.0, 0.02], [0.22, 0.03], [0.42, 0.0], [0.44, -0.025], [0.2, 0.0], [0.0, 0.0]], 28), straw);
     const crown = mesh(latheGeo([[0.22, 0.0], [0.21, 0.14], [0.16, 0.2], [0.0, 0.21]], 24), strawLight);
     const band = mesh(new CylinderGeometry(0.218, 0.224, 0.055, 24), ribbon, { pos: [0, 0.05, 0] });
@@ -81,7 +81,7 @@ export function buildCompanionHat(kit, hat) {
     return { group: g, anim: null };
   }
   if (hat === "tophat") {
-    const silk = kit.clay(0x232532, { rough: 0.32 });
+    const silk = kit.enamel(0x232532, { rough: 0.24 });
     const band = kit.metal(0xffc93c, 0.22, 0.82);
     const brim = mesh(new CylinderGeometry(0.36, 0.37, 0.04, 28), silk, { pos: [0, 0.02, 0] });
     const rim = mesh(new TorusGeometry(0.36, 0.02, 10, 28), silk, { rot: [Math.PI / 2, 0, 0], pos: [0, 0.02, 0] });
@@ -99,8 +99,8 @@ export function buildCrab(kit, hat = null, opts = {}) {
   const body = new Group();
   root.add(body);
 
-  const shellMat = opts.golden ? kit.metal(0xffc83d, 0.22, 0.86) : kit.clay(0xf45d3c, { rough: 0.42 });
-  const clawMat = opts.golden ? kit.metal(0xffd75e, 0.2, 0.86) : kit.clay(0xff7748, { rough: 0.4 });
+  const shellMat = opts.golden ? kit.metal(0xffc83d, 0.2, 0.88) : kit.enamel(0xf45d3c, { rough: 0.26 });
+  const clawMat = opts.golden ? kit.metal(0xffd75e, 0.18, 0.88) : kit.enamel(0xff7748, { rough: 0.24 });
   const bellyMat = opts.golden ? kit.metal(0xffe58a, 0.26, 0.8) : kit.clay(0xffe4c4, { rough: 0.5 });
   const blushMat = opts.golden ? kit.metal(0xffaa32, 0.25, 0.8) : kit.gloss(0xff92ad, { rough: 0.32 });
   const whiteMat = kit.gloss(0xffffff, { rough: 0.16 });
@@ -232,22 +232,23 @@ export function buildHumanFigurine(kit, who = "jack", hat = null, opts = {}) {
   const fig = new Group();
   root.add(fig);
 
-  const skin = kit.clay(0xf7d0b0, { rough: 0.48 });
-  const hair = kit.clay(0x2a222d, { rough: 0.44 });
-  const white = kit.clay(0xfaf8f2, { rough: 0.48 });
-  const darkEye = kit.gloss(0x1b1d2a, { rough: 0.14 });
-  const blush = kit.gloss(0xff9bb3, { rough: 0.34 });
+  const skin = kit.clay(0xf7d0b0, { rough: 0.46 });
+  const hair = kit.clay(0x2a222d, { rough: 0.38 });
+  const white = kit.fabric(0xfaf8f2, { rough: 0.66 });
+  const darkEye = kit.gloss(0x1b1d2a, { rough: 0.12 });
+  const blush = kit.gloss(0xff9bb3, { rough: 0.28 });
   const shoeSole = kit.clay(0x3a3745, { rough: 0.56 });
+  const shoeUpper = kit.enamel(0xfcfaf4, { rough: 0.26 });
 
-  const topMat = isJackie ? kit.clay(0xf27d62, { rough: 0.52 }) : kit.clay(0xcab292, { rough: 0.52 });
+  const topMat = isJackie ? kit.fabric(0xf27d62, { rough: 0.7 }) : kit.fabric(0xcab292, { rough: 0.72 });
   const sleeveMat = white;
-  const bottomMat = isJackie ? kit.clay(0x70778a, { rough: 0.55 }) : kit.clay(0x3a3235, { rough: 0.55 });
-  const accentMat = isJackie ? kit.clay(0xfff6e8, { rough: 0.48 }) : kit.clay(0x198f84, { rough: 0.48 });
+  const bottomMat = isJackie ? kit.fabric(0x70778a, { rough: 0.72 }) : kit.fabric(0x3a3235, { rough: 0.74 });
+  const accentMat = isJackie ? kit.fabric(0xfff6e8, { rough: 0.68 }) : kit.fabric(0x198f84, { rough: 0.66 });
 
   // Sneakers & legs
   for (const sx of [-1, 1]) {
     const sole = mesh(roundedBoxGeo(0.16, 0.055, 0.24, 0.05, 0.015), shoeSole, { pos: [sx * 0.12, 0.028, 0.03] });
-    const shoe = mesh(new SphereGeometry(0.095, 14, 12), white, { pos: [sx * 0.12, 0.075, 0.035], scale: [0.88, 0.65, 1.25] });
+    const shoe = mesh(new SphereGeometry(0.095, 14, 12), shoeUpper, { pos: [sx * 0.12, 0.075, 0.035], scale: [0.88, 0.65, 1.25] });
     fig.add(sole, shoe);
     if (isJackie) {
       const sock = mesh(new CylinderGeometry(0.058, 0.056, 0.12, 12), white, { pos: [sx * 0.12, 0.14, 0] });
@@ -427,7 +428,7 @@ export function buildIslandBase(kit, hasTower = false) {
   root.add(seawall, coping);
 
   // 4. Warm Honey-Oak Beveled Timber Pier Deck (cleanly above seawall & below props at y = 0)
-  const deckTop = mesh(new CylinderGeometry(4.06, 4.08, 0.12, 44), kit.textured("woodPlank", { rough: 0.54 }), {
+  const deckTop = mesh(new CylinderGeometry(4.06, 4.08, 0.12, 44), kit.textured("woodPlank", { finish: "lacquer", rough: 0.4 }), {
     pos: [0, -0.06, 0],
     cast: false,
     recv: true,
@@ -445,7 +446,7 @@ export function buildIslandBase(kit, hasTower = false) {
     // Charming brass-inlaid circular harbour compass medallion on Day 0-3 starter pier!
     const med = mesh(
       new CylinderGeometry(1.18, 1.22, 0.036, 36),
-      [kit.clay(0x9a6838), kit.textured("coasterDial", { rough: 0.46 }), kit.clay(0x9a6838)],
+      [kit.clay(0x9a6838), kit.textured("coasterDial", { finish: "lacquer", rough: 0.36 }), kit.clay(0x9a6838)],
       { pos: [0, 0.006, 0.35], cast: false, recv: true },
     );
     const medRim = mesh(new TorusGeometry(1.2, 0.028, 10, 40), kit.metal(0xe8b948, 0.24, 0.8), {
@@ -493,7 +494,7 @@ export function buildIslandBase(kit, hasTower = false) {
 
   // Brass pier front plaque ("海傍小天地")
   const plaqueFrame = mesh(roundedBoxGeo(1.18, 0.34, 0.08, 0.04, 0.015), brass, { pos: [0, -0.14, 4.18], rot: [-0.08, 0, 0] });
-  const plaqueFace = mesh(new PlaneGeometry(1.06, 0.26), kit.textured("pierPlaque", { rough: 0.34, metal: 0.45 }), {
+  const plaqueFace = mesh(new PlaneGeometry(1.06, 0.26), kit.textured("pierPlaque", { finish: "metal", rough: 0.26 }), {
     pos: [0, -0.14, 4.225],
     rot: [-0.08, 0, 0],
     cast: false,
@@ -571,12 +572,12 @@ export function buildIslandBase(kit, hasTower = false) {
 // Day 1: Piggy Bank on Dock Pallet + Spinning Embossed HK Gold Coin
 function buildDay1Piggy(kit) {
   const g = new Group();
-  const wood = kit.textured("woodPlank", { rough: 0.58 });
-  const brass = kit.metal(0xeab844, 0.22, 0.84);
-  const pink = kit.gloss(0xff84a8, { rough: 0.24 });
-  const snoutMat = kit.gloss(0xffa3be, { rough: 0.26 });
-  const dark = kit.gloss(0x1e202c, { rough: 0.16 });
-  const coinMat = kit.textured("coinFace", { rough: 0.22, metal: 0.78 });
+  const wood = kit.textured("woodPlank", { finish: "lacquer", rough: 0.44 });
+  const brass = kit.metal(0xeab844, 0.2, 0.86);
+  const pink = kit.gloss(0xff84a8, { rough: 0.14 });
+  const snoutMat = kit.gloss(0xffa3be, { rough: 0.16 });
+  const dark = kit.gloss(0x1e202c, { rough: 0.12 });
+  const coinMat = kit.textured("coinFace", { finish: "metal", rough: 0.2 });
 
   // Slatted wooden dock pallet with brass corner brackets
   for (const z of [-0.34, 0, 0.34]) {
@@ -655,13 +656,13 @@ function buildDay1Piggy(kit) {
 // Day 2: HK Bakery Cart (菠蘿包) with Striped Awning, Spoked Wheels, Buns, Milk-Tea Urn & Chalkboard
 function buildDay2Bakery(kit) {
   const g = new Group();
-  const wood = kit.textured("woodPlank", { rough: 0.56 });
-  const cream = kit.clay(0xfff5e2, { rough: 0.48 });
-  const brass = kit.metal(0xe2b144, 0.24, 0.84);
-  const iron = kit.metal(0x3a3d4c, 0.4, 0.7);
-  const bunCrust = kit.textured("pineappleCrust", { rough: 0.42 });
-  const bunBase = kit.clay(0xe3a858, { rough: 0.55 });
-  const awningMat = kit.textured("stripeRed", { rough: 0.54, side: DoubleSide });
+  const wood = kit.textured("woodPlank", { finish: "lacquer", rough: 0.44 });
+  const cream = kit.enamel(0xfff5e2, { rough: 0.28 });
+  const brass = kit.metal(0xe2b144, 0.22, 0.85);
+  const iron = kit.metal(0x3a3d4c, 0.36, 0.74);
+  const bunCrust = kit.textured("pineappleCrust", { finish: "glaze", rough: 0.2 });
+  const bunBase = kit.clay(0xe3a858, { rough: 0.5 });
+  const awningMat = kit.textured("stripeRed", { finish: "fabric", rough: 0.7, side: DoubleSide });
 
   // 2 big spoked heritage wooden wheels on left + 2 small front casters on right
   for (const sz of [-0.46, 0.46]) {
@@ -764,10 +765,10 @@ function buildDay2Bakery(kit) {
 // Day 3: Rounded Teal-and-Cream Octopus & Passbook Kiosk
 function buildDay3Kiosk(kit) {
   const g = new Group();
-  const teal = kit.clay(0x14968b, { rough: 0.44 });
-  const tealDark = kit.clay(0x0f6b64, { rough: 0.48 });
-  const cream = kit.clay(0xfff5e3, { rough: 0.46 });
-  const brass = kit.metal(0xf0be46, 0.24, 0.8);
+  const teal = kit.enamel(0x14968b, { rough: 0.24 });
+  const tealDark = kit.enamel(0x0f6b64, { rough: 0.28 });
+  const cream = kit.enamel(0xfff5e3, { rough: 0.26 });
+  const brass = kit.metal(0xf0be46, 0.22, 0.84);
   const pulseMat = kit.emissive(0x36f2c8, 0.8, 1.9, { transparent: true, opacity: 0.85 });
 
   // Stepped rounded plinth + main kiosk cabinet
@@ -783,7 +784,7 @@ function buildDay3Kiosk(kit) {
   // Glowing recessed balance display screen
   g.add(
     mesh(roundedBoxGeo(0.68, 0.5, 0.06, 0.05, 0.014), tealDark, { pos: [0, 1.12, 0.35] }),
-    mesh(new PlaneGeometry(0.6, 0.42), kit.textured("kioskScreen", { rough: 0.25, emissive: true, baseEmissive: 0.55, nightEmissive: 1.45 }), {
+    mesh(new PlaneGeometry(0.6, 0.42), kit.textured("kioskScreen", { finish: "glaze", rough: 0.18, emissive: true, baseEmissive: 0.55, nightEmissive: 1.45 }), {
       pos: [0, 1.12, 0.384],
       cast: false,
     }),
@@ -837,8 +838,8 @@ function buildDay3Kiosk(kit) {
 function buildDay4Floor1(kit) {
   const g = new Group();
   const wall = kit.clay(0xfdf0d8, { rough: 0.52 });
-  const trim = kit.clay(0xd87454, { rough: 0.5 });
-  const shutter = kit.clay(0x1f6e5c, { rough: 0.46 });
+  const trim = kit.clay(0xd87454, { rough: 0.48 });
+  const shutter = kit.enamel(0x1f6e5c, { rough: 0.28 });
   const winGlow = kit.emissive(0xffe08a, 0.65, 1.85);
   const bambooTan = kit.clay(0xd8b25e, { rough: 0.55 });
   const bambooJade = kit.clay(0x88b454, { rough: 0.54 });
@@ -885,8 +886,8 @@ function buildDay4Floor1(kit) {
 
   // Shopfront Wooden Signboard ("海傍小天地")
   g.add(
-    mesh(roundedBoxGeo(1.18, 0.32, 0.08, 0.03, 0.012), kit.clay(0x184f4a), { pos: [0, 1.05, 0.85] }),
-    mesh(new PlaneGeometry(1.1, 0.26), kit.textured("shopBanner", { rough: 0.42 }), { pos: [0, 1.05, 0.895], cast: false }),
+    mesh(roundedBoxGeo(1.18, 0.32, 0.08, 0.03, 0.012), kit.enamel(0x184f4a, { rough: 0.28 }), { pos: [0, 1.05, 0.85] }),
+    mesh(new PlaneGeometry(1.1, 0.26), kit.textured("shopBanner", { finish: "lacquer", rough: 0.3 }), { pos: [0, 1.05, 0.895], cast: false }),
   );
 
   // Authentic HK Bamboo Scaffolding (竹棚) wrapping left & rear-left sides with cross-ties & catwalk!
@@ -932,12 +933,12 @@ function buildDay4Floor1(kit) {
 // Day 5: Home Pantry — Woven Rice Sack ("米"), Multi-tier Bamboo Steamer with Steam Puffs, Ceramic Teapot
 function buildDay5Pantry(kit) {
   const g = new Group();
-  const wood = kit.textured("woodPlank", { rough: 0.58 });
-  const sackMat = kit.textured("riceSack", { rough: 0.72 });
-  const cordMat = kit.clay(0xc9312a, { rough: 0.44 });
+  const wood = kit.textured("woodPlank", { finish: "lacquer", rough: 0.46 });
+  const sackMat = kit.textured("riceSack", { finish: "fabric", rough: 0.76 });
+  const cordMat = kit.fabric(0xc9312a, { rough: 0.64 });
   const bamboo = kit.clay(0xdcb46c, { rough: 0.54 });
   const bambooRim = kit.clay(0xaa7d3c, { rough: 0.56 });
-  const ceramic = kit.gloss(0x26a3a0, { rough: 0.2 });
+  const ceramic = kit.gloss(0x26a3a0, { rough: 0.14 });
 
   // Wooden pantry pallet
   g.add(mesh(roundedBoxGeo(1.26, 0.1, 0.92, 0.05, 0.018), wood, { pos: [0, 0.05, 0] }));
@@ -1015,15 +1016,15 @@ function buildDay5Pantry(kit) {
 // Day 6: 2/F Cha Chaan Teng Bay + Double-Sided Glowing 3D HK Neon Sign
 function buildDay6Neon(kit) {
   const g = new Group();
-  const wall = kit.clay(0xffe5eb, { rough: 0.5 });
-  const tile = kit.textured("checkerTile", { rough: 0.42 });
-  const frame = kit.clay(0x1b6d62, { rough: 0.44 });
+  const wall = kit.clay(0xffe5eb, { rough: 0.48 });
+  const tile = kit.textured("checkerTile", { finish: "glaze", rough: 0.22 });
+  const frame = kit.enamel(0x1b6d62, { rough: 0.28 });
   const winGlow = kit.emissive(0xffdc80, 0.7, 1.95);
-  const iron = kit.metal(0x2c3040, 0.38, 0.76);
+  const iron = kit.metal(0x2c3040, 0.34, 0.78);
   const neonPink = kit.emissive(0xff5fa8, 1.1, 2.6);
   const neonTeal = kit.emissive(0x38f3dc, 1.0, 2.5);
   const neonGold = kit.emissive(0xffe266, 0.95, 2.3);
-  const signFace = kit.textured("neonSign", { rough: 0.25, emissive: true, baseEmissive: 0.85, nightEmissive: 2.0 });
+  const signFace = kit.textured("neonSign", { finish: "glaze", rough: 0.18, emissive: true, baseEmissive: 0.85, nightEmissive: 2.0 });
 
   // 2/F structural volume (height = 1.15 so 3F stacks cleanly at y = 2.40)
   g.add(
@@ -1099,11 +1100,11 @@ function buildDay6Neon(kit) {
 // Day 7: Iconic Star Ferry (天星小輪) + Insurance Net (保險網) Lifebuoy
 function buildDay7Ferry(kit) {
   const g = new Group();
-  const green = kit.clay(0x167a4c, { rough: 0.42 });
-  const greenDark = kit.clay(0x0f5636, { rough: 0.48 });
-  const cream = kit.clay(0xfff7e6, { rough: 0.44 });
-  const teak = kit.clay(0xb87c44, { rough: 0.56 });
-  const brass = kit.metal(0xf0c248, 0.2, 0.85);
+  const green = kit.enamel(0x167a4c, { rough: 0.24 });
+  const greenDark = kit.enamel(0x0f5636, { rough: 0.28 });
+  const cream = kit.enamel(0xfff7e6, { rough: 0.24 });
+  const teak = kit.clay(0xb87c44, { rough: 0.48 });
+  const brass = kit.metal(0xf0c248, 0.2, 0.86);
   const winGlow = kit.emissive(0xffe69c, 0.55, 1.75);
   const wakeMat = kit.glass(0xeafcff, 0.62);
 
@@ -1153,16 +1154,16 @@ function buildDay7Ferry(kit) {
 
   // Coral-and-White Insurance Net (保險網) Lifebuoy + Golden Safety-Net Ring
   const buoy = new Group();
-  buoy.position.set(0.84, 0.14, 0.44);
+  buoy.position.set(0.68, 0.14, 0.42);
   buoy.add(
-    mesh(new TorusGeometry(0.24, 0.08, 14, 28), kit.clay(0xf04e3e, { rough: 0.4 }), { rot: [Math.PI / 2, 0, 0] }),
-    mesh(new TorusGeometry(0.35, 0.022, 8, 28), brass, { rot: [Math.PI / 2, 0, 0] }),
+    mesh(new TorusGeometry(0.22, 0.075, 14, 28), kit.enamel(0xf04e3e, { rough: 0.24 }), { rot: [Math.PI / 2, 0, 0] }),
+    mesh(new TorusGeometry(0.32, 0.02, 8, 28), brass, { rot: [Math.PI / 2, 0, 0] }),
   );
   for (let i = 0; i < 4; i++) {
     const a = (i * Math.PI) / 2;
     buoy.add(
-      mesh(new TorusGeometry(0.084, 0.024, 8, 12), cream, { pos: [Math.cos(a) * 0.24, 0, Math.sin(a) * 0.24], rot: [0, -a, 0] }),
-      mesh(new CylinderGeometry(0.01, 0.01, 0.68, 6), brass, { pos: [0, -0.02, 0], rot: [Math.PI / 2, a + Math.PI / 4, 0] }),
+      mesh(new TorusGeometry(0.078, 0.022, 8, 12), cream, { pos: [Math.cos(a) * 0.22, 0, Math.sin(a) * 0.22], rot: [0, -a, 0] }),
+      mesh(new CylinderGeometry(0.01, 0.01, 0.62, 6), brass, { pos: [0, -0.02, 0], rot: [Math.PI / 2, a + Math.PI / 4, 0] }),
     );
   }
   g.add(buoy);
@@ -1182,18 +1183,18 @@ function buildDay7Ferry(kit) {
 // Day 8: Autopay Safe Vault + Heroic Golden Padlock + Stacked Gold Coins
 function buildDay8Vault(kit) {
   const g = new Group();
-  const steel = kit.metal(0x4b586e, 0.34, 0.72);
-  const gold = kit.metal(0xf5bf38, 0.22, 0.86);
-  const goldDeep = kit.metal(0xd1941c, 0.28, 0.82);
+  const steel = kit.enamel(0x5b6e8e, { rough: 0.26, metalness: 0.26 });
+  const gold = kit.metal(0xf5bf38, 0.2, 0.88);
+  const goldDeep = kit.metal(0xd1941c, 0.24, 0.84);
   const ledMat = kit.emissive(0x2cf292, 1.0, 2.4);
-  const coinFace = kit.textured("coinFace", { rough: 0.22, metal: 0.8 });
+  const coinFace = kit.textured("coinFace", { finish: "metal", rough: 0.2 });
 
   // Heavy beveled safe vault body + reinforced corner feet + side hinges + riveted back plate
   g.add(
     mesh(roundedBoxGeo(0.94, 0.96, 0.86, 0.1, 0.03), steel, { pos: [-0.08, 0.54, -0.04] }),
     mesh(roundedBoxGeo(0.78, 0.8, 0.09, 0.07, 0.02), goldDeep, { pos: [-0.08, 0.54, 0.39] }),
     // Rear riveted armor plate
-    mesh(roundedBoxGeo(0.76, 0.78, 0.05, 0.05, 0.012), kit.metal(0x3a4558, 0.4, 0.7), { pos: [-0.08, 0.54, -0.47] }),
+    mesh(roundedBoxGeo(0.76, 0.78, 0.05, 0.05, 0.012), kit.enamel(0x4b5c78, { rough: 0.3, metalness: 0.24 }), { pos: [-0.08, 0.54, -0.47] }),
     // Side brass hinges
     mesh(new CylinderGeometry(0.042, 0.042, 0.16, 12), gold, { pos: [-0.54, 0.76, 0.36] }),
     mesh(new CylinderGeometry(0.042, 0.042, 0.16, 12), gold, { pos: [-0.54, 0.32, 0.36] }),
@@ -1315,14 +1316,14 @@ function buildDay9Laundry(kit) {
     ps.items.forEach((it, iIdx) => {
       const pivot = new Group();
       pivot.position.set(it.x, 0.08 + (-it.x - 0.04) * Math.tan(ps.tilt) * 0.45, ps.z);
-      const shirt = mesh(roundedBoxGeo(it.w, it.h, 0.045, 0.03, 0.01), kit.clay(it.col, { rough: 0.56 }), {
+      const shirt = mesh(roundedBoxGeo(it.w, it.h, 0.045, 0.03, 0.01), kit.fabric(it.col, { rough: 0.7 }), {
         pos: [0, -it.h * 0.52, 0],
       });
       // Cute t-shirt sleeves for first two items
       if (it.w >= 0.2) {
         shirt.add(
-          mesh(roundedBoxGeo(0.07, 0.1, 0.04, 0.02, 0.008), kit.clay(it.col, { rough: 0.56 }), { pos: [-it.w * 0.55, 0.06, 0], rot: [0, 0, 0.4] }),
-          mesh(roundedBoxGeo(0.07, 0.1, 0.04, 0.02, 0.008), kit.clay(it.col, { rough: 0.56 }), { pos: [it.w * 0.55, 0.06, 0], rot: [0, 0, -0.4] }),
+          mesh(roundedBoxGeo(0.07, 0.1, 0.04, 0.02, 0.008), kit.fabric(it.col, { rough: 0.7 }), { pos: [-it.w * 0.55, 0.06, 0], rot: [0, 0, 0.4] }),
+          mesh(roundedBoxGeo(0.07, 0.1, 0.04, 0.02, 0.008), kit.fabric(it.col, { rough: 0.7 }), { pos: [it.w * 0.55, 0.06, 0], rot: [0, 0, -0.4] }),
         );
       }
       const pin = mesh(new BoxGeometry(0.024, 0.055, 0.03), kit.clay(0x9a6434), { pos: [0, 0.01, 0] });
@@ -1347,10 +1348,10 @@ function buildDay9Laundry(kit) {
 function buildDay10Lighthouse(kit) {
   const g = new Group();
   const stone = kit.textured("stoneWall", { rough: 0.65 });
-  const red = kit.clay(0xe24338, { rough: 0.44 });
-  const cream = kit.clay(0xfff6e6, { rough: 0.46 });
-  const iron = kit.metal(0x282d3c, 0.36, 0.78);
-  const brass = kit.metal(0xf0be44, 0.22, 0.85);
+  const red = kit.enamel(0xe24338, { rough: 0.26 });
+  const cream = kit.enamel(0xfff6e6, { rough: 0.28 });
+  const iron = kit.metal(0x282d3c, 0.34, 0.8);
+  const brass = kit.metal(0xf0be44, 0.2, 0.86);
   const lampCore = kit.emissive(0xffe87a, 1.35, 3.0);
   const beamMat = kit.emissive(0xffe478, 0.75, 1.85, { transparent: true, opacity: 0.28, depthWrite: false, side: DoubleSide });
 
@@ -1377,7 +1378,7 @@ function buildDay10Lighthouse(kit) {
   // Prominent "18222" Anti-Scam Emblem Plaque on front + tiny porthole windows on sides/back
   g.add(
     mesh(roundedBoxGeo(0.46, 0.28, 0.06, 0.04, 0.01), brass, { pos: [0, 1.16, 0.34] }),
-    mesh(new PlaneGeometry(0.4, 0.23), kit.textured("badge18222", { rough: 0.34 }), { pos: [0, 1.16, 0.375], cast: false }),
+    mesh(new PlaneGeometry(0.4, 0.23), kit.textured("badge18222", { finish: "glaze", rough: 0.22 }), { pos: [0, 1.16, 0.375], cast: false }),
   );
   for (const a of [Math.PI * 0.5, Math.PI, Math.PI * 1.5]) {
     g.add(mesh(new TorusGeometry(0.055, 0.016, 8, 14), brass, {
@@ -1436,9 +1437,9 @@ function buildDay11Jack(kit) {
   g.add(mesh(roundedBoxGeo(1.26, 0.06, 0.86, 0.1, 0.015), kit.textured("woodPlank", { rough: 0.58 }), { pos: [0, 0.03, 0] }));
 
   // Teal & Brass Emergency-Fund Reserve Chest overflowing with gold coins + glowing shield badge
-  const teal = kit.clay(0x14968b, { rough: 0.44 });
-  const brass = kit.metal(0xf0be44, 0.22, 0.84);
-  const coinFace = kit.textured("coinFace", { rough: 0.22, metal: 0.8 });
+  const teal = kit.enamel(0x14968b, { rough: 0.26 });
+  const brass = kit.metal(0xf0be44, 0.2, 0.86);
+  const coinFace = kit.textured("coinFace", { finish: "metal", rough: 0.2 });
   const chest = new Group();
   chest.position.set(0.32, 0.06, 0.04);
   chest.rotation.y = -0.24;
@@ -1485,8 +1486,8 @@ function buildDay12Loft(kit) {
   const wood = kit.clay(0xa46c3c, { rough: 0.54 });
   const winGlow = kit.emissive(0xffdf84, 0.7, 1.9);
   const foliage = kit.clay(0x2f9a4c, { rough: 0.52 });
-  const tangerineMat = kit.gloss(0xff8418, { rough: 0.22 });
-  const laiseeMat = kit.textured("laisee", { rough: 0.42 });
+  const tangerineMat = kit.gloss(0xff8418, { rough: 0.14 });
+  const laiseeMat = kit.textured("laisee", { finish: "lacquer", rough: 0.3 });
 
   // 4/F Study Loft volume (height = 1.10 so 5F stacks cleanly at y = 4.60)
   g.add(
@@ -1514,7 +1515,7 @@ function buildDay12Loft(kit) {
   calc.add(
     mesh(roundedBoxGeo(0.36, 0.06, 0.34, 0.03, 0.01), wood, { pos: [-0.08, -0.22, 0] }),
     mesh(roundedBoxGeo(0.36, 0.46, 0.1, 0.04, 0.014), kit.clay(0xebe2d2), { pos: [0, 0.04, 0] }),
-    mesh(new PlaneGeometry(0.3, 0.4), kit.textured("calcScreen", { rough: 0.35 }), { pos: [0, 0.04, 0.055], cast: false }),
+    mesh(new PlaneGeometry(0.3, 0.4), kit.textured("calcScreen", { finish: "lacquer", rough: 0.28 }), { pos: [0, 0.04, 0.055], cast: false }),
   );
   g.add(calc);
 
@@ -1558,10 +1559,10 @@ function buildDay12Loft(kit) {
 function buildDay13Junk(kit, opts = {}) {
   const g = new Group();
   const isGold = !!opts.golden;
-  const hullMat = isGold ? kit.clay(0x9a2024, { rough: 0.36 }) : kit.textured("woodPlank", { rough: 0.58 });
-  const trimMat = isGold ? kit.metal(0xffcb3d, 0.2, 0.88) : kit.clay(0x7c4824, { rough: 0.56 });
-  const sailMat = isGold ? kit.metal(0xffca3a, 0.24, 0.82) : kit.clay(0xcf2e2e, { rough: 0.54, side: DoubleSide });
-  const battenMat = isGold ? kit.metal(0x9a6412, 0.3, 0.78) : kit.clay(0x5c361a, { rough: 0.6 });
+  const hullMat = isGold ? kit.enamel(0x9a2024, { rough: 0.24 }) : kit.textured("woodPlank", { finish: "lacquer", rough: 0.46 });
+  const trimMat = isGold ? kit.metal(0xffcb3d, 0.18, 0.88) : kit.clay(0x7c4824, { rough: 0.54 });
+  const sailMat = isGold ? kit.metal(0xffca3a, 0.22, 0.84) : kit.fabric(0xcf2e2e, { rough: 0.72, side: DoubleSide });
+  const battenMat = isGold ? kit.metal(0x9a6412, 0.28, 0.8) : kit.clay(0x5c361a, { rough: 0.58 });
   const lanternMat = kit.emissive(0xffbe42, 0.95, 2.3);
 
   const ship = new Group();

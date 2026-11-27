@@ -24,9 +24,9 @@ import { buildCompanionHat, buildCrab, buildDay13Junk } from "./models-sprint.js
 // Day 18: Animated Circling 3D Seagulls + Bobbing Brass Harbour Bell Buoy
 function buildDay18Gulls(kit, opts = {}) {
   const g = new Group();
-  const red = kit.clay(0xe2473c, { rough: 0.42 });
-  const cream = kit.clay(0xfff6e6, { rough: 0.46 });
-  const brass = kit.metal(0xf0be44, 0.22, 0.85);
+  const red = kit.enamel(0xe2473c, { rough: 0.26 });
+  const cream = kit.enamel(0xfff6e6, { rough: 0.28 });
+  const brass = kit.metal(0xf0be44, 0.2, 0.86);
   const beacon = kit.emissive(0x45f7b4, 1.0, 2.5);
 
   // Bobbing Victoria Harbour Bell Buoy
@@ -170,12 +170,12 @@ function buildDay21Twilight(kit) {
 // Day 25: Striped Dai Pai Dong Parasol Tea Deck with Stools & HK Iced Lemon Tea (凍檸茶)
 function buildDay25Umbrella(kit) {
   const g = new Group();
-  const wood = kit.textured("woodPlank", { rough: 0.56 });
-  const poleMat = kit.clay(0x8e5932, { rough: 0.52 });
-  const brass = kit.metal(0xf0be44, 0.24, 0.82);
-  const canopyMat = kit.textured("stripeCoral", { rough: 0.5, side: DoubleSide });
-  const marble = kit.gloss(0xfffdf6, { rough: 0.22 });
-  const iron = kit.metal(0x3a404f, 0.4, 0.72);
+  const wood = kit.textured("woodPlank", { finish: "lacquer", rough: 0.44 });
+  const poleMat = kit.clay(0x8e5932, { rough: 0.5 });
+  const brass = kit.metal(0xf0be44, 0.22, 0.84);
+  const canopyMat = kit.textured("stripeCoral", { finish: "fabric", rough: 0.7, side: DoubleSide });
+  const marble = kit.gloss(0xfffdf6, { rough: 0.16 });
+  const iron = kit.metal(0x3a404f, 0.36, 0.76);
 
   // Wooden tea deck platform
   g.add(mesh(new CylinderGeometry(0.82, 0.86, 0.1, 24), wood, { pos: [0, 0.05, 0] }));
@@ -238,14 +238,14 @@ function buildDay25Umbrella(kit) {
 // Day 30: Iconic HK Double-Deck Green Ding-Ding Tram (叮叮電車) + Braided 3D Straw Hat
 function buildDay30Tram(kit, opts = {}) {
   const g = new Group();
-  const tramGreen = kit.clay(0x166d3e, { rough: 0.38 });
-  const tramCream = kit.clay(0xfff5de, { rough: 0.44 });
-  const roofDark = kit.clay(0x2d3540, { rough: 0.52 });
-  const brass = kit.metal(0xf0be44, 0.22, 0.84);
-  const iron = kit.metal(0x464e5c, 0.36, 0.78);
+  const tramGreen = kit.enamel(0x166d3e, { rough: 0.22 });
+  const tramCream = kit.enamel(0xfff5de, { rough: 0.24 });
+  const roofDark = kit.clay(0x2d3540, { rough: 0.5 });
+  const brass = kit.metal(0xf0be44, 0.2, 0.86);
+  const iron = kit.metal(0x464e5c, 0.34, 0.8);
   const winGlow = kit.emissive(0xffe594, 0.65, 1.9);
   const headlamp = kit.emissive(0xfff5be, 1.0, 2.6);
-  const signMat = kit.textured("tramSign", { rough: 0.4 });
+  const signMat = kit.textured("tramSign", { finish: "glaze", rough: 0.22 });
 
   // Steel tram rails & timber sleepers
   for (const sz of [-0.26, 0.26]) {
@@ -388,12 +388,12 @@ function buildDay35Lanterns(kit) {
 // Day 45: Iconic Red-Brick & Granite TST Harbour Clock Tower (尖沙咀鐘樓)
 function buildDay45Clock(kit) {
   const g = new Group();
-  const granite = kit.textured("stoneWall", { rough: 0.64 });
-  const brick = kit.textured("brick", { rough: 0.58 });
-  const creamStone = kit.clay(0xf2e8d6, { rough: 0.52 });
-  const copper = kit.clay(0x4ba892, { rough: 0.38, metalness: 0.28 });
-  const brass = kit.metal(0xf0be44, 0.22, 0.85);
-  const clockMat = kit.textured("clockFace", { rough: 0.34, emissive: true, baseEmissive: 0.25, nightEmissive: 1.05 });
+  const granite = kit.textured("stoneWall", { rough: 0.62 });
+  const brick = kit.textured("brick", { rough: 0.56 });
+  const creamStone = kit.clay(0xf2e8d6, { rough: 0.48 });
+  const copper = kit.metal(0x4ba892, 0.28, 0.55);
+  const brass = kit.metal(0xf0be44, 0.2, 0.86);
+  const clockMat = kit.textured("clockFace", { finish: "glaze", rough: 0.2, emissive: true, baseEmissive: 0.25, nightEmissive: 1.05 });
 
   // Stepped granite plinth base + grand arched doorway
   g.add(
@@ -526,11 +526,11 @@ function buildDay75LionRock(kit) {
 function buildDay90PeakTram(kit) {
   const g = new Group();
   const hill = kit.clay(0x369a5c, { rough: 0.56 });
-  const pearl = kit.clay(0xfff7ea, { rough: 0.42 });
-  const teal = kit.clay(0x168d85, { rough: 0.44 });
+  const pearl = kit.enamel(0xfff7ea, { rough: 0.24 });
+  const teal = kit.enamel(0x168d85, { rough: 0.26 });
   const glass = kit.emissive(0x7beeff, 0.55, 1.75);
-  const crimson = kit.clay(0xd9322c, { rough: 0.38 });
-  const brass = kit.metal(0xf0be44, 0.22, 0.84);
+  const crimson = kit.enamel(0xd9322c, { rough: 0.22 });
+  const brass = kit.metal(0xf0be44, 0.2, 0.86);
 
   // Lush Peak hillside base
   g.add(
@@ -586,9 +586,9 @@ function buildDay90PeakTram(kit) {
 // Day 100: Monumental Golden Crab Trophy Statue on Marble-Brass Plinth + Top Hat!
 function buildDay100Centennial(kit) {
   const g = new Group();
-  const marble = kit.gloss(0xfffaf0, { rough: 0.26 });
+  const marble = kit.gloss(0xfffaf0, { rough: 0.16 });
   const brass = kit.metal(0xf5c43d, 0.18, 0.88);
-  const plaque = kit.textured("trophy100", { rough: 0.28, metal: 0.65 });
+  const plaque = kit.textured("trophy100", { finish: "metal", rough: 0.2 });
   const sparkleMat = kit.emissive(0xffe778, 1.0, 2.4);
 
   // Grand stepped octagonal marble & brushed-brass pedestal

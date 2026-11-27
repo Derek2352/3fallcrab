@@ -618,7 +618,7 @@ const PIER_MILESTONES = [
 { day: 4, prop: "floor1", en: "1/F Shopfront + Bamboo Scaffold", zh: "1樓店面＋竹棚架", descEn: "Hong Kong bamboo scaffolding hoists up 1/F of your Life Tower!", descZh: "香港師傅搭起竹棚，幫你座人生塔升上1樓！" },
 { day: 5, prop: "pantry", en: "Home Pantry & Rice Sack", zh: "自家糧倉（一包米）", descEn: "A plump clay rice sack and bamboo steamer anchor your kitchen floor.", descZh: "一包飽滿嘅米同蒸籠進駐1樓，基本生活穩穩陣陣。" },
 { day: 6, prop: "neon", en: "2/F Cha Chaan Teng Neon Sign", zh: "2樓茶餐廳霓虹招牌", descEn: "A glowing pink & teal neon sign joins 2/F of your growing HK tower.", descZh: "2樓掛起粉紅配湖水綠霓虹燈牌，港味十足！" },
-{ day: 7, prop: "ferry", en: "Week 1 Insurance Net & Star Ferry", zh: "第1週保險網＋天星小輪", descEn: "A red-and-white harbour ferry cruises past + you earn your Insurance Net shield!", descZh: "綠白小輪駛過海面，同時解鎖第一個防斷纜「保險網」！" },
+{ day: 7, prop: "ferry", en: "Week 1 Insurance Net & Star Ferry", zh: "第1週保險網＋天星小輪", descEn: "A green-and-white harbour ferry cruises past + you earn your Insurance Net shield!", descZh: "綠白小輪駛過海面，同時解鎖第一個防斷纜「保險網」！" },
 { day: 8, prop: "vault", en: "Autopay Gold Padlock Vault", zh: "自動轉賬金鎖寶庫", descEn: "A gleaming gold padlock secures your savings against card-interest traps.", descZh: "金色定期鎖穩陣鎖住儲蓄，唔怕卡數利息咬蝕！" },
 { day: 9, prop: "laundry", en: "3/F Dim Sum Terrace & Laundry Poles", zh: "3樓點心露台＋晾衫竹", descEn: "Classic HK bamboo laundry poles and dim sum steamers fill 3/F.", descZh: "3樓添置港式晾衫竹同點心蒸籠，生活煙火氣滿滿。" },
 { day: 10, prop: "lighthouse", en: "18222 Anti-Scam Lighthouse", zh: "18222防騙燈塔", descEn: "A bright harbour beacon watches over your pier to spot scams from afar.", descZh: "碼頭旁亮起防騙燈塔，遠遠照清所有可疑連結同電話。" },

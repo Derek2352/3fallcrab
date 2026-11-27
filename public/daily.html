@@ -19,47 +19,49 @@
 <meta property="og:url" content="https://3fallcrab.com/daily">
 <meta property="og:image" content="https://3fallcrab.com/assets/og.f3dcb61e63.jpg">
 <link rel="preload" href="/assets/gluten.ab14bb3aa5.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="/assets/noto-sans-hk.4db02dbc2d.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/assets/daily.ba71c7cfb9.css">
+<link rel="preload" href="/assets/noto-sans-hk.3fff491cf3.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/daily.0930db902a.css">
 </head>
-<body data-sky="day">
+<body data-sky="day" data-lang="en">
 <noscript><p style="margin:0;padding:16px;background:#1E2430;color:#fff;font:16px/1.5 system-ui,sans-serif;text-align:center">Harbour Keep needs JavaScript to run. 請開啟 JavaScript 先用到。</p></noscript>
 <div class="daily-shell" id="dailyShell">
-<div id="stage3d" class="stage3d" role="application" aria-label="Interactive 3D Victoria Harbour Island — drag or use arrow keys to rotate 360 degrees 互動3D維港海傍小天地，可左右滑動或按方向鍵360度欣賞">
+<div id="stage3d" class="stage3d" role="application" aria-label="Interactive 3D Victoria Harbour Island — drag or use arrow keys to rotate 360 degrees">
 <div class="stage-fallback" id="stageFallback" hidden>
 <div class="fallback-card">
 <span class="fallback-ico" aria-hidden="true">🦀🏝</span>
-<b class="fallback-t">Harbour Keep · 海傍小天地</b>
-<p class="fallback-p">3D WebGL view is unavailable on this browser, but all daily check-ins, streaks, and milestones work normally! <span lang="zh-HK">此瀏覽器暫未支援3D畫面，但每日打卡同紀錄完全正常運作。</span></p>
+<b class="fallback-t"><span class="lang-en">Harbour Keep</span><span class="lang-zh" lang="zh-HK">海傍小天地</span></b>
+<p class="fallback-p lang-en">3D WebGL view is unavailable on this browser, but all daily check-ins, streaks, and milestones work normally.</p>
+<p class="fallback-p lang-zh" lang="zh-HK">此瀏覽器暫未支援3D畫面，但每日打卡同紀錄完全正常運作。</p>
 </div>
 </div>
 </div>
-<div class="iab" id="dailyIab" role="region" aria-label="Open in your browser 用瀏覽器開啟" hidden>
+<div class="iab" id="dailyIab" role="region" aria-label="Open in browser" hidden>
 <p class="iab-t" id="dailyIabText"></p>
 <div class="iab-acts">
 <button class="btn mini" id="dailyIabOpen" type="button" hidden></button>
-<button class="btn alt mini" id="dailyIabCopy" type="button">Copy link <span class="zh" lang="zh-HK">複製連結</span></button>
+<button class="btn alt mini" id="dailyIabCopy" type="button"><span class="lang-en">Copy link</span><span class="lang-zh" lang="zh-HK">複製連結</span></button>
 </div>
 <p class="iab-st" id="dailyIabStatus" aria-live="polite"></p>
-<button class="iab-x" id="dailyIabClose" type="button" aria-label="Close this tip 關閉提示"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+<button class="iab-x" id="dailyIabClose" type="button" aria-label="Close notice"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
 </div>
 <header class="top-bar">
 <div class="top-left">
 <div class="hud-pill brand-pill" id="stagePill">
 <span class="brand-mark" aria-hidden="true">🦀</span>
 <div class="brand-copy">
-<h1 class="brand-name">Harbour Keep <span class="brand-zh" lang="zh-HK">海傍小天地</span></h1>
+<h1 class="brand-name"><span class="lang-en">Harbour Keep</span><span class="lang-zh" lang="zh-HK">海傍小天地</span></h1>
 <span class="brand-stage"><b id="hudTotal">Day 0</b> · <span id="hudFloor">G/F</span></span>
 </div>
 </div>
 <button class="hud-pill back-pill" id="backIslandBtn" type="button" hidden>
-<span aria-hidden="true">←</span> Island <span class="zh" lang="zh-HK">島嶼</span>
+<span aria-hidden="true">←</span> <span class="lang-en">Island</span><span class="lang-zh" lang="zh-HK">返回海傍</span>
 </button>
 </div>
 <div class="top-right">
-<span class="hud-pill stat-pill streak" id="streakPill" title="Current streak 連勝日數"><span aria-hidden="true">🔥</span><b id="streakNum">0</b>d</span>
-<span class="hud-pill stat-pill shield" id="shieldPill" title="Insurance Net Streak Shields 保險網防斷纜"><span aria-hidden="true">🛟</span><b id="shieldNum">0</b>/2</span>
-<button class="hud-icon" id="skyBtn" type="button" aria-label="Cycle sky mood 切換天空時間" title="Sky mood 天空模式">
+<span class="hud-pill stat-pill streak" id="streakPill" title="Current streak"><span aria-hidden="true">🔥</span><b id="streakNum">0</b><span class="lang-en">d</span><span class="lang-zh" lang="zh-HK">日</span></span>
+<span class="hud-pill stat-pill shield" id="shieldPill" title="Insurance Net Streak Shields"><span aria-hidden="true">🛟</span><b id="shieldNum">0</b>/2</span>
+<button class="hud-icon lang-btn" id="langBtn" type="button" aria-label="切換至廣東話 Switch to Cantonese" title="廣東話 / English (L)">粵</button>
+<button class="hud-icon" id="skyBtn" type="button" aria-label="Cycle sky mood" title="Sky mood (S)">
 <svg class="sky-ico" viewBox="0 0 24 24" aria-hidden="true">
 <g class="ico-day">
 <circle cx="12" cy="12" r="4.3" fill="#FF7B35"/>
@@ -78,7 +80,7 @@
 </g>
 </svg>
 </button>
-<button class="hud-icon" id="dailyMute" type="button" aria-label="Mute sound 靜音" aria-pressed="false" title="Sound (M)">
+<button class="hud-icon" id="dailyMute" type="button" aria-label="Mute sound" aria-pressed="false" title="Sound (M)">
 <svg viewBox="0 0 24 24" aria-hidden="true">
 <path d="M4.2 9.4h4l4.8-4.1v13.4l-4.8-4.1h-4z" fill="currentColor"/>
 <path class="w" d="M16.1 8.5a4.8 4.8 0 0 1 0 7M18.6 6a8.2 8.2 0 0 1 0 12" fill="none" stroke="#14968B" stroke-width="2.2" stroke-linecap="round"/>
@@ -89,8 +91,8 @@
 </header>
 <div class="whisper-wrap">
 <div class="whisper-pill" id="pierTalk" role="status" aria-live="polite">
-<b id="talkEn">Spin your 3D harbour · Answer today's tiny check-in!</b>
-<small id="talkZh" lang="zh-HK">360°旋轉欣賞維港 · 每日一條理財小問題！</small>
+<b class="lang-en" id="talkEn">Spin your 3D harbour · Answer today's tiny check-in!</b>
+<small class="lang-zh" id="talkZh" lang="zh-HK">360°旋轉欣賞維港 · 每日一條理財小問題！</small>
 </div>
 </div>
 <div class="stamps" id="pierStamp" aria-hidden="true"></div>
@@ -103,29 +105,29 @@
 <div class="focus-badge">
 <span class="focus-dot" aria-hidden="true"></span>
 <b id="rescueTimer" aria-live="off">60s</b>
-<span class="focus-lab">FOCUS <span lang="zh-HK">專注補救</span></span>
+<span class="focus-lab"><span class="lang-en">FOCUS</span><span class="lang-zh" lang="zh-HK">專注補救</span></span>
 </div>
 </div>
 </div>
 <main class="bottom-dock" id="bottomDock" aria-label="Daily check-in and 3D controls">
 <div class="orbit-strip" id="orbitStrip">
-<p class="swipe-hint" id="swipeHint">↔ Swipe 360° to inspect · <span lang="zh-HK">滑動360°欣賞</span></p>
-<div class="orbit-pills" role="group" aria-label="3D camera controls 3D視角控制">
-<button class="orbit-btn" id="orbitLeftBtn" type="button" aria-label="Rotate left 向左旋轉" title="Rotate Left (←)">⟲</button>
-<button class="orbit-btn" id="orbitResetBtn" type="button" aria-label="Reset 3D angle 重設視角" title="Reset View (R)">⊙</button>
-<button class="orbit-btn" id="orbitRightBtn" type="button" aria-label="Rotate right 向右旋轉" title="Rotate Right (→)">⟳</button>
-<button class="orbit-btn inspect-pill" id="inspectToggleBtn" type="button" title="Inspect individual 3D Thing 3D旋轉欣賞單一景物">
-<span aria-hidden="true">🔍</span> <span id="inspectToggleText">3D Inspect</span> <span class="zh" lang="zh-HK">3D賞物</span>
+<p class="swipe-hint" id="swipeHint"><span class="lang-en">↔ Swipe 360° to inspect</span><span class="lang-zh" lang="zh-HK">↔ 左右滑動 360° 欣賞</span></p>
+<div class="orbit-pills" role="group" aria-label="3D camera controls">
+<button class="orbit-btn" id="orbitLeftBtn" type="button" aria-label="Rotate left" title="Rotate Left (←)">⟲</button>
+<button class="orbit-btn" id="orbitResetBtn" type="button" aria-label="Reset 3D angle" title="Reset View (R)">⊙</button>
+<button class="orbit-btn" id="orbitRightBtn" type="button" aria-label="Rotate right" title="Rotate Right (→)">⟳</button>
+<button class="orbit-btn inspect-pill" id="inspectToggleBtn" type="button" title="Inspect individual 3D Thing">
+<span aria-hidden="true">🔍</span> <span class="lang-en" id="inspectToggleText">3D Inspect</span><span class="lang-zh" lang="zh-HK">3D 賞物</span>
 </button>
 </div>
 </div>
-<article class="dock-card" id="checkinCard" aria-labelledby="qEn" data-collapsed="false">
+<article class="dock-card" id="checkinCard" aria-labelledby="qTitleHeading" data-collapsed="false">
 <button class="collapsed-pill" id="dockExpandBtn" type="button" hidden>
 <span class="cp-left">
 <span class="cp-ico" id="collapsedIco" aria-hidden="true">🌱</span>
 <span class="cp-txt">
-<b id="collapsedLabelEn">Today's Check-in · Day 01</b>
-<small id="collapsedLabelZh" lang="zh-HK">今日打卡 · 展開題目</small>
+<b class="lang-en" id="collapsedLabelEn">Today's Check-in · Day 01</b>
+<small class="lang-zh" id="collapsedLabelZh" lang="zh-HK">今日打卡 · 展開題目</small>
 </span>
 </span>
 <span class="cp-chev" aria-hidden="true">▲</span>
@@ -138,40 +140,42 @@
 <span class="cat-badge" id="qCat">Smart Spending</span>
 <span class="date-chip" id="qDateChip">Today</span>
 </div>
-<button class="collapse-btn" id="dockToggle" type="button" aria-label="Collapse check-in card 收起打卡卡" title="Hide card to view full 3D island">
+<button class="collapse-btn" id="dockToggle" type="button" aria-label="Collapse check-in card" title="Hide card to view full 3D island">
 <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 8l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
 </button>
 </div>
-<h2 class="q-en" id="qEn">Loading today's check-in…</h2>
-<p class="q-zh" id="qZh" lang="zh-HK">載入緊今日題目…</p>
+<h2 class="q-title" id="qTitleHeading">
+<span class="q-en lang-en" id="qEn">Loading today's check-in…</span>
+<span class="q-zh lang-zh" id="qZh" lang="zh-HK">載入緊今日題目…</span>
+</h2>
 <div class="choices" id="qAsk">
 <button class="choice yes" id="btnYes" type="button">
 <span class="key" aria-hidden="true">1</span>
-<span class="ch-txt"><b id="yesEn">Yes</b><small id="yesZh" lang="zh-HK">係</small></span>
+<span class="ch-txt"><b class="lang-en" id="yesEn">Yes</b><small class="lang-zh" id="yesZh" lang="zh-HK">係</small></span>
 </button>
 <button class="choice no" id="btnNo" type="button">
 <span class="key" aria-hidden="true">2</span>
-<span class="ch-txt"><b id="noEn">Not yet</b><small id="noZh" lang="zh-HK">未</small></span>
+<span class="ch-txt"><b class="lang-en" id="noEn">Not yet</b><small class="lang-zh" id="noZh" lang="zh-HK">未</small></span>
 </button>
 </div>
 <div class="outcome" id="qDone" hidden>
 <div class="oc-head good" id="doneHead">
 <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14" fill="#1D6F36"/><path d="M9.5 16.5l4.6 4.6 8.6-10" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
 <div class="oc-titles">
-<b id="doneTitle">Checked in for today!</b>
-<small id="doneTitleZh" lang="zh-HK">今日打卡成功！</small>
+<b class="lang-en" id="doneTitle">Checked in for today!</b>
+<small class="lang-zh" id="doneTitleZh" lang="zh-HK">今日打卡成功！</small>
 </div>
 </div>
 <p class="shield-note" id="shieldNotice" hidden></p>
 <div class="oc-tip">
-<strong class="tip-lab">💡 Practical Takeaway <span lang="zh-HK">實用小貼士</span></strong>
-<p id="doneTipEn"></p>
-<small id="doneTipZh" lang="zh-HK"></small>
+<strong class="tip-lab"><span class="lang-en">💡 Practical Takeaway</span><span class="lang-zh" lang="zh-HK">💡 實用理財貼士</span></strong>
+<p class="lang-en" id="doneTipEn"></p>
+<small class="lang-zh" id="doneTipZh" lang="zh-HK"></small>
 </div>
 <div class="done-acts">
-<button class="btn teal mini" id="inspectTodayBtn" type="button">🔍 Inspect Today's 3D Thing <span class="zh" lang="zh-HK">3D賞今日景物</span></button>
+<button class="btn teal mini" id="inspectTodayBtn" type="button"><span class="lang-en">🔍 Inspect 3D Piece</span><span class="lang-zh" lang="zh-HK">🔍 3D 賞今日景物</span></button>
 <div class="skip-rescue" id="skipRescueWrap" hidden>
-<button class="btn green mini" id="btnLateRescue" type="button">Do 60s Action Now <span class="zh" lang="zh-HK">即刻60秒補救打卡</span></button>
+<button class="btn green mini" id="btnLateRescue" type="button"><span class="lang-en">Do 60s Action Now</span><span class="lang-zh" lang="zh-HK">即刻 60 秒補救</span></button>
 </div>
 </div>
 <p class="next-cd" id="nextCountdown"></p>
@@ -179,57 +183,59 @@
 <p class="save-status" id="saveStatus" role="status" aria-live="polite"></p>
 </div>
 </article>
-<section class="dock-card rescue-card" id="qRescue" aria-label="60-second action rescue 60秒行動補救" hidden>
+<section class="dock-card rescue-card" id="qRescue" aria-label="60-second action rescue" hidden>
 <div class="rescue-top">
-<b>⏱ 60-Second Action Rescue <span class="zh" lang="zh-HK">60秒即刻行動補救</span></b>
+<b><span class="lang-en">⏱ 60-Second Action Rescue</span><span class="lang-zh" lang="zh-HK">⏱ 60 秒即刻行動補救</span></b>
 </div>
 <div class="timer" aria-hidden="true"><i id="rescueBar"></i></div>
-<p class="rescue-do" id="rescueText"></p>
-<p class="rescue-do-zh" id="rescueTextZh" lang="zh-HK"></p>
+<p class="rescue-do lang-en" id="rescueText"></p>
+<p class="rescue-do-zh lang-zh" id="rescueTextZh" lang="zh-HK"></p>
 <div class="rescue-acts">
-<button class="btn green" id="btnRescueDone" type="button">I just did it! Check me in <span class="zh" lang="zh-HK">我啱啱做咗，打卡！</span></button>
-<button class="btn alt" id="btnRescueSkip" type="button">Not today — try tomorrow <span class="zh" lang="zh-HK">今日唔得，聽日再試</span></button>
+<button class="btn green" id="btnRescueDone" type="button"><span class="lang-en">I just did it! Check me in</span><span class="lang-zh" lang="zh-HK">我啱啱做咗，即刻打卡！</span></button>
+<button class="btn alt" id="btnRescueSkip" type="button"><span class="lang-en">Not today — try tomorrow</span><span class="lang-zh" lang="zh-HK">今日唔得，聽日再試</span></button>
 </div>
 </section>
-<section class="dock-card inspect-card" id="inspectBar" aria-label="3D Milestone Showcase 3D景物近距離欣賞" hidden>
+<section class="dock-card inspect-card" id="inspectBar" aria-label="3D Milestone Showcase" hidden>
 <div class="inspect-top">
 <div class="inspect-badges">
 <span class="day-chip" id="inspectDayPill">Day 00 · Pier</span>
-<span class="inspect-status unlocked" id="inspectStatusPill">✓ Unlocked · 已解鎖</span>
+<span class="inspect-status unlocked" id="inspectStatusPill">✓ Unlocked</span>
 </div>
-<button class="btn alt mini" id="inspectBackBtn" type="button">🏝 Back to Island <span class="zh" lang="zh-HK">返回海傍</span></button>
+<button class="btn alt mini" id="inspectBackBtn" type="button"><span class="lang-en">🏝 Back to Island</span><span class="lang-zh" lang="zh-HK">🏝 返回海傍</span></button>
 </div>
 <div class="inspect-mid">
-<button class="step-btn" id="inspectPrevBtn" type="button" aria-label="Previous 3D Thing 上一個景物">‹</button>
+<button class="step-btn" id="inspectPrevBtn" type="button" aria-label="Previous 3D Thing">‹</button>
 <div class="inspect-copy">
-<h2 class="inspect-title" id="inspectTitleEn">3 Fall Crab &amp; Starter Pier</h2>
-<p class="inspect-title-zh" id="inspectTitleZh" lang="zh-HK">蟹仔與起步碼頭</p>
-<p class="inspect-desc" id="inspectDescEn"></p>
-<p class="inspect-desc-zh" id="inspectDescZh" lang="zh-HK"></p>
+<h2 class="inspect-h">
+<span class="inspect-title lang-en" id="inspectTitleEn">3 Fall Crab &amp; Starter Harbour Island</span>
+<span class="inspect-title-zh lang-zh" id="inspectTitleZh" lang="zh-HK">蟹仔與起步碼頭小島</span>
+</h2>
+<p class="inspect-desc lang-en" id="inspectDescEn"></p>
+<p class="inspect-desc-zh lang-zh" id="inspectDescZh" lang="zh-HK"></p>
 </div>
-<button class="step-btn" id="inspectNextBtn" type="button" aria-label="Next 3D Thing 下一個景物">›</button>
+<button class="step-btn" id="inspectNextBtn" type="button" aria-label="Next 3D Thing">›</button>
 </div>
 </section>
 <nav class="app-nav" role="navigation" aria-label="App navigation">
 <button class="nav-tab active" id="navPier" type="button" aria-current="page">
 <span class="nav-ico" aria-hidden="true">🏝</span>
-<span class="nav-en">Pier</span>
-<span class="nav-zh" lang="zh-HK">海傍</span>
+<span class="nav-en lang-en">Pier</span>
+<span class="nav-zh lang-zh" lang="zh-HK">海傍</span>
 </button>
 <button class="nav-tab" id="logBtn" type="button">
 <span class="nav-ico" aria-hidden="true">✨</span>
-<span class="nav-en">3D Collection</span>
-<span class="nav-zh" lang="zh-HK">圖鑑</span>
+<span class="nav-en lang-en">Collection</span>
+<span class="nav-zh lang-zh" lang="zh-HK">3D圖鑑</span>
 </button>
 <button class="nav-tab" id="remindBtn" type="button">
 <span class="nav-ico" aria-hidden="true">🔔</span>
-<span class="nav-en">Remind</span>
-<span class="nav-zh" lang="zh-HK">提醒</span>
+<span class="nav-en lang-en">Remind</span>
+<span class="nav-zh lang-zh" lang="zh-HK">提醒</span>
 </button>
 <button class="nav-tab" id="syncBtn" type="button">
 <span class="nav-ico" aria-hidden="true">🔑</span>
-<span class="nav-en">Pass</span>
-<span class="nav-zh" lang="zh-HK">證書</span>
+<span class="nav-en lang-en">Pass</span>
+<span class="nav-zh lang-zh" lang="zh-HK">證書</span>
 </button>
 </nav>
 </main>
@@ -238,40 +244,41 @@
 <div class="sheet">
 <div class="sheet-handle" aria-hidden="true"></div>
 <div class="st-band">
-<div><b id="logHead">3D Collection &amp; Sprint</b> <span class="zh" lang="zh-HK">海傍3D圖鑑與進度</span></div>
-<button class="mclose" id="logClose" type="button" aria-label="Close collection 關閉圖鑑">✕</button>
+<div id="logHead"><b class="lang-en">3D Collection &amp; Sprint</b><b class="lang-zh" lang="zh-HK">海傍3D圖鑑與進度</b></div>
+<button class="mclose" id="logClose" type="button" aria-label="Close collection">✕</button>
 </div>
 <div class="st-body">
 <div class="summary-chips">
 <span class="sum-chip"><b id="hudMode">Starter Sprint</b></span>
 <span class="sum-chip"><b id="hudBest">Best 0d</b></span>
-<span class="sum-chip"><b id="sprintProg">0 / 14</b> <span lang="zh-HK">衝刺</span></span>
+<span class="sum-chip"><b id="sprintProg">0 / 14</b> <span class="lang-en">Sprint</span><span class="lang-zh" lang="zh-HK">衝刺</span></span>
 </div>
 <div class="rm-block">
-<h3 class="subh">14-Day Starter Sprint <span class="zh" lang="zh-HK">14日新手衝刺（撳任何一日即刻3D旋轉欣賞！）</span></h3>
+<h3 class="subh"><span class="lang-en">14-Day Starter Sprint</span><span class="lang-zh" lang="zh-HK">14日新手衝刺（撳任何一日3D賞物）</span></h3>
 <ol class="sprint-track" id="sprintTrack" aria-label="14-day milestones"></ol>
 <div class="inf-bar" id="infBar" hidden>
 <div class="inf-row">
-<span><b>Infinite Mode <span lang="zh-HK">無限擴建</span></b> · <span id="infNextText">Next landmark</span></span>
+<span><b class="lang-en">Infinite Mode</b><b class="lang-zh" lang="zh-HK">無限擴建</b> · <span id="infNextText">Next landmark</span></span>
 <span class="inf-count" id="infNextCount"></span>
 </div>
 <div class="inf-track"><i id="infFill"></i></div>
 </div>
 <div class="finisher-bar" id="finisherBanner" hidden>
 <div>
-<b>🎓 14-Day Starter Sprint Complete! <span lang="zh-HK">完成14日衝刺！</span></b>
+<b><span class="lang-en">🎓 14-Day Starter Sprint Complete!</span><span class="lang-zh" lang="zh-HK">🎓 完成14日衝刺！</span></b>
 <small id="finisherSub">Claim your commemorative pass &amp; optional prize registration.</small>
 </div>
-<button class="btn mini" id="openClaimBtn" type="button">Claim &amp; Pass <span class="zh" lang="zh-HK">領取證書</span></button>
+<button class="btn mini" id="openClaimBtn" type="button"><span class="lang-en">Claim &amp; Pass</span><span class="lang-zh" lang="zh-HK">領取證書</span></button>
 </div>
 </div>
 <div class="rm-block">
-<h3 class="subh">Recent Check-in Calendar <span class="zh" lang="zh-HK">最近打卡紀錄</span></h3>
+<h3 class="subh"><span class="lang-en">Recent Check-in Calendar</span><span class="lang-zh" lang="zh-HK">最近打卡紀錄</span></h3>
 <div class="hist-grid" id="histGrid"></div>
 </div>
 <div class="rm-block">
-<h3 class="subh">3D Landmarks Turntable <span class="zh" lang="zh-HK">點選任何景物360°欣賞</span></h3>
-<p class="modal-intro">Every day you check in unlocks a hand-crafted 3D Hong Kong clay landmark — missed days never tear down what you built. Tap any landmark to spin it up close! <span lang="zh-HK">每日打卡解鎖一件3D黏土香港景物，就算斷纜亦唔會拆屋。撳落任何一項即可360°近距離欣賞！</span></p>
+<h3 class="subh"><span class="lang-en">3D Landmarks Turntable</span><span class="lang-zh" lang="zh-HK">點選景物 360° 欣賞</span></h3>
+<p class="modal-intro lang-en">Every day you check in unlocks a hand-crafted 3D Hong Kong landmark — missed days never tear down what you built. Tap any piece to spin it up close.</p>
+<p class="modal-intro lang-zh" lang="zh-HK">每日打卡解鎖一件精緻3D香港景物，就算斷纜亦唔會拆屋。撳落任何一項即可360°近距離欣賞！</p>
 <ul class="mile-list" id="mileList"></ul>
 </div>
 </div>
@@ -281,28 +288,33 @@
 <div class="sheet">
 <div class="sheet-handle" aria-hidden="true"></div>
 <div class="st-band">
-<div><b id="remindHead">Daily Reminder &amp; App</b> <span class="zh" lang="zh-HK">防斷纜提醒</span></div>
-<button class="mclose" id="remindClose" type="button" aria-label="Close reminders 關閉提醒">✕</button>
+<div id="remindHead"><b class="lang-en">Daily Reminder &amp; App</b><b class="lang-zh" lang="zh-HK">防斷纜提醒</b></div>
+<button class="mclose" id="remindClose" type="button" aria-label="Close reminders">✕</button>
 </div>
 <div class="st-body">
 <div class="rm-block">
-<h3 class="subh">1. Add Daily Calendar Alert (.ics) <span class="zh" lang="zh-HK">一鍵加每日行事曆提醒</span></h3>
-<p class="modal-intro">Pick your favourite 30-second check-in time (for example, right after dinner or before bed) and add a 30-day calendar reminder. <span lang="zh-HK">揀個每日最順手嘅時間，一撳加入電話行事曆，就唔怕忘記！</span></p>
+<h3 class="subh"><span class="lang-en">1. Add Daily Calendar Alert (.ics)</span><span class="lang-zh" lang="zh-HK">1. 一鍵加每日行事曆提醒</span></h3>
+<p class="modal-intro lang-en">Pick your favourite 30-second check-in time (for example, right after dinner or before bed) and add a 30-day calendar reminder.</p>
+<p class="modal-intro lang-zh" lang="zh-HK">揀個每日最順手嘅時間（例如食完晚飯或者瞓前），一撳加入電話行事曆，就唔怕忘記！</p>
 <div class="ics-row">
-<label for="icsTime">Reminder time <span class="zh" lang="zh-HK">提醒時間</span></label>
+<label for="icsTime"><span class="lang-en">Reminder time</span><span class="lang-zh" lang="zh-HK">提醒時間</span></label>
 <input id="icsTime" type="time" value="21:00">
-<button class="btn teal mini" id="icsDownloadBtn" type="button">Download .ics <span class="zh" lang="zh-HK">加入行事曆</span></button>
+<button class="btn teal mini" id="icsDownloadBtn" type="button"><span class="lang-en">Download .ics</span><span class="lang-zh" lang="zh-HK">加入行事曆</span></button>
 </div>
 <p class="post-status" id="icsStatus" role="status" aria-live="polite"></p>
 </div>
 <div class="rm-block">
-<h3 class="subh">2. Pin to Your Home Screen <span class="zh" lang="zh-HK">加到電話主畫面當App用</span></h3>
+<h3 class="subh"><span class="lang-en">2. Pin to Your Home Screen</span><span class="lang-zh" lang="zh-HK">2. 加到電話主畫面當App用</span></h3>
 <div id="pwaInstallWrap" hidden>
-<button class="btn" id="pwaInstallBtn" type="button">Install Harbour Keep App <span class="zh" lang="zh-HK">安裝到主畫面</span></button>
+<button class="btn" id="pwaInstallBtn" type="button"><span class="lang-en">Install Harbour Keep App</span><span class="lang-zh" lang="zh-HK">安裝到主畫面</span></button>
 </div>
-<ol class="pwa-steps">
-<li><b>iPhone (Safari):</b> Tap the <b>Share</b> icon (□↑) at the bottom, then choose <b>Add to Home Screen 加至主畫面</b>.</li>
+<ol class="pwa-steps lang-en">
+<li><b>iPhone (Safari):</b> Tap the <b>Share</b> icon (□↑) at the bottom, then choose <b>Add to Home Screen</b>.</li>
 <li><b>Android (Chrome):</b> Tap the <b>⋮ menu</b> top-right, then choose <b>Add to Home screen / Install app</b>.</li>
+</ol>
+<ol class="pwa-steps lang-zh" lang="zh-HK">
+<li><b>iPhone (Safari)：</b>撳底部「分享」圖示（□↑），再揀「加至主畫面」。</li>
+<li><b>Android (Chrome)：</b>撳右上角「⋮ 選單」，再揀「加到主畫面 / 安裝應用程式」。</li>
 </ol>
 </div>
 </div>
@@ -312,65 +324,73 @@
 <div class="sheet">
 <div class="sheet-handle" aria-hidden="true"></div>
 <div class="st-band">
-<div><b id="syncHead">Pass, Companion &amp; Backup</b> <span class="zh" lang="zh-HK">證書、拍檔與備份</span></div>
-<button class="mclose" id="syncClose" type="button" aria-label="Close pass and backup 關閉證書與備份">✕</button>
+<div id="syncHead"><b class="lang-en">Pass, Companion &amp; Settings</b><b class="lang-zh" lang="zh-HK">證書、拍檔與設定</b></div>
+<button class="mclose" id="syncClose" type="button" aria-label="Close pass and settings">✕</button>
 </div>
 <div class="st-body">
 <div class="rm-block">
-<h3 class="subh">Harbour Companion <span class="zh" lang="zh-HK">揀個海傍拍檔</span></h3>
-<div class="av-pick" role="radiogroup" aria-label="Harbour companion">
-<button class="av-opt" type="button" role="radio" data-av="crab" aria-checked="true">🦀 Crab <small lang="zh-HK">蟹仔</small></button>
-<button class="av-opt" type="button" role="radio" data-av="jack" aria-checked="false">🧑 Jack <small lang="zh-HK">阿Jack</small></button>
-<button class="av-opt" type="button" role="radio" data-av="jackie" aria-checked="false">👩 Jackie <small lang="zh-HK">Jackie</small></button>
+<h3 class="subh"><span class="lang-en">Display Language</span><span class="lang-zh" lang="zh-HK">顯示語言</span></h3>
+<div class="av-pick lang-pick" role="radiogroup" aria-label="Display language">
+<button class="av-opt lang-opt" type="button" role="radio" data-lang-opt="en" aria-checked="true">EN <small>English</small></button>
+<button class="av-opt lang-opt" type="button" role="radio" data-lang-opt="zh" aria-checked="false">粵 <small lang="zh-HK">廣東話</small></button>
 </div>
 </div>
 <div class="rm-block">
-<h3 class="subh">Your Sync Code <span class="zh" lang="zh-HK">跨裝置備份碼</span></h3>
-<p class="modal-intro">Save this code if you switch phones or clear browser data. <span lang="zh-HK">換手機或清瀏覽器記錄前抄低呢組碼，隨時還原進度！</span></p>
+<h3 class="subh"><span class="lang-en">Harbour Companion</span><span class="lang-zh" lang="zh-HK">揀個海傍拍檔</span></h3>
+<div class="av-pick" role="radiogroup" aria-label="Harbour companion">
+<button class="av-opt" type="button" role="radio" data-av="crab" aria-checked="true"><span class="lang-en">🦀 Crab</span><span class="lang-zh" lang="zh-HK">🦀 蟹仔</span></button>
+<button class="av-opt" type="button" role="radio" data-av="jack" aria-checked="false"><span class="lang-en">🧑 Jack</span><span class="lang-zh" lang="zh-HK">🧑 阿Jack</span></button>
+<button class="av-opt" type="button" role="radio" data-av="jackie" aria-checked="false"><span class="lang-en">👩 Jackie</span><span class="lang-zh" lang="zh-HK">👩 Jackie</span></button>
+</div>
+</div>
+<div class="rm-block">
+<h3 class="subh"><span class="lang-en">Your Sync Code</span><span class="lang-zh" lang="zh-HK">跨裝置備份碼</span></h3>
+<p class="modal-intro lang-en">Save this code if you switch phones or clear browser data.</p>
+<p class="modal-intro lang-zh" lang="zh-HK">換手機或清瀏覽器記錄前抄低呢組碼，隨時還原進度！</p>
 <div class="sync-row">
 <code class="sync-code" id="syncCodeText">CRAB-••••-••••</code>
-<button class="btn alt mini" id="copySyncBtn" type="button">Copy <span class="zh" lang="zh-HK">複製</span></button>
+<button class="btn alt mini" id="copySyncBtn" type="button"><span class="lang-en">Copy</span><span class="lang-zh" lang="zh-HK">複製</span></button>
 </div>
 <form class="restore-form" id="restoreForm">
 <label for="restoreInput" class="sr">Enter Sync Code to restore progress</label>
 <input id="restoreInput" type="text" placeholder="CRAB-XXXX-YYYY" maxlength="20" autocomplete="off">
-<button class="btn teal mini" id="restoreBtn" type="submit">Restore <span class="zh" lang="zh-HK">還原</span></button>
+<button class="btn teal mini" id="restoreBtn" type="submit"><span class="lang-en">Restore</span><span class="lang-zh" lang="zh-HK">還原</span></button>
 </form>
 <p class="post-status" id="syncStatus" role="status" aria-live="polite"></p>
 </div>
 <div class="rm-block">
-<h3 class="subh">Day-14 Starter Sprint Pass &amp; Claim <span class="zh" lang="zh-HK">14日衝刺完成證書與登記</span></h3>
-<p class="modal-intro" id="claimLockNote">Complete 14 check-in days to unlock your 3D Commemorative Pass &amp; finisher entry! <span lang="zh-HK">累積滿14日打卡即可領取3D紀念證書同登記完成獎賞！</span></p>
+<h3 class="subh"><span class="lang-en">Day-14 Starter Sprint Pass &amp; Claim</span><span class="lang-zh" lang="zh-HK">14日衝刺完成證書與登記</span></h3>
+<p class="modal-intro" id="claimLockNote">Complete 14 check-in days to unlock your 3D Commemorative Pass &amp; finisher entry!</p>
 <form class="claim-form" id="claimForm">
 <div class="fld">
-<label for="claimName">Nickname <span class="opt">(optional)</span> <span class="zh" lang="zh-HK">暱稱</span></label>
+<label for="claimName"><span class="lang-en">Nickname <span class="opt">(optional)</span></span><span class="lang-zh" lang="zh-HK">暱稱 <span class="opt">（選填）</span></span></label>
 <input id="claimName" type="text" maxlength="16" placeholder="e.g. Ming">
 </div>
 <div class="fld">
-<label for="claimEmail">Email <span class="opt">(private, for finisher prize/certificate)</span> <span class="zh" lang="zh-HK">電郵</span></label>
+<label for="claimEmail"><span class="lang-en">Email <span class="opt">(private, for finisher prize/certificate)</span></span><span class="lang-zh" lang="zh-HK">電郵 <span class="opt">（保密，僅作領獎及證書聯絡）</span></span></label>
 <input id="claimEmail" type="email" maxlength="120" placeholder="you@example.com">
 </div>
 <div class="fld">
-<label for="claimNote">One habit I'm keeping <span class="opt">(optional)</span> <span class="zh" lang="zh-HK">最想保持嘅一個習慣</span></label>
+<label for="claimNote"><span class="lang-en">One habit I'm keeping <span class="opt">(optional)</span></span><span class="lang-zh" lang="zh-HK">最想保持嘅一個習慣 <span class="opt">（選填）</span></span></label>
 <input id="claimNote" type="text" maxlength="160" placeholder="e.g. Autopay credit card in full">
 </div>
 <div class="claim-acts">
-<button class="btn" id="claimSubmitBtn" type="submit">Save / Claim <span class="zh" lang="zh-HK">儲存登記</span></button>
-<button class="btn green" id="certBtn" type="button" hidden>Download 3D Day-14 Pass <span class="zh" lang="zh-HK">下載3D證書</span></button>
+<button class="btn" id="claimSubmitBtn" type="submit"><span class="lang-en">Save / Claim</span><span class="lang-zh" lang="zh-HK">儲存登記</span></button>
+<button class="btn green" id="certBtn" type="button" hidden><span class="lang-en">Download 3D Day-14 Pass</span><span class="lang-zh" lang="zh-HK">下載3D證書</span></button>
 </div>
 </form>
 <p class="post-status" id="claimStatus" role="status" aria-live="polite"></p>
 </div>
 <div class="drawer-foot">
-<p><b>3 Fall Crab <span lang="zh-HK">整冧咗</span> team</b> · HSUHK Personal Finance Ambassador Programme 2026. Daily check-ins sync anonymously via your device key and Sync Code; optional nickname &amp; email are used only for Day-14 prize follow-up and never shown publicly. Questions? Email <a href="mailto:team@3fallcrab.com">team@3fallcrab.com</a>.</p>
-<p lang="zh-HK">每日理財打卡只作個人習慣追蹤及活動成效統計；除非你喺完成14日衝刺後主動填寫電郵領獎，否則唔會收集個人聯絡資料。如有私隱查詢請電郵至 <a href="mailto:team@3fallcrab.com">team@3fallcrab.com</a>。</p>
+<p class="lang-en"><b>3 Fall Crab</b> team · HSUHK Personal Finance Ambassador Programme 2026. Daily check-ins sync anonymously via your device key and Sync Code; optional nickname &amp; email are used only for Day-14 prize follow-up and never shown publicly. Questions? Email <a href="mailto:team@3fallcrab.com">team@3fallcrab.com</a>.</p>
+<p class="lang-zh" lang="zh-HK"><b>3 Fall Crab 整冧咗</b>團隊 · 恒生大學個人理財大使計劃 2026。每日理財打卡只作個人習慣追蹤及活動成效統計；除非你喺完成14日衝刺後主動填寫電郵領獎，否則唔會收集個人聯絡資料。如有私隱查詢請電郵至 <a href="mailto:team@3fallcrab.com">team@3fallcrab.com</a>。</p>
 </div>
 </div>
 </div>
 </div>
-<script src="/assets/daily3d.17f1d85ec9.js"></script>
+<script src="/assets/daily3d.7da29b2368.js"></script>
 <script src="/assets/daily-audio.45d5274219.js"></script>
-<script src="/assets/daily-content.663ed1e875.js"></script>
-<script src="/assets/daily.5d1ffb6590.js"></script>
+<script src="/assets/daily-content.ca3f618a58.js"></script>
+<script src="/assets/daily.121da5819c.js"></script>
 </body>
 </html>

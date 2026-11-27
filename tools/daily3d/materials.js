@@ -10,6 +10,7 @@ import {
   LatheGeometry,
   Mesh,
   MeshBasicMaterial,
+  MeshPhysicalMaterial,
   MeshStandardMaterial,
   PlaneGeometry,
   RepeatWrapping,
@@ -59,16 +60,29 @@ function buildTextures() {
   const cache = new Map();
   const builders = {
     clayBump() {
-      const t = makeLinearCanvas(128, 128, (g, w, h) => {
+      const t = makeLinearCanvas(256, 256, (g, w, h) => {
         const r = rng(1337);
         g.fillStyle = "#808080";
         g.fillRect(0, 0, w, h);
-        for (let i = 0; i < 420; i++) {
+        // Subtle hand-rubbed clay tool strokes
+        for (let i = 0; i < 160; i++) {
           const x = r() * w;
           const y = r() * h;
-          const rad = 1.5 + r() * 4.5;
-          const v = Math.floor(112 + r() * 34);
-          g.fillStyle = `rgba(${v},${v},${v},0.35)`;
+          const v = Math.floor(118 + r() * 20);
+          g.strokeStyle = `rgba(${v},${v},${v},0.22)`;
+          g.lineWidth = 1.5 + r() * 3;
+          g.beginPath();
+          g.moveTo(x, y);
+          g.quadraticCurveTo(x + (r() - 0.5) * 28, y + (r() - 0.5) * 16, x + (r() - 0.5) * 40, y + (r() - 0.5) * 24);
+          g.stroke();
+        }
+        // Soft sculptural micro-dimples & mineral stipple
+        for (let i = 0; i < 820; i++) {
+          const x = r() * w;
+          const y = r() * h;
+          const rad = 1.2 + r() * 4.8;
+          const v = Math.floor(108 + r() * 42);
+          g.fillStyle = `rgba(${v},${v},${v},0.3)`;
           g.beginPath();
           g.arc(x, y, rad, 0, Math.PI * 2);
           g.fill();
@@ -79,45 +93,89 @@ function buildTextures() {
       return t;
     },
 
+    clayRough() {
+      const t = makeLinearCanvas(256, 256, (g, w, h) => {
+        const r = rng(2026);
+        g.fillStyle = "#dcdcdc";
+        g.fillRect(0, 0, w, h);
+        for (let i = 0; i < 480; i++) {
+          const v = Math.floor(196 + r() * 54);
+          g.fillStyle = `rgba(${v},${v},${v},0.26)`;
+          g.beginPath();
+          g.arc(r() * w, r() * h, 4 + r() * 14, 0, Math.PI * 2);
+          g.fill();
+        }
+      });
+      t.wrapS = t.wrapT = RepeatWrapping;
+      t.repeat.set(2, 2);
+      return t;
+    },
+
+    metalBrush() {
+      const t = makeLinearCanvas(256, 256, (g, w, h) => {
+        const r = rng(909);
+        g.fillStyle = "#c8c8c8";
+        g.fillRect(0, 0, w, h);
+        for (let y = 0; y < h; y += 2) {
+          const v = Math.floor(170 + r() * 72);
+          g.fillStyle = `rgba(${v},${v},${v},0.35)`;
+          g.fillRect(0, y, w, 1 + r() * 1.4);
+        }
+      });
+      t.wrapS = t.wrapT = RepeatWrapping;
+      t.repeat.set(2, 2);
+      return t;
+    },
+
     woodPlank() {
-      const t = makeCanvas(256, 256, (g, w, h) => {
+      const t = makeCanvas(512, 512, (g, w, h) => {
         const r = rng(42);
         const planks = 6;
         const ph = h / planks;
-        const shades = ["#d4a168", "#ca945a", "#d9a972", "#c68d54", "#d29d63", "#cf985e"];
+        const shades = ["#d49f64", "#c78e52", "#daa86f", "#c3894e", "#d19b60", "#ce965a"];
         for (let i = 0; i < planks; i++) {
           const y0 = i * ph;
-          g.fillStyle = shades[i % shades.length];
+          const gr = g.createLinearGradient(0, y0, w, y0 + ph);
+          gr.addColorStop(0, shades[i % shades.length]);
+          gr.addColorStop(0.55, shades[(i + 2) % shades.length]);
+          gr.addColorStop(1, shades[(i + 4) % shades.length]);
+          g.fillStyle = gr;
           g.fillRect(0, y0, w, ph);
-          // Soft grain lines
-          for (let k = 0; k < 14; k++) {
-            const gy = y0 + 2 + r() * (ph - 4);
-            g.strokeStyle = r() > 0.5 ? "rgba(110,66,30,0.16)" : "rgba(255,235,200,0.13)";
-            g.lineWidth = 1 + r() * 1.4;
+          // Fine teak wood grain & warm varnish sheen ribbons
+          for (let k = 0; k < 22; k++) {
+            const gy = y0 + 4 + r() * (ph - 8);
+            g.strokeStyle = r() > 0.45 ? "rgba(102,58,22,0.18)" : "rgba(255,238,204,0.16)";
+            g.lineWidth = 1.2 + r() * 2.2;
             g.beginPath();
             g.moveTo(0, gy);
-            g.bezierCurveTo(w * 0.33, gy + (r() - 0.5) * 4, w * 0.66, gy + (r() - 0.5) * 4, w, gy);
+            g.bezierCurveTo(w * 0.33, gy + (r() - 0.5) * 9, w * 0.66, gy + (r() - 0.5) * 9, w, gy);
             g.stroke();
           }
-          // Plank seam bevel
-          g.fillStyle = "rgba(74,42,18,0.42)";
-          g.fillRect(0, y0, w, 2.2);
-          g.fillStyle = "rgba(255,244,218,0.2)";
-          g.fillRect(0, y0 + 2.2, w, 1.5);
-          // Brass nail heads at staggered joints
-          const jx = ((i * 73 + 48) % (w - 40)) + 20;
-          g.fillStyle = "rgba(74,42,18,0.34)";
-          g.fillRect(jx, y0, 2, ph);
-          for (const nx of [jx - 7, jx + 9]) {
-            for (const ny of [y0 + 10, y0 + ph - 10]) {
-              g.fillStyle = "#6c4828";
-              g.beginPath();
-              g.arc(nx, ny, 2.6, 0, Math.PI * 2);
-              g.fill();
+          // Subtle wood knot
+          const kx = ((i * 157 + 90) % (w - 110)) + 55;
+          const ky = y0 + ph * (0.35 + (i % 3) * 0.14);
+          g.strokeStyle = "rgba(96,52,20,0.2)";
+          g.lineWidth = 2;
+          g.beginPath();
+          g.ellipse(kx, ky, 18, 6, 0, 0, Math.PI * 2);
+          g.stroke();
+          // Crisp chamfered plank seam + highlight catchlight
+          g.fillStyle = "rgba(68,36,14,0.48)";
+          g.fillRect(0, y0, w, 4);
+          g.fillStyle = "rgba(255,244,218,0.26)";
+          g.fillRect(0, y0 + 4, w, 2.5);
+          // Cross seam + brass nail heads
+          const jx = ((i * 149 + 86) % (w - 84)) + 42;
+          g.fillStyle = "rgba(68,36,14,0.38)";
+          g.fillRect(jx, y0, 3.5, ph);
+          for (const nx of [jx - 13, jx + 16]) {
+            for (const ny of [y0 + 18, y0 + ph - 18]) {
+              g.fillStyle = "#5c3b1e";
+              g.beginPath(); g.arc(nx, ny, 4.6, 0, Math.PI * 2); g.fill();
               g.fillStyle = "#e8c474";
-              g.beginPath();
-              g.arc(nx - 0.6, ny - 0.6, 1.2, 0, Math.PI * 2);
-              g.fill();
+              g.beginPath(); g.arc(nx - 0.8, ny - 0.8, 2.6, 0, Math.PI * 2); g.fill();
+              g.fillStyle = "#fff6cf";
+              g.beginPath(); g.arc(nx - 1.5, ny - 1.5, 1.1, 0, Math.PI * 2); g.fill();
             }
           }
         }
@@ -128,24 +186,29 @@ function buildTextures() {
     },
 
     stoneWall() {
-      const t = makeCanvas(256, 128, (g, w, h) => {
+      const t = makeCanvas(512, 256, (g, w, h) => {
         const r = rng(88);
-        g.fillStyle = "#b9b4a8";
+        g.fillStyle = "#a59f93";
         g.fillRect(0, 0, w, h);
         const rows = 4;
         const rh = h / rows;
-        const tones = ["#cfc8bc", "#c5beb1", "#d6d0c4", "#beb7aa", "#cbc4b7"];
+        const tones = ["#d3ccc0", "#c7c0b3", "#dcd5c9", "#bfb8ab", "#cec7ba"];
         for (let row = 0; row < rows; row++) {
           const y = row * rh;
-          let x = (row % 2) * -28;
+          let x = (row % 2) * -56;
           while (x < w) {
-            const bw = 44 + Math.floor(r() * 24);
+            const bw = 88 + Math.floor(r() * 48);
             g.fillStyle = tones[Math.floor(r() * tones.length)];
-            g.fillRect(x + 2, y + 2, bw - 4, rh - 4);
-            g.fillStyle = "rgba(255,252,244,0.22)";
-            g.fillRect(x + 2, y + 2, bw - 4, 3);
-            g.fillStyle = "rgba(70,66,60,0.22)";
-            g.fillRect(x + 2, y + rh - 5, bw - 4, 3);
+            g.fillRect(x + 4, y + 4, bw - 8, rh - 8);
+            // Granite mineral speckles
+            for (let s = 0; s < 16; s++) {
+              g.fillStyle = s % 2 ? "rgba(80,75,68,0.16)" : "rgba(255,252,246,0.22)";
+              g.fillRect(x + 8 + r() * (bw - 18), y + 8 + r() * (rh - 18), 3, 2);
+            }
+            g.fillStyle = "rgba(255,252,244,0.28)";
+            g.fillRect(x + 4, y + 4, bw - 8, 5);
+            g.fillStyle = "rgba(62,58,52,0.25)";
+            g.fillRect(x + 4, y + rh - 9, bw - 8, 5);
             x += bw;
           }
         }
@@ -156,91 +219,97 @@ function buildTextures() {
     },
 
     pineappleCrust() {
-      return makeCanvas(256, 256, (g, w, h) => {
-        const gr = g.createRadialGradient(w * 0.5, h * 0.45, 16, w * 0.5, h * 0.5, w * 0.62);
-        gr.addColorStop(0, "#ffd972");
-        gr.addColorStop(0.65, "#f0a93b");
-        gr.addColorStop(1, "#c97422");
+      return makeCanvas(512, 512, (g, w, h) => {
+        const gr = g.createRadialGradient(w * 0.48, h * 0.42, 28, w * 0.5, h * 0.5, w * 0.62);
+        gr.addColorStop(0, "#ffe48c");
+        gr.addColorStop(0.58, "#f3ae3c");
+        gr.addColorStop(1, "#c76e1c");
         g.fillStyle = gr;
         g.fillRect(0, 0, w, h);
-        // Classic HK Bo Lo Bao diamond sugar crackle grid
-        g.strokeStyle = "#9c4e12";
-        g.lineWidth = 4.5;
-        const step = 32;
+        // Toasted HK Bo Lo Bao diamond sugar crackle crevices & glossy egg-wash facets
+        const step = 64;
+        g.strokeStyle = "#8f420c";
+        g.lineWidth = 9;
         for (let i = -h; i < w + h; i += step) {
-          g.beginPath();
-          g.moveTo(i, 0);
-          g.lineTo(i + h, h);
-          g.stroke();
-          g.beginPath();
-          g.moveTo(i, h);
-          g.lineTo(i + h, 0);
-          g.stroke();
+          g.beginPath(); g.moveTo(i, 0); g.lineTo(i + h, h); g.stroke();
+          g.beginPath(); g.moveTo(i, h); g.lineTo(i + h, 0); g.stroke();
         }
-        // Golden raised biscuit facets
-        g.strokeStyle = "rgba(255,244,196,0.52)";
-        g.lineWidth = 2;
-        for (let i = -h + 3; i < w + h; i += step) {
+        g.strokeStyle = "rgba(255,248,210,0.6)";
+        g.lineWidth = 3.5;
+        for (let i = -h + 7; i < w + h; i += step) {
+          g.beginPath(); g.moveTo(i, 0); g.lineTo(i + h, h); g.stroke();
+          g.beginPath(); g.moveTo(i, h); g.lineTo(i + h, 0); g.stroke();
+        }
+        // Subtle sugar crystal glint dots
+        const r = rng(777);
+        for (let i = 0; i < 140; i++) {
+          g.fillStyle = "rgba(255,252,224,0.45)";
           g.beginPath();
-          g.moveTo(i, 0);
-          g.lineTo(i + h, h);
-          g.stroke();
+          g.arc(r() * w, r() * h, 1.4 + r() * 1.8, 0, Math.PI * 2);
+          g.fill();
         }
       });
     },
 
     riceSack() {
-      return makeCanvas(256, 256, (g, w, h) => {
-        g.fillStyle = "#f2e3c6";
+      return makeCanvas(512, 512, (g, w, h) => {
+        g.fillStyle = "#f4e5c8";
         g.fillRect(0, 0, w, h);
-        // Burlap weave lines
-        g.strokeStyle = "rgba(170,136,92,0.22)";
-        g.lineWidth = 2;
-        for (let i = 0; i < w; i += 8) {
+        // Crisp burlap warp-and-weft textile weave
+        for (let i = 0; i < w; i += 10) {
+          g.strokeStyle = i % 20 === 0 ? "rgba(160,126,82,0.22)" : "rgba(255,250,238,0.24)";
+          g.lineWidth = 3;
           g.beginPath(); g.moveTo(i, 0); g.lineTo(i, h); g.stroke();
           g.beginPath(); g.moveTo(0, i); g.lineTo(w, i); g.stroke();
         }
-        // Classic HK rice-sack red stripes
-        g.fillStyle = "#c9382e";
-        g.fillRect(0, 26, w, 10);
-        g.fillRect(0, h - 36, w, 10);
-        // Central red diamond emblem
+        // Classic HK rice-sack stitched crimson stripes
+        g.fillStyle = "#c9352b";
+        g.fillRect(0, 48, w, 20);
+        g.fillRect(0, h - 68, w, 20);
+        g.fillStyle = "#2b7c6e";
+        g.fillRect(0, 74, w, 6);
+        g.fillRect(0, h - 78, w, 6);
+        // Central stamped red-and-gold diamond emblem
         g.save();
-        g.translate(w / 2, h / 2 + 2);
-        g.fillStyle = "#fff8eb";
-        g.strokeStyle = "#c9382e";
-        g.lineWidth = 8;
+        g.translate(w / 2, h / 2 + 4);
+        g.fillStyle = "#fff9ed";
+        g.strokeStyle = "#c9352b";
+        g.lineWidth = 14;
         g.beginPath();
-        g.moveTo(0, -68); g.lineTo(68, 0); g.lineTo(0, 68); g.lineTo(-68, 0);
+        g.moveTo(0, -134); g.lineTo(134, 0); g.lineTo(0, 134); g.lineTo(-134, 0);
         g.closePath();
         g.fill();
         g.stroke();
         g.strokeStyle = "#e09c2b";
-        g.lineWidth = 2.5;
+        g.lineWidth = 4.5;
         g.beginPath();
-        g.moveTo(0, -56); g.lineTo(56, 0); g.lineTo(0, 56); g.lineTo(-56, 0);
+        g.moveTo(0, -110); g.lineTo(110, 0); g.lineTo(0, 110); g.lineTo(-110, 0);
         g.closePath();
         g.stroke();
         g.fillStyle = "#b8241d";
-        g.font = `900 72px ${CJK_FONT}`;
+        g.font = `900 142px ${CJK_FONT}`;
         g.textAlign = "center";
         g.textBaseline = "middle";
-        g.fillText("米", 0, 4);
+        g.fillText("米", 0, 8);
         g.restore();
       });
     },
 
     checkerTile() {
-      const t = makeCanvas(128, 128, (g, w, h) => {
-        const s = 32;
+      const t = makeCanvas(256, 256, (g, w, h) => {
+        const s = 64;
         for (let y = 0; y < h; y += s) {
           for (let x = 0; x < w; x += s) {
             const alt = ((x / s) + (y / s)) % 2 === 0;
-            g.fillStyle = alt ? "#1f8c7a" : "#fff6e3";
+            g.fillStyle = alt ? "#1d8b79" : "#fff7e5";
             g.fillRect(x, y, s, s);
-            g.strokeStyle = "rgba(40,60,55,0.16)";
-            g.lineWidth = 1.5;
-            g.strokeRect(x + 0.75, y + 0.75, s - 1.5, s - 1.5);
+            // Glazed ceramic bevel highlight + grout line
+            g.fillStyle = "rgba(255,255,255,0.28)";
+            g.fillRect(x + 3, y + 3, s - 6, 4);
+            g.fillRect(x + 3, y + 3, 4, s - 6);
+            g.strokeStyle = "rgba(38,52,48,0.22)";
+            g.lineWidth = 3;
+            g.strokeRect(x + 1.5, y + 1.5, s - 3, s - 3);
           }
         }
       });
@@ -250,48 +319,59 @@ function buildTextures() {
     },
 
     stripeRed() {
-      const t = makeCanvas(256, 64, (g, w, h) => {
+      const t = makeCanvas(256, 128, (g, w, h) => {
         const n = 8, sw = w / n;
         for (let i = 0; i < n; i++) {
-          g.fillStyle = i % 2 === 0 ? "#e2473c" : "#fff8eb";
+          g.fillStyle = i % 2 === 0 ? "#df443a" : "#fff8eb";
           g.fillRect(i * sw, 0, sw, h);
         }
-        g.fillStyle = "rgba(255,212,96,0.85)";
-        g.fillRect(0, h - 7, w, 7);
+        // Subtle canvas awning weave + stitched gold trim
+        g.fillStyle = "rgba(255,255,255,0.12)";
+        for (let y = 0; y < h; y += 6) g.fillRect(0, y, w, 2);
+        g.fillStyle = "#ffd15c";
+        g.fillRect(0, h - 14, w, 14);
+        g.strokeStyle = "#b83028";
+        g.lineWidth = 2;
+        g.setLineDash([6, 4]);
+        g.beginPath(); g.moveTo(0, h - 17); g.lineTo(w, h - 17); g.stroke();
       });
       t.wrapS = t.wrapT = RepeatWrapping;
       return t;
     },
 
     stripeCoral() {
-      const t = makeCanvas(256, 64, (g, w, h) => {
+      const t = makeCanvas(256, 128, (g, w, h) => {
         const n = 8, sw = w / n;
         for (let i = 0; i < n; i++) {
           g.fillStyle = i % 2 === 0 ? "#ff6b4a" : "#fff8eb";
           g.fillRect(i * sw, 0, sw, h);
         }
+        g.fillStyle = "rgba(255,255,255,0.12)";
+        for (let y = 0; y < h; y += 6) g.fillRect(0, y, w, 2);
         g.fillStyle = "#14968b";
-        g.fillRect(0, h - 8, w, 8);
+        g.fillRect(0, h - 15, w, 15);
       });
       t.wrapS = t.wrapT = RepeatWrapping;
       return t;
     },
 
     brick() {
-      const t = makeCanvas(256, 256, (g, w, h) => {
+      const t = makeCanvas(512, 512, (g, w, h) => {
         const r = rng(450);
-        g.fillStyle = "#e2d6c3";
+        g.fillStyle = "#ddd1be";
         g.fillRect(0, 0, w, h);
-        const rows = 10, rh = h / rows, bw = 42;
+        const rows = 10, rh = h / rows, bw = 84;
         const reds = ["#b84136", "#c44b3e", "#a9392f", "#cc5545", "#b23e33"];
         for (let row = 0; row < rows; row++) {
           const y = row * rh;
           let x = (row % 2) * (-bw * 0.5);
           while (x < w) {
             g.fillStyle = reds[Math.floor(r() * reds.length)];
-            g.fillRect(x + 2.5, y + 2.5, bw - 5, rh - 5);
-            g.fillStyle = "rgba(255,220,190,0.14)";
-            g.fillRect(x + 2.5, y + 2.5, bw - 5, 3);
+            g.fillRect(x + 4, y + 4, bw - 8, rh - 8);
+            g.fillStyle = "rgba(255,224,196,0.2)";
+            g.fillRect(x + 4, y + 4, bw - 8, 5);
+            g.fillStyle = "rgba(70,22,18,0.2)";
+            g.fillRect(x + 4, y + rh - 9, bw - 8, 5);
             x += bw;
           }
         }
@@ -302,17 +382,20 @@ function buildTextures() {
     },
 
     clockFace() {
-      return makeCanvas(256, 256, (g, w, h) => {
+      return makeCanvas(512, 512, (g, w, h) => {
         const cx = w / 2, cy = h / 2, rad = w * 0.45;
-        g.fillStyle = "#fff8e8";
-        g.beginPath(); g.arc(cx, cy, rad + 6, 0, Math.PI * 2); g.fill();
+        const dial = g.createRadialGradient(cx, cy - 30, 24, cx, cy, rad + 12);
+        dial.addColorStop(0, "#fffdf6");
+        dial.addColorStop(0.85, "#fff4db");
+        dial.addColorStop(1, "#e8d8b6");
+        g.fillStyle = dial;
+        g.beginPath(); g.arc(cx, cy, rad + 12, 0, Math.PI * 2); g.fill();
         g.strokeStyle = "#3a2e28";
-        g.lineWidth = 7;
+        g.lineWidth = 14;
         g.beginPath(); g.arc(cx, cy, rad, 0, Math.PI * 2); g.stroke();
         g.strokeStyle = "#c89b3c";
-        g.lineWidth = 3;
-        g.beginPath(); g.arc(cx, cy, rad - 10, 0, Math.PI * 2); g.stroke();
-        // 12 hour marks + Roman numerals at cardinal points
+        g.lineWidth = 6;
+        g.beginPath(); g.arc(cx, cy, rad - 20, 0, Math.PI * 2); g.stroke();
         const numerals = ["XII", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI"];
         g.fillStyle = "#222430";
         g.textAlign = "center";
@@ -320,264 +403,275 @@ function buildTextures() {
         for (let i = 0; i < 12; i++) {
           const a = (i * Math.PI) / 6 - Math.PI / 2;
           g.strokeStyle = "#222430";
-          g.lineWidth = i % 3 === 0 ? 5 : 2.5;
+          g.lineWidth = i % 3 === 0 ? 10 : 5;
           g.beginPath();
-          g.moveTo(cx + Math.cos(a) * (rad - 12), cy + Math.sin(a) * (rad - 12));
-          g.lineTo(cx + Math.cos(a) * (rad - 24), cy + Math.sin(a) * (rad - 24));
+          g.moveTo(cx + Math.cos(a) * (rad - 24), cy + Math.sin(a) * (rad - 24));
+          g.lineTo(cx + Math.cos(a) * (rad - 48), cy + Math.sin(a) * (rad - 48));
           g.stroke();
-          g.font = i % 3 === 0 ? "bold 24px Georgia, serif" : "bold 17px Georgia, serif";
-          g.fillText(numerals[i], cx + Math.cos(a) * (rad - 40), cy + Math.sin(a) * (rad - 40));
+          g.font = i % 3 === 0 ? "bold 46px Georgia, serif" : "bold 32px Georgia, serif";
+          g.fillText(numerals[i], cx + Math.cos(a) * (rad - 80), cy + Math.sin(a) * (rad - 80));
         }
-        // Classic 10:10 clock hands
         g.strokeStyle = "#1b1d28";
         g.lineCap = "round";
-        g.lineWidth = 9;
-        g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx - 42, cy - 34); g.stroke();
-        g.lineWidth = 6;
-        g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + 58, cy - 44); g.stroke();
+        g.lineWidth = 18;
+        g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx - 84, cy - 68); g.stroke();
+        g.lineWidth = 12;
+        g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + 116, cy - 88); g.stroke();
         g.fillStyle = "#d9a426";
-        g.beginPath(); g.arc(cx, cy, 10, 0, Math.PI * 2); g.fill();
+        g.beginPath(); g.arc(cx, cy, 20, 0, Math.PI * 2); g.fill();
       });
     },
 
     badge18222() {
-      return makeCanvas(256, 144, (g, w, h) => {
-        g.fillStyle = "#1b2852";
+      return makeCanvas(512, 288, (g, w, h) => {
+        const bg = g.createLinearGradient(0, 0, 0, h);
+        bg.addColorStop(0, "#233368");
+        bg.addColorStop(1, "#141e42");
+        g.fillStyle = bg;
         g.fillRect(0, 0, w, h);
-        g.strokeStyle = "#ffd154";
-        g.lineWidth = 8;
-        g.strokeRect(8, 8, w - 16, h - 16);
+        g.strokeStyle = "#ffd45c";
+        g.lineWidth = 14;
+        g.strokeRect(14, 14, w - 28, h - 28);
         g.fillStyle = "#ff5c4a";
-        g.fillRect(14, 14, w - 28, 34);
+        g.fillRect(26, 26, w - 52, 68);
         g.fillStyle = "#fff9ec";
-        g.font = `900 22px ${CJK_FONT}`;
+        g.font = `900 42px ${CJK_FONT}`;
         g.textAlign = "center";
         g.textBaseline = "middle";
-        g.fillText("防騙易 ANTI-SCAM", w / 2, 32);
-        g.fillStyle = "#ffe066";
-        g.font = `900 62px ${DISP_FONT}`;
-        g.fillText("18222", w / 2, 95);
+        g.fillText("防騙易 ANTI-SCAM", w / 2, 62);
+        g.fillStyle = "#ffe470";
+        g.font = `900 124px ${DISP_FONT}`;
+        g.fillText("18222", w / 2, 190);
       });
     },
 
     neonSign() {
-      return makeCanvas(256, 144, (g, w, h) => {
-        g.fillStyle = "#181d38";
+      return makeCanvas(512, 288, (g, w, h) => {
+        g.fillStyle = "#171c36";
         g.fillRect(0, 0, w, h);
-        // Double glowing neon border
         g.shadowColor = "#38f3dc";
-        g.shadowBlur = 16;
-        g.strokeStyle = "#56ffe8";
-        g.lineWidth = 7;
-        g.strokeRect(10, 10, w - 20, h - 20);
+        g.shadowBlur = 26;
+        g.strokeStyle = "#5cffea";
+        g.lineWidth = 13;
+        g.strokeRect(18, 18, w - 36, h - 36);
         g.shadowColor = "#ff5fa8";
-        g.shadowBlur = 18;
-        g.strokeStyle = "#ff7ab8";
-        g.lineWidth = 3;
-        g.strokeRect(20, 20, w - 40, h - 40);
-        // Classic HK Cha Chaan Teng lettering
-        g.fillStyle = "#ff85be";
-        g.font = `900 58px ${CJK_FONT}`;
+        g.shadowBlur = 28;
+        g.strokeStyle = "#ff7eb8";
+        g.lineWidth = 6;
+        g.strokeRect(38, 38, w - 76, h - 76);
+        g.fillStyle = "#ff8ac0";
+        g.font = `900 112px ${CJK_FONT}`;
         g.textAlign = "center";
         g.textBaseline = "middle";
-        g.fillText("茶餐廳", w / 2, 66);
+        g.fillText("茶餐廳", w / 2, 132);
         g.shadowColor = "#ffe26a";
-        g.shadowBlur = 10;
-        g.fillStyle = "#ffeb8a";
-        g.font = `800 18px ${DISP_FONT}`;
-        g.fillText("CHA CHAAN TENG", w / 2, 112);
+        g.shadowBlur = 16;
+        g.fillStyle = "#ffeb8e";
+        g.font = `800 34px ${DISP_FONT}`;
+        g.fillText("CHA CHAAN TENG", w / 2, 224);
       });
     },
 
     chalkboard() {
-      return makeCanvas(256, 192, (g, w, h) => {
-        g.fillStyle = "#263631";
+      return makeCanvas(512, 384, (g, w, h) => {
+        g.fillStyle = "#22342e";
         g.fillRect(0, 0, w, h);
         g.strokeStyle = "#b87c42";
-        g.lineWidth = 14;
-        g.strokeRect(7, 7, w - 14, h - 14);
-        g.fillStyle = "#ffe484";
-        g.font = `900 34px ${CJK_FONT}`;
+        g.lineWidth = 26;
+        g.strokeRect(13, 13, w - 26, h - 26);
+        g.strokeStyle = "rgba(255,232,175,0.3)";
+        g.lineWidth = 4;
+        g.strokeRect(36, 36, w - 72, h - 72);
+        g.fillStyle = "#ffe588";
+        g.font = `900 66px ${CJK_FONT}`;
         g.textAlign = "center";
-        g.fillText("新鮮出爐", w / 2, 56);
+        g.fillText("新鮮出爐", w / 2, 114);
         g.fillStyle = "#fff8eb";
-        g.font = `700 30px ${CJK_FONT}`;
-        g.fillText("菠蘿包 $8", w / 2, 106);
-        g.fillStyle = "#ffb894";
-        g.font = `700 26px ${CJK_FONT}`;
-        g.fillText("港式奶茶 $16", w / 2, 148);
+        g.font = `700 58px ${CJK_FONT}`;
+        g.fillText("菠蘿包 $8", w / 2, 212);
+        g.fillStyle = "#ffc09c";
+        g.font = `700 50px ${CJK_FONT}`;
+        g.fillText("港式奶茶 $16", w / 2, 296);
       });
     },
 
     kioskScreen() {
-      return makeCanvas(256, 192, (g, w, h) => {
+      return makeCanvas(512, 384, (g, w, h) => {
         const gr = g.createLinearGradient(0, 0, 0, h);
-        gr.addColorStop(0, "#104f58");
+        gr.addColorStop(0, "#125862");
         gr.addColorStop(1, "#0b323e");
         g.fillStyle = gr;
         g.fillRect(0, 0, w, h);
-        g.fillStyle = "#32e6be";
-        g.font = `800 22px ${CJK_FONT}`;
+        g.fillStyle = "#3bf0c8";
+        g.font = `800 40px ${CJK_FONT}`;
         g.textAlign = "center";
-        g.fillText("八達通 · 儲蓄餘額", w / 2, 34);
-        g.fillStyle = "#fff6cf";
-        g.font = `900 44px ${DISP_FONT}`;
-        g.fillText("HK$1,888", w / 2, 86);
-        // Savings mini bar chart
-        const bars = [26, 40, 52, 64, 78];
+        g.fillText("八達通 · 儲蓄餘額", w / 2, 68);
+        g.fillStyle = "#fff7d2";
+        g.font = `900 84px ${DISP_FONT}`;
+        g.fillText("HK$1,888", w / 2, 170);
+        const bars = [52, 80, 104, 128, 156];
         bars.forEach((bh, i) => {
-          g.fillStyle = i === 4 ? "#ffd34e" : "#34e2bc";
-          g.fillRect(38 + i * 38, 174 - bh * 0.72, 24, bh * 0.72);
+          g.fillStyle = i === 4 ? "#ffd552" : "#34e2bc";
+          g.fillRect(76 + i * 76, 344 - bh * 0.72, 48, bh * 0.72);
         });
       });
     },
 
     shopBanner() {
-      return makeCanvas(256, 96, (g, w, h) => {
-        g.fillStyle = "#184f4a";
+      return makeCanvas(512, 192, (g, w, h) => {
+        const bg = g.createLinearGradient(0, 0, 0, h);
+        bg.addColorStop(0, "#1b5953");
+        bg.addColorStop(1, "#12403c");
+        g.fillStyle = bg;
         g.fillRect(0, 0, w, h);
-        g.strokeStyle = "#f2c14e";
-        g.lineWidth = 6;
-        g.strokeRect(6, 6, w - 12, h - 12);
-        g.fillStyle = "#ffe896";
-        g.font = `900 38px ${CJK_FONT}`;
+        g.strokeStyle = "#f4c652";
+        g.lineWidth = 10;
+        g.strokeRect(12, 12, w - 24, h - 24);
+        g.fillStyle = "#ffe99a";
+        g.font = `900 76px ${CJK_FONT}`;
         g.textAlign = "center";
         g.textBaseline = "middle";
-        g.fillText("海傍小天地", w / 2, 38);
-        g.fillStyle = "#fff6e5";
-        g.font = `800 16px ${DISP_FONT}`;
-        g.fillText("HARBOUR KEEP · 1/F", w / 2, 72);
+        g.fillText("海傍小天地", w / 2, 76);
+        g.fillStyle = "#fff7e8";
+        g.font = `800 32px ${DISP_FONT}`;
+        g.fillText("HARBOUR KEEP · 1/F", w / 2, 144);
       });
     },
 
     pierPlaque() {
-      return makeCanvas(256, 80, (g, w, h) => {
+      return makeCanvas(512, 160, (g, w, h) => {
         const gr = g.createLinearGradient(0, 0, w, h);
-        gr.addColorStop(0, "#f5cc58");
+        gr.addColorStop(0, "#f7d262");
         gr.addColorStop(0.5, "#d89c2e");
-        gr.addColorStop(1, "#f2c852");
+        gr.addColorStop(1, "#f4cb58");
         g.fillStyle = gr;
         g.fillRect(0, 0, w, h);
         g.strokeStyle = "#6c4814";
-        g.lineWidth = 5;
-        g.strokeRect(6, 6, w - 12, h - 12);
+        g.lineWidth = 10;
+        g.strokeRect(12, 12, w - 24, h - 24);
+        g.strokeStyle = "rgba(255,248,210,0.65)";
+        g.lineWidth = 3;
+        g.strokeRect(20, 20, w - 40, h - 40);
         g.fillStyle = "#2b1d0c";
-        g.font = `900 28px ${CJK_FONT}`;
+        g.font = `900 56px ${CJK_FONT}`;
         g.textAlign = "center";
         g.textBaseline = "middle";
-        g.fillText("海傍小天地", w / 2, 31);
-        g.font = `800 14px ${DISP_FONT}`;
-        g.fillText("VICTORIA HARBOUR KEEP", w / 2, 58);
+        g.fillText("海傍小天地", w / 2, 62);
+        g.font = `800 26px ${DISP_FONT}`;
+        g.fillText("VICTORIA HARBOUR KEEP", w / 2, 118);
       });
     },
 
     passbook() {
-      return makeCanvas(128, 192, (g, w, h) => {
+      return makeCanvas(256, 384, (g, w, h) => {
         g.fillStyle = "#14968b";
         g.fillRect(0, 0, w, h);
-        g.fillStyle = "#fff6e5";
-        g.fillRect(0, 44, w, 26);
-        g.fillStyle = "#ffd154";
-        g.fillRect(0, 70, w, 8);
-        g.fillStyle = "#154e49";
-        g.font = `900 20px ${CJK_FONT}`;
+        g.fillStyle = "#fff7e6";
+        g.fillRect(0, 88, w, 52);
+        g.fillStyle = "#ffd354";
+        g.fillRect(0, 140, w, 14);
+        g.fillStyle = "#134d48";
+        g.font = `900 40px ${CJK_FONT}`;
         g.textAlign = "center";
-        g.fillText("儲蓄存摺", w / 2, 64);
+        g.fillText("儲蓄存摺", w / 2, 126);
         g.fillStyle = "#fff6e5";
-        g.font = `800 16px ${DISP_FONT}`;
-        g.fillText("SAVINGS", w / 2, 128);
+        g.font = `800 32px ${DISP_FONT}`;
+        g.fillText("SAVINGS", w / 2, 256);
       });
     },
 
     calcScreen() {
-      return makeCanvas(192, 256, (g, w, h) => {
-        g.fillStyle = "#ece3d2";
+      return makeCanvas(256, 340, (g, w, h) => {
+        g.fillStyle = "#eee5d4";
         g.fillRect(0, 0, w, h);
         g.fillStyle = "#a8cdb0";
-        g.fillRect(16, 18, w - 32, 62);
+        g.fillRect(22, 24, w - 44, 82);
         g.strokeStyle = "#485a4e";
-        g.lineWidth = 4;
-        g.strokeRect(16, 18, w - 32, 62);
+        g.lineWidth = 6;
+        g.strokeRect(22, 24, w - 44, 82);
         g.fillStyle = "#1b3324";
-        g.font = "bold 28px monospace";
+        g.font = "bold 38px monospace";
         g.textAlign = "right";
-        g.fillText("APR 0%", w - 26, 60);
-        // 4x4 tactile calculator buttons
-        const cols = ["#f47e54", "#6b7d8e", "#6b7d8e", "#6b7d8e"];
+        g.fillText("APR 0%", w - 34, 78);
         for (let row = 0; row < 4; row++) {
           for (let col = 0; col < 4; col++) {
-            g.fillStyle = col === 3 ? cols[0] : (row === 0 ? "#14968b" : "#3a4556");
-            const bx = 18 + col * 40, by = 98 + row * 36;
-            g.fillRect(bx, by, 32, 28);
-            g.fillStyle = "rgba(255,255,255,0.22)";
-            g.fillRect(bx, by, 32, 5);
+            g.fillStyle = col === 3 ? "#f47e54" : (row === 0 ? "#14968b" : "#3a4556");
+            const bx = 24 + col * 53, by = 128 + row * 48;
+            g.fillRect(bx, by, 44, 38);
+            g.fillStyle = "rgba(255,255,255,0.28)";
+            g.fillRect(bx, by, 44, 7);
           }
         }
       });
     },
 
     tramSign() {
-      return makeCanvas(256, 96, (g, w, h) => {
+      return makeCanvas(512, 192, (g, w, h) => {
         g.fillStyle = "#145435";
         g.fillRect(0, 0, w, h);
-        g.fillStyle = "#fff4d9";
-        g.fillRect(8, 10, w - 16, h - 20);
+        g.fillStyle = "#fff5dc";
+        g.fillRect(16, 18, w - 32, h - 36);
         g.strokeStyle = "#d9a226";
-        g.lineWidth = 4;
-        g.strokeRect(12, 14, w - 24, h - 28);
+        g.lineWidth = 8;
+        g.strokeRect(24, 26, w - 48, h - 52);
         g.fillStyle = "#11442b";
-        g.font = `900 32px ${CJK_FONT}`;
+        g.font = `900 62px ${CJK_FONT}`;
         g.textAlign = "center";
         g.textBaseline = "middle";
-        g.fillText("堅尼地城 · 叮叮", w / 2, 40);
-        g.font = `800 15px ${DISP_FONT}`;
-        g.fillText("HK TRAMWAYS · DAY 30", w / 2, 68);
+        g.fillText("堅尼地城 · 叮叮", w / 2, 78);
+        g.font = `800 30px ${DISP_FONT}`;
+        g.fillText("HK TRAMWAYS · DAY 30", w / 2, 136);
       });
     },
 
     laisee() {
-      return makeCanvas(128, 160, (g, w, h) => {
-        g.fillStyle = "#d92b2b";
+      return makeCanvas(256, 320, (g, w, h) => {
+        const gr = g.createLinearGradient(0, 0, w, h);
+        gr.addColorStop(0, "#e3312c");
+        gr.addColorStop(1, "#bc1f1f");
+        g.fillStyle = gr;
         g.fillRect(0, 0, w, h);
-        g.strokeStyle = "#ffd34e";
-        g.lineWidth = 6;
-        g.strokeRect(10, 10, w - 20, h - 20);
-        g.fillStyle = "#ffd34e";
-        g.beginPath(); g.arc(w / 2, h / 2, 34, 0, Math.PI * 2); g.fill();
+        g.strokeStyle = "#ffd552";
+        g.lineWidth = 10;
+        g.strokeRect(18, 18, w - 36, h - 36);
+        g.fillStyle = "#ffd552";
+        g.beginPath(); g.arc(w / 2, h / 2, 68, 0, Math.PI * 2); g.fill();
         g.fillStyle = "#b81d1d";
-        g.font = `900 34px ${CJK_FONT}`;
+        g.font = `900 68px ${CJK_FONT}`;
         g.textAlign = "center";
         g.textBaseline = "middle";
-        g.fillText("大吉", w / 2, h / 2 + 2);
+        g.fillText("大吉", w / 2, h / 2 + 4);
       });
     },
 
     coinFace() {
-      return makeCanvas(128, 128, (g, w, h) => {
+      return makeCanvas(256, 256, (g, w, h) => {
         const cx = w / 2, cy = h / 2;
-        const gr = g.createRadialGradient(cx - 12, cy - 12, 8, cx, cy, 60);
-        gr.addColorStop(0, "#fff09c");
-        gr.addColorStop(0.6, "#f7be34");
-        gr.addColorStop(1, "#c98512");
+        const gr = g.createRadialGradient(cx - 24, cy - 24, 16, cx, cy, 120);
+        gr.addColorStop(0, "#fff4a8");
+        gr.addColorStop(0.58, "#f7be34");
+        gr.addColorStop(1, "#c27c0e");
         g.fillStyle = gr;
         g.fillRect(0, 0, w, h);
-        g.strokeStyle = "#fff5b8";
-        g.lineWidth = 5;
-        g.beginPath(); g.arc(cx, cy, 50, 0, Math.PI * 2); g.stroke();
-        // Stylized 5-petal bauhinia star
-        g.fillStyle = "#ffe87c";
+        g.strokeStyle = "#fff6be";
+        g.lineWidth = 9;
+        g.beginPath(); g.arc(cx, cy, 102, 0, Math.PI * 2); g.stroke();
+        g.strokeStyle = "#a8680a";
+        g.lineWidth = 3;
+        g.beginPath(); g.arc(cx, cy, 88, 0, Math.PI * 2); g.stroke();
+        g.fillStyle = "#ffe984";
         for (let i = 0; i < 5; i++) {
           const a = (i * Math.PI * 2) / 5 - Math.PI / 2;
           g.save();
-          g.translate(cx + Math.cos(a) * 18, cy + Math.sin(a) * 18);
+          g.translate(cx + Math.cos(a) * 36, cy + Math.sin(a) * 36);
           g.rotate(a);
           g.beginPath();
-          g.ellipse(0, 0, 14, 7, 0, 0, Math.PI * 2);
+          g.ellipse(0, 0, 28, 14, 0, 0, Math.PI * 2);
           g.fill();
           g.restore();
         }
         g.fillStyle = "#b3730e";
-        g.beginPath(); g.arc(cx, cy, 8, 0, Math.PI * 2); g.fill();
+        g.beginPath(); g.arc(cx, cy, 15, 0, Math.PI * 2); g.fill();
       });
     },
 
@@ -611,49 +705,61 @@ function buildTextures() {
     },
 
     coasterDial() {
-      return makeCanvas(256, 256, (g, w, h) => {
+      return makeCanvas(512, 512, (g, w, h) => {
         const cx = w / 2, cy = h / 2;
-        const gr = g.createRadialGradient(cx, cy, 10, cx, cy, w * 0.5);
-        gr.addColorStop(0, "#e2ba86");
-        gr.addColorStop(0.75, "#c59258");
-        gr.addColorStop(1, "#9a6838");
+        const gr = g.createRadialGradient(cx - 24, cy - 28, 22, cx, cy, w * 0.5);
+        gr.addColorStop(0, "#ebd1a8");
+        gr.addColorStop(0.55, "#c59056");
+        gr.addColorStop(0.86, "#96602e");
+        gr.addColorStop(1, "#6f411a");
         g.fillStyle = gr;
         g.fillRect(0, 0, w, h);
-        // Subtle wood grain arcs
-        g.strokeStyle = "rgba(105,62,25,0.14)";
-        g.lineWidth = 2;
-        for (let r = 18; r < 118; r += 11) {
+        // Subtle hand-rubbed walnut rings
+        g.strokeStyle = "rgba(86,46,16,0.16)";
+        g.lineWidth = 3;
+        for (let r = 34; r < 240; r += 20) {
           g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.stroke();
         }
-        // Brass compass inlay ring
-        g.strokeStyle = "#f2cf6d";
-        g.lineWidth = 4;
-        g.beginPath(); g.arc(cx, cy, 106, 0, Math.PI * 2); g.stroke();
-        g.lineWidth = 2;
-        g.beginPath(); g.arc(cx, cy, 95, 0, Math.PI * 2); g.stroke();
-        for (let i = 0; i < 24; i++) {
-          const a = (i * Math.PI * 2) / 24;
-          const r0 = i % 6 === 0 ? 86 : 92;
+        // Double brushed-brass compass inlay ring + 36 ticks + cardinal pips
+        g.strokeStyle = "#f4d272";
+        g.lineWidth = 7;
+        g.beginPath(); g.arc(cx, cy, 214, 0, Math.PI * 2); g.stroke();
+        g.lineWidth = 3.5;
+        g.beginPath(); g.arc(cx, cy, 192, 0, Math.PI * 2); g.stroke();
+        for (let i = 0; i < 36; i++) {
+          const a = (i * Math.PI * 2) / 36;
+          const card = i % 9 === 0;
+          const maj = i % 3 === 0;
+          const r0 = card ? 168 : (maj ? 176 : 184);
+          g.lineWidth = card ? 6 : (maj ? 3.5 : 2);
           g.beginPath();
           g.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0);
-          g.lineTo(cx + Math.cos(a) * 104, cy + Math.sin(a) * 104);
+          g.lineTo(cx + Math.cos(a) * 208, cy + Math.sin(a) * 208);
           g.stroke();
         }
+        // Satin felt-like center presentation pad
+        g.strokeStyle = "rgba(255,244,212,0.34)";
+        g.lineWidth = 3;
+        g.beginPath(); g.arc(cx, cy, 126, 0, Math.PI * 2); g.stroke();
       });
     },
 
     trophy100() {
-      return makeCanvas(256, 96, (g, w, h) => {
-        g.fillStyle = "#d99d24";
+      return makeCanvas(512, 192, (g, w, h) => {
+        const gr = g.createLinearGradient(0, 0, w, h);
+        gr.addColorStop(0, "#f5c442");
+        gr.addColorStop(0.5, "#cf8f1a");
+        gr.addColorStop(1, "#f2bf3c");
+        g.fillStyle = gr;
         g.fillRect(0, 0, w, h);
-        g.strokeStyle = "#fff2a8";
-        g.lineWidth = 6;
-        g.strokeRect(8, 8, w - 16, h - 16);
+        g.strokeStyle = "#fff5b8";
+        g.lineWidth = 10;
+        g.strokeRect(14, 14, w - 28, h - 28);
         g.fillStyle = "#3a2204";
-        g.font = `900 44px ${DISP_FONT}`;
+        g.font = `900 84px ${DISP_FONT}`;
         g.textAlign = "center";
         g.textBaseline = "middle";
-        g.fillText("100 DAYS", w / 2, h / 2 + 2);
+        g.fillText("100 DAYS", w / 2, h / 2 + 4);
       });
     },
   };
@@ -681,18 +787,32 @@ export function makeStudioEnv(sky = "day") {
     night: ["#95b4ff", "#3b5294", "#272e62", "#161a38"],
   };
   const p = palettes[sky] || palettes.day;
-  const t = makeCanvas(128, 64, (g, w, h) => {
+  const t = makeCanvas(256, 128, (g, w, h) => {
     const gr = g.createLinearGradient(0, 0, 0, h);
     gr.addColorStop(0, p[0]);
-    gr.addColorStop(0.38, p[1]);
-    gr.addColorStop(0.68, p[2]);
+    gr.addColorStop(0.36, p[1]);
+    gr.addColorStop(0.62, p[2]);
     gr.addColorStop(1, p[3]);
     g.fillStyle = gr;
     g.fillRect(0, 0, w, h);
-    // Two soft studio key softboxes for crisp metal & gloss ceramic reflections
-    g.fillStyle = sky === "night" ? "rgba(210,230,255,0.85)" : "rgba(255,255,255,0.92)";
-    g.fillRect(18, 6, 26, 13);
-    g.fillRect(82, 8, 22, 11);
+    // Crisp horizon bounce ribbon for glossy bevels & glazed vehicles
+    const hor = g.createLinearGradient(0, h * 0.44, 0, h * 0.58);
+    hor.addColorStop(0, "rgba(255,255,255,0)");
+    hor.addColorStop(0.5, sky === "night" ? "rgba(130,210,255,0.45)" : "rgba(255,252,240,0.68)");
+    hor.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = hor;
+    g.fillRect(0, h * 0.44, w, h * 0.14);
+    // Soft radial key & rim studio softboxes for natural 360-degree ceramic & brass reflections
+    const box = (cx, cy, r, col) => {
+      const rg = g.createRadialGradient(cx, cy, r * 0.1, cx, cy, r);
+      rg.addColorStop(0, col);
+      rg.addColorStop(1, "rgba(255,255,255,0)");
+      g.fillStyle = rg;
+      g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fill();
+    };
+    box(w * 0.24, h * 0.2, 34, sky === "night" ? "rgba(200,228,255,0.9)" : "rgba(255,255,255,0.95)");
+    box(w * 0.72, h * 0.24, 28, sky === "dusk" ? "rgba(255,214,170,0.85)" : "rgba(255,255,255,0.82)");
+    box(w * 0.5, h * 0.08, 26, "rgba(255,255,255,0.75)");
   });
   t.mapping = EquirectangularReflectionMapping;
   return t;
@@ -734,62 +854,178 @@ export function createKit(kitOpts = {}) {
   const tex = buildTextures();
   const mats = new Map();
   const emissives = [];
-  const bump = kitOpts.softwareGL ? null : tex.get("clayBump");
+  const soft = !!kitOpts.softwareGL;
+  const bump = soft ? null : tex.get("clayBump");
+  const roughMap = soft ? null : tex.get("clayRough");
+  const brushMap = soft ? null : tex.get("metalBrush");
 
   function cached(key, factory) {
     if (!mats.has(key)) mats.set(key, factory());
     return mats.get(key);
   }
 
+  function sheenFor(hex, mix = 0.52) {
+    return new Color(hex).lerp(new Color(0xfff7ea), mix);
+  }
+
   const kit = {
     tex,
     emissives,
 
+    // Satin hand-rubbed polymer clay with warm velvety sheen & subtle wax buff on GPU
     clay(hex, opts = {}) {
-      const k = `clay:${hex}:${opts.rough ?? 0.5}:${opts.flat ? 1 : 0}:${opts.side ?? 0}`;
-      return cached(k, () => new MeshStandardMaterial({
-        color: hex,
-        roughness: opts.rough ?? 0.5,
-        metalness: opts.metalness ?? 0.03,
-        bumpMap: opts.noBump ? null : bump,
-        bumpScale: opts.noBump ? 0 : 0.008,
-        envMapIntensity: 0.65,
-        flatShading: !!opts.flat,
-        side: opts.side || 0,
-      }));
+      const k = `clay:${hex}:${opts.rough ?? 0.46}:${opts.flat ? 1 : 0}:${opts.side ?? 0}`;
+      return cached(k, () => {
+        if (soft) {
+          return new MeshStandardMaterial({
+            color: hex,
+            roughness: opts.rough ?? 0.46,
+            metalness: opts.metalness ?? 0.03,
+            envMapIntensity: 0.78,
+            flatShading: !!opts.flat,
+            side: opts.side || 0,
+          });
+        }
+        return new MeshPhysicalMaterial({
+          color: hex,
+          roughness: opts.rough ?? 0.48,
+          roughnessMap: opts.noBump ? null : roughMap,
+          metalness: opts.metalness ?? 0.02,
+          bumpMap: opts.noBump ? null : bump,
+          bumpScale: opts.noBump ? 0 : 0.007,
+          clearcoat: 0.14,
+          clearcoatRoughness: 0.45,
+          sheen: 0.36,
+          sheenRoughness: 0.58,
+          sheenColor: sheenFor(hex, 0.55),
+          envMapIntensity: 0.85,
+          flatShading: !!opts.flat,
+          side: opts.side || 0,
+        });
+      });
     },
 
+    // Kiln-fired glazed porcelain with crisp clearcoat catchlights
     gloss(hex, opts = {}) {
-      const k = `gloss:${hex}:${opts.rough ?? 0.22}`;
-      return cached(k, () => new MeshStandardMaterial({
-        color: hex,
-        roughness: opts.rough ?? 0.22,
-        metalness: opts.metalness ?? 0.05,
-        envMapIntensity: 0.95,
-      }));
+      const k = `gloss:${hex}:${opts.rough ?? 0.16}`;
+      return cached(k, () => {
+        if (soft) {
+          return new MeshStandardMaterial({
+            color: hex,
+            roughness: opts.rough ?? 0.16,
+            metalness: opts.metalness ?? 0.08,
+            envMapIntensity: 1.15,
+          });
+        }
+        return new MeshPhysicalMaterial({
+          color: hex,
+          roughness: opts.rough ?? 0.15,
+          metalness: opts.metalness ?? 0.03,
+          clearcoat: 0.92,
+          clearcoatRoughness: 0.07,
+          ior: 1.54,
+          reflectivity: 0.78,
+          envMapIntensity: 1.32,
+        });
+      });
     },
 
-    metal(hex, rough = 0.24, metalness = 0.78) {
+    // Collector lacquered enamel paint (for Tram, Star Ferry, Kiosk, Lighthouse, Crab shell!)
+    enamel(hex, opts = {}) {
+      const k = `enamel:${hex}:${opts.rough ?? 0.24}:${opts.metalness ?? ""}:${opts.side ?? 0}`;
+      return cached(k, () => {
+        if (soft) {
+          return new MeshStandardMaterial({
+            color: hex,
+            roughness: opts.rough ?? 0.24,
+            metalness: Math.min(0.14, opts.metalness ?? 0.08),
+            envMapIntensity: 1.05,
+            side: opts.side || 0,
+          });
+        }
+        return new MeshPhysicalMaterial({
+          color: hex,
+          roughness: opts.rough ?? 0.22,
+          metalness: opts.metalness ?? 0.08,
+          clearcoat: 0.8,
+          clearcoatRoughness: 0.1,
+          ior: 1.5,
+          reflectivity: 0.72,
+          envMapIntensity: 1.24,
+          side: opts.side || 0,
+        });
+      });
+    },
+
+    // Soft matte woven fabric (clothing, sails, canopies, cushions)
+    fabric(hex, opts = {}) {
+      const k = `fabric:${hex}:${opts.rough ?? 0.72}:${opts.side ?? 0}`;
+      return cached(k, () => {
+        if (soft) {
+          return new MeshStandardMaterial({
+            color: hex,
+            roughness: opts.rough ?? 0.72,
+            metalness: 0,
+            envMapIntensity: 0.55,
+            side: opts.side || 0,
+          });
+        }
+        return new MeshPhysicalMaterial({
+          color: hex,
+          roughness: opts.rough ?? 0.74,
+          metalness: 0,
+          bumpMap: bump,
+          bumpScale: 0.01,
+          sheen: 0.68,
+          sheenRoughness: 0.64,
+          sheenColor: sheenFor(hex, 0.62),
+          envMapIntensity: 0.52,
+          side: opts.side || 0,
+        });
+      });
+    },
+
+    // Brushed burnished gold/brass/steel with anisotropic brush sheen
+    metal(hex, rough = 0.22, metalness = 0.82) {
       const k = `metal:${hex}:${rough}:${metalness}`;
-      return cached(k, () => new MeshStandardMaterial({
-        color: hex,
-        roughness: kitOpts.softwareGL ? Math.max(0.32, rough) : rough,
-        metalness: kitOpts.softwareGL ? Math.min(0.45, metalness) : metalness,
-        envMapIntensity: 1.35,
-      }));
+      return cached(k, () => {
+        if (soft) {
+          return new MeshStandardMaterial({
+            color: hex,
+            roughness: Math.max(0.24, rough),
+            metalness: Math.min(0.62, metalness),
+            envMapIntensity: 1.45,
+          });
+        }
+        return new MeshPhysicalMaterial({
+          color: hex,
+          roughness: Math.max(0.18, rough),
+          roughnessMap: brushMap,
+          metalness,
+          bumpMap: brushMap,
+          bumpScale: 0.003,
+          clearcoat: 0.34,
+          clearcoatRoughness: 0.18,
+          envMapIntensity: 1.58,
+        });
+      });
     },
 
     glass(hex = 0xdff6ff, opacity = 0.42) {
       const k = `glass:${hex}:${opacity}`;
-      return cached(k, () => new MeshStandardMaterial({
-        color: hex,
-        roughness: 0.1,
-        metalness: 0.1,
-        transparent: true,
-        opacity,
-        depthWrite: false,
-        envMapIntensity: 1.2,
-      }));
+      return cached(k, () => {
+        const Base = soft ? MeshStandardMaterial : MeshPhysicalMaterial;
+        return new Base({
+          color: hex,
+          roughness: 0.06,
+          metalness: 0.08,
+          transparent: true,
+          opacity,
+          depthWrite: false,
+          envMapIntensity: 1.55,
+          ...(soft ? {} : { clearcoat: 1.0, clearcoatRoughness: 0.04, ior: 1.48 }),
+        });
+      });
     },
 
     emissive(hex, baseIntensity = 0.7, nightIntensity = 2.1, opts = {}) {
@@ -799,7 +1035,7 @@ export function createKit(kitOpts = {}) {
           color: opts.color ?? hex,
           emissive: new Color(hex),
           emissiveIntensity: baseIntensity,
-          roughness: opts.rough ?? 0.28,
+          roughness: opts.rough ?? 0.26,
           metalness: opts.metalness ?? 0.05,
           transparent: !!opts.transparent,
           opacity: opts.opacity ?? 1,
@@ -812,19 +1048,43 @@ export function createKit(kitOpts = {}) {
     },
 
     textured(texKey, opts = {}) {
-      const k = `tx:${texKey}:${opts.rough ?? 0.56}:${opts.metal ?? 0.04}:${opts.emissive ? 1 : 0}:${opts.side ?? 0}`;
+      const fin = opts.finish || "default";
+      const k = `tx:${texKey}:${fin}:${opts.rough ?? ""}:${opts.metal ?? ""}:${opts.emissive ? 1 : 0}:${opts.side ?? 0}`;
       return cached(k, () => {
         const map = tex.get(texKey);
-        const m = new MeshStandardMaterial({
-          map,
-          color: opts.color ?? 0xffffff,
-          roughness: opts.rough ?? 0.56,
-          metalness: opts.metal ?? 0.04,
-          envMapIntensity: opts.env ?? 0.7,
-          side: opts.side || 0,
-          transparent: !!opts.transparent,
-          opacity: opts.opacity ?? 1,
-        });
+        const rough = opts.rough ?? (fin === "glaze" ? 0.2 : fin === "lacquer" ? 0.34 : fin === "fabric" ? 0.74 : fin === "metal" ? 0.22 : 0.54);
+        const metal = opts.metal ?? (fin === "metal" ? (soft ? 0.55 : 0.76) : 0.04);
+        let m;
+        if (soft) {
+          m = new MeshStandardMaterial({
+            map,
+            color: opts.color ?? 0xffffff,
+            roughness: rough,
+            metalness: metal,
+            envMapIntensity: fin === "glaze" || fin === "metal" ? 1.25 : 0.75,
+            side: opts.side || 0,
+            transparent: !!opts.transparent,
+            opacity: opts.opacity ?? 1,
+          });
+        } else {
+          m = new MeshPhysicalMaterial({
+            map,
+            color: opts.color ?? 0xffffff,
+            roughness: rough,
+            metalness: metal,
+            bumpMap: fin === "metal" ? brushMap : (fin === "glaze" ? null : bump),
+            bumpScale: fin === "metal" ? 0.003 : (fin === "fabric" ? 0.008 : 0.004),
+            clearcoat: fin === "glaze" ? 0.86 : fin === "lacquer" ? 0.48 : fin === "metal" ? 0.35 : 0,
+            clearcoatRoughness: fin === "glaze" ? 0.08 : 0.22,
+            sheen: fin === "fabric" ? 0.58 : 0,
+            sheenRoughness: 0.66,
+            sheenColor: new Color(0xfff5e8),
+            envMapIntensity: opts.env ?? (fin === "glaze" || fin === "metal" ? 1.25 : 0.78),
+            side: opts.side || 0,
+            transparent: !!opts.transparent,
+            opacity: opts.opacity ?? 1,
+          });
+        }
         if (opts.emissive) {
           m.emissive = new Color(opts.emissiveColor ?? 0xffffff);
           m.emissiveMap = map;
@@ -847,18 +1107,36 @@ export function createKit(kitOpts = {}) {
       }));
     },
 
+    // Pearlescent frosted celadon-porcelain mystery finish for upcoming milestones
     lockedMat(variant = 0) {
       const k = `locked:${variant}`;
-      return cached(k, () => new MeshStandardMaterial({
-        color: variant === 0 ? 0xcad8e5 : (variant === 1 ? 0x9eb2c7 : 0xe3ecf4),
-        roughness: 0.48,
-        metalness: variant === 2 ? 0.25 : 0.08,
-        bumpMap: bump,
-        bumpScale: 0.006,
-        emissive: new Color(0x284361),
-        emissiveIntensity: 0.14,
-        envMapIntensity: 0.9,
-      }));
+      const col = variant === 0 ? 0xd4e6f2 : (variant === 1 ? 0xaec8dc : 0xebf4fa);
+      return cached(k, () => {
+        if (soft) {
+          return new MeshStandardMaterial({
+            color: col,
+            roughness: 0.34,
+            metalness: variant === 2 ? 0.28 : 0.1,
+            emissive: new Color(0x284361),
+            emissiveIntensity: 0.15,
+            envMapIntensity: 1.0,
+          });
+        }
+        return new MeshPhysicalMaterial({
+          color: col,
+          roughness: 0.34,
+          metalness: variant === 2 ? 0.26 : 0.08,
+          bumpMap: bump,
+          bumpScale: 0.005,
+          clearcoat: 0.72,
+          clearcoatRoughness: 0.18,
+          sheen: 0.55,
+          sheenColor: new Color(0xb8eeff),
+          emissive: new Color(0x284361),
+          emissiveIntensity: 0.14,
+          envMapIntensity: 1.1,
+        });
+      });
     },
 
     setNightFactor(f) {
