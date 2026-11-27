@@ -725,9 +725,9 @@ function mount(containerEl, opts = {}) {
     else if (state.avatar === "jackie") compRig = buildHumanFigurine(kit, "jackie", hat);
     else compRig = buildCrab(kit, hat);
     if (hasTower) {
-      addPlaced(compRig, [0.0, 0.0, 1.92], 0, state.avatar === "crab" ? 0.96 : 0.92);
+      addPlaced(compRig, [0.0, 0.0, 1.92], 0, state.avatar === "crab" ? 0.94 : 0.74);
     } else {
-      addPlaced(compRig, [0.0, 0.025, 0.35], 0, state.avatar === "crab" ? 1.15 : 1.06);
+      addPlaced(compRig, [0.0, 0.025, 0.35], 0, state.avatar === "crab" ? 1.12 : 0.88);
     }
 
     // Central HK Tong Lau Tower Core with subtle hand-stacked organic micro-rotations

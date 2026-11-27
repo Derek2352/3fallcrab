@@ -94,113 +94,177 @@ export function buildCompanionHat(kit, hat) {
   return { group: g, anim: null };
 }
 
-// ---------- Hero 3 Fall Crab (Day 0 & Swappable Companion) ----------
+function openMouthGeo(w = 0.2, hTop = 0.045, hBot = 0.13, depth = 0.03) {
+  const s = new Shape();
+  s.moveTo(-w, hTop * 0.4);
+  s.quadraticCurveTo(0, -hTop * 0.35, w, hTop * 0.4);
+  s.bezierCurveTo(w * 1.06, -hBot * 0.85, -w * 1.06, -hBot * 0.85, -w, hTop * 0.4);
+  s.closePath();
+  return new ExtrudeGeometry(s, { depth, bevelEnabled: false, curveSegments: 14 });
+}
+
+function crabClawGeo() {
+  const s = new Shape();
+  // Plump C-shaped clay mitten pincer opening cleanly upward-inward (-X, +Y)
+  s.moveTo(0.02, -0.14);
+  s.bezierCurveTo(0.18, -0.14, 0.22, 0.04, 0.14, 0.18);
+  s.bezierCurveTo(0.08, 0.26, -0.03, 0.25, -0.05, 0.17);
+  s.bezierCurveTo(-0.07, 0.11, -0.02, 0.06, 0.02, 0.05);
+  s.quadraticCurveTo(0.06, 0.02, 0.01, -0.015);
+  s.bezierCurveTo(-0.03, -0.035, -0.085, 0.015, -0.115, 0.085);
+  s.bezierCurveTo(-0.14, 0.135, -0.195, 0.115, -0.175, 0.025);
+  s.bezierCurveTo(-0.15, -0.08, -0.075, -0.14, 0.02, -0.14);
+  s.closePath();
+  const geo = new ExtrudeGeometry(s, {
+    depth: 0.14,
+    bevelEnabled: true,
+    bevelThickness: 0.065,
+    bevelSize: 0.046,
+    bevelSegments: 5,
+    curveSegments: 12,
+  });
+  geo.center();
+  return geo;
+}
+
+function pleatedSkirtGeo(rTop = 0.128, rBot = 0.23, h = 0.265, pleats = 16) {
+  const geo = new CylinderGeometry(rTop, rBot, h, pleats * 4, 2);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const px = pos.getX(i), py = pos.getY(i), pz = pos.getZ(i);
+    const rad = Math.hypot(px, pz);
+    if (rad < 0.01) continue;
+    const ang = Math.atan2(pz, px);
+    const t = Math.max(0, Math.min(1, 0.5 - py / h)); // 0 at waist, 1 at hem
+    const phase = (((ang * pleats) / Math.PI) % 2 + 2) % 2;
+    const saw = Math.abs(phase - 1) * 2 - 1; // sharp knife-pleat fold
+    const depth = 0.008 + 0.019 * t;
+    const scale = (rad + saw * depth) / rad;
+    pos.setX(i, px * scale);
+    pos.setZ(i, pz * scale);
+  }
+  pos.needsUpdate = true;
+  const creased = geo.toNonIndexed();
+  creased.computeVertexNormals();
+  return creased;
+}
+
+// ---------- Hero 3 Fall Crab (Canonical Matte Terracotta Clay + Giant Eyeballs + D-Mouth!) ----------
 export function buildCrab(kit, hat = null, opts = {}) {
   const root = new Group();
   const body = new Group();
   root.add(body);
 
-  const shellMat = opts.golden ? kit.metal(0xffc83d, 0.2, 0.88) : kit.enamel(0xf45d3c, { rough: 0.26 });
-  const clawMat = opts.golden ? kit.metal(0xffd75e, 0.18, 0.88) : kit.enamel(0xff7748, { rough: 0.24 });
-  const bellyMat = opts.golden ? kit.metal(0xffe58a, 0.26, 0.8) : kit.clay(0xffe4c4, { rough: 0.5 });
-  const blushMat = opts.golden ? kit.metal(0xffaa32, 0.25, 0.8) : kit.gloss(0xff92ad, { rough: 0.32 });
-  const whiteMat = kit.gloss(0xffffff, { rough: 0.16 });
-  const darkMat = kit.gloss(0x1b1d2a, { rough: 0.14 });
+  const shellMat = opts.golden ? kit.metal(0xffc83d, 0.2, 0.88) : kit.clay(0xd44428, { rough: 0.58 });
+  const limbMat = opts.golden ? kit.metal(0xffd75e, 0.18, 0.88) : kit.clay(0xe05538, { rough: 0.55 });
+  const lipMat = opts.golden ? kit.metal(0xeaa528, 0.24, 0.82) : kit.clay(0xb9361e, { rough: 0.62 });
+  const mouthInMat = opts.golden ? kit.clay(0x4a2e08, { rough: 0.7 }) : kit.clay(0x69180d, { rough: 0.84 });
+  const tongueMat = opts.golden ? kit.metal(0xf59e3d, 0.22, 0.78) : kit.clay(0xf0755a, { rough: 0.52 });
+  const scleraMat = kit.clay(0xf6ece0, { rough: 0.34 });
+  const darkMat = kit.gloss(0x181922, { rough: 0.12 });
+  const whiteSparkMat = kit.gloss(0xffffff, { rough: 0.1 });
 
-  // Sculpted plump carapace + subtle belly underside + decorative side shell bumps
-  const carapace = mesh(new SphereGeometry(0.56, 28, 22), shellMat, {
-    pos: [0, 0.42, 0],
-    scale: [1.14, 0.72, 0.88],
+  // Plump hand-sculpted bun carapace (consistent terracotta clay, no separate cream belly or side warts!)
+  const carapace = mesh(sculptGeo(new SphereGeometry(0.58, 32, 24), 0.014, 3.5, 11, { yScale: 0.65 }), shellMat, {
+    pos: [0, 0.48, 0],
+    scale: [1.26, 0.78, 0.96],
   });
-  const belly = mesh(new SphereGeometry(0.46, 22, 16), bellyMat, {
-    pos: [0, 0.28, 0.06],
-    scale: [1.0, 0.48, 0.82],
+  const lowerRim = mesh(new TorusGeometry(0.45, 0.056, 10, 28), lipMat, {
+    pos: [0, 0.25, 0.01],
+    rot: [Math.PI / 2, 0, 0],
+    scale: [1.22, 0.92, 0.68],
   });
-  body.add(carapace, belly);
+  body.add(carapace, lowerRim);
 
+  // 6 Plump curved clay walking legs splayed naturally so multiple pairs read in front view
+  const legReach = [0.71, 0.78, 0.68];
+  const legZ = [-0.21, 0.01, 0.22];
   for (const sx of [-1, 1]) {
     for (let i = 0; i < 3; i++) {
-      const bump = mesh(new SphereGeometry(0.085 - i * 0.012, 12, 10), shellMat, {
-        pos: [sx * (0.56 - i * 0.06), 0.42 - i * 0.03, -0.14 + i * 0.16],
-      });
-      body.add(bump);
+      const z0 = legZ[i];
+      const rx = legReach[i];
+      body.add(
+        mesh(tubeGeo([
+          [sx * 0.48, 0.31, z0],
+          [sx * (rx - 0.07), 0.22, z0 * 1.06 + 0.01],
+          [sx * rx, 0.052, z0 * 1.12 + 0.02],
+        ], 0.056, 12, 10), limbMat),
+        mesh(new SphereGeometry(0.055, 10, 8), limbMat, { pos: [sx * rx, 0.052, z0 * 1.12 + 0.02] }),
+      );
     }
   }
 
-  // 6 jointed walking legs (3 per side)
-  const legGeos = new CapsuleGeometry(0.052, 0.16, 6, 10);
-  const footGeos = new CapsuleGeometry(0.044, 0.15, 6, 10);
-  for (const sx of [-1, 1]) {
-    for (let i = 0; i < 3; i++) {
-      const zOff = -0.18 + i * 0.18;
-      const upper = mesh(legGeos, clawMat, {
-        pos: [sx * 0.56, 0.24, zOff],
-        rot: [0.06 * (i - 1), 0, sx * -0.95],
-      });
-      const lower = mesh(footGeos, shellMat, {
-        pos: [sx * 0.72, 0.12, zOff * 1.1],
-        rot: [0.06 * (i - 1), 0, sx * -0.25],
-      });
-      body.add(upper, lower);
-    }
-  }
-
-  // 2 jointed articulated pincer claws (left & right)
+  // 2 Articulated arm + plump 3D C-shaped mitten claws held cheerfully upward
   const claws = [];
+  const clawGeo = crabClawGeo();
   for (const sx of [-1, 1]) {
     const pivot = new Group();
-    pivot.position.set(sx * 0.48, 0.44, 0.16);
-    const arm = mesh(tubeGeo([[0, 0, 0], [sx * 0.22, 0.14, 0.12], [sx * 0.28, 0.32, 0.16]], 0.072, 14, 10), clawMat);
-    const palm = mesh(new SphereGeometry(0.175, 18, 14), shellMat, {
-      pos: [sx * 0.3, 0.43, 0.18],
-      scale: [1.1, 0.92, 0.85],
+    pivot.position.set(sx * 0.48, 0.48, 0.12);
+    const arm = mesh(tubeGeo([[0, 0, 0], [sx * 0.19, 0.13, 0.11], [sx * 0.24, 0.27, 0.17]], 0.064, 12, 10), limbMat);
+    const cuff = mesh(new TorusGeometry(0.068, 0.02, 8, 16), lipMat, {
+      pos: [sx * 0.24, 0.29, 0.17],
+      rot: [Math.PI / 2 - 0.15, 0, sx * -0.2],
     });
-    const upperPinch = mesh(new CapsuleGeometry(0.068, 0.17, 6, 12), shellMat, {
-      pos: [sx * 0.2, 0.56, 0.24],
-      rot: [0.25, 0, sx * 0.65],
+    const mitten = mesh(clawGeo, shellMat, {
+      pos: [sx * 0.24, 0.43, 0.19],
+      rot: [0.16, sx < 0 ? Math.PI - 0.24 : 0.24, sx * 0.12],
     });
-    const lowerPinch = mesh(new CapsuleGeometry(0.056, 0.13, 6, 12), clawMat, {
-      pos: [sx * 0.34, 0.53, 0.27],
-      rot: [0.2, 0, sx * -0.35],
-    });
-    pivot.add(arm, palm, upperPinch, lowerPinch);
+    pivot.add(arm, cuff, mitten);
     body.add(pivot);
     claws.push({ pivot, sx });
   }
 
-  // Expressive eyestalks with glossy eyes & bright white catchlights
+  // Signature tall close-set stalks & giant touching cartoon white clay eyeballs!
   for (const sx of [-1, 1]) {
-    const stalk = mesh(new CylinderGeometry(0.042, 0.055, 0.24, 12), shellMat, {
-      pos: [sx * 0.19, 0.74, 0.22],
-      rot: [0.18, 0, sx * -0.14],
-    });
-    const sclera = mesh(new SphereGeometry(0.115, 18, 16), whiteMat, {
-      pos: [sx * 0.21, 0.87, 0.25],
-    });
-    const pupil = mesh(new SphereGeometry(0.064, 14, 12), darkMat, {
-      pos: [sx * 0.21, 0.88, 0.335],
-    });
-    const sparkle = mesh(new SphereGeometry(0.024, 8, 8), whiteMat, {
-      pos: [sx * 0.23, 0.91, 0.38],
-      cast: false,
-    });
-    body.add(stalk, sclera, pupil, sparkle);
+    body.add(
+      mesh(tubeGeo([
+        [sx * 0.14, 0.78, 0.13],
+        [sx * 0.152, 0.95, 0.165],
+        [sx * 0.158, 1.10, 0.195],
+      ], 0.054, 10, 10), limbMat),
+      mesh(new TorusGeometry(0.068, 0.018, 8, 16), lipMat, {
+        pos: [sx * 0.158, 1.07, 0.195],
+        rot: [Math.PI / 2 - 0.12, 0, 0],
+      }),
+      mesh(new SphereGeometry(0.164, 24, 20), scleraMat, {
+        pos: [sx * 0.162, 1.21, 0.205],
+        scale: [0.98, 1.04, 0.94],
+      }),
+      mesh(new SphereGeometry(0.088, 18, 14), darkMat, {
+        pos: [sx * 0.138, 1.205, 0.322],
+      }),
+      mesh(new SphereGeometry(0.027, 8, 8), whiteSparkMat, {
+        pos: [sx * 0.166, 1.252, 0.394],
+        cast: false,
+      }),
+    );
   }
 
-  // Cheerful curved smile + blush cheeks
-  const smile = mesh(
-    tubeGeo([[-0.14, 0.42, 0.48], [0, 0.37, 0.52], [0.14, 0.42, 0.48]], 0.022, 12, 8),
-    darkMat,
-    { cast: false },
-  );
-  const blushL = mesh(new SphereGeometry(0.068, 12, 10), blushMat, { pos: [-0.28, 0.42, 0.42], scale: [1.2, 0.72, 0.4], cast: false });
-  const blushR = mesh(new SphereGeometry(0.068, 12, 10), blushMat, { pos: [0.28, 0.42, 0.42], scale: [1.2, 0.72, 0.4], cast: false });
-  body.add(smile, blushL, blushR);
+  // Joyful open D-shaped sculpted clay mouth + plump coral tongue (lifted off bottom rim!)
+  const mouthCav = mesh(openMouthGeo(0.20, 0.052, 0.14, 0.045), mouthInMat, {
+    pos: [0, 0.468, 0.518],
+    rot: [0.02, 0, 0],
+    cast: false,
+  });
+  const tongue = mesh(new SphereGeometry(0.10, 14, 10), tongueMat, {
+    pos: [0, 0.392, 0.554],
+    scale: [1.18, 0.5, 0.46],
+    cast: false,
+  });
+  const lipLoop = mesh(tubeGeo([
+    [-0.21, 0.488, 0.515],
+    [0, 0.463, 0.562],
+    [0.21, 0.488, 0.515],
+    [0.135, 0.365, 0.525],
+    [0, 0.34, 0.54],
+    [-0.135, 0.365, 0.525],
+  ], 0.019, 24, 8, true), lipMat, { cast: false });
+  body.add(mouthCav, tongue, lipLoop);
 
-  // Hat mount
+  // Hat mount above raised eyeballs
   const hatRig = buildCompanionHat(kit, hat);
   const hatHolder = new Group();
-  hatHolder.position.set(0, hat === "halo" ? 1.15 : 0.88, 0.1);
+  hatHolder.position.set(0, hat === "halo" ? 1.50 : 1.37, 0.17);
   hatHolder.add(hatRig.group);
   body.add(hatHolder);
 
@@ -211,157 +275,332 @@ export function buildCrab(kit, hat = null, opts = {}) {
     anim(t, dt, ctx = {}) {
       const mood = ctx.mood || "idle";
       const speed = mood === "happy" || mood === "proud" ? 5.2 : (mood === "focus" ? 1.4 : 2.3);
-      const bobAmp = mood === "happy" ? 0.075 : 0.028;
+      const bobAmp = mood === "happy" ? 0.07 : 0.025;
       body.position.y = Math.abs(Math.sin(t * speed)) * bobAmp;
-      body.rotation.z = Math.sin(t * speed * 0.5) * (mood === "happy" ? 0.08 : 0.03);
+      body.rotation.z = Math.sin(t * speed * 0.5) * (mood === "happy" ? 0.075 : 0.028);
       claws.forEach(({ pivot, sx }, idx) => {
         const wave = mood === "happy" || mood === "proud"
-          ? 0.25 + Math.sin(t * 7.5 + idx * Math.PI) * 0.28
-          : Math.sin(t * 2.1 + idx * 1.4) * 0.1;
+          ? 0.22 + Math.sin(t * 7.5 + idx * Math.PI) * 0.24
+          : Math.sin(t * 2.1 + idx * 1.4) * 0.09;
         pivot.rotation.z = sx * wave;
-        pivot.rotation.x = mood === "happy" ? -0.18 : 0;
+        pivot.rotation.x = mood === "happy" ? -0.16 : 0;
       });
       if (hatRig.anim) hatRig.anim(t, dt, ctx);
     },
   };
 }
 
-// ---------- Stylized Clay Human Figurine Builder (Jack & Jackie) ----------
+// ---------- Canonical Stop-Motion Clay Human Figurine (Jack & Jackie ~1:3.8 Puppet Proportions) ----------
 export function buildHumanFigurine(kit, who = "jack", hat = null, opts = {}) {
   const isJackie = who === "jackie";
   const root = new Group();
   const fig = new Group();
+  fig.scale.setScalar(isJackie ? 0.97 : 1.02); // Canonical Jack ~5% taller than Jackie
   root.add(fig);
 
-  const skin = kit.clay(0xf7d0b0, { rough: 0.46 });
-  const hair = kit.clay(0x2a222d, { rough: 0.38 });
-  const white = kit.fabric(0xfaf8f2, { rough: 0.66 });
-  const darkEye = kit.gloss(0x1b1d2a, { rough: 0.12 });
-  const blush = kit.gloss(0xff9bb3, { rough: 0.28 });
-  const shoeSole = kit.clay(0x3a3745, { rough: 0.56 });
-  const shoeUpper = kit.enamel(0xfcfaf4, { rough: 0.26 });
+  const skin = kit.clay(0xe5ab84, { rough: 0.58 });
+  const noseMat = kit.clay(0xdd9c73, { rough: 0.58 });
+  const blushMat = kit.clay(0xdf8876, { rough: 0.68 });
+  const hairCol = isJackie ? 0x2d201a : 0x362922;
+  const hair = kit.clay(hairCol, { rough: 0.64 });
+  const darkEye = kit.gloss(0x181922, { rough: 0.12 });
+  const whiteSpark = kit.gloss(0xffffff, { rough: 0.1 });
+  const mouthIn = kit.clay(0x6b232b, { rough: 0.8 });
+  const tongue = kit.clay(0xeb7870, { rough: 0.52 });
 
-  const topMat = isJackie ? kit.fabric(0xf27d62, { rough: 0.7 }) : kit.fabric(0xcab292, { rough: 0.72 });
-  const sleeveMat = white;
-  const bottomMat = isJackie ? kit.fabric(0x70778a, { rough: 0.72 }) : kit.fabric(0x3a3235, { rough: 0.74 });
-  const accentMat = isJackie ? kit.fabric(0xfff6e8, { rough: 0.68 }) : kit.fabric(0x198f84, { rough: 0.66 });
+  const shirtCream = kit.fabric(0xefe2d6, { rough: 0.74 });
+  const sneakerUpper = kit.clay(isJackie ? 0xeae2d6 : 0xd4c4b4, { rough: 0.58 });
+  const sneakerSole = kit.clay(0xf6f2ea, { rough: 0.62 });
+  const vestMat = kit.fabric(0xc59873, { rough: 0.78 });
+  const trouserMat = kit.fabric(0x46342b, { rough: 0.76 });
+  const skirtMat = kit.fabric(0x787072, { rough: 0.76 });
+  const lanyardMat = kit.fabric(0x3d6ba6, { rough: 0.68 });
+  const packMat = kit.fabric(0x3f689e, { rough: 0.74 });
+  const toteMat = kit.fabric(0xeae0cf, { rough: 0.76 });
+  const clipMat = kit.clay(0xda7484, { rough: 0.42 });
 
-  // Sneakers & legs
+  // Chunky off-white sneakers + slim stop-motion legs
   for (const sx of [-1, 1]) {
-    const sole = mesh(roundedBoxGeo(0.16, 0.055, 0.24, 0.05, 0.015), shoeSole, { pos: [sx * 0.12, 0.028, 0.03] });
-    const shoe = mesh(new SphereGeometry(0.095, 14, 12), shoeUpper, { pos: [sx * 0.12, 0.075, 0.035], scale: [0.88, 0.65, 1.25] });
-    fig.add(sole, shoe);
+    fig.add(
+      mesh(roundedBoxGeo(0.115, 0.036, 0.19, 0.04, 0.01), sneakerSole, { pos: [sx * 0.095, 0.018, 0.018] }),
+      mesh(new SphereGeometry(0.068, 14, 12), sneakerUpper, { pos: [sx * 0.095, 0.058, 0.022], scale: [0.84, 0.62, 1.32] }),
+      mesh(roundedBoxGeo(0.056, 0.012, 0.05, 0.005, 0.003), sneakerSole, { pos: [sx * 0.095, 0.088, 0.045] }),
+    );
     if (isJackie) {
-      const sock = mesh(new CylinderGeometry(0.058, 0.056, 0.12, 12), white, { pos: [sx * 0.12, 0.14, 0] });
-      const leg = mesh(new CylinderGeometry(0.06, 0.056, 0.22, 12), skin, { pos: [sx * 0.12, 0.28, 0] });
-      fig.add(sock, leg);
+      // Mid-calf white crew socks + slender bare clay calves
+      fig.add(
+        mesh(new CylinderGeometry(0.042, 0.04, 0.14, 14), sneakerSole, { pos: [sx * 0.092, 0.15, 0] }),
+        mesh(new TorusGeometry(0.043, 0.01, 8, 14), sneakerSole, { pos: [sx * 0.092, 0.218, 0], rot: [Math.PI / 2, 0, 0] }),
+        mesh(new CylinderGeometry(0.042, 0.039, 0.30, 14), skin, { pos: [sx * 0.092, 0.36, 0] }),
+      );
     } else {
-      const pant = mesh(new CapsuleGeometry(0.075, 0.24, 6, 12), bottomMat, { pos: [sx * 0.12, 0.25, 0] });
-      fig.add(pant);
+      // Relaxed straight-leg dark chocolate trousers pooling cleanly at ankle cuff
+      fig.add(
+        mesh(new CapsuleGeometry(0.06, 0.46, 6, 12), trouserMat, { pos: [sx * 0.095, 0.38, 0] }),
+        mesh(new TorusGeometry(0.06, 0.014, 8, 14), trouserMat, { pos: [sx * 0.095, 0.125, 0.005], rot: [Math.PI / 2, 0, 0] }),
+      );
     }
   }
 
-  // Torso / skirt / hoodie
+  // Canonical University outfits
   if (isJackie) {
-    const skirt = mesh(new CylinderGeometry(0.18, 0.27, 0.28, 18), bottomMat, { pos: [0, 0.46, 0] });
-    const shirt = mesh(new CylinderGeometry(0.18, 0.21, 0.34, 18), white, { pos: [0, 0.72, 0] });
-    // Coral cardigan vest sides + collar bow
-    const vestL = mesh(roundedBoxGeo(0.14, 0.33, 0.25, 0.04, 0.015), topMat, { pos: [-0.11, 0.72, 0.02] });
-    const vestR = mesh(roundedBoxGeo(0.14, 0.33, 0.25, 0.04, 0.015), topMat, { pos: [0.11, 0.72, 0.02] });
-    const vestBack = mesh(roundedBoxGeo(0.32, 0.33, 0.12, 0.04, 0.015), topMat, { pos: [0, 0.72, -0.09] });
-    const collar = mesh(new TorusGeometry(0.1, 0.024, 8, 18), accentMat, { pos: [0, 0.87, 0.02], rot: [Math.PI / 2, 0, 0] });
-    fig.add(skirt, shirt, vestL, vestR, vestBack, collar);
+    // 3D knife-pleated charcoal school skirt (16 deep pleats) + waistband
+    fig.add(
+      mesh(pleatedSkirtGeo(0.128, 0.23, 0.265, 16), skirtMat, { pos: [0, 0.59, 0] }),
+      mesh(new CylinderGeometry(0.132, 0.134, 0.045, 24), skirtMat, { pos: [0, 0.72, 0] }),
+      // Cream short-sleeve collared polo blouse tucked into waistband
+      mesh(roundedBoxGeo(0.28, 0.34, 0.185, 0.07, 0.024), shirtCream, { pos: [0, 0.89, 0] }),
+    );
+    // Pointed polo shirt collars + small V neckline placket
+    for (const sx of [-1, 1]) {
+      fig.add(mesh(roundedBoxGeo(0.064, 0.022, 0.074, 0.01, 0.005), shirtCream, {
+        pos: [sx * 0.046, 1.055, 0.062],
+        rot: [0.42, sx * -0.25, sx * -0.18],
+      }));
+    }
+    fig.add(mesh(tubeGeo([[-0.018, 1.04, 0.094], [0, 0.99, 0.096], [0.018, 1.04, 0.094]], 0.009, 8, 6), kit.clay(0xd5c0b0), { cast: false }));
+
+    // Soft sculpted cream canvas tote bag tucked behind right hip with zero arm clipping
+    fig.add(
+      mesh(new SphereGeometry(0.118, 16, 14), toteMat, { pos: [-0.17, 0.62, -0.078], rot: [0.1, 0.15, 0.08], scale: [0.52, 1.15, 1.05] }),
+      mesh(roundedBoxGeo(0.068, 0.026, 0.21, 0.01, 0.006), toteMat, { pos: [-0.168, 0.735, -0.074], rot: [0.08, 0.15, 0.08] }),
+      mesh(tubeGeo([[-0.168, 0.74, -0.01], [-0.145, 1.045, -0.01], [-0.168, 0.74, -0.125]], 0.013, 14, 8), toteMat),
+    );
   } else {
-    const torso = mesh(roundedBoxGeo(0.42, 0.44, 0.28, 0.1, 0.03), topMat, { pos: [0, 0.62, 0] });
-    const pocket = mesh(roundedBoxGeo(0.24, 0.13, 0.05, 0.03, 0.012), accentMat, { pos: [0, 0.52, 0.14] });
-    const hood = mesh(new TorusGeometry(0.14, 0.055, 10, 18), accentMat, { pos: [0, 0.84, -0.04], rot: [Math.PI / 2.4, 0, 0] });
-    fig.add(torso, pocket, hood);
+    // Straight trouser hips + cream inner tee hem + oatmeal-tan sleeveless knit sweater vest
+    fig.add(
+      mesh(roundedBoxGeo(0.285, 0.14, 0.185, 0.06, 0.02), trouserMat, { pos: [0, 0.63, 0] }),
+      mesh(roundedBoxGeo(0.305, 0.055, 0.195, 0.03, 0.012), shirtCream, { pos: [0, 0.71, 0] }),
+      mesh(roundedBoxGeo(0.31, 0.34, 0.20, 0.075, 0.026), vestMat, { pos: [0, 0.89, 0] }),
+      mesh(roundedBoxGeo(0.32, 0.042, 0.206, 0.025, 0.01), kit.fabric(0xb2845e, { rough: 0.8 }), { pos: [0, 0.735, 0] }),
+    );
+    // Clean V-neck knitted trim & cream inner collar panels (zero box-edge z-fighting)
+    const vTrimMat = kit.fabric(0xb58660, { rough: 0.8 });
+    fig.add(
+      mesh(tubeGeo([[-0.066, 1.05, 0.088], [0, 0.945, 0.106], [0.066, 1.05, 0.088]], 0.013, 12, 8), vTrimMat),
+      mesh(new CylinderGeometry(0.062, 0.008, 0.115, 3), shirtCream, { pos: [0, 1.01, 0.088], scale: [1.05, 1.0, 0.25], rot: [0, Math.PI, 0] }),
+    );
+    for (const sx of [-1, 1]) {
+      fig.add(mesh(roundedBoxGeo(0.064, 0.02, 0.072, 0.01, 0.005), shirtCream, {
+        pos: [sx * 0.048, 1.06, 0.058],
+        rot: [0.42, sx * -0.25, sx * -0.18],
+      }));
+    }
+    // Blue campus lanyard + clean white ID card + denim backpack
+    fig.add(
+      mesh(tubeGeo([[-0.052, 1.055, 0.052], [0, 0.90, 0.113], [0.052, 1.055, 0.052]], 0.009, 14, 8), lanyardMat),
+      mesh(roundedBoxGeo(0.066, 0.088, 0.012, 0.008, 0.004), sneakerSole, { pos: [0, 0.855, 0.116] }),
+      mesh(roundedBoxGeo(0.066, 0.018, 0.014, 0.005, 0.003), lanyardMat, { pos: [0, 0.892, 0.117] }),
+      mesh(roundedBoxGeo(0.26, 0.30, 0.12, 0.055, 0.02), packMat, { pos: [0, 0.895, -0.145] }),
+      mesh(roundedBoxGeo(0.21, 0.14, 0.05, 0.03, 0.012), packMat, { pos: [0, 0.82, -0.205] }),
+    );
+    for (const sx of [-1, 1]) {
+      fig.add(mesh(tubeGeo([
+        [sx * 0.12, 1.02, -0.09],
+        [sx * 0.135, 1.04, 0.02],
+        [sx * 0.135, 0.88, 0.09],
+      ], 0.018, 12, 8), packMat));
+    }
   }
 
-  // Left arm (relaxed) & Right arm (cheerfully waving!)
-  const leftArm = new Group();
-  leftArm.position.set(-0.25, 0.8, 0);
-  leftArm.add(
-    mesh(new CapsuleGeometry(0.064, 0.22, 6, 12), sleeveMat, { pos: [-0.04, -0.14, 0], rot: [0, 0, -0.22] }),
-    mesh(new SphereGeometry(0.068, 12, 10), skin, { pos: [-0.08, -0.28, 0.02] }),
-  );
-  fig.add(leftArm);
+  // Natural closed-cap short sleeves + soft articulated arms + plump clay peace-sign hand
+  const leftSleeve = mesh(new CylinderGeometry(0.050, 0.054, 0.11, 14), shirtCream, {
+    pos: [-0.175, 0.99, 0.005],
+    rot: [0.08, 0, 0.44],
+  });
+  const leftCap = mesh(new SphereGeometry(0.055, 12, 10), shirtCream, { pos: [-0.145, 1.025, 0] });
+  const rightSleeve = mesh(new CylinderGeometry(0.050, 0.052, 0.105, 14), shirtCream, {
+    pos: [0.175, 0.992, 0.012],
+    rot: [0.12, 0, -0.58],
+  });
+  const rightCap = mesh(new SphereGeometry(0.055, 12, 10), shirtCream, { pos: [0.145, 1.025, 0] });
+  const rightCuff = mesh(new TorusGeometry(0.044, 0.011, 8, 14), shirtCream, {
+    pos: [0.198, 0.955, 0.02],
+    rot: [Math.PI / 2 - 0.12, 0, -0.58],
+  });
+  fig.add(leftSleeve, leftCap, rightSleeve, rightCap, rightCuff);
 
-  const rightArm = new Group();
-  rightArm.position.set(0.25, 0.8, 0);
-  rightArm.add(
-    mesh(new CapsuleGeometry(0.064, 0.22, 6, 12), sleeveMat, { pos: [0.09, 0.12, 0.04], rot: [0.2, 0, -0.58] }),
-    mesh(new SphereGeometry(0.07, 12, 10), skin, { pos: [0.18, 0.26, 0.08] }),
+  // Relaxed left (viewer's left) arm clearing canvas tote cleanly + plump clay hand
+  fig.add(
+    mesh(tubeGeo([[-0.185, 0.96, 0.01], [-0.222, 0.81, 0.042], [-0.214, 0.66, 0.075]], 0.041, 12, 10), skin),
+    mesh(new SphereGeometry(0.049, 12, 10), skin, { pos: [-0.212, 0.635, 0.082], scale: [0.92, 1.08, 0.86] }),
   );
-  fig.add(rightArm);
 
-  // Neck + charming oversized vinyl-clay head
-  const neck = mesh(new CylinderGeometry(0.07, 0.075, 0.1, 12), skin, { pos: [0, 0.9, 0] });
+  // Bent-elbow waving right (viewer's right) arm + plump clay palm & V peace fingers
+  const rightUpper = mesh(tubeGeo([[0.182, 0.962, 0.01], [0.225, 0.88, 0.032]], 0.043, 8, 10), skin);
+  const elbowPivot = new Group();
+  elbowPivot.position.set(0.225, 0.88, 0.032);
+  elbowPivot.add(
+    mesh(tubeGeo([[0, 0, 0], [0.048, 0.095, 0.05], [0.062, 0.185, 0.09]], 0.039, 10, 10), skin),
+    mesh(new SphereGeometry(0.048, 12, 10), skin, { pos: [0.064, 0.212, 0.095], scale: [1.02, 0.96, 0.74] }),
+    // Plump tucked thumb/ring/pinky cluster + rounded clay V fingers
+    mesh(new SphereGeometry(0.024, 10, 8), skin, { pos: [0.064, 0.218, 0.12], scale: [1.1, 0.85, 0.8] }),
+    mesh(new CapsuleGeometry(0.0165, 0.042, 6, 10), skin, { pos: [0.042, 0.268, 0.098], rot: [0.08, 0, 0.26] }),
+    mesh(new CapsuleGeometry(0.0165, 0.042, 6, 10), skin, { pos: [0.086, 0.268, 0.098], rot: [0.08, 0, -0.24] }),
+  );
+  fig.add(rightUpper, elbowPivot);
+
+  // Articulated neck + proportional matte clay head (1 : 3.8 puppet proportions!)
+  const neck = mesh(new CylinderGeometry(0.054, 0.058, 0.11, 12), skin, { pos: [0, 1.11, 0] });
   const head = new Group();
-  head.position.set(0, 1.14, 0);
-  const skull = mesh(new SphereGeometry(0.28, 24, 20), skin, { scale: [1.02, 0.98, 0.96] });
+  head.position.set(0, 1.31, 0);
+  const skull = mesh(sculptGeo(new SphereGeometry(0.19, 26, 20), 0.005, 7.5, isJackie ? 21 : 17), skin, {
+    scale: [1.0, 1.04, 0.96],
+  });
   head.add(skull);
 
-  // Ears
+  // Ears & sculpted protruding clay button nose
   for (const sx of [-1, 1]) {
-    head.add(mesh(new SphereGeometry(0.06, 10, 10), skin, { pos: [sx * 0.27, -0.01, -0.01], scale: [0.6, 1, 0.8] }));
+    head.add(mesh(new SphereGeometry(0.042, 10, 10), skin, { pos: [sx * 0.184, -0.01, -0.01], scale: [0.55, 1.0, 0.75] }));
   }
+  head.add(mesh(new SphereGeometry(0.027, 14, 12), noseMat, { pos: [0, -0.016, 0.194], scale: [1.05, 0.9, 1.05], cast: false }));
 
-  // Sculpted hair
-  const hairCap = mesh(new SphereGeometry(0.295, 24, 18, 0, Math.PI * 2, 0, Math.PI * 0.62), hair, {
-    pos: [0, 0.03, -0.02],
-  });
-  head.add(hairCap);
-  if (isJackie) {
-    // Flowing clay bob framing the back & sides + cheerful coral hairclip
-    const backHair = mesh(roundedBoxGeo(0.56, 0.44, 0.26, 0.14, 0.04), hair, { pos: [0, -0.14, -0.14] });
-    const sideL = mesh(new CapsuleGeometry(0.075, 0.26, 6, 10), hair, { pos: [-0.24, -0.12, 0.04], rot: [0, 0, 0.12] });
-    const sideR = mesh(new CapsuleGeometry(0.075, 0.26, 6, 10), hair, { pos: [0.24, -0.12, 0.04], rot: [0, 0, -0.12] });
-    const bangs = mesh(roundedBoxGeo(0.42, 0.12, 0.12, 0.05, 0.02), hair, { pos: [0, 0.17, 0.21] });
-    const clip = mesh(roundedBoxGeo(0.1, 0.036, 0.03, 0.014, 0.006), topMat, { pos: [0.16, 0.18, 0.26], rot: [0, 0.25, -0.2] });
-    head.add(backHair, sideL, sideR, bangs, clip);
-  } else {
-    // Jack's playful sculpted fringe & tousled back tufts
-    for (let i = -2; i <= 2; i++) {
-      const tuft = mesh(new SphereGeometry(0.095 - Math.abs(i) * 0.01, 12, 10), hair, {
-        pos: [i * 0.085, 0.2 - Math.abs(i) * 0.02, 0.19 - Math.abs(i) * 0.03],
-        scale: [1.0, 0.78, 0.85],
-      });
-      head.add(tuft);
-    }
-    const backHair = mesh(new SphereGeometry(0.285, 18, 14), hair, { pos: [0, -0.01, -0.07] });
-    head.add(backHair);
-  }
-
-  // Expressive eyes + catchlights + warm smile + blush
+  // Crisp sculpted clay eyebrows, glossy black bead eyes (NO sclera), subtle blush, proud open D-mouth
   for (const sx of [-1, 1]) {
     head.add(
-      mesh(new SphereGeometry(0.038, 12, 10), darkEye, { pos: [sx * 0.095, 0.01, 0.255] }),
-      mesh(new SphereGeometry(0.014, 8, 8), kit.gloss(0xffffff), { pos: [sx * 0.105, 0.024, 0.284], cast: false }),
-      mesh(new SphereGeometry(0.048, 10, 8), blush, { pos: [sx * 0.155, -0.055, 0.23], scale: [1.1, 0.65, 0.35], cast: false }),
+      mesh(tubeGeo([
+        [sx * 0.036, 0.06, 0.178],
+        [sx * 0.066, 0.072, 0.184],
+        [sx * 0.095, 0.06, 0.168],
+      ], 0.013, 8, 6), hair, { cast: false }),
+      mesh(new SphereGeometry(0.029, 14, 12), darkEye, { pos: [sx * 0.064, 0.014, 0.171], scale: [0.96, 1.06, 0.85], cast: false }),
+      mesh(new SphereGeometry(0.01, 8, 8), whiteSpark, { pos: [sx * 0.072, 0.024, 0.194], cast: false }),
+      mesh(new SphereGeometry(0.034, 10, 8), blushMat, { pos: [sx * 0.106, -0.034, 0.16], scale: [1.05, 0.68, 0.16], cast: false }),
     );
   }
-  head.add(mesh(tubeGeo([[-0.07, -0.07, 0.26], [0, -0.1, 0.278], [0.07, -0.07, 0.26]], 0.014, 10, 8), darkEye, { cast: false }));
+  head.add(
+    mesh(openMouthGeo(0.056, 0.016, 0.046, 0.022), mouthIn, { pos: [0, -0.066, 0.168], cast: false }),
+    mesh(new SphereGeometry(0.025, 10, 8), tongue, { pos: [0, -0.084, 0.184], scale: [1.22, 0.56, 0.48], cast: false }),
+  );
+
+  // Canonical Hair Styles (Sculpted Stop-Motion Clay Locks — cast:false so faces stay cleanly lit!)
+  if (isJackie) {
+    // Tilted back crown cap + solid occipital back base exposing forehead cleanly!
+    const jackieCap = mesh(new SphereGeometry(0.194, 24, 18, 0, Math.PI * 2, 0, Math.PI * 0.54), hair, {
+      pos: [0, 0.018, -0.042],
+      rot: [-0.46, 0, 0],
+      cast: false,
+    });
+    const backMass = mesh(sculptGeo(new SphereGeometry(0.195, 22, 18), 0.008, 7, 19), hair, {
+      pos: [0, 0.008, -0.046],
+      scale: [1.01, 1.04, 0.96],
+      cast: false,
+    });
+    // Continuous flowing back hair cape from below earline down to mid-back
+    const hairCape = mesh(sculptGeo(new CylinderGeometry(0.185, 0.212, 0.40, 22, 3, false, Math.PI * 0.46, Math.PI * 1.08), 0.012, 8, 29), hair, {
+      pos: [0, -0.155, -0.056],
+      cast: false,
+    });
+    head.add(jackieCap, backMass, hairCape);
+
+    // Off-center left parting exposing warm forehead + cheek-hugging swept temple waves
+    head.add(
+      mesh(tubeGeo([
+        [-0.056, 0.168, 0.106],
+        [-0.122, 0.126, 0.138],
+        [-0.168, 0.032, 0.118],
+        [-0.175, -0.12, 0.068],
+        [-0.168, -0.30, 0.022],
+      ], 0.034, 16, 8), hair, { cast: false }),
+      mesh(tubeGeo([
+        [-0.046, 0.168, 0.106],
+        [0.072, 0.14, 0.145],
+        [0.156, 0.066, 0.134],
+        [0.176, -0.10, 0.075],
+        [0.17, -0.30, 0.025],
+      ], 0.035, 16, 8), hair, { cast: false }),
+      // Signature prominent matte coral-pink temple hairclip sitting proud on right temple lock
+      mesh(roundedBoxGeo(0.076, 0.027, 0.024, 0.008, 0.005), clipMat, {
+        pos: [0.146, 0.114, 0.180],
+        rot: [0.14, 0.56, -0.34],
+        cast: false,
+      }),
+    );
+    // Overlapping sculpted wavy locks integrated into the back hair cape (zero crown gap!)
+    for (let i = -5; i <= 5; i++) {
+      const a = Math.PI + i * 0.22;
+      const sx = Math.sin(a) * 0.172, sz = Math.cos(a) * 0.162;
+      const sway = i % 2 ? 0.022 : -0.022;
+      head.add(mesh(tubeGeo([
+        [sx * 0.85, 0.125, sz * 0.84],
+        [sx * 1.12 + sway, -0.05, sz * 1.14 - 0.02],
+        [sx * 1.16 - sway, -0.22, sz * 1.16 - 0.04],
+        [sx * 1.08 + sway * 0.5, -0.355, sz * 1.1 - 0.03],
+      ], 0.036, 14, 8), hair, { cast: false }));
+    }
+  } else {
+    // Jack's full sculpted espresso clay hair mass (covers crown + back down to nape!)
+    const jackCap = mesh(new SphereGeometry(0.198, 24, 18, 0, Math.PI * 2, 0, Math.PI * 0.56), hair, {
+      pos: [0, 0.022, -0.028],
+      rot: [-0.22, 0, 0],
+      cast: false,
+    });
+    const jackBack = mesh(sculptGeo(new SphereGeometry(0.196, 22, 18), 0.012, 9, 31), hair, {
+      pos: [0, -0.005, -0.048],
+      scale: [1.01, 1.05, 0.96],
+      cast: false,
+    });
+    const jackNape = mesh(sculptGeo(new SphereGeometry(0.165, 16, 12), 0.01, 8, 41), hair, {
+      pos: [0, -0.115, -0.105],
+      scale: [1.08, 0.68, 0.62],
+      cast: false,
+    });
+    head.add(jackCap, jackBack, jackNape);
+
+    // Dense overlapping asymmetric tousled clay curl locks (natural cowlick, zero round bear ears!)
+    const curlLocks = [
+      // Tousled forehead fringe locks (close to brow, clear of eyes!)
+      [[0.01, 0.172, 0.10], [0.035, 0.142, 0.155], [0.055, 0.112, 0.174]],
+      [[-0.055, 0.17, 0.095], [-0.08, 0.138, 0.15], [-0.095, 0.105, 0.168]],
+      [[0.085, 0.152, 0.095], [0.122, 0.122, 0.14], [0.145, 0.085, 0.148]],
+      [[-0.12, 0.148, 0.08], [-0.152, 0.112, 0.13], [-0.168, 0.068, 0.135]],
+      [[0.0, 0.182, 0.06], [0.0, 0.168, 0.135], [-0.015, 0.135, 0.168]],
+      // Asymmetric tousled crown curls (higher right-of-center cowlick peak!)
+      [[0.01, 0.184, -0.01], [0.04, 0.228, 0.02], [0.07, 0.238, 0.055]],
+      [[-0.075, 0.168, 0.0], [-0.105, 0.20, 0.025], [-0.125, 0.195, 0.055]],
+      [[0.08, 0.17, 0.0], [0.118, 0.21, 0.02], [0.145, 0.212, 0.05]],
+      [[-0.035, 0.182, -0.07], [-0.04, 0.218, -0.06], [-0.045, 0.225, -0.02]],
+      [[0.055, 0.18, -0.075], [0.085, 0.222, -0.065], [0.105, 0.228, -0.025]],
+      // Downward-swept temple & behind-ear curls hugging sides cleanly
+      [[-0.145, 0.12, -0.01], [-0.185, 0.115, 0.005], [-0.196, 0.072, 0.025]],
+      [[0.145, 0.12, -0.01], [0.185, 0.12, 0.005], [0.198, 0.078, 0.025]],
+      [[-0.158, 0.05, -0.04], [-0.194, 0.042, -0.032], [-0.192, -0.015, -0.02]],
+      [[0.158, 0.05, -0.04], [0.194, 0.042, -0.032], [0.192, -0.015, -0.02]],
+      // Dense back-of-head & nape shingle curls (complete coverage!)
+      [[0.0, 0.165, -0.105], [0.0, 0.195, -0.165], [0.01, 0.175, -0.205]],
+      [[-0.09, 0.145, -0.105], [-0.125, 0.172, -0.165], [-0.142, 0.148, -0.195]],
+      [[0.09, 0.145, -0.105], [0.125, 0.172, -0.165], [0.142, 0.148, -0.195]],
+      [[0.0, 0.07, -0.165], [-0.015, 0.015, -0.218], [0.0, -0.05, -0.212]],
+      [[-0.085, 0.06, -0.15], [-0.115, 0.0, -0.195], [-0.105, -0.075, -0.185]],
+      [[0.085, 0.06, -0.15], [0.115, 0.0, -0.195], [0.105, -0.075, -0.185]],
+      [[0.0, -0.035, -0.175], [0.01, -0.105, -0.20], [0.0, -0.165, -0.182]],
+      [[-0.075, -0.045, -0.158], [-0.09, -0.112, -0.178], [-0.08, -0.162, -0.158]],
+      [[0.075, -0.045, -0.158], [0.09, -0.112, -0.178], [0.08, -0.162, -0.158]],
+    ];
+    for (const lp of curlLocks) {
+      head.add(mesh(tubeGeo(lp, 0.038, 9, 8), hair, { cast: false }));
+    }
+  }
 
   // Optional Companion Hat
   const hatRig = buildCompanionHat(kit, hat);
   const hatHolder = new Group();
-  hatHolder.position.set(0, hat === "halo" ? 0.44 : 0.27, 0);
-  hatHolder.scale.setScalar(0.95);
+  hatHolder.position.set(0, hat === "halo" ? 0.34 : 0.21, 0);
+  hatHolder.scale.setScalar(0.76);
   hatHolder.add(hatRig.group);
   head.add(hatHolder);
 
   fig.add(neck, head);
-  if (!opts.noShadow) addContactShadow(root, 0.36, 0.3, 0.014, 0.32, kit);
+  if (!opts.noShadow) addContactShadow(root, 0.34, 0.28, 0.014, 0.32, kit);
 
   return {
     group: tagMilestone(root, isJackie ? 14 : 11, who),
     anim(t, dt, ctx = {}) {
       const happy = ctx.mood === "happy" || ctx.mood === "proud";
       const spd = happy ? 5.0 : 2.6;
-      fig.position.y = Math.abs(Math.sin(t * spd)) * (happy ? 0.055 : 0.014);
-      rightArm.rotation.z = Math.sin(t * (happy ? 7.2 : 3.4)) * (happy ? 0.32 : 0.16);
-      head.rotation.z = Math.sin(t * 1.5) * 0.04;
+      fig.position.y = Math.abs(Math.sin(t * spd)) * (happy ? 0.048 : 0.012);
+      elbowPivot.rotation.z = Math.sin(t * (happy ? 7.2 : 3.2)) * (happy ? 0.26 : 0.14);
+      head.rotation.z = Math.sin(t * 1.5) * 0.035;
       if (hatRig.anim) hatRig.anim(t, dt, ctx);
     },
   };
@@ -1453,6 +1692,7 @@ function buildDay11Jack(kit) {
   const g = new Group();
   const jackRig = buildHumanFigurine(kit, "jack", null, { noShadow: true });
   jackRig.group.position.set(-0.28, 0.06, 0);
+  jackRig.group.scale.setScalar(0.8);
   g.add(jackRig.group);
 
   // Wooden terrace mat
@@ -1718,7 +1958,7 @@ function buildDay14Sprint14(kit) {
   // Sculpted 3D Jackie Figurine waving joyfully on the rooftop (clear of front posts!)
   const jackieRig = buildHumanFigurine(kit, "jackie", null, { noShadow: true });
   jackieRig.group.position.set(-0.22, 0.14, 0.14);
-  jackieRig.group.scale.setScalar(0.86);
+  jackieRig.group.scale.setScalar(0.68);
   g.add(jackieRig.group);
 
   // Floating Rotating Golden Halo Monument on right side of terrace

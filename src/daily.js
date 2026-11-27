@@ -615,8 +615,10 @@
     }
 
     $("syncCodeText").textContent = state.syncCode || "CRAB-LOCAL";
+    const av = p.avatar || "crab";
+    if ($("brandAvatar")) $("brandAvatar").className = "cast-bust " + av;
     document.querySelectorAll(".av-opt[data-av]").forEach((b) => {
-      b.setAttribute("aria-checked", String(b.dataset.av === (p.avatar || "crab")));
+      b.setAttribute("aria-checked", String(b.dataset.av === av));
     });
 
     renderModeUI();
