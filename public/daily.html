@@ -18,19 +18,135 @@
 <meta property="og:description" content="One tiny money question a day. Build a 14-day starter sprint and spin your 3D clay Victoria Harbour island.">
 <meta property="og:url" content="https://3fallcrab.com/daily">
 <meta property="og:image" content="https://3fallcrab.com/assets/og.f3dcb61e63.jpg">
-<link rel="preload" href="/assets/gluten.ab14bb3aa5.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="/assets/noto-sans-hk.3fff491cf3.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/assets/daily.0930db902a.css">
+<link rel="preload" href="/assets/gluten.390fd459df.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/noto-sans-hk.c47f544e2b.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/daily.32158ab314.css">
 </head>
 <body data-sky="day" data-lang="en">
 <noscript><p style="margin:0;padding:16px;background:#1E2430;color:#fff;font:16px/1.5 system-ui,sans-serif;text-align:center">Harbour Keep needs JavaScript to run. 請開啟 JavaScript 先用到。</p></noscript>
 <div class="daily-shell" id="dailyShell">
-<div id="stage3d" class="stage3d" role="application" aria-label="Interactive 3D Victoria Harbour Island — drag or use arrow keys to rotate 360 degrees">
+<svg class="svg-defs" aria-hidden="true">
+<defs>
+<symbol id="ico-sym-crab" viewBox="0 0 32 32">
+<path d="M8.5 11.5C5.2 9.4 4.3 5.5 7 3.8c1.5 2.1 2.7 3.2 4.5 3.6" fill="#FF7B35" stroke="#8F2D0A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M23.5 11.5c3.3-2.1 4.2-6 1.5-7.7-1.5 2.1-2.7 3.2-4.5 3.6" fill="#FF7B35" stroke="#8F2D0A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+<ellipse cx="16" cy="18" rx="9.5" ry="7.4" fill="#FF7B35" stroke="#8F2D0A" stroke-width="1.9"/>
+<ellipse cx="16" cy="19.6" rx="5.8" ry="3.8" fill="#FFD2A6"/>
+<path d="M6.8 18.5l-3.4 1.6M7.2 21.8l-3 2.5M25.2 18.5l3.4 1.6M24.8 21.8l3 2.5" stroke="#8F2D0A" stroke-width="1.9" stroke-linecap="round"/>
+<circle cx="12.6" cy="14.5" r="1.5" fill="#1E2430"/>
+<circle cx="19.4" cy="14.5" r="1.5" fill="#1E2430"/>
+<path d="M13.5 18.4c1.3 1.3 3.7 1.3 5 0" fill="none" stroke="#8F2D0A" stroke-width="1.7" stroke-linecap="round"/>
+</symbol>
+<symbol id="ico-sym-jack" viewBox="0 0 32 32">
+<path d="M7.5 27.5c.8-4.8 4.2-7.5 8.5-7.5s7.7 2.7 8.5 7.5z" fill="#14968B" stroke="#0B4F49" stroke-width="1.8" stroke-linejoin="round"/>
+<circle cx="16" cy="14" r="6.8" fill="#FFD9B8" stroke="#7A4B2A" stroke-width="1.8"/>
+<path d="M9.3 13c.2-4.6 3.2-7 6.8-7 3.8 0 6.7 2.2 6.6 6.4-2.1-1.8-5.1-2.2-8.2-1.2-2 .6-3.7 1.1-5.2 1.8z" fill="#2A3242" stroke="#1E2430" stroke-width="1.5" stroke-linejoin="round"/>
+<circle cx="13.6" cy="14.6" r="1.1" fill="#1E2430"/>
+<circle cx="18.4" cy="14.6" r="1.1" fill="#1E2430"/>
+<path d="M14.1 17.5c1.1.9 2.7.9 3.8 0" fill="none" stroke="#7A4B2A" stroke-width="1.5" stroke-linecap="round"/>
+</symbol>
+<symbol id="ico-sym-jackie" viewBox="0 0 32 32">
+<path d="M8.5 15c0-5 3.3-8.5 7.5-8.5s7.5 3.5 7.5 8.5v7.2H8.5z" fill="#3D2B24"/>
+<path d="M7.5 27.5c.8-4.8 4.2-7.5 8.5-7.5s7.7 2.7 8.5 7.5z" fill="#FF7B35" stroke="#8F2D0A" stroke-width="1.8" stroke-linejoin="round"/>
+<circle cx="16" cy="14.2" r="6.5" fill="#FFE0C2" stroke="#7A4B2A" stroke-width="1.8"/>
+<path d="M9.6 13.4c2.1-2.5 5.3-3.2 8.9-2.2 1.7.5 3 1.4 3.9 2.3-.5-3.9-3.1-6.2-6.4-6.2-3.5 0-6.2 2.4-6.4 6.1z" fill="#3D2B24"/>
+<circle cx="20.4" cy="9.8" r="2" fill="#FFB800" stroke="#8F2D0A" stroke-width="1.2"/>
+<circle cx="13.7" cy="14.7" r="1.1" fill="#1E2430"/>
+<circle cx="18.3" cy="14.7" r="1.1" fill="#1E2430"/>
+<path d="M14.1 17.6c1.1.9 2.7.9 3.8 0" fill="none" stroke="#7A4B2A" stroke-width="1.5" stroke-linecap="round"/>
+</symbol>
+<symbol id="ico-sym-flame" viewBox="0 0 24 24">
+<path d="M12.6 2.3c.6 3.5-2.6 5.2-3.8 7.8-.7 1.4-.3 3.2.8 4.1-.6-1.5.2-3 1.5-3.8-.1 1.7 1.2 2.9 2.2 4.1.7-.9.8-2.3.4-3.3 2.5 1.3 4.3 3.8 4.3 6.5a6.2 6.2 0 0 1-12.4.2c0-4 2.7-7.1 4.4-9.8 1.2-1.9 2.1-3.7 2.6-5.8z" fill="#FF7B35" stroke="#9B3209" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M12.2 13.6c1.5 1.1 2.2 2.4 2.2 3.8a2.5 2.5 0 0 1-5 0c0-1.6 1.2-2.7 2.8-3.8z" fill="#FFD166"/>
+</symbol>
+<symbol id="ico-sym-buoy" viewBox="0 0 24 24">
+<circle cx="12" cy="12" r="8.2" fill="none" stroke="#FFFDF7" stroke-width="4.2"/>
+<circle cx="12" cy="12" r="8.2" fill="none" stroke="#D9382E" stroke-width="4.2" stroke-dasharray="6.4 6.5" stroke-dashoffset="3.2"/>
+<circle cx="12" cy="12" r="9.9" fill="none" stroke="#8F2D0A" stroke-width="1.4"/>
+<circle cx="12" cy="12" r="6.1" fill="none" stroke="#8F2D0A" stroke-width="1.4"/>
+</symbol>
+<symbol id="ico-sym-pier" viewBox="0 0 24 24">
+<path d="M3.5 13.5h17M6.5 13.5v4.5M17.5 13.5v4.5" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>
+<path d="M7.5 13.5V9.2L12 5.4l4.5 3.8v4.3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M2.5 19.2c2.2 1.2 4.3 1.2 6.4 0 2.1 1.2 4.2 1.2 6.2 0 2.1 1.2 4.2 1.2 6.4 0" fill="none" stroke="#14968B" stroke-width="2" stroke-linecap="round"/>
+</symbol>
+<symbol id="ico-sym-guide" viewBox="0 0 24 24">
+<path d="M5 4.5h11.5A2.5 2.5 0 0 1 19 7v12.5H6.8A1.8 1.8 0 0 1 5 17.7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+<path d="M5 16.5h14M9.2 8.6h6M9.2 12h4.2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+<path d="M13 4.5v4.8l1.6-1.1 1.6 1.1V4.5" fill="#FF7B35" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+</symbol>
+<symbol id="ico-sym-bell" viewBox="0 0 24 24">
+<path d="M6.2 15.6c1-1.3 1.4-2.8 1.4-5.1a4.4 4.4 0 0 1 8.8 0c0 2.3.4 3.8 1.4 5.1.5.7 0 1.7-.9 1.7H7.1c-.9 0-1.4-1-.9-1.7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+<path d="M10.2 19.6a2 2 0 0 0 3.6 0M12 4.1v1.8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+</symbol>
+<symbol id="ico-sym-pass" viewBox="0 0 24 24">
+<path d="M4.2 7.5a2 2 0 0 1 2-2h11.6a2 2 0 0 1 2 2v2.4a2.1 2.1 0 0 0 0 4.2v2.4a2 2 0 0 1-2 2H6.2a2 2 0 0 1-2-2v-2.4a2.1 2.1 0 0 0 0-4.2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+<circle cx="9.6" cy="12" r="2.1" fill="#FFB800" stroke="currentColor" stroke-width="1.5"/>
+<path d="M13.6 10.2h3.2M13.6 13.8h2.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+</symbol>
+<symbol id="ico-sym-loupe" viewBox="0 0 24 24">
+<path d="M12 3.8l6.2 3.5v7.1L12 18l-6.2-3.6V7.3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+<path d="M5.8 7.3L12 10.8l6.2-3.5M12 10.8V18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+</symbol>
+<symbol id="ico-sym-compass" viewBox="0 0 24 24">
+<circle cx="12" cy="12" r="8.2" fill="none" stroke="currentColor" stroke-width="2"/>
+<path d="M12 2.4v2.3M12 19.3v2.3M2.4 12h2.3M19.3 12h2.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+<circle cx="12" cy="12" r="2.2" fill="#FF7B35"/>
+</symbol>
+<symbol id="ico-sym-rot-l" viewBox="0 0 24 24">
+<path d="M8.5 7.5H4.8V3.8M5.2 7.5A7.4 7.4 0 1 1 5.6 16" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+</symbol>
+<symbol id="ico-sym-rot-r" viewBox="0 0 24 24">
+<path d="M15.5 7.5h3.7V3.8M18.8 7.5A7.4 7.4 0 1 0 18.4 16" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+</symbol>
+<symbol id="ico-sym-sprout" viewBox="0 0 24 24">
+<path d="M12 19.5V10.5" stroke="#1D6F36" stroke-width="2.2" stroke-linecap="round"/>
+<path d="M12 11.2c0-4.2 3.2-6.7 7-6.2-.2 3.8-2.8 6.5-7 6.2z" fill="#2F9A4C" stroke="#165A2A" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M12 13.5c0-3.5-2.6-5.5-5.8-5.1.2 3.2 2.3 5.3 5.8 5.1z" fill="#52C472" stroke="#165A2A" stroke-width="1.6" stroke-linejoin="round"/>
+</symbol>
+<symbol id="ico-sym-timer" viewBox="0 0 24 24">
+<circle cx="12" cy="13.2" r="7.4" fill="none" stroke="currentColor" stroke-width="2.1"/>
+<path d="M9.5 3.6h5M12 13.2l3.2-2.2M12 5.8v1.6" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>
+</symbol>
+<symbol id="ico-sym-note" viewBox="0 0 24 24">
+<path d="M6.5 4.2h11v12.2l-3.4 3.4H6.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+<path d="M14.1 19.8v-3.4h3.4M9.5 8.8h5M9.5 12.2h3.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+</symbol>
+<symbol id="ico-sym-cap" viewBox="0 0 24 24">
+<circle cx="12" cy="9.4" r="5.6" fill="#FFB800" stroke="currentColor" stroke-width="1.9"/>
+<path d="M9 14.3l-1.4 6.2 4.4-2.3 4.4 2.3-1.4-6.2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="12" cy="9.4" r="2.2" fill="#FFF8EC" stroke="currentColor" stroke-width="1.5"/>
+</symbol>
+<symbol id="ico-sym-lock" viewBox="0 0 24 24">
+<rect x="5.5" y="10.5" width="13" height="9.2" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/>
+<path d="M8.5 10.5V7.8a3.5 3.5 0 0 1 7 0v2.7" fill="none" stroke="currentColor" stroke-width="2"/>
+</symbol>
+<symbol id="ico-sym-check" viewBox="0 0 24 24">
+<path d="M5.5 12.5l4.3 4.3 8.7-9.3" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+</symbol>
+<symbol id="ico-sym-swipe" viewBox="0 0 24 24">
+<path d="M7.5 8L3.5 12l4 4M16.5 8l4 4-4 4M4.2 12h15.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</symbol>
+<symbol id="ico-sym-back" viewBox="0 0 24 24">
+<path d="M10.5 6.5L5 12l5.5 5.5M5.8 12H19" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
+</symbol>
+<symbol id="ico-sym-chev-l" viewBox="0 0 24 24">
+<path d="M14.5 6.2L8.5 12l6 5.8" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+</symbol>
+<symbol id="ico-sym-chev-r" viewBox="0 0 24 24">
+<path d="M9.5 6.2l6 5.8-6 5.8" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+</symbol>
+<symbol id="ico-sym-chev-u" viewBox="0 0 24 24">
+<path d="M6.5 14.5L12 9l5.5 5.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+</symbol>
+</defs>
+</svg>
+<div id="stage3d" class="stage3d" role="application" aria-label="Interactive 3D Victoria Harbour Island. Drag or use arrow keys to rotate 360 degrees">
 <div class="stage-fallback" id="stageFallback" hidden>
 <div class="fallback-card">
-<span class="fallback-ico" aria-hidden="true">🦀🏝</span>
+<span class="fallback-ico" aria-hidden="true"><svg class="ui-ico lg"><use href="#ico-sym-crab"/></svg></span>
 <b class="fallback-t"><span class="lang-en">Harbour Keep</span><span class="lang-zh" lang="zh-HK">海傍小天地</span></b>
-<p class="fallback-p lang-en">3D WebGL view is unavailable on this browser, but all daily check-ins, streaks, and milestones work normally.</p>
+<p class="fallback-p lang-en">3D WebGL view is unavailable on this browser, yet all daily check-ins, streaks, and milestones work normally.</p>
 <p class="fallback-p lang-zh" lang="zh-HK">此瀏覽器暫未支援3D畫面，但每日打卡同紀錄完全正常運作。</p>
 </div>
 </div>
@@ -47,19 +163,19 @@
 <header class="top-bar">
 <div class="top-left">
 <div class="hud-pill brand-pill" id="stagePill">
-<span class="brand-mark" aria-hidden="true">🦀</span>
+<span class="brand-mark" aria-hidden="true"><svg class="ui-ico"><use href="#ico-sym-crab"/></svg></span>
 <div class="brand-copy">
 <h1 class="brand-name"><span class="lang-en">Harbour Keep</span><span class="lang-zh" lang="zh-HK">海傍小天地</span></h1>
 <span class="brand-stage"><b id="hudTotal">Day 0</b> · <span id="hudFloor">G/F</span></span>
 </div>
 </div>
 <button class="hud-pill back-pill" id="backIslandBtn" type="button" hidden>
-<span aria-hidden="true">←</span> <span class="lang-en">Island</span><span class="lang-zh" lang="zh-HK">返回海傍</span>
+<svg class="ui-ico sm" aria-hidden="true"><use href="#ico-sym-back"/></svg> <span class="lang-en">Island</span><span class="lang-zh" lang="zh-HK">返回海傍</span>
 </button>
 </div>
 <div class="top-right">
-<span class="hud-pill stat-pill streak" id="streakPill" title="Current streak"><span aria-hidden="true">🔥</span><b id="streakNum">0</b><span class="lang-en">d</span><span class="lang-zh" lang="zh-HK">日</span></span>
-<span class="hud-pill stat-pill shield" id="shieldPill" title="Insurance Net Streak Shields"><span aria-hidden="true">🛟</span><b id="shieldNum">0</b>/2</span>
+<span class="hud-pill stat-pill streak" id="streakPill" title="Current streak"><svg class="ui-ico sm" aria-hidden="true"><use href="#ico-sym-flame"/></svg><b id="streakNum">0</b><span class="lang-en">d</span><span class="lang-zh" lang="zh-HK">日</span></span>
+<span class="hud-pill stat-pill shield" id="shieldPill" title="Insurance Net Streak Shields"><svg class="ui-ico sm" aria-hidden="true"><use href="#ico-sym-buoy"/></svg><b id="shieldNum">0</b>/2</span>
 <button class="hud-icon lang-btn" id="langBtn" type="button" aria-label="切換至廣東話 Switch to Cantonese" title="廣東話 / English (L)">粵</button>
 <button class="hud-icon" id="skyBtn" type="button" aria-label="Cycle sky mood" title="Sky mood (S)">
 <svg class="sky-ico" viewBox="0 0 24 24" aria-hidden="true">
@@ -91,8 +207,8 @@
 </header>
 <div class="whisper-wrap">
 <div class="whisper-pill" id="pierTalk" role="status" aria-live="polite">
-<b class="lang-en" id="talkEn">Spin your 3D harbour · Answer today's tiny check-in!</b>
-<small class="lang-zh" id="talkZh" lang="zh-HK">360°旋轉欣賞維港 · 每日一條理財小問題！</small>
+<b class="lang-en" id="talkEn">Drag to spin the harbour, or answer today's card below.</b>
+<small class="lang-zh" id="talkZh" lang="zh-HK">左右拖曳轉動維港，答下面今日一題。</small>
 </div>
 </div>
 <div class="stamps" id="pierStamp" aria-hidden="true"></div>
@@ -111,26 +227,28 @@
 </div>
 <main class="bottom-dock" id="bottomDock" aria-label="Daily check-in and 3D controls">
 <div class="orbit-strip" id="orbitStrip">
-<p class="swipe-hint" id="swipeHint"><span class="lang-en">↔ Swipe 360° to inspect</span><span class="lang-zh" lang="zh-HK">↔ 左右滑動 360° 欣賞</span></p>
-<div class="orbit-pills" role="group" aria-label="3D camera controls">
-<button class="orbit-btn" id="orbitLeftBtn" type="button" aria-label="Rotate left" title="Rotate Left (←)">⟲</button>
-<button class="orbit-btn" id="orbitResetBtn" type="button" aria-label="Reset 3D angle" title="Reset View (R)">⊙</button>
-<button class="orbit-btn" id="orbitRightBtn" type="button" aria-label="Rotate right" title="Rotate Right (→)">⟳</button>
-<button class="orbit-btn inspect-pill" id="inspectToggleBtn" type="button" title="Inspect individual 3D Thing">
-<span aria-hidden="true">🔍</span> <span class="lang-en" id="inspectToggleText">3D Inspect</span><span class="lang-zh" lang="zh-HK">3D 賞物</span>
+<p class="swipe-hint" id="swipeHint"><svg class="ui-ico xs" aria-hidden="true"><use href="#ico-sym-swipe"/></svg><span class="lang-en">Drag to spin 360°</span><span class="lang-zh" lang="zh-HK">左右滑動 360° 旋轉</span></p>
+<div class="orbit-pills">
+<div class="orbit-capsule" role="group" aria-label="3D camera controls">
+<button class="orbit-btn orbit-step" id="orbitLeftBtn" type="button" aria-label="Rotate left" title="Rotate Left (←)"><svg class="ui-ico sm" aria-hidden="true"><use href="#ico-sym-rot-l"/></svg></button>
+<button class="orbit-btn" id="orbitResetBtn" type="button" aria-label="Reset 3D angle" title="Reset View (R)"><svg class="ui-ico sm" aria-hidden="true"><use href="#ico-sym-compass"/></svg></button>
+<button class="orbit-btn orbit-step" id="orbitRightBtn" type="button" aria-label="Rotate right" title="Rotate Right (→)"><svg class="ui-ico sm" aria-hidden="true"><use href="#ico-sym-rot-r"/></svg></button>
+</div>
+<button class="orbit-btn inspect-pill" id="inspectToggleBtn" type="button" title="Closer Look">
+<svg class="ui-ico sm" aria-hidden="true"><use href="#ico-sym-loupe"/></svg> <span class="lang-en" id="inspectToggleText">Closer Look</span><span class="lang-zh" lang="zh-HK">近睇模型</span>
 </button>
 </div>
 </div>
 <article class="dock-card" id="checkinCard" aria-labelledby="qTitleHeading" data-collapsed="false">
 <button class="collapsed-pill" id="dockExpandBtn" type="button" hidden>
 <span class="cp-left">
-<span class="cp-ico" id="collapsedIco" aria-hidden="true">🌱</span>
+<span class="cp-ico" id="collapsedIco" aria-hidden="true"><svg class="ui-ico sm"><use href="#ico-sym-sprout"/></svg></span>
 <span class="cp-txt">
 <b class="lang-en" id="collapsedLabelEn">Today's Check-in · Day 01</b>
 <small class="lang-zh" id="collapsedLabelZh" lang="zh-HK">今日打卡 · 展開題目</small>
 </span>
 </span>
-<span class="cp-chev" aria-hidden="true">▲</span>
+<span class="cp-chev" aria-hidden="true"><svg class="ui-ico sm"><use href="#ico-sym-chev-u"/></svg></span>
 </button>
 <div class="dock-body" id="dockExpandedBody">
 <div class="card-head">
@@ -145,7 +263,7 @@
 </button>
 </div>
 <h2 class="q-title" id="qTitleHeading">
-<span class="q-en lang-en" id="qEn">Loading today's check-in…</span>
+<span class="q-en lang-en" id="qEn">Loading today's question...</span>
 <span class="q-zh lang-zh" id="qZh" lang="zh-HK">載入緊今日題目…</span>
 </h2>
 <div class="choices" id="qAsk">
@@ -168,14 +286,14 @@
 </div>
 <p class="shield-note" id="shieldNotice" hidden></p>
 <div class="oc-tip">
-<strong class="tip-lab"><span class="lang-en">💡 Practical Takeaway</span><span class="lang-zh" lang="zh-HK">💡 實用理財貼士</span></strong>
+<strong class="tip-lab"><svg class="ui-ico xs" aria-hidden="true"><use href="#ico-sym-note"/></svg><span class="lang-en">Harbour Note</span><span class="lang-zh" lang="zh-HK">海傍筆記</span></strong>
 <p class="lang-en" id="doneTipEn"></p>
 <small class="lang-zh" id="doneTipZh" lang="zh-HK"></small>
 </div>
 <div class="done-acts">
-<button class="btn teal mini" id="inspectTodayBtn" type="button"><span class="lang-en">🔍 Inspect 3D Piece</span><span class="lang-zh" lang="zh-HK">🔍 3D 賞今日景物</span></button>
+<button class="btn teal mini" id="inspectTodayBtn" type="button"><svg class="ui-ico sm" aria-hidden="true"><use href="#ico-sym-loupe"/></svg><span class="lang-en">See 3D Model</span><span class="lang-zh" lang="zh-HK">近睇今日模型</span></button>
 <div class="skip-rescue" id="skipRescueWrap" hidden>
-<button class="btn green mini" id="btnLateRescue" type="button"><span class="lang-en">Do 60s Action Now</span><span class="lang-zh" lang="zh-HK">即刻 60 秒補救</span></button>
+<button class="btn green mini" id="btnLateRescue" type="button"><span class="lang-en">Do Quick 60s Fix</span><span class="lang-zh" lang="zh-HK">做60秒即場補救</span></button>
 </div>
 </div>
 <p class="next-cd" id="nextCountdown"></p>
@@ -183,28 +301,28 @@
 <p class="save-status" id="saveStatus" role="status" aria-live="polite"></p>
 </div>
 </article>
-<section class="dock-card rescue-card" id="qRescue" aria-label="60-second action rescue" hidden>
+<section class="dock-card rescue-card" id="qRescue" aria-label="Quick 60s fix" hidden>
 <div class="rescue-top">
-<b><span class="lang-en">⏱ 60-Second Action Rescue</span><span class="lang-zh" lang="zh-HK">⏱ 60 秒即刻行動補救</span></b>
+<b><svg class="ui-ico sm" aria-hidden="true"><use href="#ico-sym-timer"/></svg><span class="lang-en">Quick 60s Fix</span><span class="lang-zh" lang="zh-HK">60秒即場補救</span></b>
 </div>
 <div class="timer" aria-hidden="true"><i id="rescueBar"></i></div>
 <p class="rescue-do lang-en" id="rescueText"></p>
 <p class="rescue-do-zh lang-zh" id="rescueTextZh" lang="zh-HK"></p>
 <div class="rescue-acts">
-<button class="btn green" id="btnRescueDone" type="button"><span class="lang-en">I just did it! Check me in</span><span class="lang-zh" lang="zh-HK">我啱啱做咗，即刻打卡！</span></button>
-<button class="btn alt" id="btnRescueSkip" type="button"><span class="lang-en">Not today — try tomorrow</span><span class="lang-zh" lang="zh-HK">今日唔得，聽日再試</span></button>
+<button class="btn green" id="btnRescueDone" type="button"><span class="lang-en">Done, check me in</span><span class="lang-zh" lang="zh-HK">做咗喇，即刻打卡</span></button>
+<button class="btn alt" id="btnRescueSkip" type="button"><span class="lang-en">Leave it for tomorrow</span><span class="lang-zh" lang="zh-HK">留返聽日再試</span></button>
 </div>
 </section>
 <section class="dock-card inspect-card" id="inspectBar" aria-label="3D Milestone Showcase" hidden>
 <div class="inspect-top">
 <div class="inspect-badges">
 <span class="day-chip" id="inspectDayPill">Day 00 · Pier</span>
-<span class="inspect-status unlocked" id="inspectStatusPill">✓ Unlocked</span>
+<span class="inspect-status unlocked" id="inspectStatusPill"><svg class="ui-ico xs" aria-hidden="true"><use href="#ico-sym-check"/></svg><span>Unlocked</span></span>
 </div>
-<button class="btn alt mini" id="inspectBackBtn" type="button"><span class="lang-en">🏝 Back to Island</span><span class="lang-zh" lang="zh-HK">🏝 返回海傍</span></button>
+<button class="btn alt mini" id="inspectBackBtn" type="button"><svg class="ui-ico sm" aria-hidden="true"><use href="#ico-sym-pier"/></svg><span class="lang-en">Back to Island</span><span class="lang-zh" lang="zh-HK">返回海傍</span></button>
 </div>
 <div class="inspect-mid">
-<button class="step-btn" id="inspectPrevBtn" type="button" aria-label="Previous 3D Thing">‹</button>
+<button class="step-btn" id="inspectPrevBtn" type="button" aria-label="Previous 3D Thing"><svg class="ui-ico" aria-hidden="true"><use href="#ico-sym-chev-l"/></svg></button>
 <div class="inspect-copy">
 <h2 class="inspect-h">
 <span class="inspect-title lang-en" id="inspectTitleEn">3 Fall Crab &amp; Starter Harbour Island</span>
@@ -213,28 +331,28 @@
 <p class="inspect-desc lang-en" id="inspectDescEn"></p>
 <p class="inspect-desc-zh lang-zh" id="inspectDescZh" lang="zh-HK"></p>
 </div>
-<button class="step-btn" id="inspectNextBtn" type="button" aria-label="Next 3D Thing">›</button>
+<button class="step-btn" id="inspectNextBtn" type="button" aria-label="Next 3D Thing"><svg class="ui-ico" aria-hidden="true"><use href="#ico-sym-chev-r"/></svg></button>
 </div>
 </section>
 <nav class="app-nav" role="navigation" aria-label="App navigation">
 <button class="nav-tab active" id="navPier" type="button" aria-current="page">
-<span class="nav-ico" aria-hidden="true">🏝</span>
+<span class="nav-ico" aria-hidden="true"><svg class="ui-ico"><use href="#ico-sym-pier"/></svg></span>
 <span class="nav-en lang-en">Pier</span>
 <span class="nav-zh lang-zh" lang="zh-HK">海傍</span>
 </button>
 <button class="nav-tab" id="logBtn" type="button">
-<span class="nav-ico" aria-hidden="true">✨</span>
-<span class="nav-en lang-en">Collection</span>
-<span class="nav-zh lang-zh" lang="zh-HK">3D圖鑑</span>
+<span class="nav-ico" aria-hidden="true"><svg class="ui-ico"><use href="#ico-sym-guide"/></svg></span>
+<span class="nav-en lang-en">Field Guide</span>
+<span class="nav-zh lang-zh" lang="zh-HK">圖鑑</span>
 </button>
 <button class="nav-tab" id="remindBtn" type="button">
-<span class="nav-ico" aria-hidden="true">🔔</span>
+<span class="nav-ico" aria-hidden="true"><svg class="ui-ico"><use href="#ico-sym-bell"/></svg></span>
 <span class="nav-en lang-en">Remind</span>
 <span class="nav-zh lang-zh" lang="zh-HK">提醒</span>
 </button>
 <button class="nav-tab" id="syncBtn" type="button">
-<span class="nav-ico" aria-hidden="true">🔑</span>
-<span class="nav-en lang-en">Pass</span>
+<span class="nav-ico" aria-hidden="true"><svg class="ui-ico"><use href="#ico-sym-pass"/></svg></span>
+<span class="nav-en lang-en">Passbook</span>
 <span class="nav-zh lang-zh" lang="zh-HK">證書</span>
 </button>
 </nav>
@@ -244,8 +362,8 @@
 <div class="sheet">
 <div class="sheet-handle" aria-hidden="true"></div>
 <div class="st-band">
-<div id="logHead"><b class="lang-en">3D Collection &amp; Sprint</b><b class="lang-zh" lang="zh-HK">海傍3D圖鑑與進度</b></div>
-<button class="mclose" id="logClose" type="button" aria-label="Close collection">✕</button>
+<div id="logHead"><b class="lang-en">Harbour Field Guide</b><b class="lang-zh" lang="zh-HK">海傍景物圖鑑</b></div>
+<button class="mclose" id="logClose" type="button" aria-label="Close collection"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></button>
 </div>
 <div class="st-body">
 <div class="summary-chips">
@@ -254,31 +372,31 @@
 <span class="sum-chip"><b id="sprintProg">0 / 14</b> <span class="lang-en">Sprint</span><span class="lang-zh" lang="zh-HK">衝刺</span></span>
 </div>
 <div class="rm-block">
-<h3 class="subh"><span class="lang-en">14-Day Starter Sprint</span><span class="lang-zh" lang="zh-HK">14日新手衝刺（撳任何一日3D賞物）</span></h3>
+<h3 class="subh"><span class="lang-en">14-Day Starter Sprint</span><span class="lang-zh" lang="zh-HK">14日新手衝刺（點選每日3D模型）</span></h3>
 <ol class="sprint-track" id="sprintTrack" aria-label="14-day milestones"></ol>
 <div class="inf-bar" id="infBar" hidden>
 <div class="inf-row">
-<span><b class="lang-en">Infinite Mode</b><b class="lang-zh" lang="zh-HK">無限擴建</b> · <span id="infNextText">Next landmark</span></span>
+<span><b class="lang-en">Infinite Keep</b><b class="lang-zh" lang="zh-HK">無限擴建</b> · <span id="infNextText">Next landmark</span></span>
 <span class="inf-count" id="infNextCount"></span>
 </div>
 <div class="inf-track"><i id="infFill"></i></div>
 </div>
 <div class="finisher-bar" id="finisherBanner" hidden>
 <div>
-<b><span class="lang-en">🎓 14-Day Starter Sprint Complete!</span><span class="lang-zh" lang="zh-HK">🎓 完成14日衝刺！</span></b>
-<small id="finisherSub">Claim your commemorative pass &amp; optional prize registration.</small>
+<b><svg class="ui-ico sm" aria-hidden="true"><use href="#ico-sym-cap"/></svg><span class="lang-en">14-Day Sprint Complete!</span><span class="lang-zh" lang="zh-HK">完成14日衝刺！</span></b>
+<small id="finisherSub">Save your finisher passbook and optional prize entry.</small>
 </div>
-<button class="btn mini" id="openClaimBtn" type="button"><span class="lang-en">Claim &amp; Pass</span><span class="lang-zh" lang="zh-HK">領取證書</span></button>
+<button class="btn mini" id="openClaimBtn" type="button"><span class="lang-en">Open Passbook</span><span class="lang-zh" lang="zh-HK">打開證書</span></button>
 </div>
 </div>
 <div class="rm-block">
-<h3 class="subh"><span class="lang-en">Recent Check-in Calendar</span><span class="lang-zh" lang="zh-HK">最近打卡紀錄</span></h3>
+<h3 class="subh"><span class="lang-en">Recent Check-ins</span><span class="lang-zh" lang="zh-HK">最近打卡紀錄</span></h3>
 <div class="hist-grid" id="histGrid"></div>
 </div>
 <div class="rm-block">
-<h3 class="subh"><span class="lang-en">3D Landmarks Turntable</span><span class="lang-zh" lang="zh-HK">點選景物 360° 欣賞</span></h3>
-<p class="modal-intro lang-en">Every day you check in unlocks a hand-crafted 3D Hong Kong landmark — missed days never tear down what you built. Tap any piece to spin it up close.</p>
-<p class="modal-intro lang-zh" lang="zh-HK">每日打卡解鎖一件精緻3D香港景物，就算斷纜亦唔會拆屋。撳落任何一項即可360°近距離欣賞！</p>
+<h3 class="subh"><span class="lang-en">3D Landmarks Catalogue</span><span class="lang-zh" lang="zh-HK">點選景物 360° 近睇</span></h3>
+<p class="modal-intro lang-en">Each check-in unlocks a new clay landmark for your pier, and missed days never tear down what you built. Tap any piece below to spin it up close.</p>
+<p class="modal-intro lang-zh" lang="zh-HK">每次打卡都會為海傍添置一件手工黏土景物，斷纜亦唔會拆屋。點選下面任何一項都可以 360° 旋轉近睇。</p>
 <ul class="mile-list" id="mileList"></ul>
 </div>
 </div>
@@ -289,13 +407,13 @@
 <div class="sheet-handle" aria-hidden="true"></div>
 <div class="st-band">
 <div id="remindHead"><b class="lang-en">Daily Reminder &amp; App</b><b class="lang-zh" lang="zh-HK">防斷纜提醒</b></div>
-<button class="mclose" id="remindClose" type="button" aria-label="Close reminders">✕</button>
+<button class="mclose" id="remindClose" type="button" aria-label="Close reminders"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></button>
 </div>
 <div class="st-body">
 <div class="rm-block">
-<h3 class="subh"><span class="lang-en">1. Add Daily Calendar Alert (.ics)</span><span class="lang-zh" lang="zh-HK">1. 一鍵加每日行事曆提醒</span></h3>
-<p class="modal-intro lang-en">Pick your favourite 30-second check-in time (for example, right after dinner or before bed) and add a 30-day calendar reminder.</p>
-<p class="modal-intro lang-zh" lang="zh-HK">揀個每日最順手嘅時間（例如食完晚飯或者瞓前），一撳加入電話行事曆，就唔怕忘記！</p>
+<h3 class="subh"><span class="lang-en">1. Calendar Reminder (.ics)</span><span class="lang-zh" lang="zh-HK">1. 加每日行事曆提醒</span></h3>
+<p class="modal-intro lang-en">Pick an easy 30-second slot (after dinner or before bed works best) to add a 30-day calendar nudge.</p>
+<p class="modal-intro lang-zh" lang="zh-HK">揀一個每日最順手嘅時段（例如食完晚飯或者瞓前），加入30日電話行事曆提醒。</p>
 <div class="ics-row">
 <label for="icsTime"><span class="lang-en">Reminder time</span><span class="lang-zh" lang="zh-HK">提醒時間</span></label>
 <input id="icsTime" type="time" value="21:00">
@@ -304,17 +422,17 @@
 <p class="post-status" id="icsStatus" role="status" aria-live="polite"></p>
 </div>
 <div class="rm-block">
-<h3 class="subh"><span class="lang-en">2. Pin to Your Home Screen</span><span class="lang-zh" lang="zh-HK">2. 加到電話主畫面當App用</span></h3>
+<h3 class="subh"><span class="lang-en">2. Pin to Your Home Screen</span><span class="lang-zh" lang="zh-HK">2. 加到電話主畫面</span></h3>
 <div id="pwaInstallWrap" hidden>
 <button class="btn" id="pwaInstallBtn" type="button"><span class="lang-en">Install Harbour Keep App</span><span class="lang-zh" lang="zh-HK">安裝到主畫面</span></button>
 </div>
 <ol class="pwa-steps lang-en">
-<li><b>iPhone (Safari):</b> Tap the <b>Share</b> icon (□↑) at the bottom, then choose <b>Add to Home Screen</b>.</li>
-<li><b>Android (Chrome):</b> Tap the <b>⋮ menu</b> top-right, then choose <b>Add to Home screen / Install app</b>.</li>
+<li><b>iPhone (Safari):</b> Tap <b>Share</b> at the bottom, then pick <b>Add to Home Screen</b>.</li>
+<li><b>Android (Chrome):</b> Open the browser menu top-right, then pick <b>Add to Home screen / Install app</b>.</li>
 </ol>
 <ol class="pwa-steps lang-zh" lang="zh-HK">
-<li><b>iPhone (Safari)：</b>撳底部「分享」圖示（□↑），再揀「加至主畫面」。</li>
-<li><b>Android (Chrome)：</b>撳右上角「⋮ 選單」，再揀「加到主畫面 / 安裝應用程式」。</li>
+<li><b>iPhone (Safari)：</b>撳底部「分享」，再揀「加至主畫面」。</li>
+<li><b>Android (Chrome)：</b>撳右上角瀏覽器選單，再揀「加到主畫面 / 安裝應用程式」。</li>
 </ol>
 </div>
 </div>
@@ -324,29 +442,29 @@
 <div class="sheet">
 <div class="sheet-handle" aria-hidden="true"></div>
 <div class="st-band">
-<div id="syncHead"><b class="lang-en">Pass, Companion &amp; Settings</b><b class="lang-zh" lang="zh-HK">證書、拍檔與設定</b></div>
-<button class="mclose" id="syncClose" type="button" aria-label="Close pass and settings">✕</button>
+<div id="syncHead"><b class="lang-en">Passbook &amp; Settings</b><b class="lang-zh" lang="zh-HK">通行證、拍檔與設定</b></div>
+<button class="mclose" id="syncClose" type="button" aria-label="Close pass and settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></button>
 </div>
 <div class="st-body">
 <div class="rm-block">
-<h3 class="subh"><span class="lang-en">Display Language</span><span class="lang-zh" lang="zh-HK">顯示語言</span></h3>
+<h3 class="subh"><span class="lang-en">Language</span><span class="lang-zh" lang="zh-HK">顯示語言</span></h3>
 <div class="av-pick lang-pick" role="radiogroup" aria-label="Display language">
 <button class="av-opt lang-opt" type="button" role="radio" data-lang-opt="en" aria-checked="true">EN <small>English</small></button>
 <button class="av-opt lang-opt" type="button" role="radio" data-lang-opt="zh" aria-checked="false">粵 <small lang="zh-HK">廣東話</small></button>
 </div>
 </div>
 <div class="rm-block">
-<h3 class="subh"><span class="lang-en">Harbour Companion</span><span class="lang-zh" lang="zh-HK">揀個海傍拍檔</span></h3>
+<h3 class="subh"><span class="lang-en">Harbour Companion</span><span class="lang-zh" lang="zh-HK">海傍拍檔</span></h3>
 <div class="av-pick" role="radiogroup" aria-label="Harbour companion">
-<button class="av-opt" type="button" role="radio" data-av="crab" aria-checked="true"><span class="lang-en">🦀 Crab</span><span class="lang-zh" lang="zh-HK">🦀 蟹仔</span></button>
-<button class="av-opt" type="button" role="radio" data-av="jack" aria-checked="false"><span class="lang-en">🧑 Jack</span><span class="lang-zh" lang="zh-HK">🧑 阿Jack</span></button>
-<button class="av-opt" type="button" role="radio" data-av="jackie" aria-checked="false"><span class="lang-en">👩 Jackie</span><span class="lang-zh" lang="zh-HK">👩 Jackie</span></button>
+<button class="av-opt" type="button" role="radio" data-av="crab" aria-checked="true"><svg class="av-ico" aria-hidden="true"><use href="#ico-sym-crab"/></svg><span class="lang-en">Crab</span><span class="lang-zh" lang="zh-HK">蟹仔</span></button>
+<button class="av-opt" type="button" role="radio" data-av="jack" aria-checked="false"><svg class="av-ico" aria-hidden="true"><use href="#ico-sym-jack"/></svg><span class="lang-en">Jack</span><span class="lang-zh" lang="zh-HK">阿Jack</span></button>
+<button class="av-opt" type="button" role="radio" data-av="jackie" aria-checked="false"><svg class="av-ico" aria-hidden="true"><use href="#ico-sym-jackie"/></svg><span class="lang-en">Jackie</span><span class="lang-zh" lang="zh-HK">Jackie</span></button>
 </div>
 </div>
 <div class="rm-block">
-<h3 class="subh"><span class="lang-en">Your Sync Code</span><span class="lang-zh" lang="zh-HK">跨裝置備份碼</span></h3>
-<p class="modal-intro lang-en">Save this code if you switch phones or clear browser data.</p>
-<p class="modal-intro lang-zh" lang="zh-HK">換手機或清瀏覽器記錄前抄低呢組碼，隨時還原進度！</p>
+<h3 class="subh"><span class="lang-en">Backup Sync Code</span><span class="lang-zh" lang="zh-HK">跨裝置備份碼</span></h3>
+<p class="modal-intro lang-en">Keep this code handy before changing phones or clearing browser storage.</p>
+<p class="modal-intro lang-zh" lang="zh-HK">換手機或清瀏覽器紀錄前抄低呢組碼，隨時還原海傍進度。</p>
 <div class="sync-row">
 <code class="sync-code" id="syncCodeText">CRAB-••••-••••</code>
 <button class="btn alt mini" id="copySyncBtn" type="button"><span class="lang-en">Copy</span><span class="lang-zh" lang="zh-HK">複製</span></button>
@@ -359,38 +477,38 @@
 <p class="post-status" id="syncStatus" role="status" aria-live="polite"></p>
 </div>
 <div class="rm-block">
-<h3 class="subh"><span class="lang-en">Day-14 Starter Sprint Pass &amp; Claim</span><span class="lang-zh" lang="zh-HK">14日衝刺完成證書與登記</span></h3>
-<p class="modal-intro" id="claimLockNote">Complete 14 check-in days to unlock your 3D Commemorative Pass &amp; finisher entry!</p>
+<h3 class="subh"><span class="lang-en">Day-14 Passbook &amp; Claim</span><span class="lang-zh" lang="zh-HK">14日完成證書與登記</span></h3>
+<p class="modal-intro" id="claimLockNote">Finish 14 check-in days to unlock your 3D Commemorative Passbook and finisher entry.</p>
 <form class="claim-form" id="claimForm">
 <div class="fld">
 <label for="claimName"><span class="lang-en">Nickname <span class="opt">(optional)</span></span><span class="lang-zh" lang="zh-HK">暱稱 <span class="opt">（選填）</span></span></label>
 <input id="claimName" type="text" maxlength="16" placeholder="e.g. Ming">
 </div>
 <div class="fld">
-<label for="claimEmail"><span class="lang-en">Email <span class="opt">(private, for finisher prize/certificate)</span></span><span class="lang-zh" lang="zh-HK">電郵 <span class="opt">（保密，僅作領獎及證書聯絡）</span></span></label>
+<label for="claimEmail"><span class="lang-en">Email <span class="opt">(private, for finisher prize &amp; pass)</span></span><span class="lang-zh" lang="zh-HK">電郵 <span class="opt">（保密，僅作領獎及證書聯絡）</span></span></label>
 <input id="claimEmail" type="email" maxlength="120" placeholder="you@example.com">
 </div>
 <div class="fld">
-<label for="claimNote"><span class="lang-en">One habit I'm keeping <span class="opt">(optional)</span></span><span class="lang-zh" lang="zh-HK">最想保持嘅一個習慣 <span class="opt">（選填）</span></span></label>
+<label for="claimNote"><span class="lang-en">One habit I'm keeping <span class="opt">(optional)</span></span><span class="lang-zh" lang="zh-HK">最想保持嘅習慣 <span class="opt">（選填）</span></span></label>
 <input id="claimNote" type="text" maxlength="160" placeholder="e.g. Autopay credit card in full">
 </div>
 <div class="claim-acts">
-<button class="btn" id="claimSubmitBtn" type="submit"><span class="lang-en">Save / Claim</span><span class="lang-zh" lang="zh-HK">儲存登記</span></button>
+<button class="btn" id="claimSubmitBtn" type="submit"><span class="lang-en">Save Details</span><span class="lang-zh" lang="zh-HK">儲存登記</span></button>
 <button class="btn green" id="certBtn" type="button" hidden><span class="lang-en">Download 3D Day-14 Pass</span><span class="lang-zh" lang="zh-HK">下載3D證書</span></button>
 </div>
 </form>
 <p class="post-status" id="claimStatus" role="status" aria-live="polite"></p>
 </div>
 <div class="drawer-foot">
-<p class="lang-en"><b>3 Fall Crab</b> team · HSUHK Personal Finance Ambassador Programme 2026. Daily check-ins sync anonymously via your device key and Sync Code; optional nickname &amp; email are used only for Day-14 prize follow-up and never shown publicly. Questions? Email <a href="mailto:team@3fallcrab.com">team@3fallcrab.com</a>.</p>
+<p class="lang-en"><b>3 Fall Crab</b> team · HSUHK Personal Finance Ambassador Programme 2026. Check-ins sync anonymously via your device key and Sync Code; optional nickname and email are only used for Day-14 prize follow-up and never shown publicly. Questions? Email <a href="mailto:team@3fallcrab.com">team@3fallcrab.com</a>.</p>
 <p class="lang-zh" lang="zh-HK"><b>3 Fall Crab 整冧咗</b>團隊 · 恒生大學個人理財大使計劃 2026。每日理財打卡只作個人習慣追蹤及活動成效統計；除非你喺完成14日衝刺後主動填寫電郵領獎，否則唔會收集個人聯絡資料。如有私隱查詢請電郵至 <a href="mailto:team@3fallcrab.com">team@3fallcrab.com</a>。</p>
 </div>
 </div>
 </div>
 </div>
-<script src="/assets/daily3d.7da29b2368.js"></script>
+<script src="/assets/daily3d.ed50d8f572.js"></script>
 <script src="/assets/daily-audio.45d5274219.js"></script>
-<script src="/assets/daily-content.ca3f618a58.js"></script>
-<script src="/assets/daily.121da5819c.js"></script>
+<script src="/assets/daily-content.4bd4d41afc.js"></script>
+<script src="/assets/daily.a801f4c864.js"></script>
 </body>
 </html>

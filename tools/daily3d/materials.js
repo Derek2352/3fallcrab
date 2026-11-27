@@ -819,34 +819,34 @@ export function makeStudioEnv(sky = "day") {
 }
 
 export function makeSkyTex(sky = "day") {
-  const stops = {
-    day: [
-      [0.0, "#4ca9e6"],
-      [0.36, "#7fd0f7"],
-      [0.54, "#c9f0f7"],
-      [0.72, "#d8f5ec"],
-      [1.0, "#66b8c7"],
-    ],
-    dusk: [
-      [0.0, "#3b3275"],
-      [0.28, "#8e589a"],
-      [0.48, "#f08a6d"],
-      [0.64, "#ffd08a"],
-      [1.0, "#4a4375"],
-    ],
-    night: [
-      [0.0, "#0b112c"],
-      [0.34, "#16214f"],
-      [0.54, "#293875"],
-      [0.72, "#202e63"],
-      [1.0, "#0d1633"],
-    ],
-  }[sky] || [];
-  return makeCanvas(32, 256, (g, w, h) => {
+  const cfgs = {
+    day: {
+      stops: [[0.0, "#4ca9e6"], [0.34, "#7cd0f5"], [0.5, "#c9eef6"], [0.68, "#d9f4eb"], [1.0, "#63b7c6"]],
+      haze: "rgba(255,250,238,0.34)",
+    },
+    dusk: {
+      stops: [[0.0, "#382f72"], [0.27, "#8e589a"], [0.48, "#f08a6d"], [0.64, "#ffd18c"], [1.0, "#4a4375"]],
+      haze: "rgba(255,218,162,0.3)",
+    },
+    night: {
+      stops: [[0.0, "#0b112c"], [0.34, "#16214f"], [0.53, "#273774"], [0.7, "#1f2e62"], [1.0, "#0c1532"]],
+      haze: "rgba(110,162,235,0.18)",
+    },
+  };
+  const cfg = cfgs[sky] || cfgs.day;
+  return makeCanvas(64, 512, (g, w, h) => {
     const gr = g.createLinearGradient(0, 0, 0, h);
-    for (const [at, col] of stops) gr.addColorStop(at, col);
+    for (const [at, col] of cfg.stops) gr.addColorStop(at, col);
     g.fillStyle = gr;
     g.fillRect(0, 0, w, h);
+
+    // Silky-smooth horizon atmospheric haze ribbon (zero polygon staircase artifacts)
+    const mist = g.createLinearGradient(0, h * 0.42, 0, h * 0.62);
+    mist.addColorStop(0, "rgba(255,255,255,0)");
+    mist.addColorStop(0.55, cfg.haze);
+    mist.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = mist;
+    g.fillRect(0, h * 0.42, w, h * 0.2);
   });
 }
 
@@ -1197,6 +1197,38 @@ export function latheGeo(pairs, segs = 24) {
 export function tubeGeo(pts, radius, tubularSegs = 20, radialSegs = 8, closed = false) {
   const curve = new CatmullRomCurve3(pts.map((p) => (p instanceof Vector3 ? p : new Vector3(p[0], p[1], p[2]))), closed);
   return new TubeGeometry(curve, tubularSegs, radius, radialSegs, closed);
+}
+
+// Deterministic hand-pinched clay vertex sculpting (position-continuous so UV seams never split).
+export function sculptGeo(geo, amp = 0.04, freq = 2.6, seed = 1, opts = {}) {
+  const pos = geo.attributes.position;
+  if (!pos) return geo;
+  let minY = Infinity;
+  if (opts.flatBottom) {
+    for (let i = 0; i < pos.count; i++) {
+      const py = pos.getY(i);
+      if (py < minY) minY = py;
+    }
+  }
+  const yScale = opts.yScale ?? 0.82;
+  const s1 = seed * 1.73, s2 = seed * 2.31, s3 = seed * 3.17;
+  for (let i = 0; i < pos.count; i++) {
+    const px = pos.getX(i);
+    const py = pos.getY(i);
+    const pz = pos.getZ(i);
+    const wave =
+      Math.sin(px * freq + s1) * Math.cos(py * freq * 1.13 + s2)
+      + 0.45 * Math.sin((pz - px) * freq * 1.67 + s3)
+      + 0.28 * Math.cos((py + pz) * freq * 2.05 - seed * 0.9);
+    const len = Math.hypot(px, py, pz) || 1;
+    const d = wave * amp * 0.65;
+    let ny = py + (py / len) * d * yScale;
+    if (opts.flatBottom && py <= minY + 0.04) ny = py;
+    pos.setXYZ(i, px + (px / len) * d, ny, pz + (pz / len) * d);
+  }
+  pos.needsUpdate = true;
+  geo.computeVertexNormals();
+  return geo;
 }
 
 export function mesh(geo, mat, opts = {}) {

@@ -81,10 +81,10 @@
   const DAY0_INFO = {
     day: 0,
     prop: "crab",
-    en: "3 Fall Crab & Starter Harbour Island",
-    zh: "蟹仔與起步碼頭小島",
-    descEn: "Your floating clay Victoria Harbour island and cheerful 3 Fall Crab — ready to grow one steady day at a time.",
-    descZh: "漂浮喺維港海面嘅黏土碼頭同開朗蟹仔，陪你一日一步慢慢起好小天地。",
+    en: "3 Fall Crab & Starter Pier",
+    zh: "蟹仔與起步碼頭",
+    descEn: "Your clay Victoria Harbour pier and 3 Fall Crab mascot, ready to grow one steady day at a time.",
+    descZh: "漂浮喺維港海面嘅黏土碼頭同開朗蟹仔，陪你一日一步慢慢起好呢座小天地。",
   };
 
   function floorLabelFor(days) {
@@ -221,9 +221,30 @@
     if (A && typeof A.isMuted === "function") syncMuteBtn(A.isMuted());
   }
 
-  function sayTalk(en, zh) {
+  function svgUse(symId, cls = "ui-ico") {
+    const NS = "http://www.w3.org/2000/svg";
+    const s = document.createElementNS(NS, "svg");
+    s.setAttribute("class", cls);
+    s.setAttribute("aria-hidden", "true");
+    const u = document.createElementNS(NS, "use");
+    u.setAttribute("href", "#" + symId);
+    s.appendChild(u);
+    return s;
+  }
+
+  let talkTimer = 0;
+  function sayTalk(en, zh, holdMs = 4500) {
     $("talkEn").textContent = en;
     $("talkZh").textContent = zh;
+    const pill = $("pierTalk");
+    if (!pill) return;
+    pill.classList.remove("is-quiet");
+    clearTimeout(talkTimer);
+    if (holdMs > 0) {
+      talkTimer = setTimeout(() => {
+        pill.classList.add("is-quiet");
+      }, holdMs);
+    }
   }
 
   function addStamp(en, zh, cls = "good") {
@@ -313,14 +334,14 @@
             const m = milestoneInfo(tappedDay);
             setMood("happy", 1800);
             sayTalk(
-              `Day ${m.day}: ${m.en} — Tap "3D Inspect" to spin it up close!`,
-              `第${m.day}日：${m.zh} — 撳「3D賞物」即可近距離360°旋轉欣賞！`,
+              `Day ${m.day}: ${m.en}. Tap "Closer Look" to spin it up close.`,
+              `第${m.day}日：${m.zh}。撳「近睇模型」可以 360° 近距離旋轉欣賞。`,
             );
           } else {
             setMood("happy", 1400);
             sayTalk(
-              "One small habit a day stacks taller than giant promises once a year!",
-              "每日一個細習慣，疊起上嚟勁過一年一次空口講白話！",
+              "One small habit a day outlasts big promises made once a year.",
+              "每日一個小習慣，疊起上嚟勁過一年講一次宏願。",
             );
           }
         },
@@ -354,8 +375,9 @@
     }
     const m = milestoneInfo(targetDay);
     sayTalk(
-      locked ? `Previewing Day ${m.day}: ${m.en} (swipe 360°!)` : `Inspecting Day ${m.day}: ${m.en} (swipe 360°!)`,
-      locked ? `預覽第${m.day}日：${m.zh}（可360°旋轉預覽！）` : `近距離欣賞第${m.day}日：${m.zh}（可360°自由旋轉！）`,
+      locked ? `Previewing Day ${m.day}: ${m.en}` : `Inspecting Day ${m.day}: ${m.en}`,
+      locked ? `預覽第${m.day}日：${m.zh}` : `近睇第${m.day}日：${m.zh}`,
+      3600,
     );
     renderModeUI();
   }
@@ -409,7 +431,7 @@
     $("inspectBar").hidden = !inInspect;
     $("inspectToggleBtn").hidden = rescueActive || inInspect;
     $("inspectToggleBtn").setAttribute("aria-pressed", String(inInspect));
-    $("inspectToggleText").textContent = "3D Inspect";
+    $("inspectToggleText").textContent = "Closer Look";
 
     // Nav tab active indicator
     $("navPier").classList.toggle("active", !inInspect);
@@ -424,7 +446,10 @@
       $("inspectDayPill").textContent = t(`Day ${String(m.day).padStart(2, "0")} · ${fl}`, `第${m.day}日 · ${fl}`);
       const st = $("inspectStatusPill");
       st.className = "inspect-status " + (locked ? "locked" : "unlocked");
-      st.textContent = locked ? t(`🔒 Unlocks Day ${m.day}`, `🔒 第${m.day}日解鎖`) : t("✓ Unlocked", "✓ 已解鎖");
+      st.replaceChildren(
+        svgUse(locked ? "ico-sym-lock" : "ico-sym-check", "ui-ico xs"),
+        document.createTextNode(locked ? t(`Unlocks Day ${m.day}`, `第${m.day}日解鎖`) : t("Unlocked", "已解鎖")),
+      );
       $("inspectTitleEn").textContent = m.en;
       $("inspectTitleZh").textContent = m.zh;
       $("inspectDescEn").textContent = m.descEn;
@@ -452,7 +477,7 @@
     $("hudMode").textContent = days >= 14 ? t("Infinite Keep", "無限擴建") : t("Starter Sprint", "14日新手衝刺");
     $("hudBest").textContent = t(`Best ${p.bestStreak || 0}d`, `最佳 ${p.bestStreak || 0} 日`);
 
-    // Sprint Track 1..14 inside 3D Collection Sheet (every chip clicks directly into 3D Inspect!)
+    // Sprint Track 1..14 inside Field Guide Sheet (every chip clicks directly into 3D Inspect)
     $("sprintProg").textContent = `${Math.min(14, days)} / 14`;
     const nodes = [];
     for (let i = 1; i <= 14; i++) {
@@ -463,11 +488,18 @@
       btn.className = "sprint-chip" + (i <= days ? " done" : i === days + 1 ? " next" : "");
       const m = D.milestoneFor(i);
       btn.title = t(m.en, m.zh);
-      btn.setAttribute("aria-label", t(`Day ${i}: ${m.en} — Inspect in 3D`, `第${i}日：${m.zh} — 3D旋轉欣賞`));
+      btn.setAttribute("aria-label", t(`Day ${i}: ${m.en}, inspect in 3D`, `第${i}日：${m.zh}，近睇3D模型`));
       const num = document.createElement("b");
-      num.textContent = i === 7 ? "7 🛟" : i === 14 ? "14 🎓" : String(i);
+      num.textContent = String(i);
+      if (i === 7 || i === 14) {
+        num.append(" ", svgUse(i === 7 ? "ico-sym-buoy" : "ico-sym-cap", "ui-ico xs"));
+      }
       const st = document.createElement("span");
-      st.textContent = i <= days ? "✓" : i === days + 1 ? t("Next", "下個") : "3D";
+      if (i <= days) {
+        st.append(svgUse("ico-sym-check", "ui-ico xs"));
+      } else {
+        st.textContent = i === days + 1 ? t("Next", "下個") : "3D";
+      }
       btn.append(num, st);
       btn.addEventListener("click", () => {
         closeModal(true);
@@ -543,15 +575,15 @@
       $("qAsk").hidden = true;
       $("qDone").hidden = false;
       $("doneHead").className = "oc-head good";
-      $("doneTitle").textContent = log.status === "rescued" ? "Checked in via 60s Action!" : "Checked in for today!";
+      $("doneTitle").textContent = log.status === "rescued" ? "Checked in with 60s fix!" : "Checked in for today!";
       $("doneTitleZh").textContent = log.status === "rescued" ? "60秒即場補救打卡成功！" : "今日打卡成功！";
       $("skipRescueWrap").hidden = true;
       $("inspectTodayBtn").hidden = false;
       const left = hktMidnightLeft();
-      $("nextCountdown").textContent = t(`Next daily question in ${left} (HKT midnight)`, `下一題仲有 ${left}（香港時間午夜更新）`);
-      $("collapsedIco").textContent = "✓";
-      $("collapsedLabelEn").textContent = `Day ${log.day_num} Checked in · View Tip`;
-      $("collapsedLabelZh").textContent = `已完成第${log.day_num}日打卡 · 展開睇貼士`;
+      $("nextCountdown").textContent = t(`Next question in ${left} (HKT midnight)`, `下一題仲有 ${left}（香港時間午夜更新）`);
+      $("collapsedIco").replaceChildren(svgUse("ico-sym-check", "ui-ico sm"));
+      $("collapsedLabelEn").textContent = `Day ${log.day_num} Checked in · View Note`;
+      $("collapsedLabelZh").textContent = `已完成第${log.day_num}日打卡 · 展開睇筆記`;
     } else if (rescueActive) {
       card.classList.remove("is-done");
       $("qAsk").hidden = true;
@@ -561,23 +593,23 @@
       $("qAsk").hidden = true;
       $("qDone").hidden = false;
       $("doneHead").className = "oc-head skip";
-      $("doneTitle").textContent = "Honest check-in paused for today";
-      $("doneTitleZh").textContent = "今日先休息一陣，聽日再試！";
+      $("doneTitle").textContent = "Resting for today";
+      $("doneTitleZh").textContent = "今日先抖一抖，聽日再試";
       $("skipRescueWrap").hidden = false;
       $("inspectTodayBtn").hidden = true;
       const left = hktMidnightLeft();
       $("nextCountdown").textContent = t(
-        `You can still do the 60s rescue before HKT midnight (${left} left).`,
+        `Quick 60s fix stays open until HKT midnight (${left} left).`,
         `午夜前仲可以做60秒補救打卡（仲有 ${left}）。`,
       );
-      $("collapsedIco").textContent = "⏱";
-      $("collapsedLabelEn").textContent = "Today paused · Tap for 60s Rescue";
-      $("collapsedLabelZh").textContent = "今日暫停 · 撳入做60秒補救打卡";
+      $("collapsedIco").replaceChildren(svgUse("ico-sym-timer", "ui-ico sm"));
+      $("collapsedLabelEn").textContent = "Resting today · Tap for 60s fix";
+      $("collapsedLabelZh").textContent = "今日休息 · 撳入做60秒補救";
     } else {
       card.classList.remove("is-done");
       $("qAsk").hidden = false;
       $("qDone").hidden = true;
-      $("collapsedIco").textContent = "🌱";
+      $("collapsedIco").replaceChildren(svgUse("ico-sym-sprout", "ui-ico sm"));
       $("collapsedLabelEn").textContent = `Today's Check-in · Day ${String(dayNum).padStart(2, "0")}`;
       $("collapsedLabelZh").textContent = `今日打卡 · 第${dayNum}日題目`;
     }
@@ -733,15 +765,15 @@
     } catch {
       state.pending = [{ action: "checkin", qid, firstPick, status }];
       saveLocal();
-      $("saveStatus").textContent = t("Saved on this device — will sync next time online.", "已暫存於此裝置，下次上網時自動同步。");
+      $("saveStatus").textContent = t("Saved on this phone; it will sync when back online.", "已暫存於手機，恢復連線後自動同步。");
       $("saveStatus").className = "save-status";
     }
 
     if (status === "skipped") {
       sfx("cardClose");
       sayTalk(
-        "Honest reflection counts too! Tap below anytime before midnight if you manage the 60s action.",
-        "坦白面對都係一步！今日午夜前做到60秒行動隨時可以補救打卡！",
+        "Honest tracking counts too. The 60s fix stays open until midnight.",
+        "坦白面對都係一步。午夜前做到60秒小行動隨時補救打卡。",
       );
       $("shieldNotice").hidden = true;
     } else {
@@ -767,23 +799,23 @@
       }
 
       addStamp(
-        res.sprintJustDone ? "14 DAYS COMPLETE! 🎓" : (status === "rescued" ? "60s RESCUE! ✓" : "CHECKED IN! ✓"),
-        res.sprintJustDone ? "14日衝刺完成！🎓" : (status === "rescued" ? "60秒補救打卡！✓" : "今日打卡成功！✓"),
+        res.sprintJustDone ? "14 DAYS COMPLETE!" : (status === "rescued" ? "60s FIX COMPLETE" : "CHECKED IN"),
+        res.sprintJustDone ? "14日衝刺完成！" : (status === "rescued" ? "60秒補救打卡！" : "今日打卡成功！"),
         res.sprintJustDone ? "gold" : "good",
       );
-      sayTalk(`Unlocked Day ${days}: ${m.en}!`, `解鎖第${days}日：${m.zh}！`);
+      sayTalk(`Unlocked Day ${days}: ${m.en}`, `解鎖第${days}日：${m.zh}`);
 
       const notes = [];
       if (res.shieldSaved) {
         notes.push(t(
-          `🛟 Insurance Net saved your streak across ${res.shieldSaved} missed day${res.shieldSaved > 1 ? "s" : ""}!`,
-          `🛟 保險網幫你遮擋咗 ${res.shieldSaved} 日斷纜，保住連勝！`,
+          `Insurance Net saved your streak across ${res.shieldSaved} missed day${res.shieldSaved > 1 ? "s" : ""}.`,
+          `保險網幫你遮擋咗 ${res.shieldSaved} 日斷纜，保住連勝！`,
         ));
       }
       if (res.earnedShield) {
         notes.push(t(
-          "🛟 Bonus! 7-day streak earned you an Insurance Net Streak Shield!",
-          "🛟 獎勵！連勝7日送你一個「保險網」防斷纜護盾！",
+          "Bonus: your 7-day streak earned an Insurance Net Shield.",
+          "獎勵：連勝7日送你一個「保險網」防斷纜護盾！",
         ));
       }
       $("shieldNotice").textContent = notes.join(" ");
@@ -828,8 +860,8 @@
     else {
       sfx("rescueStart");
       sayTalk(
-        "Honesty is step 1! Take 60 seconds right now to turn today around.",
-        "肯面對已經贏咗一半！用60秒即刻做個小補救，一樣可以打卡！",
+        "No problem. Take 60 seconds right now to turn today around.",
+        "唔緊要，用60秒即刻做個小補救，一樣可以打卡。",
       );
       startRescue();
     }
@@ -840,8 +872,8 @@
     else {
       sfx("rescueStart");
       sayTalk(
-        "No worries at all — take 60 seconds for this micro-action and earn today's 3D piece!",
-        "唔緊要！用60秒即刻做一次呢個微行動，一樣可以今日打卡解鎖3D景物！",
+        "No problem. Try this 60-second action now to place today's piece.",
+        "唔緊要！用60秒做一次微行動，一樣可以打卡解鎖今日景物。",
       );
       startRescue();
     }
@@ -1046,13 +1078,13 @@
     $("histGrid").replaceChildren(...(logs.length ? logs.slice(0, 28).map((l) => {
       const s = document.createElement("span");
       s.className = "hist-dot " + l.status;
-      s.textContent = `${l.day_date.slice(5)} · ${l.status === "direct" ? "✓" : l.status === "rescued" ? "⏱✓" : "–"}`;
+      s.textContent = `${l.day_date.slice(5)} · ${l.status === "direct" ? t("Done", "打卡") : l.status === "rescued" ? t("60s fix", "補救") : t("Rest", "休息")}`;
       return s;
     }) : [Object.assign(document.createElement("p"), {
       className: "modal-intro",
       textContent: t(
-        "No check-ins recorded yet — answer today's question to place Day 1!",
-        "仲未有紀錄 — 答今日第一題即刻放上第1日景物！",
+        "No entries yet. Answer today's card to place your Day 1 landmark.",
+        "仲未有紀錄，答今日第一題就放到第1日景物。",
       ),
     })]));
 
@@ -1074,7 +1106,10 @@
       body.append(b, sm);
       const go = document.createElement("span");
       go.className = "mile-go";
-      go.textContent = unlocked ? "3D ↻" : "🔒 3D";
+      go.append(
+        svgUse(unlocked ? "ico-sym-loupe" : "ico-sym-lock", "ui-ico xs"),
+        document.createTextNode(unlocked ? t("Spin", "旋轉") : "3D"),
+      );
       btn.append(badge, body, go);
       btn.addEventListener("click", () => {
         closeModal(true);
@@ -1262,33 +1297,62 @@
     c.width = 1080; c.height = 1350;
     const g = c.getContext("2d");
 
-    // Coastal Forest-meets-3-Fall-Crab Commemorative Pass background
+    // Warm HK Passbook Commemorative Card
     const bg = g.createLinearGradient(0, 0, 0, 1350);
     bg.addColorStop(0, "#14968B");
-    bg.addColorStop(1, "#0E5C63");
+    bg.addColorStop(1, "#0D565E");
     g.fillStyle = bg;
     g.fillRect(0, 0, 1080, 1350);
 
-    // Warm cream main pass card
+    // Warm cream main passbook sheet + inner double border
     g.save();
     g.shadowColor = "rgba(10,30,40,0.28)";
     g.shadowBlur = 36;
     g.shadowOffsetY = 14;
-    g.fillStyle = "#FFFDF7";
+    g.fillStyle = "#FFF8EC";
     g.beginPath();
-    g.roundRect(64, 64, 952, 1222, 46);
+    g.roundRect(64, 64, 952, 1222, 42);
     g.fill();
     g.restore();
 
-    // Top coral-teal celebratory ribbon
+    g.strokeStyle = "#DECFAF";
+    g.lineWidth = 3;
+    g.beginPath();
+    g.roundRect(84, 84, 912, 1182, 30);
+    g.stroke();
+
+    // Top coral celebratory ribbon
     g.save();
     g.beginPath();
-    g.roundRect(64, 64, 952, 174, [46, 46, 20, 20]);
+    g.roundRect(64, 64, 952, 174, [42, 42, 16, 16]);
     const rib = g.createLinearGradient(64, 64, 1016, 238);
     rib.addColorStop(0, "#FF7B35");
-    rib.addColorStop(1, "#E35325");
+    rib.addColorStop(1, "#D84D18");
     g.fillStyle = rib;
     g.fill();
+    g.restore();
+
+    // Perforated ticket seam below photo + traditional HK red ink stamp chop
+    g.save();
+    g.setLineDash([12, 10]);
+    g.strokeStyle = "#D4C29F";
+    g.lineWidth = 3;
+    g.beginPath(); g.moveTo(106, 1154); g.lineTo(974, 1154); g.stroke();
+    g.restore();
+
+    g.save();
+    g.translate(876, 978);
+    g.rotate(-0.14);
+    g.strokeStyle = "#C9352B";
+    g.lineWidth = 5;
+    g.beginPath(); g.roundRect(-72, -38, 144, 76, 12); g.stroke();
+    g.fillStyle = "#C9352B";
+    g.textAlign = "center";
+    g.textBaseline = "middle";
+    g.font = '900 22px "Noto Sans HK",sans-serif';
+    g.fillText("海傍印記", 0, -11);
+    g.font = '900 18px "Gluten",sans-serif';
+    g.fillText(`DAY ${state.profile.totalDays}`, 0, 16);
     g.restore();
 
     g.textAlign = "center";
@@ -1406,6 +1470,7 @@
 
   mount3D();
   renderAll();
+  sayTalk("Drag to spin the harbour, or answer today's card below.", "左右拖曳轉動維港，答下面今日一題。", 4200);
   initSession();
   // Pre-warm Cantonese webfont silently after mount so switching to 粵 swaps with zero paint delay
   if (document.fonts && typeof document.fonts.load === "function") {

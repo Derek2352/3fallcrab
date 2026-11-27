@@ -1,5 +1,5 @@
-const CACHE = "tff-39265f851936";
-const PRECACHE = ["/","/manifest.webmanifest","/icons/favicon-32.png","/icons/icon-192.png","/vendor/qrcode-1.4.4.js","/assets/style.053e298567.css","/assets/matter-0.19.0.min.d9be33d851.js","/assets/prelude.552885b01c.js","/assets/game.5fc51d7057.js","/assets/intro.90d95fea3c.js","/assets/cast.1b7cde7a64.webp","/assets/gluten.ab14bb3aa5.woff2","/assets/lxgw-wenkai-tc-bold.8f0b1985a4.woff2","/assets/lxgw-wenkai-tc-regular.138885e686.woff2","/assets/noto-sans-hk.3fff491cf3.woff2","/assets/source-sans-punct-400.f1e8c6c73b.woff2","/assets/source-sans-punct-700.54c4ee4dfe.woff2","/assets/source-sans-punct-900.622c4a765b.woff2"];
+const CACHE = "tff-c5f1acf3b635";
+const PRECACHE = ["/","/manifest.webmanifest","/icons/favicon-32.png","/icons/icon-192.png","/vendor/qrcode-1.4.4.js","/assets/style.e91a8ddec6.css","/assets/matter-0.19.0.min.d9be33d851.js","/assets/prelude.552885b01c.js","/assets/game.5fc51d7057.js","/assets/intro.90d95fea3c.js","/assets/cast.1b7cde7a64.webp","/assets/gluten.390fd459df.woff2","/assets/lxgw-wenkai-tc-bold.43fb2d4312.woff2","/assets/lxgw-wenkai-tc-regular.1bdf0f5691.woff2","/assets/noto-sans-hk.c47f544e2b.woff2","/assets/source-sans-punct-400.f1e8c6c73b.woff2","/assets/source-sans-punct-700.54c4ee4dfe.woff2","/assets/source-sans-punct-900.622c4a765b.woff2"];
 self.addEventListener("install", (event) => {
 event.waitUntil(
 caches.open(CACHE)

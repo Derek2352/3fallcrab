@@ -40,6 +40,7 @@ import {
   makeSkyTex,
   makeStudioEnv,
   mesh,
+  sculptGeo,
   tubeGeo,
 } from "./materials.js";
 import {
@@ -221,39 +222,42 @@ function buildSkyAtmosphere(kit) {
   const dome = new Mesh(new SphereGeometry(46, 32, 20), domeMat);
   g.add(dome);
 
-  // 6 Sculpted Fluffy 3D Clay Clouds drifting peacefully behind the harbour skyline!
-  const cloudMat = kit.clay(0xfffdf8, { rough: 0.65, noBump: true });
+  // 5 Sculpted Fluffy 3D Clay Clouds flanking the harbour skyline (hidden in Solo Inspect)
+  const cloudMat = kit.clay(0xfffdf8, { rough: 0.68, noBump: true }).clone();
+  cloudMat.fog = false;
+  const cloudsGroup = new Group();
+  g.add(cloudsGroup);
   const clouds = [];
   const cloudSpots = [
-    { a: 0.35, r: 24, y: 3.4, s: 1.35 },
-    { a: 1.45, r: 26, y: 5.6, s: 1.15 },
-    { a: 2.55, r: 25, y: 2.8, s: 1.3 },
-    { a: 3.75, r: 27, y: 4.8, s: 1.25 },
-    { a: 4.85, r: 24, y: 3.8, s: 1.1 },
-    { a: 5.75, r: 26, y: 6.2, s: 1.0 },
+    { a: 0.48, r: 19.2, y: -0.4, s: 0.95 },
+    { a: 1.85, r: 20.0, y: 0.2, s: 0.9 },
+    { a: 2.85, r: 19.4, y: -0.5, s: 0.92 },
+    { a: 3.72, r: 19.8, y: -0.1, s: 0.95 },
+    { a: 5.58, r: 18.8, y: 0.1, s: 0.88 },
   ];
-  cloudSpots.forEach((cs) => {
+  cloudSpots.forEach((cs, idx) => {
     const cg = new Group();
     cg.add(
-      mesh(new SphereGeometry(1.15, 14, 12), cloudMat, { scale: [1.3, 0.78, 0.92], cast: false, recv: false }),
-      mesh(new SphereGeometry(0.85, 12, 10), cloudMat, { pos: [1.0, -0.1, 0.15], scale: [1.1, 0.75, 0.85], cast: false, recv: false }),
-      mesh(new SphereGeometry(0.78, 12, 10), cloudMat, { pos: [-0.95, -0.15, -0.1], scale: [1.15, 0.72, 0.88], cast: false, recv: false }),
-      mesh(new SphereGeometry(0.68, 12, 10), cloudMat, { pos: [0.22, 0.45, -0.05], scale: [1.1, 0.82, 0.85], cast: false, recv: false }),
+      mesh(sculptGeo(new SphereGeometry(1.15, 14, 12), 0.11, 1.9, 10 + idx, { flatBottom: true, yScale: 0.55 }), cloudMat, { scale: [1.35, 0.72, 0.92], cast: false, recv: false }),
+      mesh(sculptGeo(new SphereGeometry(0.85, 12, 10), 0.08, 2.2, 20 + idx, { flatBottom: true, yScale: 0.55 }), cloudMat, { pos: [1.0, -0.08, 0.15], scale: [1.14, 0.7, 0.85], cast: false, recv: false }),
+      mesh(sculptGeo(new SphereGeometry(0.78, 12, 10), 0.08, 2.4, 30 + idx, { flatBottom: true, yScale: 0.55 }), cloudMat, { pos: [-0.95, -0.12, -0.1], scale: [1.18, 0.68, 0.88], cast: false, recv: false }),
+      mesh(sculptGeo(new SphereGeometry(0.68, 12, 10), 0.07, 2.6, 40 + idx), cloudMat, { pos: [0.22, 0.42, -0.05], scale: [1.1, 0.8, 0.85], cast: false, recv: false }),
     );
     cg.scale.setScalar(cs.s);
-    g.add(cg);
+    cloudsGroup.add(cg);
     clouds.push({ cg, ...cs });
   });
 
-  // Cheerful Clay Sun (day / dusk) positioned cleanly in visible upper-left sky arc
-  const sun = mesh(new SphereGeometry(1.9, 20, 16), kit.emissive(0xffe67a, 1.1, 1.1), {
-    pos: [-11.5, 4.8, -26],
-    cast: false,
-    recv: false,
-  });
+  // Cheerful Clay Sun + warm translucent atmospheric halo
+  const sun = new Group();
+  sun.position.set(-11.5, 4.8, -26);
+  sun.add(
+    mesh(new SphereGeometry(1.9, 20, 16), kit.emissive(0xffe67a, 1.1, 1.1), { cast: false, recv: false }),
+    mesh(new SphereGeometry(2.85, 18, 14), kit.emissive(0xffdf94, 0.35, 0.35, { transparent: true, opacity: 0.24, depthWrite: false }), { cast: false, recv: false }),
+  );
   g.add(sun);
 
-  // Glowing Golden Crescent Moon (night) framed right in the visible upper-right sky pocket behind the tower!
+  // Glowing Golden Crescent Moon + soft halo framed in upper-right sky pocket
   const moon = new Group();
   moon.position.set(7.4, 6.2, -9.2);
   moon.rotation.y = -0.35;
@@ -263,6 +267,7 @@ function buildSkyAtmosphere(kit) {
       cast: false,
       recv: false,
     }),
+    mesh(new SphereGeometry(1.65, 16, 12), kit.emissive(0xffe99c, 0.4, 0.55, { transparent: true, opacity: 0.16, depthWrite: false }), { cast: false, recv: false }),
   );
   moon.visible = false;
   g.add(moon);
@@ -288,6 +293,9 @@ function buildSkyAtmosphere(kit) {
 
   return {
     group: g,
+    setInspectLook(isInspect) {
+      cloudsGroup.visible = !isInspect;
+    },
     setSky(mode) {
       const cfg = SKY_CFG[mode] || SKY_CFG.day;
       domeMat.map = skyTexMap[mode] || skyTexMap.day;
@@ -313,6 +321,7 @@ function buildSkyAtmosphere(kit) {
       Object.values(skyTexMap).forEach((t) => t.dispose());
       dome.geometry.dispose();
       domeMat.dispose();
+      cloudMat.dispose();
       starGeo.dispose();
       starMat.dispose();
     },
@@ -636,7 +645,7 @@ function mount(containerEl, opts = {}) {
     const d = state.totalDays;
     const extraFloors = d >= 14 ? Math.min(3, Math.floor((d - 14) / 8)) : 0;
     let y = 0.62, rDesk = 12.6;
-    if (d >= 14) { y = 2.35 + extraFloors * 0.68; rDesk = 19.6 + extraFloors * 2.2; }
+    if (d >= 14) { y = 2.62 + extraFloors * 0.68; rDesk = 23.2 + extraFloors * 2.2; }
     else if (d >= 12) { y = 1.95; rDesk = 16.6; }
     else if (d >= 9) { y = 1.62; rDesk = 15.2; }
     else if (d >= 6) { y = 1.32; rDesk = 14.0; }
@@ -721,22 +730,22 @@ function mount(containerEl, opts = {}) {
       addPlaced(compRig, [0.0, 0.025, 0.35], 0, state.avatar === "crab" ? 1.15 : 1.06);
     }
 
-    // Central HK Tong Lau Tower Core (Days 4, 6, 9, 12, 14 + Extra Saver Floors)
+    // Central HK Tong Lau Tower Core with subtle hand-stacked organic micro-rotations
     const tx = 0, tz = -0.35;
     let topY = 0;
-    if (d >= 4) { addPlaced(buildSprintMilestone(4, kit), [tx, topY, tz], 0, 1); topY += 1.25; }
-    if (d >= 6) { addPlaced(buildSprintMilestone(6, kit), [tx, topY, tz], 0, 1); topY += 1.15; }
-    if (d >= 9) { addPlaced(buildSprintMilestone(9, kit), [tx, topY, tz], 0, 1); topY += 1.1; }
-    if (d >= 12) { addPlaced(buildSprintMilestone(12, kit), [tx, topY, tz], 0, 1); topY += 1.1; }
+    if (d >= 4) { addPlaced(buildSprintMilestone(4, kit), [tx, topY, tz], 0.008, 1); topY += 1.25; }
+    if (d >= 6) { addPlaced(buildSprintMilestone(6, kit), [tx, topY, tz], -0.016, 1); topY += 1.15; }
+    if (d >= 9) { addPlaced(buildSprintMilestone(9, kit), [tx, topY, tz], 0.014, 1); topY += 1.1; }
+    if (d >= 12) { addPlaced(buildSprintMilestone(12, kit), [tx, topY, tz], -0.012, 1); topY += 1.1; }
 
     // Day 15+ Extra Saver Floors gracefully stack between 4F and the 5F Rooftop Pergola!
     const extraFloors = d >= 14 ? Math.min(3, Math.floor((d - 14) / 8)) : 0;
     for (let k = 0; k < extraFloors; k++) {
-      addPlaced(buildSaverFloor(15 + k * 8, kit), [tx, topY, tz], 0, 1);
+      addPlaced(buildSaverFloor(15 + k * 8, kit), [tx, topY, tz], k % 2 ? -0.01 : 0.012, 1);
       topY += 1.05;
     }
     if (d >= 14) {
-      addPlaced(buildSprintMilestone(14, kit), [tx, topY, tz], 0, 1);
+      addPlaced(buildSprintMilestone(14, kit), [tx, topY, tz], 0.008, 1);
     }
 
     // Perimeter Pier & Harbour Landmarks (cozy centered showcase on Day 0-3, harmonious 360° pier on Day 4+!)
@@ -1040,6 +1049,7 @@ function mount(containerEl, opts = {}) {
       inspectLocked = false;
       islandRoot.visible = true;
       inspectStage.visible = false;
+      skyRig.setInspectLook(false);
       userZoomScale = 1.0;
       const f = framingForState();
       targetY = f.y;
@@ -1065,6 +1075,7 @@ function mount(containerEl, opts = {}) {
     inspectLocked = !!inspectOpts.locked;
     islandRoot.visible = false;
     inspectStage.visible = true;
+    skyRig.setInspectLook(true);
     buildSoloItem(d, inspectLocked);
     userZoomScale = 1.0;
     const f = framingForState();

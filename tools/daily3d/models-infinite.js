@@ -16,6 +16,7 @@ import {
   latheGeo,
   mesh,
   roundedBoxGeo,
+  sculptGeo,
   tagMilestone,
   tubeGeo,
 } from "./materials.js";
@@ -475,26 +476,26 @@ function buildDay75LionRock(kit) {
   // Iconic crouching-lion sculpted mountain ridge silhouette!
   g.add(
     // Broad lush base
-    mesh(new SphereGeometry(1.12, 20, 14, 0, Math.PI * 2, 0, Math.PI * 0.55), lush, { pos: [0, 0, 0], scale: [1.35, 0.85, 0.92] }),
+    mesh(sculptGeo(new SphereGeometry(1.12, 20, 14, 0, Math.PI * 2, 0, Math.PI * 0.55), 0.075, 2.2, 71, { flatBottom: true }), lush, { pos: [0, 0, 0], scale: [1.35, 0.85, 0.92] }),
     // Steep granite lion-head crag on left-center
-    mesh(new SphereGeometry(0.68, 18, 14), granite, { pos: [-0.36, 0.72, 0.04], scale: [1.05, 1.15, 0.85] }),
+    mesh(sculptGeo(new SphereGeometry(0.68, 18, 14), 0.065, 3.1, 72), granite, { pos: [-0.36, 0.72, 0.04], scale: [1.05, 1.15, 0.85] }),
     // Sloping mane & crouched back toward right
-    mesh(new SphereGeometry(0.74, 18, 14), lush, { pos: [0.34, 0.56, -0.04], scale: [1.28, 0.85, 0.88] }),
-    mesh(new SphereGeometry(0.48, 14, 12), granite, { pos: [-0.74, 0.48, 0.12], scale: [1.1, 0.78, 0.8] }),
+    mesh(sculptGeo(new SphereGeometry(0.74, 18, 14), 0.06, 2.8, 73), lush, { pos: [0.34, 0.56, -0.04], scale: [1.28, 0.85, 0.88] }),
+    mesh(sculptGeo(new SphereGeometry(0.48, 14, 12), 0.05, 3.4, 74), granite, { pos: [-0.74, 0.48, 0.12], scale: [1.1, 0.78, 0.8] }),
   );
 
   // Miniature hiking trail steps climbing up the ridge + terraced pine clusters
   for (let i = 0; i < 6; i++) {
     g.add(mesh(roundedBoxGeo(0.22, 0.05, 0.14, 0.02, 0.006), kit.clay(0xe5ddd0), {
       pos: [0.82 - i * 0.14, 0.14 + i * 0.16, 0.54 - i * 0.06],
-      rot: [0, -0.35, 0],
+      rot: [0, -0.35 + (i % 2 ? 0.04 : -0.03), 0],
     }));
   }
   const trees = [[-0.95, 0.34, 0.42], [0.95, 0.36, 0.28], [0.58, 0.76, -0.45], [-0.12, 0.68, 0.56], [0.22, 0.86, 0.38]];
   trees.forEach(([tx, ty, tz], idx) => {
     g.add(
       mesh(new CylinderGeometry(0.025, 0.035, 0.18, 6), kit.clay(0x7c4e2a), { pos: [tx, ty, tz] }),
-      mesh(new ConeGeometry(0.14, 0.28, 8), idx % 2 ? pine : lush, { pos: [tx, ty + 0.18, tz] }),
+      mesh(sculptGeo(new ConeGeometry(0.14, 0.28, 8), 0.018, 5.2, 80 + idx), idx % 2 ? pine : lush, { pos: [tx, ty + 0.18, tz] }),
     );
   });
 
@@ -534,9 +535,9 @@ function buildDay90PeakTram(kit) {
 
   // Lush Peak hillside base
   g.add(
-    mesh(new CylinderGeometry(0.84, 1.18, 0.68, 24), hill, { pos: [0, 0.34, 0] }),
-    mesh(new SphereGeometry(0.24, 12, 10), kit.clay(0x4cb86e), { pos: [-0.74, 0.52, 0.48] }),
-    mesh(new SphereGeometry(0.22, 12, 10), kit.clay(0x2d844c), { pos: [0.78, 0.46, -0.44] }),
+    mesh(sculptGeo(new CylinderGeometry(0.84, 1.18, 0.68, 24, 3), 0.06, 2.4, 90, { flatBottom: true }), hill, { pos: [0, 0.34, 0] }),
+    mesh(sculptGeo(new SphereGeometry(0.24, 12, 10), 0.026, 4.4, 91), kit.clay(0x4cb86e), { pos: [-0.74, 0.52, 0.48] }),
+    mesh(sculptGeo(new SphereGeometry(0.22, 12, 10), 0.024, 4.6, 92), kit.clay(0x2d844c), { pos: [0.78, 0.46, -0.44] }),
   );
 
   // Iconic Cantilevered Wok / Bowl-Shaped Peak Tower!

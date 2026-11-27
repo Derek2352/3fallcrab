@@ -28,7 +28,7 @@
         "知情勝過死忍。出街消費前睇清餘額，最簡單就避開唔覺意使凸。"
       ],
       rescue: [
-        "Open your bank or Octopus app right now and glance at your balance for 5 seconds — no spreadsheet needed.",
+        "Open your bank or Octopus app right now and glance at your balance for 5 seconds. No spreadsheet needed.",
         "而家打開銀行或八達通App望5秒餘額就搞掂，唔使記數住，做到即刻打卡！"
       ],
     },
@@ -54,7 +54,7 @@
       yesText: ["Yes, I know it", "講得出！"],
       noText: ["Can't recall", "唔記得了"],
       tip: [
-        "You don't need to log every dollar on Day 3 — spotting your top 1 daily outflow already shows where 60%+ of your money goes.",
+        "You don't need to log every dollar on Day 3. Spotting your top daily outflow already shows where 60%+ of your money goes.",
         "第3日唔使記晒每毫子，只要睇實每日最大筆嗰項支出，已經掌握咗六成以上資金流向。"
       ],
       rescue: [
@@ -84,7 +84,7 @@
       yesText: ["Yes, all checked", "有，check清楚！"],
       noText: ["Haven't checked", "仲未檢查"],
       tip: [
-        "Two forgotten HK$68/month subscriptions quietly drain HK$1,632 a year — money that earns zero joy.",
+        "Two forgotten HK$68/month subscriptions quietly drain HK$1,632 a year without adding real value.",
         "兩個唔記得cut嘅HK$68月費，一年就悄悄流走HK$1,632，仲要完全冇用過。"
       ],
       rescue: [
@@ -124,7 +124,7 @@
     },
     {
       id: "d08_cc_autopay", sprintDay: 8, cat: "future", item: "passbook", good: "yes",
-      en: "Have you set up full-balance credit card autopay (or a 3-day-early due-date alarm) — or kept HK$0 card/BNPL debt?",
+      en: "Have you set up full-balance credit card autopay (or a 3-day-early alarm), or kept HK$0 card and BNPL debt?",
       zh: "有冇設定信用卡「自動轉賬全數找清」（或到期前3日行事曆提醒），或者本身零卡數零先買後付？",
       yesText: ["Yes, protected!", "有設定／零卡數！"],
       noText: ["Not set up yet", "仲未設定"],
@@ -163,7 +163,7 @@
         "先儲後使最易堅持：每月出糧自動撥走HK$1,500，一年不知不覺就儲到HK$18,000。"
       ],
       rescue: [
-        "Set a standing instruction in your banking app right now — or schedule a recurring payday calendar alert to transfer first.",
+        "Set a standing instruction in your banking app right now, or schedule a recurring payday alert to transfer savings first.",
         "而家喺銀行App設定每月定期轉賬，或者加一個每月出糧日「先儲後使」提醒，即刻做到！"
       ],
     },
@@ -199,7 +199,7 @@
     },
     {
       id: "d13_mpf_long", sprintDay: 13, cat: "future", item: "textbooks", good: "yes",
-      en: "Have you checked your MPF / long-term investment fees — or kept your long-term savings separate from daily spending cash?",
+      en: "Have you checked your MPF / long-term investment fees, or kept long-term savings separate from daily spending?",
       zh: "有冇睇過自己強積金／長線投資收費（或者將長線儲蓄同日常使費徹底分開戶口）？",
       yesText: ["Yes, separated/checked", "有分開／有檢查！"],
       noText: ["All mixed / unchecked", "未分開／未睇過"],
@@ -624,30 +624,30 @@
   // Visual milestones on the Clay Harbour Pier (Sea -> Pier -> Tower Floors -> HK Landmarks)
   const PIER_MILESTONES = [
     { day: 1, prop: "piggy", en: "Pier Foundation & Piggy Bank", zh: "海傍地基＋小錢罌", descEn: "Your clay pier rises out of Victoria Harbour with a shiny starter piggy bank.", descZh: "維港海傍起好第一塊儲蓄地基，放上你隻開運小錢罌。" },
-    { day: 2, prop: "bakery", en: "HK Bakery Cart (菠蘿包)", zh: "街坊麵包車（菠蘿包）", descEn: "A warm pineapple bun cart parks by the pier — small daily swaps stack big!", descZh: "暖笠笠菠蘿包車泊好碼頭，每日細細個理財小替換慢慢儲大。" },
+    { day: 2, prop: "bakery", en: "HK Bakery Cart (菠蘿包)", zh: "街坊麵包車（菠蘿包）", descEn: "A warm pineapple bun cart parks on the pier. Small daily swaps add up fast.", descZh: "暖笠笠菠蘿包車泊好碼頭，每日細細個理財替換慢慢儲大。" },
     { day: 3, prop: "kiosk", en: "Octopus & Passbook Kiosk", zh: "八達通與存摺小亭", descEn: "Your personal balance kiosk lights up so every dollar has a clear home.", descZh: "存摺小亭亮起燈，睇清出入數目自然更有安全感。" },
-    { day: 4, prop: "floor1", en: "1/F Shopfront + Bamboo Scaffold", zh: "1樓店面＋竹棚架", descEn: "Hong Kong bamboo scaffolding hoists up 1/F of your Life Tower!", descZh: "香港師傅搭起竹棚，幫你座人生塔升上1樓！" },
+    { day: 4, prop: "floor1", en: "1/F Shopfront + Bamboo Scaffold", zh: "1樓店面＋竹棚架", descEn: "Hong Kong bamboo scaffolding hoists up 1/F of your Life Tower.", descZh: "香港師傅搭起竹棚，幫你座人生塔升上1樓。" },
     { day: 5, prop: "pantry", en: "Home Pantry & Rice Sack", zh: "自家糧倉（一包米）", descEn: "A plump clay rice sack and bamboo steamer anchor your kitchen floor.", descZh: "一包飽滿嘅米同蒸籠進駐1樓，基本生活穩穩陣陣。" },
-    { day: 6, prop: "neon", en: "2/F Cha Chaan Teng Neon Sign", zh: "2樓茶餐廳霓虹招牌", descEn: "A glowing pink & teal neon sign joins 2/F of your growing HK tower.", descZh: "2樓掛起粉紅配湖水綠霓虹燈牌，港味十足！" },
-    { day: 7, prop: "ferry", en: "Week 1 Insurance Net & Star Ferry", zh: "第1週保險網＋天星小輪", descEn: "A green-and-white harbour ferry cruises past + you earn your Insurance Net shield!", descZh: "綠白小輪駛過海面，同時解鎖第一個防斷纜「保險網」！" },
-    { day: 8, prop: "vault", en: "Autopay Gold Padlock Vault", zh: "自動轉賬金鎖寶庫", descEn: "A gleaming gold padlock secures your savings against card-interest traps.", descZh: "金色定期鎖穩陣鎖住儲蓄，唔怕卡數利息咬蝕！" },
+    { day: 6, prop: "neon", en: "2/F Cha Chaan Teng Neon Sign", zh: "2樓茶餐廳霓虹招牌", descEn: "A glowing pink and teal neon sign joins 2/F of your growing HK tower.", descZh: "2樓掛起粉紅配湖水綠霓虹燈牌，港味十足。" },
+    { day: 7, prop: "ferry", en: "Week 1 Insurance Net & Star Ferry", zh: "第1週保險網＋天星小輪", descEn: "A green-and-white harbour ferry cruises past and unlocks your Insurance Net shield.", descZh: "綠白小輪駛過海面，同時解鎖第一個防斷纜「保險網」。" },
+    { day: 8, prop: "vault", en: "Autopay Gold Padlock Vault", zh: "自動轉賬金鎖寶庫", descEn: "A gleaming gold padlock secures your savings against card-interest traps.", descZh: "金色定期鎖穩陣鎖住儲蓄，唔怕卡數利息咬蝕。" },
     { day: 9, prop: "laundry", en: "3/F Dim Sum Terrace & Laundry Poles", zh: "3樓點心露台＋晾衫竹", descEn: "Classic HK bamboo laundry poles and dim sum steamers fill 3/F.", descZh: "3樓添置港式晾衫竹同點心蒸籠，生活煙火氣滿滿。" },
     { day: 10, prop: "lighthouse", en: "18222 Anti-Scam Lighthouse", zh: "18222防騙燈塔", descEn: "A bright harbour beacon watches over your pier to spot scams from afar.", descZh: "碼頭旁亮起防騙燈塔，遠遠照清所有可疑連結同電話。" },
-    { day: 11, prop: "jack", en: "Jack Joins the Pier!", zh: "Jack 登場陪你守塔！", descEn: "Clay Jack arrives on the terrace cheering on your emergency fund.", descZh: "黏土Jack嚟到露台一齊幫手守住你筆應急基金！" },
-    { day: 12, prop: "loft", en: "4/F Study Loft & Tangerine Pot", zh: "4樓書房閣樓＋大吉盆栽", descEn: "Your tower climbs to 4/F with a lucky tangerine tree and calculator desk.", descZh: "人生塔升上4樓！擺好大吉盆栽同計數機書枱，計清APR！" },
+    { day: 11, prop: "jack", en: "Jack Joins the Pier", zh: "Jack 登場陪你守塔", descEn: "Clay Jack arrives on the terrace cheering on your emergency fund.", descZh: "黏土Jack嚟到露台一齊幫手守住你筆應急基金。" },
+    { day: 12, prop: "loft", en: "4/F Study Loft & Tangerine Pot", zh: "4樓書房閣樓＋大吉盆栽", descEn: "Your tower climbs to 4/F with a lucky tangerine tree and calculator desk.", descZh: "人生塔升上4樓！擺好大吉盆栽同計數機書枱，計清APR。" },
     { day: 13, prop: "junk", en: "Red-Sail Junk & Golden Sky", zh: "紅帆鴨靈船＋黃昏金光", descEn: "Victoria Harbour glows warm golden-hour pink as a red-sail junk glides by.", descZh: "紅帆中式帆船滑過維港，天空映出好靚嘅日落金光。" },
-    { day: 14, prop: "sprint14", en: "5/F Rooftop + Jackie + Crab Halo!", zh: "14日大滿貫：5樓天台＋Jackie＋蟹仔光環！", descEn: "Starter Sprint complete! Jackie arrives, the Crab earns a golden Halo, and Infinite Mode begins!", descZh: "完成14日新手衝刺！Jackie會合、蟹仔戴上金色光環，無限擴建模式正式開啟！" },
+    { day: 14, prop: "sprint14", en: "5/F Rooftop + Jackie + Crab Halo", zh: "14日大滿貫：5樓天台＋Jackie＋蟹仔光環", descEn: "Starter Sprint done. Jackie arrives, the Crab earns a golden halo, and Infinite Mode begins.", descZh: "完成14日新手衝刺！Jackie會合、蟹仔戴上金色光環，無限擴建模式正式開啟。" },
     // Post-14 Infinite Landmarks
     { day: 18, prop: "gulls", en: "Harbour Seagulls & Buoy Bell", zh: "維港海鷗＋浮標鐘", descEn: "Clay seagulls soar over the harbour as your tower rises past 6F.", descZh: "海鷗飛過維港上空，你座塔繼續一格格疊高過6樓。" },
-    { day: 21, prop: "twilight", en: "Twilight Neon Skyline & Spire", zh: "夜幕霓虹燈光＋塔尖", descEn: "A 21-day streak lights up twilight beams across Victoria Harbour!", descZh: "21日習慣成型！維港兩岸夜幕亮起璀璨霓虹燈束。" },
+    { day: 21, prop: "twilight", en: "Twilight Neon Skyline & Spire", zh: "夜幕霓虹燈光＋塔尖", descEn: "A 21-day habit streak lights up twilight beams across Victoria Harbour.", descZh: "21日習慣成型！維港兩岸夜幕亮起璀璨霓虹燈束。" },
     { day: 25, prop: "umbrella", en: "Tea Stall Parasol Deck", zh: "大排檔遮陽茶座", descEn: "A cheerful striped parasol deck opens on the pier.", descZh: "海傍多咗個色彩繽紛嘅茶座遮陽露台。" },
-    { day: 30, prop: "tram", en: "Ding-Ding Tram Stop + Straw Hat", zh: "叮叮電車站＋蟹仔草帽", descEn: "One full month! A green HK tram rolls along the promenade and the Crab gets a Sun Hat.", descZh: "滿一個月！港島叮叮電車經過海傍，蟹仔仲攞埋草帽造型！" },
+    { day: 30, prop: "tram", en: "Ding-Ding Tram Stop + Straw Hat", zh: "叮叮電車站＋蟹仔草帽", descEn: "One full month! A green HK tram rolls past the pier and the Crab gets a Sun Hat.", descZh: "滿一個月！港島叮叮電車經過海傍，蟹仔仲攞埋草帽造型。" },
     { day: 35, prop: "lanterns", en: "Festive Pier Lanterns", zh: "海傍節慶花燈", descEn: "Warm clay lanterns string across your terrace.", descZh: "天台同碼頭掛滿暖黃色節慶燈籠。" },
-    { day: 45, prop: "clock", en: "Harbour Clock Tower", zh: "尖沙咀鐘樓", descEn: "An iconic red-brick clay Clock Tower rises beside your pier!", descZh: "經典紅磚海傍鐘樓矗立喺你座小天地隔離！" },
+    { day: 45, prop: "clock", en: "Harbour Clock Tower", zh: "尖沙咀鐘樓", descEn: "An iconic red-brick clay Clock Tower rises beside your pier.", descZh: "經典紅磚海傍鐘樓矗立喺你座小天地隔離。" },
     { day: 60, prop: "treasure", en: "Two-Month Golden Junk", zh: "雙月招財寶船", descEn: "A golden dragon-sail boat joins the harbour fleet.", descZh: "一艘閃亮金色帆船加入維港船隊。" },
-    { day: 75, prop: "lionrock", en: "Lion Rock Trail Pavilion", zh: "獅子山涼亭地標", descEn: "A clay pavilion crowns Lion Rock behind the skyline.", descZh: "背後獅子山頂起好小涼亭，守護成個海傍！" },
-    { day: 90, prop: "peaktram", en: "Peak Sky Terrace (90 Days!)", zh: "90日山頂凌霄觀景台", descEn: "Three months of steady choices — your tower crowns the harbour skyline!", descZh: "堅持90日理財習慣，你座小天地已經成為維港最靚風景！" },
-    { day: 100, prop: "centennial", en: "Day 100 Golden Crab Statue + Top Hat", zh: "百日金蟹像＋高帽禮服", descEn: "100 check-ins! A golden Crab monument and Top Hat celebrate your mastery.", descZh: "第100日達成！海傍豎立金色蟹仔紀念像，蟹仔戴上高帽慶祝！" },
+    { day: 75, prop: "lionrock", en: "Lion Rock Trail Pavilion", zh: "獅子山涼亭地標", descEn: "A clay pavilion crowns Lion Rock behind the skyline.", descZh: "背後獅子山頂起好小涼亭，守護成個海傍。" },
+    { day: 90, prop: "peaktram", en: "Peak Sky Terrace (90 Days)", zh: "90日山頂凌霄觀景台", descEn: "Three months of steady habits, and your tower crowns the harbour skyline.", descZh: "堅持90日理財習慣，你座小天地已經成為維港最靚風景。" },
+    { day: 100, prop: "centennial", en: "Day 100 Golden Crab Statue + Top Hat", zh: "百日金蟹像＋高帽禮服", descEn: "100 check-ins! A golden Crab monument and Top Hat celebrate your streak.", descZh: "第100日達成！海傍豎立金色蟹仔紀念像，蟹仔戴上高帽慶祝。" },
   ];
 
   function milestoneFor(day) {

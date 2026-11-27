@@ -20,6 +20,7 @@ import {
   latheGeo,
   mesh,
   roundedBoxGeo,
+  sculptGeo,
   tagMilestone,
   tubeGeo,
 } from "./materials.js";
@@ -380,8 +381,8 @@ export function buildIslandBase(kit, hasTower = false) {
     [4.28, -0.34],
     [4.22, -0.12],
   ];
-  const cliff = mesh(latheGeo(cliffProfile, 36), kit.clay(0x9a7558, { rough: 0.68 }), { cast: false });
-  const rockBand = mesh(new CylinderGeometry(4.32, 3.88, 0.36, 36), kit.clay(0x7c868e, { rough: 0.62 }), {
+  const cliff = mesh(sculptGeo(latheGeo(cliffProfile, 36), 0.14, 1.45, 7, { yScale: 0.4 }), kit.clay(0x9a7558, { rough: 0.68 }), { cast: false });
+  const rockBand = mesh(sculptGeo(new CylinderGeometry(4.32, 3.88, 0.36, 36, 2), 0.08, 1.85, 19), kit.clay(0x7c868e, { rough: 0.62 }), {
     pos: [0, -0.42, 0],
     cast: false,
   });
@@ -457,14 +458,18 @@ export function buildIslandBase(kit, hasTower = false) {
     root.add(med, medRim);
   }
 
-  // 5. Timber Dock Pilings around the seawall perimeter
+  // 5. Timber Dock Pilings + gentle sea-foam shoreline collar rings around each piling
   const pilingMat = kit.clay(0x7c5032, { rough: 0.62 });
+  const foamMat = kit.clay(0xcff8fc, { rough: 0.34 });
   const brass = kit.metal(0xe8b948, 0.24, 0.8);
   const iron = kit.metal(0x3a404f, 0.38, 0.72);
   for (let i = 0; i < 12; i++) {
     const a = (i * Math.PI * 2) / 12 + 0.12;
     const px = Math.cos(a) * 4.32, pz = Math.sin(a) * 4.32;
-    root.add(mesh(new CylinderGeometry(0.11, 0.12, 0.92, 12), pilingMat, { pos: [px, -0.38, pz] }));
+    root.add(
+      mesh(new CylinderGeometry(0.11, 0.12, 0.92, 12), pilingMat, { pos: [px, -0.38, pz] }),
+      mesh(sculptGeo(new TorusGeometry(0.145, 0.02, 6, 14), 0.012, 12, i + 1), foamMat, { pos: [px, -0.175, pz], rot: [Math.PI / 2, 0, i * 0.5], cast: false }),
+    );
   }
 
   // 6. 4 Mooring Bollards + Coiled Hemp Rope + Front Brass Dedication Plaque
@@ -492,16 +497,16 @@ export function buildIslandBase(kit, hasTower = false) {
     root.add(bg);
   });
 
-  // Brass pier front plaque ("海傍小天地")
-  const plaqueFrame = mesh(roundedBoxGeo(1.18, 0.34, 0.08, 0.04, 0.015), brass, { pos: [0, -0.14, 4.18], rot: [-0.08, 0, 0] });
-  const plaqueFace = mesh(new PlaneGeometry(1.06, 0.26), kit.textured("pierPlaque", { finish: "metal", rough: 0.26 }), {
-    pos: [0, -0.14, 4.225],
-    rot: [-0.08, 0, 0],
+  // Brass pier front plaque ("海傍小天地") recessed below the seawall coping ring so top edge never clips rim
+  const plaqueFrame = mesh(roundedBoxGeo(1.02, 0.24, 0.06, 0.03, 0.012), brass, { pos: [0, -0.25, 4.24], rot: [-0.04, 0, 0] });
+  const plaqueFace = mesh(new PlaneGeometry(0.92, 0.18), kit.textured("pierPlaque", { finish: "metal", rough: 0.26 }), {
+    pos: [0, -0.25, 4.276],
+    rot: [-0.04, 0, 0],
     cast: false,
   });
   root.add(plaqueFrame, plaqueFace);
 
-  // 7. Cozy coastal greenery tufts & smooth harbour pebbles along the rear arc (gives rich Forest-app warmth at Day 0!)
+  // 7. Hand-sculpted coastal greenery tufts & harbour pebbles along the rear arc
   const bushMat = kit.clay(0x3ba864, { rough: 0.56 });
   const bushLight = kit.clay(0x58c479, { rough: 0.54 });
   const rockMat = kit.clay(0x9ca5ae, { rough: 0.6 });
@@ -512,11 +517,12 @@ export function buildIslandBase(kit, hasTower = false) {
     const sg = new Group();
     sg.position.set(sx, 0, sz);
     sg.scale.setScalar(sc);
+    sg.rotation.y = (idx * 0.67) % 1.2 - 0.5;
     sg.add(
-      mesh(new SphereGeometry(0.28, 14, 12), idx % 2 ? bushMat : bushLight, { pos: [0, 0.2, 0] }),
-      mesh(new SphereGeometry(0.21, 12, 10), idx % 2 ? bushLight : bushMat, { pos: [0.2, 0.14, 0.1] }),
-      mesh(new SphereGeometry(0.19, 12, 10), bushMat, { pos: [-0.18, 0.13, 0.12] }),
-      mesh(new SphereGeometry(0.14, 10, 8), rockMat, { pos: [0.12, 0.07, 0.26], scale: [1.3, 0.7, 1.1] }),
+      mesh(sculptGeo(new SphereGeometry(0.28, 14, 12), 0.032, 6.2, 10 + idx, { flatBottom: true }), idx % 2 ? bushMat : bushLight, { pos: [0, 0.2, 0] }),
+      mesh(sculptGeo(new SphereGeometry(0.21, 12, 10), 0.025, 7.1, 20 + idx, { flatBottom: true }), idx % 2 ? bushLight : bushMat, { pos: [0.2, 0.14, 0.1] }),
+      mesh(sculptGeo(new SphereGeometry(0.19, 12, 10), 0.022, 7.5, 30 + idx, { flatBottom: true }), bushMat, { pos: [-0.18, 0.13, 0.12] }),
+      mesh(sculptGeo(new SphereGeometry(0.14, 10, 8), 0.022, 8.2, 40 + idx, { flatBottom: true }), rockMat, { pos: [0.12, 0.07, 0.26], scale: [1.3, 0.7, 1.1] }),
     );
     root.add(sg);
   });
@@ -574,9 +580,9 @@ function buildDay1Piggy(kit) {
   const g = new Group();
   const wood = kit.textured("woodPlank", { finish: "lacquer", rough: 0.44 });
   const brass = kit.metal(0xeab844, 0.2, 0.86);
-  const pink = kit.gloss(0xff84a8, { rough: 0.14 });
-  const snoutMat = kit.gloss(0xffa3be, { rough: 0.16 });
-  const dark = kit.gloss(0x1e202c, { rough: 0.12 });
+  const pink = kit.gloss(0xff84a8, { rough: 0.24 });
+  const snoutMat = kit.gloss(0xffa3be, { rough: 0.24 });
+  const dark = kit.gloss(0x1e202c, { rough: 0.14 });
   const coinMat = kit.textured("coinFace", { finish: "metal", rough: 0.2 });
 
   // Slatted wooden dock pallet with brass corner brackets
@@ -680,7 +686,8 @@ function buildDay2Bakery(kit) {
   }
   for (const sz of [-0.34, 0.34]) {
     g.add(
-      mesh(new CylinderGeometry(0.025, 0.025, 0.24, 8), iron, { pos: [0.46, 0.16, sz] }),
+      mesh(new CylinderGeometry(0.025, 0.025, 0.2, 8), iron, { pos: [0.46, 0.18, sz] }),
+      mesh(roundedBoxGeo(0.06, 0.11, 0.08, 0.015, 0.005), iron, { pos: [0.46, 0.11, sz] }),
       mesh(new CylinderGeometry(0.085, 0.085, 0.045, 16), iron, { pos: [0.46, 0.085, sz], rot: [Math.PI / 2, 0, 0] }),
     );
   }
@@ -707,9 +714,10 @@ function buildDay2Bakery(kit) {
   bunSpots.forEach(([bx, by, bz], idx) => {
     const bun = new Group();
     bun.position.set(bx, by, bz);
+    bun.rotation.y = (idx * 0.45) - 0.6;
     bun.add(
       mesh(new CylinderGeometry(0.085, 0.075, 0.055, 16), bunBase, { pos: [0, 0.025, 0] }),
-      mesh(new SphereGeometry(0.095, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.62), bunCrust, { pos: [0, 0.045, 0], scale: [1, 0.85, 1] }),
+      mesh(sculptGeo(new SphereGeometry(0.095, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.62), 0.011, 22, 22 + idx, { flatBottom: true }), bunCrust, { pos: [0, 0.045, 0], scale: [1, 0.85, 1] }),
     );
     if (idx === 5) {
       // Hero Bo Lo Yau butter slab peeking out!
@@ -840,7 +848,8 @@ function buildDay4Floor1(kit) {
   const wall = kit.clay(0xfdf0d8, { rough: 0.52 });
   const trim = kit.clay(0xd87454, { rough: 0.48 });
   const shutter = kit.enamel(0x1f6e5c, { rough: 0.28 });
-  const winGlow = kit.emissive(0xffe08a, 0.65, 1.85);
+  const winGlow = kit.emissive(0xffe498, 0.66, 1.85);
+  const winGlowWarm = kit.emissive(0xffc976, 0.56, 1.65);
   const bambooTan = kit.clay(0xd8b25e, { rough: 0.55 });
   const bambooJade = kit.clay(0x88b454, { rough: 0.54 });
   const knot = kit.clay(0x282934, { rough: 0.65 });
@@ -862,24 +871,26 @@ function buildDay4Floor1(kit) {
   for (let i = -2; i <= 2; i++) {
     g.add(mesh(new BoxGeometry(0.025, 0.66, 0.08), kit.clay(0x134c40), { pos: [i * 0.09, 0.49, 0.77] }));
   }
-  // Warm glowing shopfront windows (front sides + rear & side facades so 360° looks alive!)
-  for (const wx of [-0.59, 0.59]) {
+  // Lived-in shopfront windows with timber muntin bars & varied warmth
+  for (const [idx, wx] of [-0.59, 0.59].entries()) {
     g.add(
       mesh(roundedBoxGeo(0.38, 0.48, 0.06, 0.04, 0.01), shutter, { pos: [wx, 0.64, 0.76] }),
-      mesh(roundedBoxGeo(0.3, 0.4, 0.07, 0.03, 0.008), winGlow, { pos: [wx, 0.64, 0.77], cast: false }),
+      mesh(roundedBoxGeo(0.3, 0.4, 0.07, 0.03, 0.008), idx % 2 ? winGlowWarm : winGlow, { pos: [wx, 0.64, 0.77], cast: false }),
+      mesh(new BoxGeometry(0.022, 0.38, 0.08), shutter, { pos: [wx, 0.64, 0.78] }),
     );
   }
-  for (const wx of [-0.52, 0, 0.52]) {
+  for (const [idx, wx] of [-0.52, 0, 0.52].entries()) {
     g.add(
       mesh(roundedBoxGeo(0.34, 0.44, 0.06, 0.04, 0.01), shutter, { pos: [wx, 0.66, -0.76] }),
-      mesh(roundedBoxGeo(0.26, 0.36, 0.07, 0.03, 0.008), winGlow, { pos: [wx, 0.66, -0.77], cast: false }),
+      mesh(roundedBoxGeo(0.26, 0.36, 0.07, 0.03, 0.008), idx === 1 ? winGlowWarm : winGlow, { pos: [wx, 0.66, -0.77], cast: false }),
+      mesh(new BoxGeometry(0.26, 0.022, 0.08), shutter, { pos: [wx, 0.68, -0.78] }),
     );
   }
   for (const sx of [-1, 1]) {
-    for (const wz of [-0.34, 0.34]) {
+    for (const [idx, wz] of [-0.34, 0.34].entries()) {
       g.add(
         mesh(roundedBoxGeo(0.06, 0.44, 0.36, 0.03, 0.01), shutter, { pos: [sx * 0.97, 0.66, wz] }),
-        mesh(roundedBoxGeo(0.07, 0.36, 0.28, 0.02, 0.008), winGlow, { pos: [sx * 0.98, 0.66, wz], cast: false }),
+        mesh(roundedBoxGeo(0.07, 0.36, 0.28, 0.02, 0.008), idx % 2 ? winGlowWarm : winGlow, { pos: [sx * 0.98, 0.66, wz], cast: false }),
       );
     }
   }
@@ -944,9 +955,9 @@ function buildDay5Pantry(kit) {
   g.add(mesh(roundedBoxGeo(1.26, 0.1, 0.92, 0.05, 0.018), wood, { pos: [0, 0.05, 0] }));
 
   // Plump Woven Clay Rice Sack ("米")
-  const sackGeo = latheGeo([
+  const sackGeo = sculptGeo(latheGeo([
     [0, 0], [0.28, 0], [0.36, 0.16], [0.35, 0.46], [0.25, 0.68], [0.13, 0.78], [0.22, 0.9], [0.16, 0.92], [0, 0.82],
-  ], 26);
+  ], 26), 0.018, 4.5, 51, { flatBottom: true });
   const sack = mesh(sackGeo, sackMat, { pos: [-0.24, 0.1, 0.02], scale: [1.05, 1, 0.88] });
   const cord = mesh(new TorusGeometry(0.145, 0.026, 10, 22), cordMat, { pos: [-0.24, 0.88, 0.02], rot: [Math.PI / 2, 0, 0] });
   const bowL = mesh(new SphereGeometry(0.055, 10, 8), cordMat, { pos: [-0.12, 0.88, 0.14], scale: [1.4, 0.75, 0.6] });
@@ -966,7 +977,7 @@ function buildDay5Pantry(kit) {
   // 3 cute sculpted dumplings resting in top basket
   for (let d = 0; d < 3; d++) {
     const a = (d * Math.PI * 2) / 3 + 0.4;
-    steamer.add(mesh(new SphereGeometry(0.068, 12, 10), kit.clay(0xfff5dc, { rough: 0.36 }), {
+    steamer.add(mesh(sculptGeo(new SphereGeometry(0.068, 12, 10), 0.008, 24, 52 + d, { flatBottom: true }), kit.clay(0xfff5dc, { rough: 0.36 }), {
       pos: [Math.cos(a) * 0.1, 0.51, Math.sin(a) * 0.1],
       scale: [1.1, 0.78, 0.9],
     }));
@@ -1020,6 +1031,7 @@ function buildDay6Neon(kit) {
   const tile = kit.textured("checkerTile", { finish: "glaze", rough: 0.22 });
   const frame = kit.enamel(0x1b6d62, { rough: 0.28 });
   const winGlow = kit.emissive(0xffdc80, 0.7, 1.95);
+  const winGlowDim = kit.emissive(0xffbc68, 0.54, 1.6);
   const iron = kit.metal(0x2c3040, 0.34, 0.78);
   const neonPink = kit.emissive(0xff5fa8, 1.1, 2.6);
   const neonTeal = kit.emissive(0x38f3dc, 1.0, 2.5);
@@ -1035,19 +1047,20 @@ function buildDay6Neon(kit) {
     mesh(roundedBoxGeo(2.04, 0.13, 1.62, 0.06, 0.022), frame, { pos: [0, 1.09, 0] }),
   );
 
-  // Cozy arched Cha Chaan Teng booth windows around all 4 sides
-  for (const wx of [-0.52, 0, 0.52]) {
+  // Cozy arched Cha Chaan Teng booth windows with varied glow & muntin frames
+  for (const [idx, wx] of [-0.52, 0, 0.52].entries()) {
     for (const sz of [-1, 1]) {
       g.add(
         mesh(roundedBoxGeo(0.36, 0.48, 0.06, 0.08, 0.01), frame, { pos: [wx, 0.64, sz * 0.73] }),
-        mesh(roundedBoxGeo(0.28, 0.4, 0.07, 0.06, 0.008), winGlow, { pos: [wx, 0.64, sz * 0.74], cast: false }),
+        mesh(roundedBoxGeo(0.28, 0.4, 0.07, 0.06, 0.008), (idx + (sz > 0 ? 0 : 1)) % 3 === 1 ? winGlowDim : winGlow, { pos: [wx, 0.64, sz * 0.74], cast: false }),
+        mesh(new BoxGeometry(0.28, 0.022, 0.075), frame, { pos: [wx, 0.66, sz * 0.745] }),
       );
     }
   }
   for (const wz of [-0.32, 0.32]) {
     g.add(
       mesh(roundedBoxGeo(0.06, 0.48, 0.36, 0.06, 0.01), frame, { pos: [-0.94, 0.64, wz] }),
-      mesh(roundedBoxGeo(0.07, 0.4, 0.28, 0.05, 0.008), winGlow, { pos: [-0.95, 0.64, wz], cast: false }),
+      mesh(roundedBoxGeo(0.07, 0.4, 0.28, 0.05, 0.008), wz < 0 ? winGlowDim : winGlow, { pos: [-0.95, 0.64, wz], cast: false }),
     );
   }
   // Classic HK exterior AC condenser box on rear-left wall (rich 360° authenticity!)
@@ -1146,15 +1159,16 @@ function buildDay7Ferry(kit) {
     mesh(new SphereGeometry(0.036, 10, 8), kit.emissive(0x36f08a, 0.9, 2.2), { pos: [0.6, 0.86, -0.25], cast: false }),
   );
 
-  // Sculpted animated water wake ribbons
-  const wakeL = mesh(tubeGeo([[-0.82, 0.06, 0.16], [-1.18, 0.04, 0.34], [-1.46, 0.03, 0.5]], 0.038, 14, 8), wakeMat, { cast: false });
-  const wakeR = mesh(tubeGeo([[-0.82, 0.06, -0.16], [-1.18, 0.04, -0.34], [-1.46, 0.03, -0.5]], 0.038, 14, 8), wakeMat, { cast: false });
+  // Delicate flattened sea-foam wake arcs (no thick stick tubes over wood turntable)
+  const foamWakeMat = kit.clay(0xdff9fc, { rough: 0.36 });
+  const wakeL = mesh(tubeGeo([[-0.82, 0.02, 0.16], [-1.14, 0.015, 0.32], [-1.36, 0.01, 0.44]], 0.022, 12, 8), foamWakeMat, { scale: [1, 0.24, 1], cast: false });
+  const wakeR = mesh(tubeGeo([[-0.82, 0.02, -0.16], [-1.14, 0.015, -0.32], [-1.36, 0.01, -0.44]], 0.022, 12, 8), foamWakeMat, { scale: [1, 0.24, 1], cast: false });
   boat.add(wakeL, wakeR);
   g.add(boat);
 
-  // Coral-and-White Insurance Net (保險網) Lifebuoy + Golden Safety-Net Ring
+  // Coral-and-White Insurance Net (保險網) Lifebuoy + Golden Safety-Net Ring clear of hull corner
   const buoy = new Group();
-  buoy.position.set(0.68, 0.14, 0.42);
+  buoy.position.set(0.84, 0.14, 0.56);
   buoy.add(
     mesh(new TorusGeometry(0.22, 0.075, 14, 28), kit.enamel(0xf04e3e, { rough: 0.24 }), { rot: [Math.PI / 2, 0, 0] }),
     mesh(new TorusGeometry(0.32, 0.02, 8, 28), brass, { rot: [Math.PI / 2, 0, 0] }),
@@ -1256,7 +1270,8 @@ function buildDay9Laundry(kit) {
   const wall = kit.clay(0xdcf5ee, { rough: 0.5 });
   const trim = kit.clay(0xfff6e5, { rough: 0.48 });
   const iron = kit.metal(0x1f5c4e, 0.36, 0.72);
-  const winGlow = kit.emissive(0xffe7a0, 0.62, 1.85);
+  const winGlow = kit.emissive(0xffe7a0, 0.64, 1.85);
+  const winGlowWarm = kit.emissive(0xffca7a, 0.52, 1.6);
   const bamboo = kit.clay(0xd4ae5c, { rough: 0.54 });
 
   // 3/F body (height = 1.10 so 4F stacks cleanly at y = 3.50)
@@ -1264,12 +1279,13 @@ function buildDay9Laundry(kit) {
     mesh(roundedBoxGeo(1.82, 0.98, 1.4, 0.06, 0.022), wall, { pos: [0, 0.51, 0] }),
     mesh(roundedBoxGeo(1.98, 0.13, 1.56, 0.06, 0.022), trim, { pos: [0, 1.04, 0] }),
   );
-  // Warm French terrace windows front & back
-  for (const wx of [-0.46, 0, 0.46]) {
+  // Warm French terrace windows front & back with vertical muntin stiles
+  for (const [idx, wx] of [-0.46, 0, 0.46].entries()) {
     for (const sz of [-1, 1]) {
       g.add(
         mesh(roundedBoxGeo(0.32, 0.56, 0.05, 0.04, 0.01), trim, { pos: [wx, 0.56, sz * 0.7] }),
-        mesh(roundedBoxGeo(0.24, 0.46, 0.06, 0.03, 0.008), winGlow, { pos: [wx, 0.56, sz * 0.71], cast: false }),
+        mesh(roundedBoxGeo(0.24, 0.46, 0.06, 0.03, 0.008), idx === 2 ? winGlowWarm : winGlow, { pos: [wx, 0.56, sz * 0.71], cast: false }),
+        mesh(new BoxGeometry(0.02, 0.46, 0.065), iron, { pos: [wx, 0.56, sz * 0.715] }),
       );
     }
   }
@@ -1353,15 +1369,21 @@ function buildDay10Lighthouse(kit) {
   const iron = kit.metal(0x282d3c, 0.34, 0.8);
   const brass = kit.metal(0xf0be44, 0.2, 0.86);
   const lampCore = kit.emissive(0xffe87a, 1.35, 3.0);
-  const beamMat = kit.emissive(0xffe478, 0.75, 1.85, { transparent: true, opacity: 0.28, depthWrite: false, side: DoubleSide });
+  const beamMat = kit.emissive(0xffe478, 0.45, 1.15, { transparent: true, opacity: 0.14, depthWrite: false, side: DoubleSide });
 
-  // Stepped octagonal granite plinth + arched timber-and-brass door
+  // Stepped octagonal granite plinth + sculpted harbour boulders + arched timber-and-brass door
   g.add(
     mesh(new CylinderGeometry(0.62, 0.7, 0.24, 8), stone, { pos: [0, 0.12, 0] }),
     mesh(new CylinderGeometry(0.5, 0.56, 0.16, 8), kit.clay(0xd9d2c5), { pos: [0, 0.32, 0] }),
     mesh(roundedBoxGeo(0.24, 0.32, 0.08, 0.08, 0.014), kit.clay(0x7c4a26), { pos: [0, 0.56, 0.41] }),
     mesh(new SphereGeometry(0.022, 8, 8), brass, { pos: [0.06, 0.54, 0.46] }),
   );
+  for (const [idx, bx, bz, rad] of [[0, -0.58, 0.36, 0.16], [1, 0.62, 0.28, 0.14], [2, -0.46, -0.52, 0.18], [3, 0.52, -0.48, 0.15]]) {
+    g.add(mesh(sculptGeo(new SphereGeometry(rad, 10, 8), 0.028, 8.2, 100 + idx, { flatBottom: true }), kit.clay(0x8e969e, { rough: 0.64 }), {
+      pos: [bx, rad * 0.55, bz],
+      scale: [1.25, 0.72, 1.05],
+    }));
+  }
 
   // Tapered Red-and-Cream Striped Lighthouse Shaft (distinct sculpted rings for crisp 360° stripes!)
   const bands = [
@@ -1406,12 +1428,12 @@ function buildDay10Lighthouse(kit) {
     mesh(new SphereGeometry(0.045, 10, 8), brass, { pos: [0, 2.57, 0] }),
   );
 
-  // Twin Rotating Golden Volumetric Beacon Light Beams!
+  // Twin Rotating Golden Atmospheric Beacon Glow Cones
   const beamPivot = new Group();
   beamPivot.position.set(0, 2.14, 0);
-  const coneGeo = new ConeGeometry(0.46, 2.1, 18, 1, true);
-  const b1 = mesh(coneGeo, beamMat, { pos: [0, 0, 1.15], rot: [-Math.PI / 2, 0, 0], cast: false, recv: false });
-  const b2 = mesh(coneGeo, beamMat, { pos: [0, 0, -1.15], rot: [Math.PI / 2, 0, 0], cast: false, recv: false });
+  const coneGeo = new ConeGeometry(0.36, 1.45, 18, 1, true);
+  const b1 = mesh(coneGeo, beamMat, { pos: [0, 0, 0.84], rot: [-Math.PI / 2, 0, 0], cast: false, recv: false });
+  const b2 = mesh(coneGeo, beamMat, { pos: [0, 0, -0.84], rot: [Math.PI / 2, 0, 0], cast: false, recv: false });
   b1.userData.ignoreBounds = true;
   b2.userData.ignoreBounds = true;
   beamPivot.add(b1, b2);
@@ -1528,10 +1550,10 @@ function buildDay12Loft(kit) {
     mesh(potGeo, kit.clay(0xcf5d38, { rough: 0.54 })),
     mesh(new CylinderGeometry(0.18, 0.18, 0.04, 16), kit.clay(0x5a3e28), { pos: [0, 0.26, 0] }),
     mesh(tubeGeo([[0, 0.26, 0], [0.04, 0.44, 0.02], [-0.02, 0.62, -0.02]], 0.042, 12, 8), kit.clay(0x6e482b)),
-    mesh(new SphereGeometry(0.24, 16, 14), foliage, { pos: [0, 0.72, 0] }),
-    mesh(new SphereGeometry(0.19, 14, 12), kit.clay(0x42b45e), { pos: [0.14, 0.66, 0.09] }),
-    mesh(new SphereGeometry(0.18, 14, 12), foliage, { pos: [-0.14, 0.65, -0.06] }),
-    mesh(new SphereGeometry(0.16, 14, 12), kit.clay(0x49bf64), { pos: [0, 0.86, 0.04] }),
+    mesh(sculptGeo(new SphereGeometry(0.24, 16, 14), 0.026, 6.2, 120), foliage, { pos: [0, 0.72, 0] }),
+    mesh(sculptGeo(new SphereGeometry(0.19, 14, 12), 0.022, 6.8, 121), kit.clay(0x42b45e), { pos: [0.14, 0.66, 0.09] }),
+    mesh(sculptGeo(new SphereGeometry(0.18, 14, 12), 0.022, 7.1, 122), foliage, { pos: [-0.14, 0.65, -0.06] }),
+    mesh(sculptGeo(new SphereGeometry(0.16, 14, 12), 0.02, 7.6, 123), kit.clay(0x49bf64), { pos: [0, 0.86, 0.04] }),
   );
   // 8 Glossy 3D Tangerines (大吉)
   const tangSpots = [
@@ -1673,11 +1695,11 @@ function buildDay14Sprint14(kit) {
   for (let i = -3; i <= 3; i++) {
     g.add(mesh(roundedBoxGeo(0.08, 0.07, 1.38, 0.015, 0.006), timber, { pos: [i * 0.25, 1.42, -0.02] }));
   }
-  // Lush trailing ivy clusters on pergola corners
-  for (const [ix, iy, iz] of [[-0.82, 1.38, 0.56], [0.82, 1.38, 0.56], [-0.74, 1.22, -0.58], [0.76, 1.26, -0.58], [0, 1.46, -0.58]]) {
+  // Lush sculpted trailing ivy clusters on pergola corners
+  for (const [idx, [ix, iy, iz]] of [[-0.82, 1.38, 0.56], [0.82, 1.38, 0.56], [-0.74, 1.22, -0.58], [0.76, 1.26, -0.58], [0, 1.46, -0.58]].entries()) {
     g.add(
-      mesh(new SphereGeometry(0.14, 10, 8), ivy, { pos: [ix, iy, iz] }),
-      mesh(new SphereGeometry(0.1, 10, 8), kit.clay(0x4fc46e), { pos: [ix + 0.09, iy - 0.08, iz + 0.06] }),
+      mesh(sculptGeo(new SphereGeometry(0.14, 10, 8), 0.022, 9.2, 140 + idx), ivy, { pos: [ix, iy, iz] }),
+      mesh(sculptGeo(new SphereGeometry(0.1, 10, 8), 0.018, 10.4, 150 + idx), kit.clay(0x4fc46e), { pos: [ix + 0.09, iy - 0.08, iz + 0.06] }),
     );
   }
 
