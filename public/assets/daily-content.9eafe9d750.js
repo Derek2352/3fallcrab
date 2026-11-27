@@ -4,10 +4,10 @@ const SPRINT_DAYS = 14;
 const MAX_SHIELDS = 2;
 const SHIELD_EVERY = 7;
 const CATEGORIES = {
-spend: { en: "Smart Spending", zh: "精明消費", color: "#FF7B35", badgeBg: "#FFF0E5", badgeFg: "#9A3408" },
-save: { en: "Pay Yourself First", zh: "先儲後使", color: "#14968B", badgeBg: "#E3F7F4", badgeFg: "#0B665E" },
-scam: { en: "Scam & Risk Shield", zh: "防騙與保障", color: "#8B6CF2", badgeBg: "#EFEAFF", badgeFg: "#4C2FA8" },
-future: { en: "Credit & Long-Term", zh: "信貸與長線", color: "#2F9A4C", badgeBg: "#E5F5E9", badgeFg: "#1B6B33" },
+spend: { en: "Smart Spending", zh: "精明消費", color: "#B4451D", badgeBg: "#F2DCC4", badgeFg: "#7A2908" },
+save: { en: "Pay Yourself First", zh: "先儲後使", color: "#0F5D57", badgeBg: "#D6EAE5", badgeFg: "#0C524C" },
+scam: { en: "Scam & Risk Shield", zh: "防騙與保障", color: "#5A3F9E", badgeBg: "#E5DCF0", badgeFg: "#452988" },
+future: { en: "Credit & Long-Term", zh: "信貸與長線", color: "#1D5F32", badgeBg: "#D9EAD7", badgeFg: "#165028" },
 };
 const QUESTIONS = [
 {

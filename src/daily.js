@@ -6,6 +6,122 @@
   const S3D = window.TFF_DAILY3D;
   const $ = (id) => document.getElementById(id);
 
+  // ---------- Procedural Papercraft Cardstock Fibre & Hand-Inked Path Helpers ----------
+  function paperRng(seed) {
+    let a = (seed >>> 0) || 0x9e3779b9;
+    return () => {
+      a = (a + 0x6d2b79f5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function tileNoise2D(size, cells, r) {
+    const lat = new Float32Array(cells * cells);
+    for (let i = 0; i < lat.length; i++) lat[i] = r();
+    const out = new Float32Array(size * size);
+    const s = cells / size;
+    for (let y = 0; y < size; y++) {
+      const fy = y * s, y0 = Math.floor(fy), ty = fy - y0, sy = ty * ty * (3 - 2 * ty);
+      const r0 = (y0 % cells) * cells, r1 = ((y0 + 1) % cells) * cells;
+      for (let x = 0; x < size; x++) {
+        const fx = x * s, x0 = Math.floor(fx), tx = fx - x0, sx = tx * tx * (3 - 2 * tx);
+        const c0 = x0 % cells, c1 = (x0 + 1) % cells;
+        const a = lat[r0 + c0] + (lat[r0 + c1] - lat[r0 + c0]) * sx;
+        const b = lat[r1 + c0] + (lat[r1 + c1] - lat[r1 + c0]) * sx;
+        out[y * size + x] = a + (b - a) * sy;
+      }
+    }
+    return out;
+  }
+  function makePaperTile(seed, isDark) {
+    const size = 128;
+    const c = document.createElement("canvas");
+    c.width = size; c.height = size;
+    const g = c.getContext("2d");
+    if (!g) return null;
+    const r = paperRng(seed);
+    const lo = tileNoise2D(size, 4, r);
+    const th = tileNoise2D(size, 24, r);
+    const img = g.createImageData(size, size);
+    const d = img.data;
+    for (let i = 0, p = 0; i < lo.length; i++, p += 4) {
+      const v = (lo[i] - 0.5) * 0.8 + (th[i] - 0.5) * 0.9 + (r() - 0.5) * 0.45;
+      if (isDark) {
+        const light = v > 0;
+        d[p] = light ? 236 : 8;
+        d[p + 1] = light ? 222 : 14;
+        d[p + 2] = light ? 196 : 34;
+        d[p + 3] = Math.min(28, Math.round(Math.abs(v) * (light ? 16 : 26)));
+      } else {
+        const light = v > 0;
+        d[p] = light ? 251 : 94;
+        d[p + 1] = light ? 246 : 62;
+        d[p + 2] = light ? 234 : 38;
+        d[p + 3] = Math.min(30, Math.round(Math.abs(v) * (light ? 22 : 18)));
+      }
+    }
+    g.putImageData(img, 0, 0);
+    // Wrapped curved cotton-rag fibres (seamless 128px tile)
+    const count = isDark ? 42 : 64;
+    const lightF = isDark ? "rgba(245,234,214,0.085)" : "rgba(251,246,234,0.24)";
+    const darkF = isDark ? "rgba(6,12,28,0.16)" : "rgba(116,82,50,0.095)";
+    g.lineCap = "round";
+    for (let i = 0; i < count; i++) {
+      const x = r() * size, y = r() * size;
+      const a = r() < 0.35 ? 0.18 * (r() - 0.5) : r() * Math.PI;
+      const len = 3 + r() * r() * 14, bend = (r() - 0.5) * len * 0.45;
+      const dx = Math.cos(a) * len, dy = Math.sin(a) * len;
+      g.strokeStyle = r() < 0.65 ? lightF : darkF;
+      g.lineWidth = 0.65 + r() * 0.75;
+      for (const ox of [-size, 0, size]) for (const oy of [-size, 0, size]) {
+        if (x + ox + len < 0 || x + ox - len > size || y + oy + len < 0 || y + oy - len > size) continue;
+        g.beginPath();
+        g.moveTo(x + ox, y + oy);
+        g.quadraticCurveTo(x + ox + dx * 0.5 - (dy / len) * bend, y + oy + dy * 0.5 + (dx / len) * bend, x + ox + dx, y + oy + dy);
+        g.stroke();
+      }
+    }
+    // Rare recycled pulp flecks
+    const flecks = isDark ? 5 : 8;
+    for (let i = 0; i < flecks; i++) {
+      g.fillStyle = isDark ? "rgba(245,234,214,0.09)" : "rgba(90,58,40,0.13)";
+      g.beginPath();
+      g.ellipse(r() * size, r() * size, 0.5 + r() * 0.8, 0.35 + r() * 0.55, r() * 3, 0, Math.PI * 2);
+      g.fill();
+    }
+    return c;
+  }
+  function inkPath(g, pts, w, r, ink) {
+    const P = pts.map(([x, y]) => [x + (r() - 0.5) * 3.2 * w, y + (r() - 0.5) * 3.2 * w]);
+    g.save();
+    g.strokeStyle = ink || "#4A2C1D";
+    g.lineCap = "round";
+    g.lineJoin = "round";
+    g.beginPath();
+    g.moveTo(P[0][0], P[0][1]);
+    for (let i = 1; i < P.length; i++) {
+      const [ax, ay] = P[i - 1], [bx, by] = P[i], b = (r() - 0.5) * 0.14;
+      g.quadraticCurveTo((ax + bx) / 2 - (by - ay) * b, (ay + by) / 2 + (bx - ax) * b, bx, by);
+    }
+    for (const [alpha, mult] of [[0.10, 3.2], [0.78, 1]]) {
+      g.globalAlpha = alpha;
+      g.lineWidth = w * mult;
+      g.stroke();
+    }
+    g.restore();
+  }
+  let cachedPaperCanvas = null;
+  function initPapercraftSurface() {
+    try {
+      const dayTile = makePaperTile(17, false);
+      const nightTile = makePaperTile(29, true);
+      cachedPaperCanvas = dayTile;
+      if (dayTile) document.documentElement.style.setProperty("--paper-tile", `url("${dayTile.toDataURL("image/png")}")`);
+      if (nightTile) document.documentElement.style.setProperty("--paper-tile-night", `url("${nightTile.toDataURL("image/png")}")`);
+    } catch {}
+  }
+
   // ---------- Storage & Browser Environment ----------
   const LS = {
     uid: "tff_daily_uid",
@@ -133,7 +249,7 @@
   let deferredInstall = null;
   let stage = null;
 
-  const RING_CIRC = 2 * Math.PI * 116; // 728.849...
+  const RING_CIRC = 2 * Math.PI * 115; // 722.566...
 
   function saveLocal() { lsSet(LS.state, state); }
 
@@ -556,8 +672,7 @@
     const cat = D.CATEGORIES[q.cat] || D.CATEGORIES.spend;
     const catEl = $("qCat");
     catEl.textContent = t(cat.en, cat.zh);
-    catEl.style.backgroundColor = cat.badgeBg;
-    catEl.style.color = cat.badgeFg;
+    catEl.dataset.cat = q.cat;
 
     $("qEn").textContent = q.en;
     $("qZh").textContent = q.zh;
@@ -1298,129 +1413,256 @@
     const c = document.createElement("canvas");
     c.width = 1080; c.height = 1350;
     const g = c.getContext("2d");
+    const pr = paperRng(1408 + (state.profile.totalDays || 14));
+    const tile = cachedPaperCanvas || makePaperTile(17, false);
+    const pat = tile ? g.createPattern(tile, "repeat") : null;
 
-    // Warm HK Passbook Commemorative Card
-    const bg = g.createLinearGradient(0, 0, 0, 1350);
-    bg.addColorStop(0, "#14968B");
-    bg.addColorStop(1, "#0D565E");
-    g.fillStyle = bg;
+    // 1. Dyed Harbour-Teal Kraft Outer Backing Mat (zero glossy gradients, zero #fff/#000)
+    g.fillStyle = "#165E59";
     g.fillRect(0, 0, 1080, 1350);
+    if (pat) { g.save(); g.globalAlpha = 0.28; g.fillStyle = pat; g.fillRect(0, 0, 1080, 1350); g.restore(); }
 
-    // Warm cream main passbook sheet + inner double border
-    g.save();
-    g.shadowColor = "rgba(10,30,40,0.28)";
-    g.shadowBlur = 36;
-    g.shadowOffsetY = 14;
-    g.fillStyle = "#FFF8EC";
+    // Fast layered warm-umber contact + cast shadow helper (zero slow CPU shadowBlur stalls)
+    const paperDrop = (x, y, w, h, rad, layers) => {
+      g.save();
+      for (const [ox, oy, pad, alpha] of layers) {
+        g.fillStyle = `rgba(42,24,14,${alpha})`;
+        g.beginPath();
+        g.roundRect(x + ox - pad, y + oy - pad, w + pad * 2, h + pad * 2, rad);
+        g.fill();
+      }
+      g.restore();
+    };
+
+    // 2. Main Cotton-Rag Atlas Plate Sheet with Warm Umber Contact + Cast Shadow & Cut Edge
+    const sx = 58, sy = 58, sw = 964, sh = 1234;
+    paperDrop(sx, sy, sw, sh, [8, 11, 9, 10], [
+      [16, 20, 8, 0.08],
+      [11, 14, 4, 0.13],
+      [6, 8, 1, 0.18],
+      [3, 4, 0, 0.24],
+    ]);
+
+    // Cardstock thickness lip (lower-right edge) & procedural cotton fibres
+    g.fillStyle = "#C8B188";
     g.beginPath();
-    g.roundRect(64, 64, 952, 1222, 42);
+    g.roundRect(sx + 3, sy + 4, sw, sh, [6, 9, 7, 8]);
     g.fill();
+    g.save();
+    g.beginPath();
+    g.roundRect(sx, sy, sw, sh, [6, 9, 7, 8]);
+    g.clip();
+    g.fillStyle = "#EFE2C6";
+    g.fillRect(sx, sy, sw, sh);
+    if (pat) { g.fillStyle = pat; g.fillRect(sx, sy, sw, sh); }
+    // Subtle warm paper corner vignette (paper-ui.md §3)
+    const vig = g.createRadialGradient(540, 660, 260, 540, 660, 780);
+    vig.addColorStop(0, "rgba(251,246,234,0.06)");
+    vig.addColorStop(1, "rgba(110,74,42,0.12)");
+    g.fillStyle = vig;
+    g.fillRect(sx, sy, sw, sh);
     g.restore();
 
-    g.strokeStyle = "#DECFAF";
-    g.lineWidth = 3;
+    // Lit-side core highlight (upper-left) + warm sepia cut silhouette
+    g.save();
+    g.strokeStyle = "rgba(251,246,234,0.8)";
+    g.lineWidth = 2;
     g.beginPath();
-    g.roundRect(84, 84, 912, 1182, 30);
+    g.moveTo(sx + 6, sy + sh - 8); g.lineTo(sx + 6, sy + 6); g.lineTo(sx + sw - 8, sy + 6);
     g.stroke();
+    g.strokeStyle = "rgba(62,37,22,0.75)";
+    g.lineWidth = 2;
+    g.beginPath();
+    g.roundRect(sx, sy, sw, sh, [6, 9, 7, 8]);
+    g.stroke();
+    g.restore();
 
-    // Top coral celebratory ribbon
+    // 3. Atlas Plate Double Neatline Frame + Degree Tick Marks (paper-ui.md §3)
+    const nx = sx + 24, ny = sy + 24, nw = sw - 48, nh = sh - 48;
+    g.save();
+    g.strokeStyle = "rgba(74,44,29,0.72)";
+    g.lineWidth = 2.4;
+    g.strokeRect(nx, ny, nw, nh);
+    g.strokeStyle = "rgba(74,44,29,0.44)";
+    g.lineWidth = 1.2;
+    g.strokeRect(nx + 7, ny + 7, nw - 14, nh - 14);
+    g.strokeStyle = "rgba(74,44,29,0.48)";
+    g.lineWidth = 1.4;
+    for (let i = 1; i < 12; i++) {
+      const tx = nx + (nw * i) / 12;
+      const ty = ny + (nh * i) / 12;
+      g.beginPath();
+      g.moveTo(tx, ny); g.lineTo(tx, ny + 9);
+      g.moveTo(tx, ny + nh); g.lineTo(tx, ny + nh - 9);
+      g.moveTo(nx, ty); g.lineTo(nx + 9, ty);
+      g.moveTo(nx + nw, ty); g.lineTo(nx + nw - 9, ty);
+      g.stroke();
+    }
+    g.restore();
+
+    // 4. Cut-Paper Harbour Terracotta Header Strip (cast shadow + lit-side bevel, zero gradient)
+    const bx = nx + 24, by = ny + 26, bw = nw - 48, bh = 148;
+    paperDrop(bx, by, bw, bh, [5, 7, 6, 7], [
+      [8, 10, 4, 0.08],
+      [4, 6, 1, 0.14],
+      [2, 3, 0, 0.22],
+    ]);
+    g.fillStyle = "#A43E1A";
+    g.beginPath();
+    g.roundRect(bx, by, bw, bh, [4, 6, 5, 6]);
+    g.fill();
     g.save();
     g.beginPath();
-    g.roundRect(64, 64, 952, 174, [42, 42, 16, 16]);
-    const rib = g.createLinearGradient(64, 64, 1016, 238);
-    rib.addColorStop(0, "#FF7B35");
-    rib.addColorStop(1, "#D84D18");
-    g.fillStyle = rib;
-    g.fill();
+    g.roundRect(bx, by, bw, bh, [4, 6, 5, 6]);
+    g.clip();
+    if (pat) { g.globalAlpha = 0.42; g.fillStyle = pat; g.fillRect(bx, by, bw, bh); }
     g.restore();
-
-    // Perforated ticket seam below photo + traditional HK red ink stamp chop
     g.save();
-    g.setLineDash([12, 10]);
-    g.strokeStyle = "#D4C29F";
-    g.lineWidth = 3;
-    g.beginPath(); g.moveTo(106, 1154); g.lineTo(974, 1154); g.stroke();
-    g.restore();
-
-    g.save();
-    g.translate(876, 978);
-    g.rotate(-0.14);
-    g.strokeStyle = "#C9352B";
-    g.lineWidth = 5;
-    g.beginPath(); g.roundRect(-72, -38, 144, 76, 12); g.stroke();
-    g.fillStyle = "#C9352B";
-    g.textAlign = "center";
-    g.textBaseline = "middle";
-    g.font = '900 22px "Noto Sans HK",sans-serif';
-    g.fillText("海傍印記", 0, -11);
-    g.font = '900 18px "Gluten",sans-serif';
-    g.fillText(`DAY ${state.profile.totalDays}`, 0, 16);
+    g.strokeStyle = "rgba(251,246,234,0.52)";
+    g.lineWidth = 1.8;
+    g.beginPath(); g.moveTo(bx + 4, by + bh - 4); g.lineTo(bx + 4, by + 4); g.lineTo(bx + bw - 4, by + 4); g.stroke();
+    g.strokeStyle = "#4A2C1D";
+    g.lineWidth = 2;
+    g.beginPath(); g.roundRect(bx, by, bw, bh, [4, 6, 5, 6]); g.stroke();
     g.restore();
 
     g.textAlign = "center";
     g.textBaseline = "middle";
-    g.fillStyle = "#FFFFFF";
-    g.font = '900 38px "Gluten","Arial Rounded MT Bold",sans-serif';
-    g.fillText("3 FALL CRAB · HARBOUR KEEP", 540, 128);
-    g.font = '700 26px "LXGW WenKai TC","Noto Sans HK",sans-serif';
-    g.fillText(t("STARTER SPRINT 14-DAY 3D PASS", "14日理財衝刺完成 3D 紀念證書"), 540, 184);
+    g.fillStyle = "#FBF6EA";
+    g.font = '800 36px "Gluten",Georgia,serif';
+    g.fillText("3 FALL CRAB · HARBOUR KEEP", 540, by + 56);
+    g.font = '700 24px Georgia,"LXGW WenKai TC","Noto Sans HK",serif';
+    g.fillText(t("STARTER SPRINT · 14-DAY HARBOUR ATLAS", "14日理財衝刺 · 海傍小天地紀念冊"), 540, by + 108);
 
-    // 3D Live Snapshot Window
+    // 5. Archival Photo-Mounted 3D Harbour Snapshot + 4 Kraft Photo Corners
     let snapUrl = "";
     if (stage && typeof stage.snapshot === "function") {
-      try { snapUrl = await Promise.resolve(stage.snapshot(800, 620)); } catch {}
+      try { snapUrl = await Promise.resolve(stage.snapshot(800, 600)); } catch {}
     }
     const snapImg = await loadImg(snapUrl);
+    const fx = 144, fy = 294, fw = 792, fh = 588;
+    // Cream photo mount card behind snapshot
+    paperDrop(fx - 14, fy - 14, fw + 28, fh + 28, 5, [
+      [10, 12, 4, 0.08],
+      [5, 7, 1, 0.14],
+      [2, 3, 0, 0.22],
+    ]);
+    g.fillStyle = "#F3E8D1";
+    g.beginPath();
+    g.roundRect(fx - 14, fy - 14, fw + 28, fh + 28, 4);
+    g.fill();
+    g.strokeStyle = "rgba(74,44,29,0.62)";
+    g.lineWidth = 1.8;
+    g.strokeRect(fx - 14, fy - 14, fw + 28, fh + 28);
+
     g.save();
     g.beginPath();
-    g.roundRect(140, 272, 800, 620, 32);
+    g.rect(fx, fy, fw, fh);
     g.clip();
-    const frameBg = g.createLinearGradient(140, 272, 140, 892);
-    frameBg.addColorStop(0, "#AEEAE4");
-    frameBg.addColorStop(1, "#54AECB");
-    g.fillStyle = frameBg;
-    g.fillRect(140, 272, 800, 620);
+    g.fillStyle = "#78C2D4";
+    g.fillRect(fx, fy, fw, fh);
     if (snapImg) {
-      // Cover-fit snapshot cleanly inside frame
       const ir = snapImg.width / Math.max(1, snapImg.height);
-      const fr = 800 / 620;
-      let dw = 800, dh = 620, dx = 140, dy = 272;
-      if (ir > fr) { dw = 620 * ir; dx = 140 - (dw - 800) / 2; }
-      else { dh = 800 / ir; dy = 272 - (dh - 620) / 2; }
+      const fr = fw / fh;
+      let dw = fw, dh = fh, dx = fx, dy = fy;
+      if (ir > fr) { dw = fh * ir; dx = fx - (dw - fw) / 2; }
+      else { dh = fw / ir; dy = fy - (dh - fh) / 2; }
       g.drawImage(snapImg, dx, dy, dw, dh);
     }
     g.restore();
-    g.strokeStyle = "#E5DAC6";
-    g.lineWidth = 4;
-    g.beginPath();
-    g.roundRect(140, 272, 800, 620, 32);
-    g.stroke();
+    g.strokeStyle = "rgba(74,44,29,0.52)";
+    g.lineWidth = 2;
+    g.strokeRect(fx, fy, fw, fh);
 
+    // 4 Cut-Kraft Photo Mounting Corners
+    const cs = 42;
+    const corners = [
+      [[fx - 20, fy - 20], [fx - 20 + cs, fy - 20], [fx - 20, fy - 20 + cs]],
+      [[fx + fw + 20, fy - 20], [fx + fw + 20 - cs, fy - 20], [fx + fw + 20, fy - 20 + cs]],
+      [[fx - 20, fy + fh + 20], [fx - 20 + cs, fy + fh + 20], [fx - 20, fy + fh + 20 - cs]],
+      [[fx + fw + 20, fy + fh + 20], [fx + fw + 20 - cs, fy + fh + 20], [fx + fw + 20, fy + fh + 20 - cs]],
+    ];
+    for (const tri of corners) {
+      g.save();
+      g.fillStyle = "rgba(62,37,22,0.22)";
+      g.beginPath();
+      g.moveTo(tri[0][0] + 3, tri[0][1] + 4); g.lineTo(tri[1][0] + 3, tri[1][1] + 4); g.lineTo(tri[2][0] + 3, tri[2][1] + 4);
+      g.closePath();
+      g.fill();
+      g.fillStyle = "#C9AD7E";
+      g.beginPath();
+      g.moveTo(tri[0][0], tri[0][1]); g.lineTo(tri[1][0], tri[1][1]); g.lineTo(tri[2][0], tri[2][1]);
+      g.closePath();
+      g.fill();
+      g.restore();
+      g.save();
+      g.beginPath();
+      g.moveTo(tri[0][0], tri[0][1]); g.lineTo(tri[1][0], tri[1][1]); g.lineTo(tri[2][0], tri[2][1]);
+      g.closePath();
+      g.clip();
+      if (pat) { g.globalAlpha = 0.65; g.fillStyle = pat; g.fillRect(fx - 24, fy - 24, fw + 48, fh + 48); }
+      g.strokeStyle = "rgba(251,246,234,0.6)";
+      g.lineWidth = 2;
+      g.beginPath(); g.moveTo(tri[2][0], tri[2][1]); g.lineTo(tri[0][0], tri[0][1]); g.lineTo(tri[1][0], tri[1][1]); g.stroke();
+      g.restore();
+      g.save();
+      g.strokeStyle = "#4A2C1D";
+      g.lineWidth = 1.6;
+      g.beginPath();
+      g.moveTo(tri[0][0], tri[0][1]); g.lineTo(tri[1][0], tri[1][1]); g.lineTo(tri[2][0], tri[2][1]);
+      g.closePath();
+      g.stroke();
+      g.restore();
+    }
+
+    // 6. Book-Plate Keeper Typography + Hand-Inked Divider + Vermilion HK Chop
     const p = state.profile;
     const who = (p.name || $("claimName").value.trim() || t("Harbour Keeper", "海傍守望者")).slice(0, 18);
-    g.fillStyle = "#1E2430";
-    g.font = '900 54px "Gluten","Arial Rounded MT Bold",sans-serif';
+    g.fillStyle = "#3E281C";
+    g.font = '800 50px "Gluten",Georgia,serif';
     g.fillText(who, 540, 962);
 
-    g.fillStyle = "#1D6F36";
-    g.font = '800 27px "Noto Sans HK",system-ui,sans-serif';
+    g.fillStyle = "#1D5F32";
+    g.font = 'italic 700 26px Georgia,"LXGW WenKai TC","Noto Sans HK",serif';
     g.fillText(
       t(
-        `Total Days: ${p.totalDays}   ·   Best Streak: ${p.bestStreak}d   ·   Shields: ${p.shields}/2`,
-        `累積打卡：${p.totalDays} 日   ·   最長連勝：${p.bestStreak} 日   ·   護盾：${p.shields}/2`,
+        `Total Days: ${p.totalDays}  ·  Best Streak: ${p.bestStreak}d  ·  Shields: ${p.shields}/2`,
+        `累積打卡：${p.totalDays} 日  ·  最長連勝：${p.bestStreak} 日  ·  護盾：${p.shields}/2`,
       ),
       540,
-      1032,
+      1026,
     );
 
     const keeper = (p.note || $("claimNote").value.trim() || t("One small steady money step every day.", "每日一個小習慣，慢慢儲起更好嘅未來。")).slice(0, 64);
-    g.fillStyle = "#4B5668";
-    g.font = '700 25px "LXGW WenKai TC","Noto Sans HK",sans-serif';
-    g.fillText(`“${keeper}”`, 540, 1106);
+    g.fillStyle = "#593E2D";
+    g.font = '700 24px Georgia,"LXGW WenKai TC","Noto Sans HK",serif';
+    g.fillText(`“${keeper}”`, 540, 1094);
 
-    g.fillStyle = "#0F766E";
-    g.font = '700 22px "Noto Sans HK",system-ui,sans-serif';
-    g.fillText("3fallcrab.com/daily  ·  HSUHK Personal Finance Ambassador 2026", 540, 1212);
+    // Hand-inked horizontal ledger rule
+    const rulePts = [];
+    for (let x = 132; x <= 948; x += 48) rulePts.push([x, 1152]);
+    inkPath(g, rulePts, 2, pr, "rgba(74,44,29,0.68)");
+
+    // Traditional HK Vermilion Ink Chop Stamp (multiplied into cotton rag on lower-right photo mount margin)
+    g.save();
+    g.translate(876, 878);
+    g.rotate(-0.12);
+    g.globalCompositeOperation = "multiply";
+    const chopCol = "rgba(164,45,28,0.88)";
+    inkPath(g, [[-72, -39], [72, -39], [72, 39], [-72, 39], [-72, -39]], 3.2, pr, chopCol);
+    inkPath(g, [[-65, -32], [65, -32], [65, 32], [-65, 32], [-65, -32]], 1.4, pr, chopCol);
+    g.fillStyle = "rgba(164,45,28,0.90)";
+    g.textAlign = "center";
+    g.textBaseline = "middle";
+    g.font = '700 22px "LXGW WenKai TC","Noto Sans HK",serif';
+    g.fillText("海傍印記", 0, -10);
+    g.font = 'italic 700 18px Georgia,serif';
+    g.fillText(`DAY ${p.totalDays}`, 0, 17);
+    g.restore();
+
+    g.fillStyle = "#0F5D57";
+    g.font = '700 20px Georgia,"Noto Sans HK",serif';
+    g.fillText("3FALLCRAB.COM/DAILY  ·  HSUHK PERSONAL FINANCE AMBASSADOR 2026", 540, 1208);
 
     c.toBlob((blob) => {
       if (!blob) return;
@@ -1470,6 +1712,7 @@
     setLang: (v) => setLang(v, false),
   };
 
+  initPapercraftSurface();
   mount3D();
   renderAll();
   sayTalk("Drag to spin the harbour, or answer today's card below.", "左右拖曳轉動維港，答下面今日一題。", 4200);
