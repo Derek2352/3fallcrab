@@ -3,6 +3,7 @@
 import {
   BoxGeometry,
   CapsuleGeometry,
+  CatmullRomCurve3,
   ConeGeometry,
   CylinderGeometry,
   DoubleSide,
@@ -14,6 +15,7 @@ import {
   Shape,
   SphereGeometry,
   TorusGeometry,
+  Vector3,
 } from "three";
 import {
   addContactShadow,
@@ -101,6 +103,33 @@ function openMouthGeo(w = 0.2, hTop = 0.045, hBot = 0.13, depth = 0.03) {
   s.bezierCurveTo(w * 1.06, -hBot * 0.85, -w * 1.06, -hBot * 0.85, -w, hTop * 0.4);
   s.closePath();
   return new ExtrudeGeometry(s, { depth, bevelEnabled: false, curveSegments: 14 });
+}
+
+function taperedLockGeo(pts, rStart = 0.05, rEnd = 0.024, segs = 14, radial = 9) {
+  const geo = tubeGeo(pts, 1.0, segs, radial, false);
+  const pos = geo.attributes.position;
+  const curve = new CatmullRomCurve3(pts.map((p) => new Vector3(p[0], p[1], p[2])));
+  const centers = [];
+  for (let s = 0; s <= segs; s++) centers.push(curve.getPointAt(s / segs));
+  const ring = radial + 1;
+  for (let s = 0; s <= segs; s++) {
+    const t = s / segs;
+    const c = centers[s];
+    // Swell gently in upper mid-lock, taper smoothly into a soft rounded clay tip at t = 1
+    let r = rStart + (rEnd - rStart) * Math.pow(t, 1.25);
+    if (t > 0.86) r *= Math.max(0.18, Math.cos(((t - 0.86) / 0.14) * Math.PI * 0.48));
+    for (let j = 0; j < ring; j++) {
+      const idx = s * ring + j;
+      if (idx >= pos.count) break;
+      const dx = pos.getX(idx) - c.x;
+      const dy = pos.getY(idx) - c.y;
+      const dz = pos.getZ(idx) - c.z;
+      pos.setXYZ(idx, c.x + dx * r, c.y + dy * r, c.z + dz * r);
+    }
+  }
+  pos.needsUpdate = true;
+  geo.computeVertexNormals();
+  return geo;
 }
 
 function crabClawGeo() {
@@ -475,58 +504,74 @@ export function buildHumanFigurine(kit, who = "jack", hat = null, opts = {}) {
 
   // Canonical Hair Styles (Sculpted Stop-Motion Clay Locks — cast:false so faces stay cleanly lit!)
   if (isJackie) {
-    // Tilted back crown cap + solid occipital back base exposing forehead cleanly!
-    const jackieCap = mesh(new SphereGeometry(0.194, 24, 18, 0, Math.PI * 2, 0, Math.PI * 0.54), hair, {
-      pos: [0, 0.018, -0.042],
-      rot: [-0.46, 0, 0],
+    // 1. Solid watertight crown & occipital scalp dome (zero bald forehead trench, natural hairline!)
+    const crownMass = mesh(sculptGeo(new SphereGeometry(0.20, 26, 20), 0.006, 7, 19), hair, {
+      pos: [0, 0.026, -0.030],
+      scale: [1.03, 1.04, 1.0],
       cast: false,
     });
-    const backMass = mesh(sculptGeo(new SphereGeometry(0.195, 22, 18), 0.008, 7, 19), hair, {
-      pos: [0, 0.008, -0.046],
-      scale: [1.01, 1.04, 0.96],
+    // Rounded inner back-hair core cushion behind neck/upper-back (zero flat cylinder shelf or holes!)
+    const backCushion = mesh(sculptGeo(new SphereGeometry(0.176, 20, 16), 0.01, 7, 29), hair, {
+      pos: [0, -0.125, -0.122],
+      scale: [1.04, 1.16, 0.56],
       cast: false,
     });
-    // Continuous flowing back hair cape from below earline down to mid-back
-    const hairCape = mesh(sculptGeo(new CylinderGeometry(0.185, 0.212, 0.40, 22, 3, false, Math.PI * 0.46, Math.PI * 1.08), 0.012, 8, 29), hair, {
-      pos: [0, -0.155, -0.056],
-      cast: false,
-    });
-    head.add(jackieCap, backMass, hairCape);
+    head.add(crownMass, backCushion);
 
-    // Off-center left parting exposing warm forehead + cheek-hugging swept temple waves
+    // 2. Plump off-center swept forehead wings wrapping over temples & tucking seamlessly behind shoulders
     head.add(
-      mesh(tubeGeo([
-        [-0.056, 0.168, 0.106],
-        [-0.122, 0.126, 0.138],
-        [-0.168, 0.032, 0.118],
-        [-0.175, -0.12, 0.068],
-        [-0.168, -0.30, 0.022],
-      ], 0.034, 16, 8), hair, { cast: false }),
-      mesh(tubeGeo([
-        [-0.046, 0.168, 0.106],
-        [0.072, 0.14, 0.145],
-        [0.156, 0.066, 0.134],
-        [0.176, -0.10, 0.075],
-        [0.17, -0.30, 0.025],
-      ], 0.035, 16, 8), hair, { cast: false }),
-      // Signature prominent matte coral-pink temple hairclip sitting proud on right temple lock
-      mesh(roundedBoxGeo(0.076, 0.027, 0.024, 0.008, 0.005), clipMat, {
-        pos: [0.146, 0.114, 0.180],
-        rot: [0.14, 0.56, -0.34],
+      // Left swept wing (viewer's left)
+      mesh(taperedLockGeo([
+        [-0.052, 0.178, 0.072],
+        [-0.126, 0.134, 0.112],
+        [-0.180, 0.046, 0.082],
+        [-0.194, -0.072, 0.020],
+        [-0.182, -0.195, -0.062],
+        [-0.158, -0.285, -0.110],
+      ], 0.050, 0.028, 16, 10), hair, { cast: false }),
+      // Right swept wing (viewer's right, sweeps across upper brow & carries coral hairclip solidly!)
+      mesh(taperedLockGeo([
+        [-0.044, 0.178, 0.080],
+        [0.058, 0.154, 0.124],
+        [0.146, 0.094, 0.110],
+        [0.186, 0.004, 0.054],
+        [0.192, -0.112, -0.018],
+        [0.168, -0.268, -0.095],
+      ], 0.052, 0.028, 16, 10), hair, { cast: false }),
+      // Left & right temple/ear curtain filler waves bridging front wings solidly into back hair
+      mesh(taperedLockGeo([
+        [-0.115, 0.145, 0.042],
+        [-0.186, 0.045, 0.028],
+        [-0.196, -0.095, -0.032],
+        [-0.178, -0.245, -0.098],
+      ], 0.048, 0.026, 14, 9), hair, { cast: false }),
+      mesh(taperedLockGeo([
+        [0.118, 0.142, 0.045],
+        [0.188, 0.040, 0.026],
+        [0.196, -0.098, -0.036],
+        [0.176, -0.252, -0.102],
+      ], 0.048, 0.026, 14, 9), hair, { cast: false }),
+      // Signature matte coral-pink temple hairclip seated solidly ON the dark clay right temple wave
+      mesh(roundedBoxGeo(0.074, 0.026, 0.022, 0.008, 0.005), clipMat, {
+        pos: [0.130, 0.116, 0.148],
+        rot: [0.15, 0.56, -0.36],
         cast: false,
       }),
     );
-    // Overlapping sculpted wavy locks integrated into the back hair cape (zero crown gap!)
-    for (let i = -5; i <= 5; i++) {
-      const a = Math.PI + i * 0.22;
-      const sx = Math.sin(a) * 0.172, sz = Math.cos(a) * 0.162;
-      const sway = i % 2 ? 0.022 : -0.022;
-      head.add(mesh(tubeGeo([
-        [sx * 0.85, 0.125, sz * 0.84],
-        [sx * 1.12 + sway, -0.05, sz * 1.14 - 0.02],
-        [sx * 1.16 - sway, -0.22, sz * 1.16 - 0.04],
-        [sx * 1.08 + sway * 0.5, -0.355, sz * 1.1 - 0.03],
-      ], 0.036, 14, 8), hair, { cast: false }));
+
+    // 3. 13 overlapping tapered S-wave clay locks draping softly behind shoulders (organic scalloped hem!)
+    for (let i = -6; i <= 6; i++) {
+      const a = Math.PI + i * 0.21; // spans -126 deg around back to +126 deg
+      const ux = Math.sin(a), uz = Math.cos(a);
+      const sway = (i % 2 ? 0.020 : -0.020);
+      const edgeLift = Math.abs(i) / 6; // side locks slightly shorter, back center gently longer
+      const tipY = -0.345 + edgeLift * 0.058 + (i % 2 ? 0.012 : -0.01);
+      head.add(mesh(taperedLockGeo([
+        [ux * 0.145, 0.135, uz * 0.145 - 0.025],
+        [ux * 0.192 + sway, -0.025, uz * 0.178 - 0.035],
+        [ux * 0.196 - sway, -0.185, uz * 0.182 - 0.050],
+        [ux * 0.182 + sway * 0.5, tipY, uz * 0.168 - 0.048],
+      ], 0.052, 0.026, 14, 9), hair, { cast: false }));
     }
   } else {
     // Jack's full sculpted espresso clay hair mass (covers crown + back down to nape!)
