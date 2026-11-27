@@ -1,11 +1,9 @@
-// Harbour Keep (/daily) — Forest-style daily financial check-in & clay Victoria Harbour pier builder.
+// Harbour Keep (/daily) — Full-screen Forest-inspired 3D daily habit check-in & turntable gallery.
 (() => {
   "use strict";
   const D = window.TFF_DAILY;
-  const K = window.CLAY;
-  const A = window.GameAudio;
-  const AV = window.TFF_AVATAR;
-  const DEFS = new Map((window.ITEM_DEFS || []).map((d) => [d.id, d]));
+  const A = window.DailyAudio;
+  const S3D = window.TFF_DAILY3D;
   const $ = (id) => document.getElementById(id);
 
   // ---------- Storage & Browser Environment ----------
@@ -14,6 +12,7 @@
     key: "tff_daily_key",
     state: "tff_daily_state",
     email: "tff_daily_email",
+    dragSeen: "tff_daily_drag_seen",
   };
   const lsGet = (k, fb) => { try { const v = localStorage.getItem(k); return v == null ? fb : JSON.parse(v); } catch { return fb; } };
   const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
@@ -43,8 +42,6 @@
     return "";
   })();
 
-  const reduceMotion = () => window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
   function hktToday() {
     const parts = Object.fromEntries(
       new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Hong_Kong", year: "numeric", month: "2-digit", day: "2-digit" })
@@ -67,6 +64,38 @@
     return `${h}h ${String(m).padStart(2, "0")}m`;
   }
 
+  // ---------- Day-0 Starter Island + Complete 3D Showcase Catalog ----------
+  const DAY0_INFO = {
+    day: 0,
+    prop: "crab",
+    en: "3 Fall Crab & Starter Harbour Island",
+    zh: "蟹仔與起步碼頭小島",
+    descEn: "Your floating clay Victoria Harbour island and cheerful 3 Fall Crab — ready to grow one steady day at a time.",
+    descZh: "漂浮喺維港海面嘅黏土碼頭同開朗蟹仔，陪你一日一步慢慢起好小天地。",
+  };
+
+  function floorLabelFor(days) {
+    if (days <= 0) return "G/F";
+    const fl = days >= 14 ? 5 + Math.floor((days - 14) / 3) : (days >= 12 ? 4 : days >= 9 ? 3 : days >= 6 ? 2 : days >= 4 ? 1 : 0);
+    return fl === 0 ? "G/F" : `${fl}F`;
+  }
+
+  function milestoneInfo(day) {
+    const d = Math.max(0, Math.floor(Number(day) || 0));
+    if (d === 0) return DAY0_INFO;
+    return D.milestoneFor(d);
+  }
+
+  function showcaseDays() {
+    const days = [0, ...D.PIER_MILESTONES.map((m) => m.day)];
+    const cur = state.profile.totalDays || 0;
+    if (cur > 100) {
+      for (let w = 114; w <= cur + 14; w += 14) days.push(w);
+      if (!days.includes(cur)) days.push(cur);
+    }
+    return [...new Set(days)].sort((a, b) => a - b);
+  }
+
   // ---------- Local + Server State ----------
   let state = lsGet(LS.state, null) || {
     today: hktToday(),
@@ -79,38 +108,70 @@
     logs: [],
     pending: [],
   };
+
   let curQ = null;
-  let rescueTimerId = 0, rescueStartedAt = 0, rescueRemain = 60, rescueActive = false;
-  let popScale = 1, popAt = 0, crabMood = "idle", crabMoodTimer = 0;
+  let rescueTimerId = 0, rescueStartedAt = 0, rescueRemain = 60, rescueActive = false, lastRescueChime = 60;
+  let mood = "idle", moodTimer = 0;
+  let dockCollapsed = false;
+  let viewMode = "island"; // 'island' | 'item'
+  let inspectDay = null;
+  let lastTappedDay = null;
   let audioUnlocked = false;
   let deferredInstall = null;
+  let stage = null;
+
+  const RING_CIRC = 2 * Math.PI * 116; // 728.849...
 
   function saveLocal() { lsSet(LS.state, state); }
 
+  function tierFor(days) {
+    if (days >= 14) return 3;
+    if (days >= 7) return 2;
+    if (days >= 3) return 1;
+    return 0;
+  }
+
+  function resolvedSky(pref, days) {
+    if (pref === "day" || pref === "dusk" || pref === "night") return pref;
+    if (days >= 21) return "night";
+    if (days >= 13) return "dusk";
+    const hr = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Hong_Kong", hour: "2-digit", hour12: false }).format(new Date()));
+    if (hr >= 17 && hr <= 19) return "dusk";
+    if (hr >= 20 || hr <= 5) return "night";
+    return "day";
+  }
+
+  function applySkyTheme(sky) {
+    document.body.dataset.sky = sky;
+    const meta = $("themeColorMeta");
+    if (meta) {
+      meta.setAttribute("content", sky === "night" ? "#121C38" : sky === "dusk" ? "#C76B6B" : "#14968B");
+    }
+    if (A && typeof A.setSky === "function") {
+      try { A.setSky(sky); } catch {}
+    }
+  }
+
+  // ---------- Audio Integration (Reinvented DailyAudio) ----------
   function unlockAudio() {
     if (audioUnlocked) return;
     audioUnlocked = true;
     if (A) {
-      A.unlock();
-      A.music.setMode("menu");
-      A.music.setStage(Math.min(3, Math.floor((state.profile.totalDays || 0) / 4)));
-      A.music.start();
-    }
-    const hint = $("dailySoundHint");
-    if (hint) {
-      hint.textContent = A && A.isMuted()
-        ? "🔇 Sound muted · Tap 🔊 anytime to unmute · 音效已靜音"
-        : "🔊 Harbour music & SFX on · Tap 🔊 anytime to mute · 音效已開啟";
+      try {
+        A.setSky(resolvedSky(state.profile.sky, state.profile.totalDays || 0));
+        A.setTier(tierFor(state.profile.totalDays || 0));
+        A.unlock();
+      } catch {}
     }
   }
-  const sfx = (name) => { try { if (A) { A.unlock(); A.sfx(name); } } catch {} };
-
-  function setCrabMood(m, ms = 2600) {
-    crabMood = m;
-    clearTimeout(crabMoodTimer);
-    drawPier();
-    if (ms > 0) crabMoodTimer = setTimeout(() => { crabMood = "idle"; drawPier(); }, ms);
-  }
+  const sfx = (name) => {
+    try {
+      if (A && typeof A.sfx === "function") {
+        if (!audioUnlocked) unlockAudio();
+        A.sfx(name);
+      }
+    } catch {}
+  };
 
   function sayTalk(en, zh) {
     $("talkEn").textContent = en;
@@ -126,405 +187,203 @@
     const z = document.createElement("small"); z.lang = "zh-HK"; z.textContent = zh;
     s.append(b, z);
     wrap.replaceChildren(s);
-    setTimeout(() => { if (s.parentNode === wrap) s.remove(); }, 2200);
+    setTimeout(() => { if (s.parentNode === wrap) s.remove(); }, 2300);
   }
 
-  // ---------- Clay Artwork Rendering ----------
-  const itemCache = new Map();
-  function drawItemOn(g, id, x, y, scale = 1, rot = 0) {
-    const def = DEFS.get(id);
-    if (!def) return;
-    let sp = itemCache.get(id);
-    if (!sp) {
-      const pad = 16, w = 136, h = 136;
-      const c = document.createElement("canvas"); c.width = w * 2; c.height = h * 2;
-      const cg = c.getContext("2d"); cg.setTransform(2, 0, 0, 2, w, h);
-      try { def.draw(cg); } catch {}
-      sp = { c, w, h };
-      itemCache.set(id, sp);
+  function setMood(m, ms = 2600) {
+    mood = m;
+    clearTimeout(moodTimer);
+    sync3DState();
+    if (ms > 0) moodTimer = setTimeout(() => { mood = "idle"; sync3DState(); }, ms);
+  }
+
+  // ---------- Three.js 3D World Bridge ----------
+  function computeVerticalOffset() {
+    const mobile = window.innerWidth < 640;
+    if (rescueActive) return 0.24;
+    if (viewMode === "item") return 0.24;
+    if (dockCollapsed) return 0.04;
+    return mobile ? 0.28 : 0.24;
+  }
+
+  function sync3DState() {
+    const p = state.profile, days = p.totalDays || 0;
+    const sky = resolvedSky(p.sky, days);
+    applySkyTheme(sky);
+    if (A && typeof A.setTier === "function") {
+      try { A.setTier(tierFor(days)); } catch {}
     }
-    g.save();
-    g.translate(x, y);
-    if (rot) g.rotate(rot);
-    if (scale !== 1) g.scale(scale, scale);
-    g.drawImage(sp.c, -sp.w / 2, -sp.h / 2, sp.w, sp.h);
-    g.restore();
+    if (!stage) return;
+    try {
+      stage.setState({
+        totalDays: days,
+        streak: p.streakPreview != null ? p.streakPreview : (p.streak || 0),
+        shields: p.shields || 0,
+        sky,
+        avatar: p.avatar || "crab",
+        mood,
+      });
+      stage.setVerticalOffset(computeVerticalOffset());
+    } catch {}
   }
 
-  function drawCrabLogo() {
-    const c = $("dailyCrabLogo");
-    if (!c) return;
-    const g = c.getContext("2d");
-    g.setTransform(1, 0, 0, 1, 0, 0);
-    g.clearRect(0, 0, c.width, c.height);
-    g.setTransform(c.width / 80, 0, 0, c.width / 80, 40 * (c.width / 80), 32 * (c.width / 80));
-    drawCrabCharacter(g, "happy", crabHatFor(state.profile.totalDays));
-  }
-
-  function crabHatFor(days) {
-    if (days >= 100) return "tophat";
-    if (days >= 30) return "straw";
-    if (days >= 14) return "halo";
-    return null;
-  }
-
-  function drawCrabCharacter(g, mood, hat) {
-    if (AV && AV.crab && AV.crab(g, mood)) {
-      if (hat) drawCrabHat(g, hat, mood, true);
+  function mount3D() {
+    const el = $("stage3d");
+    if (!el || !S3D || !S3D.isSupported || !S3D.isSupported()) {
+      $("stageFallback").hidden = false;
       return;
     }
-    const shell = K.ball(0, 6, 24, 15, { lump: 0.6, seed: 9 });
-    const claw = (sx) => {
-      const up = mood === "happy" ? -16 : (mood === "worried" ? -4 : 0);
-      const cx = sx * 30, cy = -2 + up;
-      K.blob(g, K.tube([[sx * 16, 6], [sx * 24, up * 0.5], [cx, cy + 4]], 6), "orange", { depth: 1.5, soft: 2, sheen: false });
-      const pinch = K.merge(K.ball(cx, cy - 2, 8, 7, { lump: 0.3, seed: sx + 4 }), K.ball(cx + sx * 4, cy - 9, 4.5, 5, { lump: 0.2, seed: sx + 8 }));
-      K.blob(g, pinch, "red", { depth: 2, soft: 2.6, sheen: false });
-    };
-    for (const sx of [-1, 1]) for (let i = 0; i < 3; i++) K.blob(g, K.tube([[sx * (12 + i * 5), 14], [sx * (19 + i * 6), 22], [sx * (21 + i * 6), 26]], 3.4), "orange", { depth: 1, soft: 1.4, sheen: false, rim: 0.6 });
-    claw(-1); claw(1);
-    K.blob(g, shell, "red", { sheen: { x: -8, y: 0, rx: 7, ry: 3 } });
-    for (const sx of [-1, 1]) {
-      K.blob(g, K.tube([[sx * 6, -2], [sx * 7, -12]], 3), "red", { depth: 1, soft: 1.4, sheen: false, rim: 0.6 });
-      K.eye(g, sx * 7, -15, 4.6, 0, mood === "happy" ? -0.4 : 0.2);
-    }
-    K.groove(g, K.poly(mood === "happy" ? [[-6, 9], [0, 13], [6, 9]] : [[-5, 10], [0, 12], [5, 10]], false), 1.4);
-    K.press(g, K.ball(-12, 8, 3, 2, { lump: 0.05 }), "pink", { sheen: false, texture: 0 });
-    K.press(g, K.ball(12, 8, 3, 2, { lump: 0.05 }), "pink", { sheen: false, texture: 0 });
-    if (hat) drawCrabHat(g, hat, mood, false);
-  }
-
-  function drawCrabHat(g, hat, mood, photo) {
-    const EYES = { photo: { idle: [-7.5, 8, -15, -20.5], happy: [-6, 9, -10, -15.5], worried: [-7.5, 7.5, -10.5, -16] }, clay: [-7, 7, -15, -20] };
-    const e = photo ? EYES.photo[mood === "happy" ? "happy" : mood === "worried" ? "worried" : "idle"] : EYES.clay;
-    const cx = (e[0] + e[1]) / 2, top = e[3] + 3;
-    const o = { depth: 1.2, soft: 1.6, sheen: false, rim: 0.5 };
-    g.save(); g.translate(cx, top); g.scale(1.25, 1.25);
-    if (hat === "halo") {
-      g.translate(0, -5.5);
-      g.strokeStyle = "rgba(255,200,61,.35)"; g.lineWidth = 5; g.beginPath(); g.ellipse(0, 0, 10.5, 3, 0, 0, 7); g.stroke();
-      g.strokeStyle = "#FFC83D"; g.lineWidth = 2.6; g.beginPath(); g.ellipse(0, 0, 10.5, 3, 0, 0, 7); g.stroke();
-    } else if (hat === "straw") {
-      K.blob(g, K.ball(0, -0.4, 16, 2.9, { lump: 0.3, seed: 5 }), "#E8C56A", o);
-      K.blob(g, K.blobPoly([[-7.5, -1.2], [-6.5, -7.2], [0, -8.6], [6.5, -7.2], [7.5, -1.2]], { lump: 0.3, seed: 6 }), "#F0D282", o);
-      K.press(g, K.slab(0, -2.5, 14.6, 2, 0.8, { lump: 0.1 }), "red", { sheen: false, texture: 0 });
-    } else if (hat === "tophat") {
-      K.blob(g, K.slab(0, -0.4, 20, 2.8, 1.3, { lump: 0.2, seed: 3 }), "black", o);
-      K.blob(g, K.slab(0, -5.3, 12, 8.4, 1.6, { lump: 0.2, seed: 4 }), "black", o);
-      K.press(g, K.slab(0, -2.6, 12, 2, 0.6, { lump: 0.05 }), "yellow", { sheen: false, texture: 0 });
-    }
-    g.restore();
-  }
-
-  function skyModeFor(pref, days) {
-    if (pref && pref !== "auto") return pref;
-    if (days >= 21) return "night";
-    if (days >= 13) return "dusk";
-    const hr = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Hong_Kong", hour: "2-digit", hour12: false }).format(new Date()));
-    if (hr >= 17 && hr <= 19) return "dusk";
-    if (hr >= 20 || hr <= 5) return "night";
-    return "day";
-  }
-
-  // Clickable prop regions on the pier canvas (filled during drawPier)
-  const hitZones = [];
-
-  function drawPier() {
-    const cv = $("pierCv");
-    if (!cv) return;
-    const W = 520, H = 410, dpr = Math.min(2, window.devicePixelRatio || 1);
-    if (cv.width !== W * dpr || cv.height !== H * dpr) { cv.width = W * dpr; cv.height = H * dpr; }
-    const g = cv.getContext("2d");
-    g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    hitZones.length = 0;
-
     const p = state.profile, days = p.totalDays || 0;
-    const skyMode = skyModeFor(p.sky, days);
-    const SKY = {
-      day: ["#58BAFF", "#8CD9FF", "#D2F2FF"],
-      dusk: ["#694EA6", "#FF8E6E", "#FFD38A"],
-      night: ["#12183C", "#25317A", "#4A499A"],
-    }[skyMode];
-
-    // 1. Sky + Sun/Moon + Clouds + Twinkles
-    const sg = g.createLinearGradient(0, 0, 0, 290);
-    sg.addColorStop(0, SKY[0]); sg.addColorStop(0.55, SKY[1]); sg.addColorStop(1, SKY[2]);
-    g.fillStyle = sg; g.fillRect(0, 0, W, H);
-
-    if (skyMode !== "day") {
-      const sr = K.rng(53);
-      for (let i = 0; i < (skyMode === "night" ? 18 : 8); i++) {
-        const sx = 22 + sr() * (W - 44), sy = 22 + sr() * 140;
-        g.fillStyle = "rgba(255,248,200,0.88)";
-        g.beginPath(); g.arc(sx, sy, 1.5 + sr() * 1.4, 0, 7); g.fill();
+    const sky = resolvedSky(p.sky, days);
+    try {
+      stage = S3D.mount(el, {
+        totalDays: days,
+        streak: p.streakPreview != null ? p.streakPreview : (p.streak || 0),
+        shields: p.shields || 0,
+        sky,
+        avatar: p.avatar || "crab",
+        mood,
+        onFirstDrag: () => {
+          unlockAudio();
+          const hint = $("swipeHint");
+          if (hint) hint.classList.add("seen");
+          lsRawSet(LS.dragSeen, "1");
+        },
+        onOrbitTick: () => {
+          if (audioUnlocked) sfx("orbitTick");
+        },
+        onTapProp: (payload) => {
+          unlockAudio();
+          sfx("tapProp");
+          const tappedDay = typeof payload === "number"
+            ? payload
+            : (payload && typeof payload.day === "number" ? payload.day : null);
+          if (tappedDay != null) {
+            lastTappedDay = tappedDay;
+            const m = milestoneInfo(tappedDay);
+            setMood("happy", 1800);
+            sayTalk(
+              `Day ${m.day}: ${m.en} — Tap "3D Inspect" to spin it up close!`,
+              `第${m.day}日：${m.zh} — 撳「3D賞物」即可近距離360°旋轉欣賞！`,
+            );
+          } else {
+            setMood("happy", 1400);
+            sayTalk(
+              "One small habit a day stacks taller than giant promises once a year!",
+              "每日一個細習慣，疊起上嚟勁過一年一次空口講白話！",
+            );
+          }
+        },
+      });
+      if (!stage) {
+        $("stageFallback").hidden = false;
+      } else {
+        window.__dailyStage = stage;
+        stage.setVerticalOffset(computeVerticalOffset());
       }
+    } catch {
+      stage = null;
+      $("stageFallback").hidden = false;
     }
-    if (skyMode === "night") {
-      g.save(); g.translate(W - 68, 66); g.rotate(-0.35);
-      g.fillStyle = "#FFF1A8"; g.beginPath(); g.moveTo(0, -16); g.quadraticCurveTo(-22, 0, 0, 16); g.quadraticCurveTo(-7, 0, 0, -16); g.fill();
-      g.restore();
-    } else {
-      const sunY = skyMode === "dusk" ? 132 : 84;
-      for (let i = 0; i < 8; i++) {
-        const a = i * Math.PI / 4 + 0.2;
-        K.blob(g, K.tube([[92 + 30 * Math.cos(a), sunY + 30 * Math.sin(a)], [92 + 40 * Math.cos(a), sunY + 40 * Math.sin(a)]], 5), "orange", { depth: 1.2, soft: 1.8, sheen: false, rim: 0.4 });
-      }
-      K.blob(g, K.ball(92, sunY, 24, 24, { lump: 0.5, seed: 3 }), "#FFE45C", { sheen: { x: 84, y: sunY - 9, rx: 7, ry: 4 } });
-      K.press(g, K.ball(84, sunY - 4, 2, 2.5, { lump: 0.05 }), "black", { sheen: false, texture: 0 });
-      K.press(g, K.ball(100, sunY - 4, 2, 2.5, { lump: 0.05 }), "black", { sheen: false, texture: 0 });
-      K.groove(g, K.poly([[84, sunY + 4], [92, sunY + 9], [100, sunY + 4]], false), 1.3);
+  }
+
+  // ---------- 3D Individual Thing Inspect Mode ----------
+  function enterInspect(day) {
+    if (rescueActive) return;
+    const targetDay = Math.max(0, Math.floor(Number(day) || 0));
+    const days = state.profile.totalDays || 0;
+    const locked = targetDay > 0 && targetDay > days;
+    viewMode = "item";
+    inspectDay = targetDay;
+    sfx("select");
+    if (stage && typeof stage.inspectMilestone === "function") {
+      try {
+        stage.inspectMilestone(targetDay, { locked });
+        stage.setVerticalOffset(computeVerticalOffset());
+      } catch {}
+    }
+    const m = milestoneInfo(targetDay);
+    sayTalk(
+      locked ? `Previewing Day ${m.day}: ${m.en} (swipe 360°!)` : `Inspecting Day ${m.day}: ${m.en} (swipe 360°!)`,
+      locked ? `預覽第${m.day}日：${m.zh}（可360°旋轉預覽！）` : `近距離欣賞第${m.day}日：${m.zh}（可360°自由旋轉！）`,
+    );
+    renderModeUI();
+  }
+
+  function exitInspect(quiet) {
+    if (viewMode === "island") return;
+    viewMode = "island";
+    inspectDay = null;
+    if (!quiet) sfx("cardClose");
+    if (stage && typeof stage.inspectMilestone === "function") {
+      try {
+        stage.inspectMilestone(null);
+        stage.setVerticalOffset(computeVerticalOffset());
+      } catch {}
+    }
+    renderModeUI();
+  }
+
+  function stepInspect(delta) {
+    const list = showcaseDays();
+    const cur = inspectDay == null ? 0 : inspectDay;
+    let idx = list.indexOf(cur);
+    if (idx === -1) {
+      idx = list.findIndex((d) => d >= cur);
+      if (idx === -1) idx = list.length - 1;
+    }
+    const nextIdx = (idx + delta + list.length) % list.length;
+    enterInspect(list[nextIdx]);
+  }
+
+  function setDockCollapsed(collapsed, quiet) {
+    dockCollapsed = !!collapsed;
+    const card = $("checkinCard");
+    card.dataset.collapsed = String(dockCollapsed);
+    $("dockExpandBtn").hidden = !dockCollapsed;
+    $("dockExpandedBody").hidden = dockCollapsed;
+    if (!quiet) sfx(dockCollapsed ? "cardClose" : "cardOpen");
+    if (stage) {
+      try { stage.setVerticalOffset(computeVerticalOffset()); } catch {}
+    }
+  }
+
+  function renderModeUI() {
+    const inInspect = viewMode === "item" && !rescueActive;
+    $("stagePill").hidden = inInspect;
+    $("backIslandBtn").hidden = !inInspect;
+    $("orbitStrip").hidden = rescueActive;
+    $("checkinCard").hidden = rescueActive || inInspect;
+    $("qRescue").hidden = !rescueActive;
+    $("focusRingOverlay").hidden = !rescueActive;
+    $("inspectBar").hidden = !inInspect;
+    $("inspectToggleBtn").hidden = rescueActive || inInspect;
+    $("inspectToggleBtn").setAttribute("aria-pressed", String(inInspect));
+    $("inspectToggleText").textContent = "3D Inspect";
+
+    // Nav tab active indicator
+    $("navPier").classList.toggle("active", !inInspect);
+    $("navPier").setAttribute("aria-current", !inInspect ? "page" : "false");
+    $("logBtn").classList.toggle("active", inInspect);
+
+    if (inInspect && inspectDay != null) {
+      const days = state.profile.totalDays || 0;
+      const m = milestoneInfo(inspectDay);
+      const locked = m.day > 0 && m.day > days;
+      const fl = m.day === 0 ? "Pier" : floorLabelFor(m.day);
+      $("inspectDayPill").textContent = `Day ${String(m.day).padStart(2, "0")} · ${fl}`;
+      const st = $("inspectStatusPill");
+      st.className = "inspect-status " + (locked ? "locked" : "unlocked");
+      st.textContent = locked ? `🔒 Unlocks Day ${m.day} · 第${m.day}日解鎖` : "✓ Unlocked · 已解鎖";
+      $("inspectTitleEn").textContent = m.en;
+      $("inspectTitleZh").textContent = m.zh;
+      $("inspectDescEn").textContent = m.descEn;
+      $("inspectDescZh").textContent = m.descZh;
     }
 
-    const cloud = (cx, cy, s, seed) => K.blob(g, K.merge(K.ball(cx, cy, 22 * s, 12 * s, { lump: 0.5, seed }), K.ball(cx + 18 * s, cy - 5 * s, 15 * s, 12 * s, { lump: 0.5, seed: seed + 1 }), K.ball(cx - 18 * s, cy + 2 * s, 13 * s, 10 * s, { lump: 0.5, seed: seed + 2 })), skyMode === "night" ? "#9AA8E8" : "white", { depth: 2.5, soft: 4 });
-    cloud(355, 76, 1, 11); cloud(210, 124, 0.7, 21);
-
-    // 2. Lion Rock + Peak Terrace (Day 90) + Lion Rock Pavilion (Day 75) + HK Skyline
-    const hill = [[-10, 260], [36, 225], [96, 206], [142, 180], [174, 174], [202, 194], [260, 212], [355, 225], [440, 206], [W + 10, 224], [W + 10, 310], [-10, 310]];
-    K.blob(g, K.blobPoly(hill, { lump: 1, seed: 4, step: 16 }), skyMode === "night" ? "#266858" : "#3FAE6A", { depth: 4, soft: 7, sheen: false });
-    if (days >= 75) {
-      K.blob(g, K.slab(174, 170, 14, 7, 1.5, { lump: 0.2 }), "#D9C3B0", { depth: 1, sheen: false });
-      K.blob(g, K.blobPoly([[162, 166], [186, 166], [190, 159], [158, 159]], { lump: 0.2 }), "orange", { depth: 1, sheen: false });
+    if (stage) {
+      try { stage.setVerticalOffset(computeVerticalOffset()); } catch {}
     }
-    if (days >= 90) {
-      K.blob(g, K.slab(438, 198, 30, 10, 3, { lump: 0.3 }), "#FFF4E2", { depth: 1.5, sheen: false });
-      K.blob(g, K.blobPoly([[418, 192], [458, 192], [464, 184], [412, 184]], { lump: 0.2 }), "teal", { depth: 1.5, sheen: false });
-    }
-
-    const r = K.rng(77), cols = ["pink", "teal", "purple", "orange", "blue", "green", "red", "yellow"];
-    let sx = 6, bi = 0;
-    while (sx < W - 12) {
-      const bw = 30 + r() * 24, bh = 55 + r() * 75, col = cols[bi % cols.length]; bi++;
-      const top = 300 - bh;
-      K.blob(g, K.slab(sx + bw / 2, top + bh / 2, bw, bh, 5, { lump: 0.7, seed: bi * 11 }), col, { depth: 3, soft: 5 });
-      for (let wy = top + 12; wy < 285; wy += 14) {
-        for (let wx = sx + 6; wx < sx + bw - 8; wx += 9) {
-          if (r() > 0.5) K.press(g, K.rrc(wx + 2, wy, 4, 6, 1), skyMode === "day" ? "cream" : "#FFF3A6", { sheen: false, texture: 0, depth: 0.5, soft: 0.7, rim: 0.2 });
-        }
-      }
-      if (days >= 21 && bi % 3 === 0) {
-        const bx = sx + bw / 2, gr = g.createLinearGradient(bx, top, bx + (bi % 2 ? 25 : -25), 25);
-        gr.addColorStop(0, "rgba(255,216,77,0.35)"); gr.addColorStop(1, "rgba(255,216,77,0)");
-        g.fillStyle = gr; g.beginPath(); g.moveTo(bx - 2, top); g.lineTo(bx + (bi % 2 ? 32 : -32), 25); g.lineTo(bx + (bi % 2 ? 18 : -18), 25); g.closePath(); g.fill();
-      }
-      sx += bw + 4 + r() * 6;
-    }
-    // Haze behind pier
-    g.fillStyle = skyMode === "night" ? "rgba(24,33,90,0.35)" : "rgba(255,255,255,0.28)";
-    g.fillRect(0, 150, W, 155);
-
-    // Day 45 Clock Tower on right promenade
-    if (days >= 45) {
-      K.blob(g, K.slab(456, 260, 26, 90, 4, { lump: 0.4, seed: 45 }), "#D84D3F", { depth: 2.5, soft: 4 });
-      K.blob(g, K.blobPoly([[441, 215], [471, 215], [456, 192]], { lump: 0.3 }), "#EAE2D2", { depth: 1.5, sheen: false });
-      K.press(g, K.ball(456, 232, 8, 8, { lump: 0.1 }), "white", { sheen: false });
-      K.groove(g, K.poly([[456, 232], [456, 227], [460, 232]], false), 1.3);
-      hitZones.push({ x: 438, y: 192, w: 38, h: 112, milestone: D.milestoneFor(45) });
-    }
-
-    // 3. Harbour Sea & Boats
-    K.blob(g, K.slab(W / 2, 355, W + 24, 120, 0, { lump: 0.4, seed: 5 }), skyMode === "night" ? "#1E66B8" : "blue", { depth: 4, soft: 7, sheen: false, texture: 0.12 });
-    for (let row = 0; row < 4; row++) {
-      const pts = []; for (let x = -8; x <= W + 8; x += 14) pts.push([x, 304 + row * 24 + Math.sin(x / 22 + row) * 3]);
-      K.blob(g, K.tube(pts, 5 - row * 0.5), row % 2 ? "#5DB3F5" : "sky", { depth: 1.4, soft: 2, sheen: false, rim: 0.4 });
-    }
-    // Day 7 Star Ferry
-    if (days >= 7) {
-      g.save(); g.translate(362, 286);
-      K.blob(g, K.blobPoly([[4, 24], [84, 24], [78, 36], [10, 36]], { lump: 0.3, seed: 3 }), "#1E7A4C", { depth: 1.5, sheen: false });
-      K.blob(g, K.slab(44, 17, 68, 12, 3, { lump: 0.25 }), "white", { depth: 1, sheen: false });
-      K.blob(g, K.slab(44, 7, 56, 9, 2, { lump: 0.2 }), "#2E8B57", { depth: 1, sheen: false });
-      g.restore();
-      hitZones.push({ x: 362, y: 284, w: 88, h: 42, milestone: D.milestoneFor(7) });
-    }
-    // Day 13 Red-Sail Junk (or Day 60 Golden Sail)
-    if (days >= 13) {
-      const sailCol = days >= 60 ? "yellow" : "red";
-      g.save(); g.translate(28, 282);
-      K.blob(g, K.tube([[34, 4], [34, 34]], 2.2), "brown", { depth: 0.8, sheen: false });
-      K.blob(g, K.blobPoly([[16, 8], [32, 6], [34, 30], [14, 32]], { lump: 0.3 }), sailCol, { depth: 1.5, sheen: false });
-      K.blob(g, K.blobPoly([[38, 12], [52, 10], [54, 30], [36, 31]], { lump: 0.3 }), sailCol, { depth: 1.5, sheen: false });
-      K.blob(g, K.blobPoly([[4, 32], [64, 30], [58, 42], [10, 42]], { lump: 0.3 }), "#A0522D", { depth: 1.5, sheen: false });
-      g.restore();
-      hitZones.push({ x: 28, y: 282, w: 68, h: 44, milestone: D.milestoneFor(days >= 60 ? 60 : 13) });
-    }
-
-    // Day 7+ Insurance Net across harbour when shields > 0
-    if (p.shields > 0) {
-      g.save();
-      g.strokeStyle = "#FFE45C"; g.lineWidth = 2.4;
-      g.beginPath(); g.moveTo(95, 340); g.quadraticCurveTo(260, 362, 425, 340); g.stroke();
-      for (let i = 0; i < p.shields; i++) {
-        const bx = 225 + i * 70, by = 351;
-        K.blob(g, K.ball(bx, by, 9, 9, { lump: 0.2 }), "red", { depth: 1, sheen: false });
-        K.press(g, K.ball(bx, by, 4, 4, { lump: 0.1 }), "white", { sheen: false });
-      }
-      g.restore();
-    }
-
-    // 4. Clay Pier Platform + Tower Floors
-    const baseY = 304;
-    // Pillar
-    K.blob(g, K.slab(260, 355, 76, 94, 8, { lump: 0.7, seed: 2 }), "#3A3F9E", { depth: 4, soft: 6 });
-    // Day 4+ Bamboo Scaffold under wings
-    if (days >= 4) {
-      g.save();
-      for (const sx of [-1, 1]) {
-        const px = 260 + sx * 96;
-        for (const ox of [-26, 0, 24]) K.blob(g, K.tube([[px + ox, baseY + 6], [px + ox - sx * 10, baseY + 62]], 3), "#D4B060", { depth: 0.8, sheen: false });
-        for (const oy of [baseY + 22, baseY + 42]) K.blob(g, K.tube([[px - 32, oy], [px + 32, oy]], 2.8), "#D4B060", { depth: 0.8, sheen: false });
-      }
-      g.restore();
-    }
-    // Pier Deck Slab (wider once Day 1+)
-    const deckW = days >= 1 ? 268 : 200;
-    K.blob(g, K.slab(260, baseY, deckW, 26, 7, { lump: 0.8, seed: 6 }), "yellow", { sheen: { x: 185, y: baseY - 6, rx: 28, ry: 3 } });
-    K.text(g, days >= 1 ? "海傍小天地 · HARBOUR KEEP" : "STARTER PIER · 起步碼頭", 260, baseY + 1, { size: 11, font: "display", color: "#25317A", weight: 900 });
-
-    // Tower Floors (Days 4, 6, 9, 12, 14 + Infinite floors above)
-    const floors = days >= 14 ? 5 + Math.min(4, Math.floor((days - 14) / 3)) : (days >= 12 ? 4 : days >= 9 ? 3 : days >= 6 ? 2 : days >= 4 ? 1 : 0);
-    const floorCols = ["#FFF4E2", "#FFE1EB", "#E3F7F4", "#EFEAFF", "#FFF0A8", "#DDF4E5", "#FFE6D8", "#E6EFFF", "#FFF4E2"];
-    const flH = 29, flW = 148;
-    let topDeckY = baseY - 13;
-
-    g.save();
-    if (!reduceMotion() && popAt && performance.now() - popAt < 500) {
-      const u = (performance.now() - popAt) / 500;
-      const sc = 1 + Math.sin(u * Math.PI) * 0.06;
-      g.translate(260, baseY); g.scale(sc, sc); g.translate(-260, -baseY);
-    }
-
-    for (let f = 0; f < floors; f++) {
-      const fy = baseY - 13 - flH / 2 - f * flH;
-      topDeckY = fy - flH / 2;
-      K.blob(g, K.slab(260, fy, flW - f * 3, flH, 5, { lump: 0.5, seed: 20 + f }), floorCols[f % floorCols.length], { depth: 2.5, soft: 4, sheen: false });
-      for (const wx of [-42, -14, 14, 42]) {
-        K.press(g, K.rrc(260 + wx - 6, fy - 7, 12, 13, 3), skyMode === "night" ? "#FFE45C" : "#7FD3FF", { sheen: false, texture: 0, depth: 0.8 });
-      }
-      K.text(g, `${f + 1}F`, 260 - (flW - f * 3) / 2 + 13, fy + 1, { size: 9, font: "display", color: "#25317A", weight: 900 });
-    }
-    if (days >= 14) {
-      // Rooftop Arch (5F+)
-      K.blob(g, K.slab(260, topDeckY - 4, flW - floors * 2 + 10, 9, 4, { lump: 0.4 }), "pink", { depth: 1.5, sheen: false });
-      topDeckY -= 8;
-    }
-
-    // Day 1: Piggy Bank
-    if (days >= 1) {
-      drawItemOn(g, "piggybank", 172, baseY - 25, 0.36);
-      hitZones.push({ x: 148, y: baseY - 47, w: 48, h: 40, milestone: D.milestoneFor(1) });
-    }
-    // Day 2: Pineapple Bun Bakery Cart
-    if (days >= 2) {
-      drawItemOn(g, "polobun", 354, baseY - 24, 0.36);
-      hitZones.push({ x: 330, y: baseY - 46, w: 48, h: 38, milestone: D.milestoneFor(2) });
-    }
-    // Day 3: Octopus & Passbook Kiosk (visible on right front pier wing)
-    if (days >= 3) {
-      drawItemOn(g, "passbook", 316, baseY - 19, 0.3);
-      hitZones.push({ x: 294, y: baseY - 38, w: 44, h: 34, milestone: D.milestoneFor(3) });
-    }
-    // Day 5: Rice Sack (visible on left front pier wing)
-    if (days >= 5 && floors >= 1) {
-      drawItemOn(g, "ricesack", 204, baseY - 24, 0.28);
-      hitZones.push({ x: 186, y: baseY - 42, w: 38, h: 34, milestone: D.milestoneFor(5) });
-    }
-    // Day 6: Cha Chaan Teng Neon Sign bracketed to 2F
-    if (days >= 6 && floors >= 2) {
-      const ny = baseY - 13 - flH * 1.5;
-      K.blob(g, K.tube([[330, ny], [338, ny]], 3), "#2E2838", { depth: 0.8, sheen: false });
-      K.blob(g, K.slab(354, ny, 38, 18, 4, { lump: 0.2 }), "#2E2838", { depth: 1.5, sheen: false });
-      K.text(g, "茶餐廳", 354, ny + 1, { size: 9, font: "zh", color: "#FF5FA2", weight: 700 });
-      hitZones.push({ x: 332, y: ny - 10, w: 44, h: 22, milestone: D.milestoneFor(6) });
-    }
-    // Day 8: Gold Padlock Vault
-    if (days >= 8) {
-      K.blob(g, K.slab(142, baseY - 22, 18, 16, 4, { lump: 0.2 }), "yellow", { depth: 1.5, sheen: false });
-      K.blob(g, K.tube([[136, baseY - 28], [136, baseY - 35], [148, baseY - 35], [148, baseY - 28]], 3), "yellow", { depth: 1, sheen: false });
-      hitZones.push({ x: 128, y: baseY - 40, w: 28, h: 30, milestone: D.milestoneFor(8) });
-    }
-    // Day 9: Bamboo Laundry Pole attached into 3F wall
-    if (days >= 9 && floors >= 3) {
-      const ly = baseY - 13 - flH * 2.5;
-      K.blob(g, K.tube([[154, ly], [192, ly - 3]], 2), "#D4B060", { depth: 0.6, sheen: false });
-      K.press(g, K.rrc(160, ly, 7, 10, 1), "pink", { sheen: false, texture: 0 });
-      K.press(g, K.rrc(170, ly - 1, 7, 10, 1), "sky", { sheen: false, texture: 0 });
-      hitZones.push({ x: 150, y: ly - 12, w: 44, h: 24, milestone: D.milestoneFor(9) });
-    }
-    // Day 10: 18222 Anti-Scam Lighthouse
-    if (days >= 10) {
-      K.blob(g, K.blobPoly([[96, baseY - 6], [116, baseY - 6], [112, baseY - 64], [100, baseY - 64]], { lump: 0.3 }), "white", { depth: 2, sheen: false });
-      K.blob(g, K.slab(106, baseY - 68, 14, 12, 3, { lump: 0.2 }), "red", { depth: 1.2, sheen: false });
-      K.press(g, K.ball(106, baseY - 68, 4.5, 4.5, { lump: 0.1 }), "#FFE45C", { sheen: false });
-      hitZones.push({ x: 92, y: baseY - 78, w: 30, h: 74, milestone: D.milestoneFor(10) });
-    }
-    // Day 12: Calculator on 4F side shelf
-    if (days >= 12 && floors >= 4) {
-      const cy = baseY - 13 - flH * 3.5;
-      K.blob(g, K.slab(339, cy + 10, 24, 5, 2, { lump: 0.2 }), "yellow", { depth: 1, sheen: false });
-      drawItemOn(g, "calculator", 341, cy - 1, 0.24);
-      hitZones.push({ x: 326, y: cy - 16, w: 28, h: 30, milestone: D.milestoneFor(12) });
-    }
-    // Day 25: Striped Parasol Deck
-    if (days >= 25) {
-      K.blob(g, K.tube([[402, baseY - 12], [402, baseY - 42]], 2.5), "brown", { depth: 0.8, sheen: false });
-      K.blob(g, K.blobPoly([[380, baseY - 40], [424, baseY - 40], [402, baseY - 56]], { lump: 0.3 }), "pink", { depth: 1.5, sheen: false });
-    }
-    // Day 30: Ding-Ding Tram on right edge
-    if (days >= 30) {
-      g.save(); g.translate(418, baseY - 28);
-      K.blob(g, K.slab(24, 0, 34, 34, 4, { lump: 0.3 }), "#2F9A4C", { depth: 1.5, sheen: false });
-      K.press(g, K.rrc(12, -10, 24, 8, 2), "#FFF4E2", { sheen: false });
-      K.press(g, K.rrc(12, 2, 24, 8, 2), "#FFF4E2", { sheen: false });
-      g.restore();
-    }
-    // Day 35: Lanterns
-    if (days >= 35) {
-      for (const lx of [195, 238, 282, 325]) {
-        K.blob(g, K.ball(lx, topDeckY - 6, 5.5, 6.5, { lump: 0.2 }), "red", { depth: 1, sheen: false });
-      }
-    }
-    // Day 100: Golden Crab Statue
-    if (days >= 100) {
-      K.blob(g, K.slab(134, baseY - 38, 20, 12, 3, { lump: 0.2 }), "yellow", { depth: 1.5, sheen: false });
-      K.blob(g, K.ball(134, baseY - 52, 11, 8, { lump: 0.2 }), "#FFE45C", { depth: 1.5 });
-    }
-
-    // 5. Companion Figures: Crab + Jack (Day 11+) + Jackie (Day 14+) or chosen Avatar on Rooftop!
-    if (AV && AV.draw) {
-      if (days >= 11) {
-        g.save(); g.translate(194, topDeckY - 54); g.scale(0.24, 0.24);
-        AV.draw(g, { who: "jack", stage: days >= 14 ? 1 : 0, tier: days >= 30 ? 3 : 2, hand: "piggy", mood: crabMood === "happy" ? "happy" : "idle", drops: 0, boost: days >= 14 });
-        g.restore();
-      }
-      if (days >= 14) {
-        g.save(); g.translate(296, topDeckY - 54); g.scale(0.24, 0.24);
-        AV.draw(g, { who: "jackie", stage: days >= 21 ? 2 : 1, tier: days >= 30 ? 3 : 2, hand: "piggy", mood: crabMood === "happy" ? "happy" : "idle", drops: 0, boost: true });
-        g.restore();
-      }
-    }
-    // Main companion (Crab or chosen Jack/Jackie)
-    const comp = p.avatar || "crab";
-    if (comp === "crab" || !AV || !AV.draw) {
-      g.save(); g.translate(260, topDeckY - 20); g.scale(0.78, 0.78);
-      drawCrabCharacter(g, crabMood, crabHatFor(days));
-      g.restore();
-    } else {
-      g.save(); g.translate(242, topDeckY - 72); g.scale(0.32, 0.32);
-      AV.draw(g, { who: comp, stage: Math.min(3, Math.floor(days / 10)), tier: days >= 14 ? 3 : 1, hand: "piggy", mood: crabMood === "happy" ? "happy" : "idle", drops: 0, boost: days >= 7 });
-      g.restore();
-      g.save(); g.translate(284, topDeckY - 14); g.scale(0.55, 0.55);
-      drawCrabCharacter(g, crabMood, crabHatFor(days));
-      g.restore();
-    }
-
-    // Day 18+: Seagulls
-    if (days >= 18) {
-      for (const [gx, gy] of [[310, 56], [346, 44], [380, 62]]) {
-        g.strokeStyle = "#fff"; g.lineWidth = 2.4; g.lineCap = "round";
-        g.beginPath(); g.moveTo(gx - 8, gy); g.quadraticCurveTo(gx - 3, gy - 6, gx, gy); g.quadraticCurveTo(gx + 3, gy - 6, gx + 8, gy); g.stroke();
-      }
-    }
-    g.restore();
   }
 
   // ---------- UI Rendering ----------
@@ -537,22 +396,33 @@
     const shownStreak = p.streakPreview != null ? p.streakPreview : (p.streak || 0);
     $("streakNum").textContent = String(shownStreak);
     $("shieldNum").textContent = String(p.shields || 0);
-    const flNum = days >= 14 ? 5 + Math.floor((days - 14) / 3) : (days >= 12 ? 4 : days >= 9 ? 3 : days >= 6 ? 2 : days >= 4 ? 1 : 0);
-    $("hudFloor").textContent = flNum === 0 ? "G/F" : `${flNum}F`;
-    $("hudMode").textContent = days >= 14 ? "Infinite Keep" : "Starter Sprint";
+    $("hudFloor").textContent = floorLabelFor(days);
     $("hudTotal").textContent = `Day ${days}`;
+    $("hudMode").textContent = days >= 14 ? "Infinite Keep" : "Starter Sprint";
     $("hudBest").textContent = `Best ${p.bestStreak || 0}d`;
 
-    // Sprint Track 1..14
+    // Sprint Track 1..14 inside 3D Collection Sheet (every chip clicks directly into 3D Inspect!)
     $("sprintProg").textContent = `${Math.min(14, days)} / 14`;
     const nodes = [];
     for (let i = 1; i <= 14; i++) {
       const li = document.createElement("li");
-      li.className = "sprint-node" + (i <= days ? " done" : i === days + 1 ? " next" : "");
-      const num = document.createElement("b"); num.textContent = i === 7 ? "7 🛟" : i === 14 ? "14 🎓" : String(i);
-      const st = document.createElement("span"); st.textContent = i <= days ? "✓" : i === days + 1 ? "Today" : "·";
-      li.title = D.milestoneFor(i).en + " · " + D.milestoneFor(i).zh;
-      li.append(num, st);
+      li.className = "sprint-node";
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "sprint-chip" + (i <= days ? " done" : i === days + 1 ? " next" : "");
+      const m = D.milestoneFor(i);
+      btn.title = `${m.en} · ${m.zh}`;
+      btn.setAttribute("aria-label", `Day ${i}: ${m.en} ${m.zh} — Inspect in 3D`);
+      const num = document.createElement("b");
+      num.textContent = i === 7 ? "7 🛟" : i === 14 ? "14 🎓" : String(i);
+      const st = document.createElement("span");
+      st.textContent = i <= days ? "✓" : i === days + 1 ? "Next" : "3D";
+      btn.append(num, st);
+      btn.addEventListener("click", () => {
+        closeModal(true);
+        enterInspect(i);
+      });
+      li.append(btn);
       nodes.push(li);
     }
     $("sprintTrack").replaceChildren(...nodes);
@@ -560,7 +430,8 @@
     if (days >= 14) {
       const nextM = D.nextMilestoneAfter(days);
       const prevM = D.PIER_MILESTONES.filter((m) => m.day <= days).slice(-1)[0] || { day: 14 };
-      const span = Math.max(1, nextM.day - prevM.day), pct = Math.min(100, Math.max(6, Math.round(((days - prevM.day) / span) * 100)));
+      const span = Math.max(1, nextM.day - prevM.day);
+      const pct = Math.min(100, Math.max(6, Math.round(((days - prevM.day) / span) * 100)));
       $("infBar").hidden = false;
       $("infNextText").textContent = `${nextM.en} · ${nextM.zh}`;
       $("infNextCount").textContent = `${days} / ${nextM.day}d`;
@@ -573,25 +444,25 @@
     if (days >= 14) {
       finBar.hidden = false;
       $("finisherSub").textContent = p.claimedAt
-        ? "Entry saved! Download your 14-Day Commemorative Pass anytime."
-        : "Claim your 14-Day Commemorative Pass & optional finisher prize registration.";
+        ? "Entry saved! Download your 3D 14-Day Commemorative Pass anytime."
+        : "Claim your 3D 14-Day Commemorative Pass & optional finisher prize registration.";
       $("certBtn").hidden = false;
       $("claimLockNote").textContent = p.claimedAt
-        ? "Your Day-14 Sprint finish is registered! You can update your nickname/note or download your pass below."
-        : "Unlocked! Leave an optional nickname & email for finisher follow-up, or download your pass right away.";
+        ? "Your Day-14 Sprint finish is registered! You can update your nickname/note or download your 3D pass below."
+        : "Unlocked! Leave an optional nickname & email for finisher follow-up, or download your 3D pass right away.";
     } else {
       finBar.hidden = true;
       $("certBtn").hidden = true;
     }
 
-    // Question selection & Card state
+    // Question selection & Check-in Card state
     const log = todayLog();
     const q = (log && D.questionById(log.qid)) || D.pickQuestion(uid, days, state.today, (state.logs || []).map((l) => l.qid));
     curQ = q;
     const dayNum = log && (log.status === "direct" || log.status === "rescued") ? log.day_num : days + 1;
-    $("qSlate").innerHTML = dayNum <= 14
-      ? `STARTER SPRINT · <b>DAY ${String(dayNum).padStart(2, "0")}</b> OF 14`
-      : `INFINITE KEEP · <b>DAY ${dayNum}</b>`;
+    $("qSlate").textContent = dayNum <= 14
+      ? `DAY ${String(dayNum).padStart(2, "0")} · 14`
+      : `DAY ${dayNum} · INFINITE`;
     $("qSlateZh").textContent = dayNum <= 14 ? `14日新手衝刺 · 第${dayNum}日打卡` : `無限擴建 · 第${dayNum}日打卡`;
     $("qDateChip").textContent = state.today;
 
@@ -600,10 +471,6 @@
     catEl.textContent = `${cat.en} · ${cat.zh}`;
     catEl.style.backgroundColor = cat.badgeBg;
     catEl.style.color = cat.badgeFg;
-
-    const tc = $("qThumbCv"), tg = tc.getContext("2d");
-    tg.setTransform(1, 0, 0, 1, 0, 0); tg.clearRect(0, 0, tc.width, tc.height);
-    drawItemOn(tg, q.item, 48, 48, 0.86);
 
     $("qEn").textContent = q.en;
     $("qZh").textContent = q.zh;
@@ -614,40 +481,64 @@
     $("doneTipEn").textContent = q.tip[0];
     $("doneTipZh").textContent = q.tip[1];
 
+    const card = $("checkinCard");
     if (log && (log.status === "direct" || log.status === "rescued")) {
       stopRescueTimer();
-      $("qAsk").hidden = true; $("qRescue").hidden = true; $("qDone").hidden = false;
+      card.classList.add("is-done");
+      $("qAsk").hidden = true;
+      $("qDone").hidden = false;
       $("doneHead").className = "oc-head good";
       $("doneTitle").textContent = log.status === "rescued" ? "Checked in via 60s Action!" : "Checked in for today!";
       $("doneTitleZh").textContent = log.status === "rescued" ? "60秒即場補救打卡成功！" : "今日打卡成功！";
       $("skipRescueWrap").hidden = true;
-      $("nextCountdown").textContent = `Next daily question in ${hktMidnightLeft()} (HKT midnight) · 距離下一題仲有 ${hktMidnightLeft()}`;
+      $("inspectTodayBtn").hidden = false;
+      $("nextCountdown").textContent = `Next daily question in ${hktMidnightLeft()} (HKT midnight) · 下一題仲有 ${hktMidnightLeft()}`;
+      $("collapsedIco").textContent = "✓";
+      $("collapsedLabelEn").textContent = `Day ${log.day_num} Checked in · View Tip`;
+      $("collapsedLabelZh").textContent = `已完成第${log.day_num}日打卡 · 展開睇貼士`;
     } else if (rescueActive) {
-      $("qAsk").hidden = true; $("qRescue").hidden = false; $("qDone").hidden = true;
+      card.classList.remove("is-done");
+      $("qAsk").hidden = true;
+      $("qDone").hidden = true;
     } else if (log && log.status === "skipped") {
-      $("qAsk").hidden = true; $("qRescue").hidden = true; $("qDone").hidden = false;
+      card.classList.add("is-done");
+      $("qAsk").hidden = true;
+      $("qDone").hidden = false;
       $("doneHead").className = "oc-head skip";
       $("doneTitle").textContent = "Honest check-in paused for today";
       $("doneTitleZh").textContent = "今日先休息一陣，聽日再試！";
       $("skipRescueWrap").hidden = false;
+      $("inspectTodayBtn").hidden = true;
       $("nextCountdown").textContent = `You can still do the 60s rescue before HKT midnight (${hktMidnightLeft()} left).`;
+      $("collapsedIco").textContent = "⏱";
+      $("collapsedLabelEn").textContent = "Today paused · Tap for 60s Rescue";
+      $("collapsedLabelZh").textContent = "今日暫停 · 午夜前仲可以補救打卡";
     } else {
-      $("qAsk").hidden = false; $("qRescue").hidden = true; $("qDone").hidden = true;
+      card.classList.remove("is-done");
+      $("qAsk").hidden = false;
+      $("qDone").hidden = true;
+      $("collapsedIco").textContent = "🌱";
+      $("collapsedLabelEn").textContent = `Today's Check-in · Day ${String(dayNum).padStart(2, "0")}`;
+      $("collapsedLabelZh").textContent = `今日打卡 · 第${dayNum}日題目`;
     }
 
     $("syncCodeText").textContent = state.syncCode || "CRAB-LOCAL";
     document.querySelectorAll(".av-opt").forEach((b) => {
       b.setAttribute("aria-checked", String(b.dataset.av === (p.avatar || "crab")));
     });
-    drawPier();
-    drawCrabLogo();
+
+    renderModeUI();
+    sync3DState();
   }
 
-  // ---------- 60-second Rescue Countdown ----------
+  // ---------- 60-Second Forest-Style Circular Focus Rescue ----------
   function startRescue() {
+    if (viewMode === "item") exitInspect(true);
+    setDockCollapsed(false, true);
     rescueActive = true;
     rescueStartedAt = Date.now();
     rescueRemain = 60;
+    lastRescueChime = 60;
     const btn = $("btnRescueDone");
     if (window.__dailyFastRescue) {
       btn.removeAttribute("aria-disabled");
@@ -656,20 +547,57 @@
     }
     $("rescueTimer").textContent = "60s";
     $("rescueBar").style.width = "100%";
+    const arc = $("focusRingArc");
+    if (arc) {
+      arc.setAttribute("stroke-dasharray", RING_CIRC.toFixed(2));
+      arc.setAttribute("stroke-dashoffset", "0");
+    }
+    mood = "focus";
+    if (A && typeof A.setFocusMode === "function") {
+      try { A.setFocusMode(true); } catch {}
+    }
+    if (stage && typeof stage.setFocusProgress === "function") {
+      try { stage.setFocusProgress(0.02); } catch {}
+    }
     renderAll();
+
     clearInterval(rescueTimerId);
     rescueTimerId = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - rescueStartedAt) / 1000);
-      rescueRemain = Math.max(0, 60 - elapsed);
+      const elapsedMs = Date.now() - rescueStartedAt;
+      const elapsedSec = elapsedMs / 1000;
+      const progress = Math.min(1, Math.max(0.02, elapsedSec / 60));
+      rescueRemain = Math.max(0, Math.ceil(60 - elapsedSec));
       $("rescueTimer").textContent = rescueRemain + "s";
-      $("rescueBar").style.width = Math.max(0, (rescueRemain / 60) * 100) + "%";
-      if (elapsed >= 3 || window.__dailyFastRescue) btn.removeAttribute("aria-disabled");
+      $("rescueBar").style.width = Math.max(0, ((60 - Math.min(60, elapsedSec)) / 60) * 100) + "%";
+      if (arc) {
+        arc.setAttribute("stroke-dashoffset", (RING_CIRC * Math.min(1, elapsedSec / 60)).toFixed(2));
+      }
+      if (stage && typeof stage.setFocusProgress === "function") {
+        try { stage.setFocusProgress(progress); } catch {}
+      }
+      // Subtle mindful wood-pulse every 15 seconds (45s, 30s, 15s)
+      if ((rescueRemain === 45 || rescueRemain === 30 || rescueRemain === 15) && lastRescueChime !== rescueRemain) {
+        lastRescueChime = rescueRemain;
+        sfx("rescueTick");
+      }
+      if (elapsedSec >= 3 || window.__dailyFastRescue) btn.removeAttribute("aria-disabled");
       if (rescueRemain <= 0) clearInterval(rescueTimerId);
-    }, 250);
+    }, 150);
   }
+
   function stopRescueTimer() {
+    const wasActive = rescueActive;
     rescueActive = false;
     clearInterval(rescueTimerId);
+    if (wasActive) {
+      if (A && typeof A.setFocusMode === "function") {
+        try { A.setFocusMode(false); } catch {}
+      }
+      if (stage && typeof stage.setFocusProgress === "function") {
+        try { stage.setFocusProgress(0); } catch {}
+      }
+      if (mood === "focus") mood = "idle";
+    }
   }
 
   // ---------- API Sync & Offline Queue ----------
@@ -698,7 +626,9 @@
       saveLocal();
       return { shieldSaved: 0, earnedShield: 0, sprintJustDone: false };
     }
-    if (existing && (existing.status === "direct" || existing.status === "rescued")) return { shieldSaved: 0, earnedShield: 0, sprintJustDone: false };
+    if (existing && (existing.status === "direct" || existing.status === "rescued")) {
+      return { shieldSaved: 0, earnedShield: 0, sprintJustDone: false };
+    }
     let streak = 1, shieldSaved = 0, shields = p.shields || 0;
     if (p.lastDate) {
       const diff = daysBetween(p.lastDate, today);
@@ -748,17 +678,34 @@
     }
 
     if (status === "skipped") {
-      sfx("uiClose");
-      sayTalk("Honest reflection counts too! Tap below anytime before midnight if you manage the 60s action.", "坦白面對都係一步！今日午夜前做到60秒行動隨時可以補救打卡！");
+      sfx("cardClose");
+      sayTalk(
+        "Honest reflection counts too! Tap below anytime before midnight if you manage the 60s action.",
+        "坦白面對都係一步！今日午夜前做到60秒行動隨時可以補救打卡！",
+      );
       $("shieldNotice").hidden = true;
     } else {
       const days = state.profile.totalDays;
       const m = D.milestoneFor(days);
-      popAt = performance.now();
-      if (!reduceMotion()) requestAnimationFrame(() => drawPier());
-      sfx(res.sprintJustDone || res.earnedShield || days === 7 || days === 14 ? "stage" : "wise");
-      if (A) A.music.setStage(Math.min(3, Math.floor(days / 4)));
-      setCrabMood("happy", 3200);
+      const isSpecial = res.sprintJustDone || res.earnedShield || days === 7 || days === 14 || D.PIER_MILESTONES.some((x) => x.day === days && days > 14);
+      if (res.sprintJustDone) sfx("sprint14");
+      else if (isSpecial) sfx("milestone");
+      else if (status === "rescued") sfx("rescueBloom");
+      else sfx("yesBloom");
+      if (res.shieldSaved) setTimeout(() => sfx("shieldCatch"), 380);
+
+      setMood(res.sprintJustDone ? "proud" : "happy", 3400);
+      if (stage && typeof stage.celebrate === "function") {
+        try {
+          stage.celebrate(
+            res.sprintJustDone ? "sprint14"
+              : res.shieldSaved ? "shield"
+              : isSpecial ? "milestone"
+              : status === "rescued" ? "rescue" : "yes",
+          );
+        } catch {}
+      }
+
       addStamp(
         res.sprintJustDone ? "14 DAYS COMPLETE! 🎓" : (status === "rescued" ? "60s RESCUE! ✓" : "CHECKED IN! ✓"),
         m.zh,
@@ -800,60 +747,139 @@
   // ---------- Event Wiring ----------
   document.addEventListener("pointerdown", unlockAudio, { once: true });
   document.addEventListener("keydown", unlockAudio, { once: true });
+  if (lsRaw(LS.dragSeen) === "1") {
+    const hint = $("swipeHint");
+    if (hint) hint.classList.add("seen");
+  }
 
   $("btnYes").addEventListener("click", () => {
     if (!curQ) return;
     if (curQ.good === "yes") submitCheckin("yes", "direct");
-    else { sfx("uiOpen"); setCrabMood("worried", 2500); sayTalk("Honesty is step 1! Try this 60-second micro-action right now to turn today around.", "肯面對已經贏咗一半！試吓用60秒即刻做個小補救！"); startRescue(); }
+    else {
+      sfx("rescueStart");
+      sayTalk(
+        "Honesty is step 1! Take 60 seconds right now to turn today around.",
+        "肯面對已經贏咗一半！用60秒即刻做個小補救，一樣可以打卡！",
+      );
+      startRescue();
+    }
   });
   $("btnNo").addEventListener("click", () => {
     if (!curQ) return;
     if (curQ.good === "no") submitCheckin("no", "direct");
-    else { sfx("uiOpen"); setCrabMood("worried", 2500); sayTalk("No worries at all — try this 60-second micro-action right now and still earn today's pier piece!", "唔緊要！用60秒即刻做一次呢個微行動，一樣可以今日打卡起碼頭！"); startRescue(); }
+    else {
+      sfx("rescueStart");
+      sayTalk(
+        "No worries at all — take 60 seconds for this micro-action and earn today's 3D piece!",
+        "唔緊要！用60秒即刻做一次呢個微行動，一樣可以今日打卡解鎖3D景物！",
+      );
+      startRescue();
+    }
   });
   $("btnRescueDone").addEventListener("click", () => {
-    if ($("btnRescueDone").getAttribute("aria-disabled") === "true") { sfx("uiNope"); return; }
+    if ($("btnRescueDone").getAttribute("aria-disabled") === "true") { sfx("nope"); return; }
     submitCheckin(curQ && curQ.good === "yes" ? "no" : "yes", "rescued");
   });
   $("btnRescueSkip").addEventListener("click", () => {
     submitCheckin(curQ && curQ.good === "yes" ? "no" : "yes", "skipped");
   });
-  $("btnLateRescue").addEventListener("click", () => { sfx("uiOpen"); startRescue(); });
+  $("btnLateRescue").addEventListener("click", () => {
+    sfx("rescueStart");
+    startRescue();
+  });
 
+  // Dock collapse / expand
+  $("dockToggle").addEventListener("click", () => setDockCollapsed(true));
+  $("dockExpandBtn").addEventListener("click", () => setDockCollapsed(false));
+
+  // Orbit & 3D Inspect controls
+  $("orbitLeftBtn").addEventListener("click", () => {
+    unlockAudio();
+    sfx("orbitTick");
+    if (stage && typeof stage.nudgeOrbit === "function") stage.nudgeOrbit(-0.45, 0);
+  });
+  $("orbitRightBtn").addEventListener("click", () => {
+    unlockAudio();
+    sfx("orbitTick");
+    if (stage && typeof stage.nudgeOrbit === "function") stage.nudgeOrbit(0.45, 0);
+  });
+  $("orbitResetBtn").addEventListener("click", () => {
+    unlockAudio();
+    sfx("select");
+    if (stage && typeof stage.resetCamera === "function") stage.resetCamera();
+  });
+  $("inspectToggleBtn").addEventListener("click", () => {
+    unlockAudio();
+    if (viewMode === "item") {
+      exitInspect();
+    } else {
+      const target = lastTappedDay != null ? lastTappedDay : (state.profile.totalDays || 0);
+      enterInspect(target);
+    }
+  });
+  $("inspectTodayBtn").addEventListener("click", () => {
+    unlockAudio();
+    enterInspect(state.profile.totalDays || 0);
+  });
+  $("backIslandBtn").addEventListener("click", () => exitInspect());
+  $("inspectBackBtn").addEventListener("click", () => exitInspect());
+  $("inspectPrevBtn").addEventListener("click", () => stepInspect(-1));
+  $("inspectNextBtn").addEventListener("click", () => stepInspect(1));
+
+  // Nav Pier button: exit inspect or toggle check-in sheet cleanly
+  $("navPier").addEventListener("click", () => {
+    unlockAudio();
+    if (viewMode === "item") {
+      exitInspect();
+      setDockCollapsed(false, true);
+    } else if (!rescueActive) {
+      setDockCollapsed(!dockCollapsed);
+    }
+  });
+
+  // Sound Mute Toggle
   $("dailyMute").addEventListener("click", () => {
     if (!A) return;
-    A.unlock();
     const m = A.toggleMute();
+    if (!m) {
+      unlockAudio();
+      try { A.unlock(); } catch {}
+      sfx("select");
+    }
     $("dailyMute").setAttribute("aria-pressed", String(m));
-    if (!m) sfx("uiToggle");
+    $("dailyMute").setAttribute("aria-label", m ? "Unmute sound 開啟音效" : "Mute sound 靜音");
   });
-  if (A) $("dailyMute").setAttribute("aria-pressed", String(A.isMuted()));
+  if (A && typeof A.isMuted === "function") {
+    const m = A.isMuted();
+    $("dailyMute").setAttribute("aria-pressed", String(m));
+    $("dailyMute").setAttribute("aria-label", m ? "Unmute sound 開啟音效" : "Mute sound 靜音");
+  }
 
-  const SKIES = ["auto", "day", "dusk", "night"];
+  // Sky Mood Toggle: cycles day -> dusk -> night -> day from currently displayed sky
+  const SKY_ORDER = ["day", "dusk", "night"];
   $("skyBtn").addEventListener("click", () => {
-    sfx("uiToggle");
-    const i = (SKIES.indexOf(state.profile.sky || "auto") + 1) % SKIES.length;
-    state.profile.sky = SKIES[i];
+    unlockAudio();
+    const cur = resolvedSky(state.profile.sky, state.profile.totalDays || 0);
+    const next = SKY_ORDER[(SKY_ORDER.indexOf(cur) + 1) % SKY_ORDER.length];
+    state.profile.sky = next;
     saveLocal();
-    drawPier();
-    sayTalk(`Sky set to ${SKIES[i].toUpperCase()}.`, `天空切換為：${{ auto: "自動跟時段", day: "日光維港", dusk: "黃昏日落", night: "璀璨夜景" }[SKIES[i]]}。`);
-    apiPost({ action: "claim", sky: state.profile.sky }).catch(() => {});
+    sync3DState();
+    sfx("skyShift");
+    const labels = {
+      day: ["Daylight Harbour", "日光維港"],
+      dusk: ["Golden Hour Dusk", "黃昏日落"],
+      night: ["Starlit Harbour Night", "璀璨夜景"],
+    }[next];
+    sayTalk(`Sky switched to ${labels[0]}.`, `天空已切換為：${labels[1]}。`);
+    apiPost({ action: "claim", sky: next }).catch(() => {});
   });
 
-  $("pierCv").addEventListener("click", (ev) => {
-    unlockAudio();
-    const r = $("pierCv").getBoundingClientRect();
-    const x = ((ev.clientX - r.left) / r.width) * 520;
-    const y = ((ev.clientY - r.top) / r.height) * 410;
-    const hit = hitZones.slice().reverse().find((z) => x >= z.x && x <= z.x + z.w && y >= z.y && y <= z.y + z.h);
-    if (hit && hit.milestone) {
-      sfx("uiSelect");
-      setCrabMood("happy", 1800);
-      sayTalk(`Day ${hit.milestone.day}: ${hit.milestone.en} — ${hit.milestone.descEn}`, `第${hit.milestone.day}日：${hit.milestone.zh} — ${hit.milestone.descZh}`);
-    } else {
-      sfx("click");
-      setCrabMood("happy", 1200);
-      sayTalk("One small habit a day stacks taller than giant promises once a year!", "每日一個細習慣，疊起上嚟勁過一年一次空口講白話！");
+  window.addEventListener("resize", () => {
+    if (stage) {
+      try {
+        stage.resize();
+        stage.setVerticalOffset(computeVerticalOffset());
+      } catch {}
     }
   });
 
@@ -867,7 +893,7 @@
     if (activeModal) closeModal(true);
     const m = $(id);
     if (!m) return;
-    sfx("uiOpen");
+    sfx("cardOpen");
     modalOpener = opener || document.activeElement;
     activeModal = m;
     $("dailyShell").inert = true;
@@ -877,7 +903,7 @@
   }
   function closeModal(quiet) {
     if (!activeModal) return;
-    if (!quiet) sfx("uiClose");
+    if (!quiet) sfx("cardClose");
     activeModal.hidden = true;
     $("dailyShell").inert = false;
     activeModal = null;
@@ -898,11 +924,24 @@
       return;
     }
     if (ev.target && /INPUT|TEXTAREA|SELECT/.test(ev.target.tagName)) return;
-    if (!$("qAsk").hidden) {
-      if (ev.key === "1") $("btnYes").click();
-      else if (ev.key === "2") $("btnNo").click();
+
+    if (ev.key === "Escape" && viewMode === "item") {
+      ev.preventDefault();
+      exitInspect();
+      return;
     }
-    if (ev.key === "m" || ev.key === "M") $("dailyMute").click();
+    if (!$("qAsk").hidden && !$("checkinCard").hidden && !dockCollapsed) {
+      if (ev.key === "1") { $("btnYes").click(); return; }
+      if (ev.key === "2") { $("btnNo").click(); return; }
+    }
+    if (ev.key === "m" || ev.key === "M") { $("dailyMute").click(); return; }
+    if (ev.key === "r" || ev.key === "R") { $("orbitResetBtn").click(); return; }
+    if (stage && typeof stage.nudgeOrbit === "function") {
+      if (ev.key === "ArrowLeft") { ev.preventDefault(); stage.nudgeOrbit(-0.28, 0); return; }
+      if (ev.key === "ArrowRight") { ev.preventDefault(); stage.nudgeOrbit(0.28, 0); return; }
+      if (ev.key === "ArrowUp") { ev.preventDefault(); stage.nudgeOrbit(0, -0.14); return; }
+      if (ev.key === "ArrowDown") { ev.preventDefault(); stage.nudgeOrbit(0, 0.14); return; }
+    }
   });
 
   for (const [mId, cId] of [["logModal", "logClose"], ["remindModal", "remindClose"], ["syncModal", "syncClose"]]) {
@@ -917,15 +956,36 @@
       s.className = "hist-dot " + l.status;
       s.textContent = `${l.day_date.slice(5)} · ${l.status === "direct" ? "✓" : l.status === "rescued" ? "⏱✓" : "–"}`;
       return s;
-    }) : [Object.assign(document.createElement("p"), { className: "modal-intro", textContent: "No check-ins recorded yet — answer today's question to place Day 1! 仲未有紀錄，答今日第一題就開始！" })]));
-    $("mileList").replaceChildren(...D.PIER_MILESTONES.map((m) => {
+    }) : [Object.assign(document.createElement("p"), {
+      className: "modal-intro",
+      textContent: "No check-ins recorded yet — answer today's question to place Day 1! 仲未有紀錄，答今日第一題就開始！",
+    })]));
+
+    const items = showcaseDays().map((d) => milestoneInfo(d));
+    $("mileList").replaceChildren(...items.map((m) => {
       const li = document.createElement("li");
-      if (days >= m.day) li.className = "unlocked";
-      const badge = document.createElement("span"); badge.className = "md"; badge.textContent = `Day ${m.day}`;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      const unlocked = m.day === 0 || days >= m.day;
+      btn.className = "mile-btn" + (unlocked ? " unlocked" : "");
+      const badge = document.createElement("span");
+      badge.className = "md";
+      badge.textContent = m.day === 0 ? "Day 0" : `Day ${m.day}`;
       const body = document.createElement("div");
-      const b = document.createElement("b"); b.textContent = `${m.en} · ${m.zh}`;
-      const sm = document.createElement("small"); sm.textContent = `${m.descEn} ${m.descZh}`;
-      body.append(b, sm); li.append(badge, body);
+      const b = document.createElement("b");
+      b.textContent = `${m.en} · ${m.zh}`;
+      const sm = document.createElement("small");
+      sm.textContent = `${m.descEn} ${m.descZh}`;
+      body.append(b, sm);
+      const go = document.createElement("span");
+      go.className = "mile-go";
+      go.textContent = unlocked ? "3D ↻" : "🔒 3D";
+      btn.append(badge, body, go);
+      btn.addEventListener("click", () => {
+        closeModal(true);
+        enterInspect(m.day);
+      });
+      li.append(btn);
       return li;
     }));
     openModal("logModal", $("logBtn"));
@@ -938,11 +998,14 @@
     if (!$("claimNote").value && state.profile.note) $("claimNote").value = state.profile.note;
     openModal("syncModal", $("syncBtn"));
   });
-  $("openClaimBtn").addEventListener("click", () => $("syncBtn").click());
+  $("openClaimBtn").addEventListener("click", () => {
+    closeModal(true);
+    $("syncBtn").click();
+  });
 
   // ---------- .ics Calendar Download & PWA Install ----------
   $("icsDownloadBtn").addEventListener("click", () => {
-    sfx("uiDone");
+    sfx("done");
     const t = ($("icsTime").value || "21:00").split(":");
     const hh = String(Math.max(0, Math.min(23, Number(t[0]) || 21))).padStart(2, "0");
     const mm = String(Math.max(0, Math.min(59, Number(t[1]) || 0))).padStart(2, "0");
@@ -959,7 +1022,7 @@
       "DURATION:PT5M",
       "RRULE:FREQ=DAILY;COUNT=30",
       "SUMMARY:3 Fall Crab Daily Check-in 每日理財打卡",
-      "DESCRIPTION:30-second daily financial habit check-in to grow your clay Victoria Harbour pier: https://3fallcrab.com/daily",
+      "DESCRIPTION:30-second daily financial habit check-in to grow your 3D clay Victoria Harbour island: https://3fallcrab.com/daily",
       "URL:https://3fallcrab.com/daily",
       "BEGIN:VALARM",
       "TRIGGER:PT0M",
@@ -986,17 +1049,17 @@
   });
   $("pwaInstallBtn").addEventListener("click", async () => {
     if (!deferredInstall) return;
-    sfx("uiSelect");
+    sfx("select");
     deferredInstall.prompt();
     try { await deferredInstall.userChoice; } catch {}
     deferredInstall = null;
     $("pwaInstallWrap").hidden = true;
   });
 
-  // ---------- Companion, Sync Code, Claim & Day-14 Certificate ----------
+  // ---------- Companion, Sync Code, Claim & Day-14 3D Commemorative Pass ----------
   document.querySelectorAll(".av-opt").forEach((btn) => {
     btn.addEventListener("click", () => {
-      sfx("uiSelect");
+      sfx("select");
       const av = btn.dataset.av;
       state.profile.avatar = av;
       saveLocal();
@@ -1006,7 +1069,7 @@
   });
 
   $("copySyncBtn").addEventListener("click", async () => {
-    sfx("uiDone");
+    sfx("done");
     try {
       await navigator.clipboard.writeText(state.syncCode || "");
       $("syncStatus").textContent = "Sync Code copied! · 備份碼已複製！";
@@ -1023,19 +1086,27 @@
     if (!code) return;
     $("restoreBtn").setAttribute("aria-disabled", "true");
     try {
-      const srv = await apiPost({ action: "restore", syncCode: code });
+      // Mint a fresh device uid/key so restoring onto an already-initialized browser avoids 409 uid_conflict.
+      const nextUid = randHex(24);
+      const nextKey = randHex(32);
+      const srv = await apiPost({ action: "restore", syncCode: code, uid: nextUid, key: nextKey });
+      uid = nextUid;
+      key = nextKey;
+      lsRawSet(LS.uid, uid);
+      lsRawSet(LS.key, key);
       state.today = srv.today || state.today;
       state.syncCode = srv.syncCode || code.toUpperCase();
       if (srv.profile) state.profile = srv.profile;
       if (Array.isArray(srv.logs)) state.logs = srv.logs;
+      state.pending = [];
       saveLocal();
       renderAll();
-      sfx("uiDone");
+      sfx("done");
       $("syncStatus").textContent = "Progress restored! · 進度已還原！";
       $("syncStatus").className = "post-status ok";
       $("restoreInput").value = "";
     } catch (e) {
-      sfx("uiNope");
+      sfx("nope");
       $("syncStatus").textContent = e.code === "rate_limited" ? "Too many attempts — wait a few minutes." : "Sync Code not found. Check spelling (e.g. CRAB-XXXX-YYYY).";
       $("syncStatus").className = "post-status bad";
     } finally {
@@ -1055,13 +1126,13 @@
       if (srv.profile) state.profile = srv.profile;
       saveLocal();
       renderAll();
-      sfx("uiDone");
+      sfx("done");
       $("claimStatus").textContent = state.profile.totalDays >= 14
-        ? "Saved & Day-14 Sprint claimed! You can download your pass below. · 已儲存並完成登記！"
+        ? "Saved & Day-14 Sprint claimed! You can download your 3D pass below. · 已儲存並完成登記！"
         : "Preferences saved! Keep checking in toward Day 14. · 已儲存資料！";
       $("claimStatus").className = "post-status ok";
     } catch (e) {
-      sfx("uiNope");
+      sfx("nope");
       $("claimStatus").textContent = e.code === "bad_email" ? "That email does not look valid. 請檢查電郵格式。" : "Could not save right now — try again shortly.";
       $("claimStatus").className = "post-status bad";
     } finally {
@@ -1069,34 +1140,108 @@
     }
   });
 
-  $("certBtn").addEventListener("click", () => {
-    sfx("uiDone");
+  function loadImg(src) {
+    return new Promise((resolve) => {
+      if (!src) { resolve(null); return; }
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+      img.src = src;
+    });
+  }
+
+  $("certBtn").addEventListener("click", async () => {
+    sfx("done");
     const c = document.createElement("canvas");
     c.width = 1080; c.height = 1350;
     const g = c.getContext("2d");
-    // Background matching 3 Fall Fun clay cards
-    g.fillStyle = "#FFD23F"; g.fillRect(0, 0, 1080, 1350);
-    K.blob(g, K.slab(540, 675, 960, 1210, 44, { lump: 2, seed: 8 }), "#FFF4E2", { depth: 8, soft: 14, sheen: false });
-    K.blob(g, K.slab(540, 145, 960, 150, 38, { lump: 1.5, seed: 9 }), "#FF5FA2", { depth: 5, soft: 8, sheen: false });
-    K.text(g, "3 FALL CRAB · HARBOUR KEEP", 540, 120, { size: 38, font: "display", color: "#2E2838", weight: 900 });
-    K.text(g, "14日理財衝刺完成證書 · STARTER SPRINT PASS", 540, 174, { size: 28, font: "zh", color: "#2E2838", weight: 700 });
 
-    // Copy current pier diorama into centre frame
-    const pier = $("pierCv");
-    if (pier) {
-      g.save();
-      g.beginPath(); g.roundRect(140, 260, 800, 630, 32); g.clip();
-      g.drawImage(pier, 140, 260, 800, 630);
-      g.restore();
+    // Coastal Forest-meets-3-Fall-Crab Commemorative Pass background
+    const bg = g.createLinearGradient(0, 0, 0, 1350);
+    bg.addColorStop(0, "#14968B");
+    bg.addColorStop(1, "#0E5C63");
+    g.fillStyle = bg;
+    g.fillRect(0, 0, 1080, 1350);
+
+    // Warm cream main pass card
+    g.save();
+    g.shadowColor = "rgba(10,30,40,0.28)";
+    g.shadowBlur = 36;
+    g.shadowOffsetY = 14;
+    g.fillStyle = "#FFFDF7";
+    g.beginPath();
+    g.roundRect(64, 64, 952, 1222, 46);
+    g.fill();
+    g.restore();
+
+    // Top coral-teal celebratory ribbon
+    g.save();
+    g.beginPath();
+    g.roundRect(64, 64, 952, 174, [46, 46, 20, 20]);
+    const rib = g.createLinearGradient(64, 64, 1016, 238);
+    rib.addColorStop(0, "#FF7B35");
+    rib.addColorStop(1, "#E35325");
+    g.fillStyle = rib;
+    g.fill();
+    g.restore();
+
+    g.textAlign = "center";
+    g.textBaseline = "middle";
+    g.fillStyle = "#FFFFFF";
+    g.font = '900 38px "Gluten","Arial Rounded MT Bold",sans-serif';
+    g.fillText("3 FALL CRAB · HARBOUR KEEP", 540, 128);
+    g.font = '700 26px "LXGW WenKai TC","Noto Sans HK",sans-serif';
+    g.fillText("14日理財衝刺完成證書 · STARTER SPRINT 3D PASS", 540, 184);
+
+    // 3D Live Snapshot Window
+    let snapUrl = "";
+    if (stage && typeof stage.snapshot === "function") {
+      try { snapUrl = await Promise.resolve(stage.snapshot(800, 620)); } catch {}
     }
+    const snapImg = await loadImg(snapUrl);
+    g.save();
+    g.beginPath();
+    g.roundRect(140, 272, 800, 620, 32);
+    g.clip();
+    const frameBg = g.createLinearGradient(140, 272, 140, 892);
+    frameBg.addColorStop(0, "#AEEAE4");
+    frameBg.addColorStop(1, "#54AECB");
+    g.fillStyle = frameBg;
+    g.fillRect(140, 272, 800, 620);
+    if (snapImg) {
+      // Cover-fit snapshot cleanly inside frame
+      const ir = snapImg.width / Math.max(1, snapImg.height);
+      const fr = 800 / 620;
+      let dw = 800, dh = 620, dx = 140, dy = 272;
+      if (ir > fr) { dw = 620 * ir; dx = 140 - (dw - 800) / 2; }
+      else { dh = 800 / ir; dy = 272 - (dh - 620) / 2; }
+      g.drawImage(snapImg, dx, dy, dw, dh);
+    }
+    g.restore();
+    g.strokeStyle = "#E5DAC6";
+    g.lineWidth = 4;
+    g.beginPath();
+    g.roundRect(140, 272, 800, 620, 32);
+    g.stroke();
 
     const p = state.profile;
     const who = (p.name || $("claimName").value.trim() || "Harbour Keeper").slice(0, 18);
-    K.text(g, who, 540, 965, { size: 54, font: "display", color: "#25317A", weight: 900 });
-    K.text(g, `Total Days: ${p.totalDays}   ·   Best Streak: ${p.bestStreak} days   ·   Shields: ${p.shields}/2`, 540, 1035, { size: 28, font: "sans", color: "#1D6631", weight: 800 });
+    g.fillStyle = "#1E2430";
+    g.font = '900 54px "Gluten","Arial Rounded MT Bold",sans-serif';
+    g.fillText(who, 540, 962);
+
+    g.fillStyle = "#1D6F36";
+    g.font = '800 27px "Noto Sans HK",system-ui,sans-serif';
+    g.fillText(`Total Days: ${p.totalDays}   ·   Best Streak: ${p.bestStreak}d   ·   Shields: ${p.shields}/2`, 540, 1032);
+
     const keeper = (p.note || $("claimNote").value.trim() || "One small steady money step every day.").slice(0, 64);
-    K.text(g, `“${keeper}”`, 540, 1110, { size: 26, font: "zh", color: "#5B516C", weight: 700 });
-    K.text(g, `3fallcrab.com/daily  ·  HSUHK Personal Finance Ambassador 2026`, 540, 1215, { size: 22, font: "sans", color: "#2E2838", weight: 700 });
+    g.fillStyle = "#4B5668";
+    g.font = '700 25px "LXGW WenKai TC","Noto Sans HK",sans-serif';
+    g.fillText(`“${keeper}”`, 540, 1106);
+
+    g.fillStyle = "#0F766E";
+    g.font = '700 22px "Noto Sans HK",system-ui,sans-serif';
+    g.fillText("3fallcrab.com/daily  ·  HSUHK Personal Finance Ambassador 2026", 540, 1212);
 
     c.toBlob((blob) => {
       if (!blob) return;
@@ -1128,9 +1273,17 @@
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("/sw.js").catch(() => {});
   }
-  if (AV && AV.onCast) AV.onCast(() => { drawPier(); drawCrabLogo(); });
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { drawPier(); });
 
+  // Expose lightweight controller hook for tests & diagnostics
+  window.__dailyApp = {
+    getStage: () => stage,
+    inspectDay: (d) => enterInspect(d),
+    exitInspect: () => exitInspect(true),
+    setDockCollapsed: (v) => setDockCollapsed(v, true),
+    getState: () => state,
+  };
+
+  mount3D();
   renderAll();
   initSession();
 })();

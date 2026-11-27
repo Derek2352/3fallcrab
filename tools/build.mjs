@@ -70,18 +70,10 @@ const PRELUDE = [
   "items/scam.js", "items/jackpot.js", "items/hk.js",
   "content.js", "avatar.js", "game-core.js",
 ];
-const DAILY_PRELUDE = [
-  "clay.js", "audio.js",
-  "items/wise.js", "items/hk.js", "items/risky-b.js",
-  "avatar.js",
-];
 
 function sourceFor(path) {
   if (path === "prelude.js") {
     return Buffer.from(PRELUDE.map((p) => readFileSync(join(src, p), "utf8")).join("\n"));
-  }
-  if (path === "daily-prelude.js") {
-    return Buffer.from(DAILY_PRELUDE.map((p) => readFileSync(join(src, p), "utf8")).join("\n"));
   }
   if (path === "game.js" && existsSync(join(src, "game"))) {
     const parts = readdirSync(join(src, "game")).filter((f) => f.endsWith(".js")).sort();

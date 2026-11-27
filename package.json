@@ -14,6 +14,7 @@
     "test:e2e": "node --test tests/e2e.test.mjs",
     "fonts": "python3 tools/subset-fonts.py",
     "medal": "node tools/medal3d/build.mjs",
+    "daily3d": "node tools/daily3d/build.mjs",
     "clips": "node tools/build.mjs && node tools/clips.mjs",
     "dev": "node tools/build.mjs && wrangler dev",
     "deploy": "node tools/build.mjs && wrangler deploy",
